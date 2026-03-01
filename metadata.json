@@ -1,0 +1,5 @@
+{
+  "name": "SPS Corner",
+  "description": "Sistem Pembayaran Sekolah Mandiri dengan Verifikasi AI",
+  "requestFramePermissions": ["camera", "microphone"]
+}
