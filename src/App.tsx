@@ -34,7 +34,7 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetError
         <p className="text-slate-600 mb-6">{error.message}</p>
         <button
           onClick={resetErrorBoundary}
-          className="bg-blue-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-800 transition-colors"
+          className="bg-amber-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-amber-800 transition-colors"
         >
           Coba Lagi
         </button>
@@ -46,7 +46,7 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetError
 function LoadingFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-900"></div>
     </div>
   );
 }

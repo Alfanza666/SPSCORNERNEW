@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { formatRupiah } from '../../../lib/utils';
+import { exportCSV, formatRupiah } from '../../../lib/utils';
 import { 
   Users, 
   TrendingUp, 
@@ -203,32 +203,38 @@ export default function AdminDashboard() {
     }
   };
 
-  const exportToCSV = () => {
-    if (recentTransactions.length === 0) return;
-    
-    const headers = ['ID', 'Pembeli', 'Total', 'Status', 'Tanggal'];
-    const csvContent = [
-      headers.join(','),
-      ...recentTransactions.map(tx => 
-        `${tx.id},"${tx.buyer_name}",${tx.total_amount},${tx.status},"${format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')}"`
-      )
-    ].join('\n');
+  const exportToCSV = async () => {
+    try {
+      const { data: allTx, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      if (!allTx || allTx.length === 0) {
+        alert('Tidak ada data transaksi untuk diexport.');
+        return;
+      }
+      
+      const headers = ['ID', 'Pembeli', 'Total', 'Status', 'Tanggal'];
+      const csvContent = [
+        headers.join(','),
+        ...allTx.map(tx => 
+          `${tx.id},"${tx.buyer_name}",${tx.total_amount},${tx.status},"${format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')}"`
+        )
+      ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `laporan_penjualan_${format(new Date(), 'yyyyMMdd')}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      exportCSV(csvContent, `laporan_penjualan_lengkap_${format(new Date(), 'yyyyMMdd')}.csv`);
+    } catch (error: any) {
+      console.error('Error exporting CSV:', error);
+      alert(`Gagal mengekspor laporan: ${error.message}`);
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -237,72 +243,72 @@ export default function AdminDashboard() {
 
   const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
     <motion.div 
-      whileHover={{ y: -5 }}
-      className="glass-card p-6 flex flex-col gap-4 border-zinc-200/60"
+      whileHover={{ y: -2 }}
+      className="glass-card p-3 sm:p-5 flex flex-col gap-2 border-zinc-200/60"
     >
       <div className="flex items-center justify-between">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color} shadow-sm`}>
-          <Icon className="w-6 h-6" />
+        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${color} shadow-sm`}>
+          <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
         {trend && (
-          <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-            {trend > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
+          <div className={`flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-xs font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg ${trend > 0 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+            {trend > 0 ? <ArrowUpRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <ArrowDownLeft className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
             {Math.abs(trend)}%
           </div>
         )}
       </div>
       <div>
-        <p className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-1">{title}</p>
-        <h3 className="text-2xl font-black text-zinc-900 tracking-tight">{value}</h3>
+        <p className="text-[9px] sm:text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-0.5 truncate">{title}</p>
+        <h3 className="text-sm sm:text-xl font-black text-zinc-900 tracking-tight truncate">{value}</h3>
       </div>
     </motion.div>
   );
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6 sm:space-y-10">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-zinc-900 tracking-tight mb-2">
+          <h1 className="text-2xl sm:text-4xl font-black text-zinc-900 tracking-tight mb-1 sm:mb-2">
             Overview Dashboard
           </h1>
-          <p className="text-zinc-500 flex items-center gap-2 font-medium text-sm md:text-base">
-            <Calendar className="w-4 h-4 text-emerald-500" />
+          <p className="text-sm sm:text-base text-zinc-500 flex items-center gap-2 font-medium">
+            <Calendar className="w-4 h-4 text-blue-500" />
             Hari ini, {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={fetchDashboardData}
-            className="flex-1 md:flex-none btn-secondary h-12 px-5 flex items-center justify-center gap-2"
+            className="btn-secondary h-10 px-3 sm:h-12 sm:px-5 flex items-center gap-2 text-xs sm:text-sm"
           >
-            <Activity className="w-4 h-4" />
-            Refresh
+            <Activity className="w-3 h-3 sm:w-4 sm:h-4" />
+            Refresh Data
           </button>
           <button 
             onClick={exportToCSV} 
-            className="flex-1 md:flex-none btn-primary h-12 px-5 flex items-center justify-center gap-2 shadow-emerald-600/20"
+            className="btn-primary h-10 px-3 sm:h-12 sm:px-5 flex items-center gap-2 shadow-blue-600/20 text-xs sm:text-sm"
           >
-            <Download className="w-4 h-4" />
-            Export
+            <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+            Export Laporan
           </button>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatCard 
           title="Total Pendapatan" 
           value={formatRupiah(stats.totalSales)} 
           icon={DollarSign} 
-          color="bg-emerald-100 text-emerald-600"
+          color="bg-blue-100 text-blue-600"
           trend={12}
         />
         <StatCard 
           title="Total Biaya (8%)" 
           value={formatRupiah(stats.totalFees)} 
           icon={CreditCard} 
-          color="bg-blue-100 text-blue-600"
+          color="bg-amber-100 text-amber-600"
           trend={8}
         />
         <StatCard 
@@ -319,24 +325,24 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-10">
+      <div className="grid lg:grid-cols-3 gap-6 sm:gap-10">
         {/* Sales Chart */}
-        <div className="lg:col-span-2 space-y-10">
-          <div className="glass-card p-8 border-zinc-200/60">
-            <div className="flex items-center justify-between mb-10">
+        <div className="lg:col-span-2 space-y-6 sm:space-y-10">
+          <div className="glass-card p-4 sm:p-8 border-zinc-200/60">
+            <div className="flex items-center justify-between mb-6 sm:mb-10">
               <div>
-                <h2 className="text-xl font-black text-zinc-900 tracking-tight">Grafik Penjualan</h2>
-                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">7 Hari Terakhir</p>
+                <h2 className="text-lg sm:text-xl font-black text-zinc-900 tracking-tight">Grafik Penjualan</h2>
+                <p className="text-[10px] sm:text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">7 Hari Terakhir</p>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">Pendapatan</span>
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500" />
+                  <span className="text-[8px] sm:text-[10px] font-black text-zinc-400 uppercase tracking-wider">Pendapatan</span>
                 </div>
               </div>
             </div>
             
-            <div className="h-[300px] md:h-[350px] w-full flex items-end gap-2 md:gap-3 pt-10">
+            <div className="h-[200px] sm:h-[350px] w-full flex items-end gap-2 sm:gap-3 pt-6 sm:pt-10">
               {salesData.length === 0 ? (
                 <div className="w-full h-full flex flex-col items-center justify-center text-zinc-300 gap-4">
                   <TrendingUp className="w-12 h-12 stroke-[1]" />
@@ -352,7 +358,7 @@ export default function AdminDashboard() {
                           initial={{ height: 0 }}
                           animate={{ height: `${Math.max(heightPercentage, 4)}%` }}
                           transition={{ duration: 1, delay: index * 0.1, ease: "easeOut" }}
-                          className="w-full max-w-[48px] bg-emerald-500 rounded-t-xl transition-all duration-300 group-hover:bg-emerald-600 group-hover:shadow-lg group-hover:shadow-emerald-500/20 relative"
+                          className="w-full max-w-[48px] bg-blue-500 rounded-t-xl transition-all duration-300 group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-500/20 relative"
                         >
                           {/* Tooltip */}
                           <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-zinc-900 text-white text-[10px] font-black py-2 px-3 rounded-lg whitespace-nowrap z-20 shadow-xl pointer-events-none">
@@ -376,31 +382,40 @@ export default function AdminDashboard() {
             <div className="glass-card overflow-hidden border-zinc-200/60">
               <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
                 <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <CheckCircle2 className="w-4 h-4 text-blue-500" />
                   Transaksi Sukses
                 </h3>
-                <button className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline">Lihat Semua</button>
+                <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Lihat Semua</button>
               </div>
               <div className="divide-y divide-zinc-100">
-                {recentTransactions.map((tx) => (
-                  <div key={tx.id} className="p-5 flex items-center justify-between hover:bg-zinc-50 transition-colors group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm">
-                        {tx.buyer_name.charAt(0)}
+                <AnimatePresence mode="popLayout">
+                  {recentTransactions.map((tx) => (
+                    <motion.div 
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      key={tx.id} 
+                      className="p-3 sm:p-5 flex items-center justify-between hover:bg-zinc-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xs sm:text-sm">
+                          {tx.buyer_name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-zinc-900 text-xs sm:text-sm group-hover:text-blue-600 transition-colors">{tx.buyer_name}</p>
+                          <p className="text-[9px] sm:text-[10px] text-zinc-400 font-medium">
+                            {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-zinc-900 text-sm group-hover:text-emerald-600 transition-colors">{tx.buyer_name}</p>
-                        <p className="text-[10px] text-zinc-400 font-medium">
-                          {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
-                        </p>
+                      <div className="text-right">
+                        <p className="font-black text-zinc-900 text-xs sm:text-sm">{formatRupiah(tx.total_amount)}</p>
+                        <span className="text-[8px] sm:text-[9px] font-black text-blue-600 uppercase tracking-tighter">Berhasil</span>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-black text-zinc-900 text-sm">{formatRupiah(tx.total_amount)}</p>
-                      <span className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">Berhasil</span>
-                    </div>
-                  </div>
-                ))}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
                 {recentTransactions.length === 0 && (
                   <div className="p-10 text-center text-zinc-400 text-sm font-medium italic">Belum ada transaksi</div>
                 )}
@@ -416,30 +431,39 @@ export default function AdminDashboard() {
                 <button className="text-[10px] font-black text-red-600 uppercase tracking-widest hover:underline">Lihat Semua</button>
               </div>
               <div className="divide-y divide-zinc-100">
-                {failedTransactions.map((tx) => (
-                  <div key={tx.id} className="p-5 flex flex-col gap-3 hover:bg-zinc-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-black text-xs">
-                          {tx.buyer_name.charAt(0)}
+                <AnimatePresence mode="popLayout">
+                  {failedTransactions.map((tx) => (
+                    <motion.div 
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      key={tx.id} 
+                      className="p-3 sm:p-5 flex flex-col gap-2 sm:gap-3 hover:bg-zinc-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-black text-[10px] sm:text-xs">
+                            {tx.buyer_name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-zinc-900 text-xs sm:text-sm">{tx.buyer_name}</p>
+                            <p className="text-[9px] sm:text-[10px] text-zinc-400 font-medium">
+                              {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-zinc-900 text-sm">{tx.buyer_name}</p>
-                          <p className="text-[10px] text-zinc-400 font-medium">
-                            {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
-                          </p>
-                        </div>
+                        <p className="font-black text-zinc-900 text-xs sm:text-sm">{formatRupiah(tx.attempted_amount)}</p>
                       </div>
-                      <p className="font-black text-zinc-900 text-sm">{formatRupiah(tx.attempted_amount)}</p>
-                    </div>
-                    <div className="flex items-start gap-3 bg-red-50/50 p-3 rounded-xl border border-red-100/50">
-                       <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                       <p className="text-[10px] text-red-700 font-medium leading-relaxed line-clamp-2">
-                         {tx.reason}
-                       </p>
-                    </div>
-                  </div>
-                ))}
+                      <div className="flex items-start gap-2 sm:gap-3 bg-red-50/50 p-2 sm:p-3 rounded-xl border border-red-100/50">
+                         <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 shrink-0 mt-0.5" />
+                         <p className="text-[9px] sm:text-[10px] text-red-700 font-medium leading-relaxed line-clamp-2">
+                           {tx.reason}
+                         </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
                 {failedTransactions.length === 0 && (
                   <div className="p-10 text-center text-zinc-400 text-sm font-medium italic">Tidak ada catatan gagal</div>
                 )}
@@ -449,30 +473,30 @@ export default function AdminDashboard() {
         </div>
 
         {/* Sidebar Settings */}
-        <div className="space-y-10">
-          <div className="glass-card p-8 border-zinc-200/60">
-            <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-8 flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-emerald-600" />
+        <div className="space-y-6 sm:space-y-10">
+          <div className="glass-card p-4 sm:p-8 border-zinc-200/60">
+            <h3 className="text-xs sm:text-sm font-black text-zinc-900 uppercase tracking-widest mb-4 sm:mb-8 flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
               Pengaturan QRIS
             </h3>
             
-            <div className="space-y-8">
+            <div className="space-y-6 sm:space-y-8">
               <div className="relative group">
-                <div className="absolute -inset-2 bg-emerald-500/5 rounded-3xl blur-xl group-hover:bg-emerald-500/10 transition-colors" />
-                <div className="relative bg-zinc-50 p-6 rounded-[2rem] border border-zinc-200/60 flex justify-center shadow-inner">
+                <div className="absolute -inset-2 bg-blue-500/5 rounded-3xl blur-xl group-hover:bg-blue-500/10 transition-colors" />
+                <div className="relative bg-zinc-50 p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-zinc-200/60 flex justify-center shadow-inner">
                   {qrisUrl ? (
                     <img src={qrisUrl} alt="QRIS Aktif" className="w-full aspect-square object-contain rounded-xl" />
                   ) : (
-                    <div className="w-full aspect-square flex flex-col items-center justify-center text-zinc-300 gap-3">
-                      <QrCode className="w-16 h-16 stroke-[1]" />
-                      <p className="text-xs font-bold uppercase tracking-widest">Belum Ada QRIS</p>
+                    <div className="w-full aspect-square flex flex-col items-center justify-center text-zinc-300 gap-2 sm:gap-3">
+                      <QrCode className="w-12 h-12 sm:w-16 sm:h-16 stroke-[1]" />
+                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Belum Ada QRIS</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <label className="text-xs font-black text-zinc-400 uppercase tracking-widest ml-1">Ganti Gambar QRIS</label>
+              <div className="space-y-3 sm:space-y-4">
+                <label className="text-[10px] sm:text-xs font-black text-zinc-400 uppercase tracking-widest ml-1">Ganti Gambar QRIS</label>
                 <div className="relative">
                   <input 
                     type="file"
@@ -484,14 +508,14 @@ export default function AdminDashboard() {
                   />
                   <label 
                     htmlFor="qris-upload"
-                    className="w-full h-14 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl flex items-center justify-center gap-3 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
+                    className="w-full h-12 sm:h-14 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl flex items-center justify-center gap-2 sm:gap-3 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group"
                   >
                     {uploadingQris ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-blue-600" />
                     ) : (
                       <>
-                        <Upload className="w-5 h-5 text-zinc-400 group-hover:text-emerald-600" />
-                        <span className="text-sm font-bold text-zinc-500 group-hover:text-emerald-600">Pilih File Baru</span>
+                        <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400 group-hover:text-blue-600" />
+                        <span className="text-xs sm:text-sm font-bold text-zinc-500 group-hover:text-blue-600">Pilih File Baru</span>
                       </>
                     )}
                   </label>
@@ -501,12 +525,12 @@ export default function AdminDashboard() {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100"
+                    className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-amber-50 rounded-xl border border-amber-100"
                   >
-                    <img src={newQrisUrl} alt="Preview" className="w-12 h-12 object-cover rounded-lg shadow-sm" />
+                    <img src={newQrisUrl} alt="Preview" className="w-10 h-10 sm:w-12 h-12 object-cover rounded-lg shadow-sm" />
                     <div className="flex-1">
-                      <p className="text-[10px] font-black text-blue-700 uppercase tracking-wider">Preview Terunggah</p>
-                      <p className="text-[9px] text-blue-500 font-medium">Klik simpan untuk menerapkan</p>
+                      <p className="text-[9px] sm:text-[10px] font-black text-amber-700 uppercase tracking-wider">Preview Terunggah</p>
+                      <p className="text-[8px] sm:text-[9px] text-amber-500 font-medium">Klik simpan untuk menerapkan</p>
                     </div>
                   </motion.div>
                 )}
@@ -515,40 +539,40 @@ export default function AdminDashboard() {
               <button 
                 onClick={handleUpdateQris} 
                 disabled={!newQrisUrl || newQrisUrl === qrisUrl}
-                className="btn-primary w-full h-14 flex items-center justify-center gap-2 shadow-emerald-600/20 disabled:opacity-50 disabled:shadow-none"
+                className="btn-primary w-full h-12 sm:h-14 flex items-center justify-center gap-2 shadow-blue-600/20 disabled:opacity-50 disabled:shadow-none text-xs sm:text-sm"
               >
-                <ShieldCheck className="w-5 h-5" />
+                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                 Simpan Perubahan
               </button>
             </div>
           </div>
 
           <div className="glass-card p-8 border-zinc-200/60 bg-zinc-900 text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 blur-3xl rounded-full -mr-16 -mt-16" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 blur-3xl rounded-full -mr-16 -mt-16" />
             <div className="relative z-10">
               <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <ShieldCheck className="w-4 h-4 text-blue-500" />
                 Status Sistem
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-zinc-400 font-medium">Database</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 uppercase">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                     Online
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-zinc-400 font-medium">AI Validator</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 uppercase">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                     Ready
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-zinc-400 font-medium">Storage</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 uppercase">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                     Active
                   </span>
                 </div>

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { UserPlus, ArrowLeft, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import Logo from '../../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
 
 export default function Register() {
   const [nik, setNik] = useState('');
@@ -18,8 +19,8 @@ export default function Register() {
     setLoading(true);
     setError('');
 
-    if (nik.length < 16) {
-      setError('NIK harus 16 digit angka');
+    if (nik.length < 3) {
+      setError('NIK terlalu pendek');
       setLoading(false);
       return;
     }
@@ -61,9 +62,9 @@ export default function Register() {
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full glass-card p-12 text-center shadow-2xl shadow-emerald-200/50"
+          className="max-w-md w-full glass-card p-12 text-center shadow-2xl shadow-blue-200/50"
         >
-          <div className="w-24 h-24 bg-emerald-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-emerald-200">
+          <div className="w-24 h-24 bg-blue-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-blue-200">
             <CheckCircle2 className="w-12 h-12 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-zinc-900 mb-4">Pendaftaran Berhasil!</h2>
@@ -75,7 +76,7 @@ export default function Register() {
               initial={{ width: 0 }}
               animate={{ width: '100%' }}
               transition={{ duration: 3 }}
-              className="h-full bg-emerald-500"
+              className="h-full bg-blue-500"
             />
           </div>
         </motion.div>
@@ -87,8 +88,8 @@ export default function Register() {
     <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6 relative overflow-hidden">
       {/* Decorative Background */}
       <div className="absolute top-0 left-0 w-full h-full -z-10 opacity-40">
-        <div className="absolute top-[5%] right-[5%] w-80 h-80 bg-emerald-200 rounded-full blur-3xl" />
-        <div className="absolute bottom-[5%] left-[5%] w-96 h-96 bg-blue-200 rounded-full blur-3xl" />
+        <div className="absolute top-[5%] right-[5%] w-80 h-80 bg-blue-200 rounded-full blur-3xl" />
+        <div className="absolute bottom-[5%] left-[5%] w-96 h-96 bg-amber-200 rounded-full blur-3xl" />
       </div>
 
       <motion.div
@@ -97,8 +98,14 @@ export default function Register() {
         className="w-full max-w-lg"
       >
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-200 mb-6">
-            <UserPlus className="w-8 h-8" />
+          <div className="flex justify-center mb-6">
+            <img src={Logo} alt="SPS Corner Logo" className="h-20 w-auto object-contain" onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
+            }} />
+            <div className="hidden inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+              <UserPlus className="w-8 h-8" />
+            </div>
           </div>
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Daftar Akun Baru</h1>
           <p className="text-zinc-500 mt-2">Lengkapi data diri Anda untuk mulai berbelanja di SPS Corner</p>
@@ -120,13 +127,13 @@ export default function Register() {
             <div className="grid md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-zinc-700 mb-1.5 ml-1">
-                  NIK (Nomor Induk Kependudukan)
+                  NIK (Nomor Induk Karyawan)
                 </label>
                 <input
                   type="text"
-                  placeholder="Masukkan 16 digit NIK"
+                  placeholder="Masukkan NIK Anda"
                   value={nik}
-                  onChange={(e) => setNik(e.target.value.replace(/\D/g, '').slice(0, 16))}
+                  onChange={(e) => setNik(e.target.value)}
                   required
                   className="input-field"
                 />
@@ -138,7 +145,7 @@ export default function Register() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Sesuai KTP / Kartu Pelajar"
+                  placeholder="Sesuai KTP"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -162,16 +169,16 @@ export default function Register() {
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-              <ShieldCheck className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-800 leading-relaxed font-medium">
-                Data Anda akan digunakan untuk verifikasi transaksi dan keamanan bersama di lingkungan sekolah. Kami menjamin kerahasiaan data Anda.
+            <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+              <ShieldCheck className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                Data Anda akan digunakan untuk verifikasi transaksi dan keamanan bersama di lingkungan perusahaan. Kami menjamin kerahasiaan data Anda.
               </p>
             </div>
 
             <button
               type="submit"
-              className="btn-primary w-full py-4 text-lg shadow-emerald-600/20"
+              className="btn-primary w-full py-4 text-lg shadow-blue-600/20"
               disabled={loading}
             >
               {loading ? (
@@ -185,7 +192,7 @@ export default function Register() {
             <div className="text-center pt-4">
               <p className="text-zinc-500 text-sm font-medium">
                 Sudah punya akun?{' '}
-                <Link to="/login" className="text-emerald-600 font-bold hover:underline">
+                <Link to="/login" className="text-blue-600 font-bold hover:underline">
                   Masuk di sini
                 </Link>
               </p>
@@ -197,7 +204,7 @@ export default function Register() {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="inline-flex items-center text-zinc-400 hover:text-emerald-600 transition-colors font-medium text-sm gap-2"
+            className="inline-flex items-center text-zinc-400 hover:text-blue-600 transition-colors font-medium text-sm gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
             Kembali ke Beranda

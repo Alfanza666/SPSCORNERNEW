@@ -116,7 +116,7 @@ export default function SellerWithdrawals() {
   if (loading && withdrawals.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-emerald-600" />
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -132,7 +132,7 @@ export default function SellerWithdrawals() {
             Penarikan Dana
           </h1>
           <p className="text-zinc-500 font-medium flex items-center gap-2">
-            <Wallet className="w-4 h-4 text-emerald-500" />
+            <Wallet className="w-4 h-4 text-blue-500" />
             Cairkan pendapatan jualan Anda ke rekening pribadi
           </p>
         </div>
@@ -145,18 +145,18 @@ export default function SellerWithdrawals() {
             animate={{ opacity: 1, y: 0 }}
             className="glass-card p-8 bg-zinc-900 text-white border-zinc-800 relative overflow-hidden"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 blur-3xl rounded-full -mr-16 -mt-16" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 blur-3xl rounded-full -mr-16 -mt-16" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-8">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Saldo Tersedia</p>
                 <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-emerald-400" />
+                  <CreditCard className="w-5 h-5 text-blue-400" />
                 </div>
               </div>
               <h2 className="text-4xl font-black tracking-tighter mb-4">
                 {formatRupiah(balance)}
               </h2>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-500/10 p-2 rounded-lg inline-flex">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 p-2 rounded-lg inline-flex">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Aman & Terverifikasi
               </div>
@@ -165,7 +165,7 @@ export default function SellerWithdrawals() {
 
           <div className="glass-card p-8 border-zinc-200/60">
             <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-              <ArrowUpRight className="w-4 h-4 text-emerald-500" />
+              <ArrowUpRight className="w-4 h-4 text-blue-500" />
               Ajukan Penarikan
             </h3>
             <form onSubmit={handleRequestWithdrawal} className="space-y-6">
@@ -205,7 +205,7 @@ export default function SellerWithdrawals() {
                       </div>
                       <div className="pt-3 border-t border-zinc-200 flex justify-between items-end">
                         <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">Bersih</span>
-                        <span className="text-xl font-black text-emerald-600 tracking-tight">{formatRupiah(netPreview)}</span>
+                        <span className="text-xl font-black text-blue-600 tracking-tight">{formatRupiah(netPreview)}</span>
                       </div>
                     </div>
                   </motion.div>
@@ -221,7 +221,7 @@ export default function SellerWithdrawals() {
 
               <button 
                 type="submit" 
-                className="btn-primary w-full h-14 shadow-emerald-600/20" 
+                className="btn-primary w-full h-14 shadow-blue-600/20" 
                 disabled={isRequesting || Number(amount) < 50000 || Number(amount) > balance}
               >
                 {isRequesting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Tarik Dana Sekarang'}
@@ -234,11 +234,11 @@ export default function SellerWithdrawals() {
           <div className="glass-card h-full border-zinc-200/60 overflow-hidden flex flex-col">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
               <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                <History className="w-4 h-4 text-emerald-500" />
+                <History className="w-4 h-4 text-blue-500" />
                 Riwayat Penarikan
               </h3>
             </div>
-            <div className="flex-1 overflow-x-auto hidden md:block">
+            <div className="hidden md:block flex-1 overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-zinc-100 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] bg-zinc-50/50">
@@ -259,7 +259,7 @@ export default function SellerWithdrawals() {
                       <td className="p-6 text-sm font-bold text-zinc-600">{formatRupiah(w.amount)}</td>
                       <td className="p-6 text-sm font-bold text-red-500">-{formatRupiah(w.fee)}</td>
                       <td className="p-6">
-                        <p className="font-black text-emerald-600">{formatRupiah(w.net_amount)}</p>
+                        <p className="font-black text-blue-600">{formatRupiah(w.net_amount)}</p>
                       </td>
                       <td className="p-6">
                         {w.status === 'pending' && (
@@ -268,12 +268,12 @@ export default function SellerWithdrawals() {
                           </span>
                         )}
                         {w.status === 'approved' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
                             <CheckCircle2 className="w-3 h-3 mr-1.5" /> Disetujui
                           </span>
                         )}
                         {w.status === 'paid' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">
                             <CheckCircle2 className="w-3 h-3 mr-1.5" /> Dibayar
                           </span>
                         )}
@@ -285,52 +285,71 @@ export default function SellerWithdrawals() {
                       </td>
                     </tr>
                   ))}
+                  {withdrawals.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-20 text-center">
+                        <div className="flex flex-col items-center gap-4 text-zinc-300">
+                          <History className="w-16 h-16 stroke-[1]" />
+                          <p className="font-bold text-zinc-400">Belum ada riwayat penarikan</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
 
-            {/* Mobile View */}
-            <div className="md:hidden divide-y divide-zinc-100 flex-1">
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y divide-zinc-100 flex-1 overflow-y-auto">
               {withdrawals.map((w) => (
-                <div key={w.id} className="p-4 space-y-3">
+                <div key={w.id} className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="font-bold text-zinc-900 text-sm">{format(new Date(w.created_at), 'dd MMM yyyy, HH:mm', { locale: id })}</p>
-                    {w.status === 'pending' && (
-                      <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-wider">Pending</span>
-                    )}
-                    {w.status === 'approved' && (
-                      <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[9px] font-black uppercase tracking-wider">Disetujui</span>
-                    )}
-                    {w.status === 'paid' && (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider">Dibayar</span>
-                    )}
-                    {w.status === 'rejected' && (
-                      <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-700 text-[9px] font-black uppercase tracking-wider">Ditolak</span>
-                    )}
-                  </div>
-                  <div className="flex justify-between items-end">
                     <div>
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Jumlah Bersih</p>
-                      <p className="font-black text-emerald-600">{formatRupiah(w.net_amount)}</p>
+                      <p className="font-bold text-xs sm:text-sm text-zinc-900">{format(new Date(w.created_at), 'dd MMM yyyy', { locale: id })}</p>
+                      <p className="text-[9px] sm:text-[10px] text-zinc-400 font-medium">{format(new Date(w.created_at), 'HH:mm', { locale: id })} WIB</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Kotor: {formatRupiah(w.amount)}</p>
-                      <p className="text-[9px] font-bold text-red-500 uppercase tracking-widest">Biaya: {formatRupiah(w.fee)}</p>
+                      <p className="font-black text-blue-600 text-base sm:text-lg tracking-tight">{formatRupiah(w.net_amount)}</p>
+                      <p className="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Diterima</p>
                     </div>
+                  </div>
+                  
+                  <div className="bg-zinc-50 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-zinc-100 flex justify-between items-center">
+                    <div>
+                      <p className="text-[9px] sm:text-[10px] text-zinc-500 font-black uppercase tracking-wider">Kotor</p>
+                      <p className="text-xs sm:text-sm font-bold text-zinc-900">{formatRupiah(w.amount)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] sm:text-[10px] text-red-500 font-black uppercase tracking-wider">Biaya (8%)</p>
+                      <p className="text-xs sm:text-sm font-bold text-red-500">-{formatRupiah(w.fee)}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-1 sm:pt-2">
+                    {w.status === 'pending' && (
+                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                        <Clock className="w-3 h-3 mr-1 sm:mr-1.5" /> Pending
+                      </span>
+                    )}
+                    {w.status === 'approved' && (
+                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                        <CheckCircle2 className="w-3 h-3 mr-1 sm:mr-1.5" /> Disetujui
+                      </span>
+                    )}
+                    {w.status === 'paid' && (
+                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">
+                        <CheckCircle2 className="w-3 h-3 mr-1 sm:mr-1.5" /> Dibayar
+                      </span>
+                    )}
+                    {w.status === 'rejected' && (
+                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700">
+                        <XCircle className="w-3 h-3 mr-1 sm:mr-1.5" /> Ditolak
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
-
-            {withdrawals.length === 0 && (
-              <div className="p-20 text-center flex-1">
-                <div className="flex flex-col items-center gap-4 text-zinc-300">
-                  <History className="w-16 h-16 stroke-[1]" />
-                  <p className="font-bold text-zinc-400">Belum ada riwayat penarikan</p>
-                </div>
-              </div>
-            )}
-
           </div>
         </div>
       </div>

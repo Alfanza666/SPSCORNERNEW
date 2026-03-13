@@ -111,24 +111,29 @@ export default function AdminProducts() {
     if (!confirm('Yakin ingin menghapus produk ini?')) return;
     
     try {
-      const { error } = await supabase.from('products').delete().eq('id', id);
+      const { data, error } = await supabase.from('products').delete().eq('id', id).select('id');
       if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        throw new Error('Produk tidak ditemukan atau Anda tidak memiliki akses untuk menghapusnya. Pastikan RLS policy sudah diperbarui.');
+      }
+      
       fetchProducts();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting product:', error);
-      alert('Gagal menghapus produk');
+      alert(`Gagal menghapus produk: ${error.message}`);
     }
   };
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.profiles?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (p.profiles?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading && products.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-emerald-600" />
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -141,7 +146,7 @@ export default function AdminProducts() {
             Katalog Produk
           </h1>
           <p className="text-zinc-500 font-medium flex items-center gap-2">
-            <Package className="w-4 h-4 text-emerald-500" />
+            <Package className="w-4 h-4 text-blue-500" />
             Total {products.length} produk dari semua penjual
           </p>
         </div>
@@ -149,7 +154,7 @@ export default function AdminProducts() {
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-emerald-500 transition-colors" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
           <input 
             type="text" 
             placeholder="Cari produk atau penjual..." 
@@ -250,41 +255,24 @@ export default function AdminProducts() {
                               <label htmlFor="admin-edit-product-image" className="btn-secondary h-12 px-6 cursor-pointer flex items-center gap-2">
                                 <Upload className="w-4 h-4" />
                                 Ganti Gambar
-                                <input 
-                                  id="admin-edit-product-image" 
-                                  type="file" 
-                                  accept="image/*" 
-                                  onChange={handleImageUpload} 
-                                  className="hidden" 
-                                />
+                                <input id="admin-edit-product-image" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                               </label>
                             </div>
                           </>
                         ) : (
-                            <label htmlFor="admin-edit-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
-                              <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-emerald-500 transition-colors">
-                                {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
-                              </div>
-                              <div>
-                                <p className="font-bold text-zinc-900">Klik untuk unggah foto</p>
-                                <p className="text-xs text-zinc-400 mt-1">PNG, JPG up to 5MB</p>
-                              </div>
-                              <input 
-                                id="admin-edit-product-image-empty" 
-                                type="file" 
-                                accept="image/*" 
-                                onChange={handleImageUpload} 
-                                className="hidden" 
-                                disabled={uploadingImage} 
-                              />
-                            </label>
+                          <label htmlFor="admin-edit-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
+                            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-blue-500 transition-colors">
+                              {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
+                            </div>
+                            <input id="admin-edit-product-image-empty" type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploadingImage} />
+                          </label>
                         )}
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 pt-6 border-t border-zinc-200/60">
                     <button type="button" onClick={() => setEditingProduct(null)} className="btn-secondary px-8">Batal</button>
-                    <button type="submit" disabled={loading || uploadingImage} className="btn-primary px-10 shadow-emerald-600/20">
+                    <button type="submit" disabled={loading || uploadingImage} className="btn-primary px-10 shadow-blue-600/20">
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Perubahan'}
                     </button>
                   </div>
@@ -333,7 +321,7 @@ export default function AdminProducts() {
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-zinc-900 group-hover:text-emerald-600 transition-colors">{product.name}</p>
+                        <p className="font-bold text-zinc-900 group-hover:text-blue-600 transition-colors">{product.name}</p>
                         <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1">
                           ID: {product.id.slice(0, 8)}
                         </p>
@@ -361,11 +349,11 @@ export default function AdminProducts() {
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min((product.stock / 50) * 100, 100)}%` }}
-                          className={`h-full ${product.stock > 5 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                          className={`h-full ${product.stock > 5 ? 'bg-blue-500' : 'bg-red-500'}`}
                         />
                       </div>
                       <span className={`text-[10px] font-black uppercase tracking-wider ${
-                        product.stock > 5 ? 'text-emerald-600' : 'text-red-600'
+                        product.stock > 5 ? 'text-blue-600' : 'text-red-600'
                       }`}>
                         {product.stock} Tersisa
                       </span>
@@ -375,7 +363,7 @@ export default function AdminProducts() {
                     <div className="flex items-center justify-end gap-2">
                       <button 
                         onClick={() => setEditingProduct(product)}
-                        className="p-3 text-zinc-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                        className="p-3 text-zinc-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                         title="Edit Produk"
                       >
                         <Edit className="w-5 h-5" />
@@ -398,44 +386,44 @@ export default function AdminProducts() {
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-zinc-100">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="p-4 space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200/50 flex-shrink-0">
+            <div key={product.id} className="p-3 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-16 rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200/50 flex-shrink-0">
                   {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                      <ImageIcon className="w-8 h-8" />
+                      <ImageIcon className="w-6 h-6" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-zinc-900 truncate">{product.name}</p>
-                  <p className="text-emerald-600 font-black text-lg">{formatRupiah(product.price)}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-500 text-[10px] font-black uppercase tracking-wider">
+                  <p className="font-bold text-zinc-900 text-sm truncate">{product.name}</p>
+                  <p className="text-blue-600 font-black text-sm">{formatRupiah(product.price)}</p>
+                  <div className="flex items-center gap-1 mt-1 flex-wrap">
+                    <span className="px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-500 text-[9px] font-black uppercase tracking-wider truncate max-w-[100px]">
                       {product.profiles?.name}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                      product.stock > 5 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                      product.stock > 5 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
                     }`}>
                       Stok: {product.stock}
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2">
                 <button 
                   onClick={() => setEditingProduct(product)}
-                  className="flex-1 py-2.5 bg-zinc-100 text-zinc-600 rounded-xl font-bold text-xs"
+                  className="flex-1 py-1.5 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 rounded-lg font-bold text-[10px] transition-colors"
                 >
-                  Edit Produk
+                  Edit
                 </button>
                 <button 
                   onClick={() => handleDeleteProduct(product.id)}
-                  className="p-2.5 text-zinc-400 hover:text-red-500 transition-colors"
+                  className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>

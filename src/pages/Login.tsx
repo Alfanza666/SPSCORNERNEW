@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { useAuthStore } from '../store/useAuthStore';
 import { LogIn, ArrowLeft, UserPlus, ShieldCheck, AlertCircle } from 'lucide-react';
+import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
 
 export default function Login() {
   const [nik, setNik] = useState('');
@@ -19,7 +20,11 @@ export default function Login() {
     setError('');
 
     try {
-      const email = nik.includes('@') ? nik : `${nik}@sps.local`;
+      let cleanNik = nik.trim().toLowerCase();
+      if (!cleanNik.includes('@')) {
+        cleanNik = cleanNik.replace(/[\s-.]/g, '');
+      }
+      const email = cleanNik.includes('@') ? cleanNik : `${cleanNik}@sps.local`;
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -32,9 +37,14 @@ export default function Login() {
         await fetchProfile(data.user.id);
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, is_active')
           .eq('id', data.user.id)
           .single();
+
+        if (profile && profile.is_active === false) {
+          await supabase.auth.signOut();
+          throw new Error('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
+        }
 
         if (profile?.role === 'admin') {
           navigate('/dashboard/admin');
@@ -60,8 +70,8 @@ export default function Login() {
     <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6 relative overflow-hidden">
       {/* Decorative Background */}
       <div className="absolute top-0 left-0 w-full h-full -z-10 opacity-40">
-        <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-emerald-200 rounded-full blur-3xl" />
-        <div className="absolute bottom-[10%] right-[5%] w-96 h-96 bg-blue-200 rounded-full blur-3xl" />
+        <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-blue-200 rounded-full blur-3xl" />
+        <div className="absolute bottom-[10%] right-[5%] w-96 h-96 bg-amber-200 rounded-full blur-3xl" />
       </div>
 
       <motion.div
@@ -71,8 +81,14 @@ export default function Login() {
         className="w-full max-w-md"
       >
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-200 mb-6">
-            <LogIn className="w-8 h-8" />
+          <div className="flex justify-center mb-6">
+            <img src={Logo} alt="SPS Corner Logo" className="h-20 w-auto object-contain" onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
+            }} />
+            <div className="hidden inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+              <LogIn className="w-8 h-8" />
+            </div>
           </div>
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Selamat Datang Kembali</h1>
           <p className="text-zinc-500 mt-2">Masuk ke akun SPS Corner Anda</p>
@@ -122,7 +138,7 @@ export default function Login() {
 
             <button
               type="submit"
-              className="btn-primary w-full py-4 text-lg shadow-emerald-600/20"
+              className="btn-primary w-full py-4 text-lg shadow-blue-600/20"
               disabled={loading}
             >
               {loading ? (
@@ -157,7 +173,7 @@ export default function Login() {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="inline-flex items-center text-zinc-400 hover:text-emerald-600 transition-colors font-medium text-sm gap-2"
+            className="inline-flex items-center text-zinc-400 hover:text-blue-600 transition-colors font-medium text-sm gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
             Kembali ke Beranda

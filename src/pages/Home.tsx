@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Store, UserCircle, ArrowRight, ShieldCheck, ShoppingCart } from 'lucide-react';
 import { motion } from 'motion/react';
+import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center p-6 overflow-hidden relative">
       {/* Decorative Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-100/50 rounded-full blur-3xl -z-10" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-100/50 rounded-full blur-3xl -z-10" />
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100/50 rounded-full blur-3xl -z-10" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-100/50 rounded-full blur-3xl -z-10" />
 
       <motion.div 
         initial={{ opacity: 0, y: 30 }}
@@ -20,20 +21,23 @@ export default function Home() {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium mb-6"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs sm:text-sm font-medium mb-4 sm:mb-6"
           >
-            <ShieldCheck className="w-4 h-4" />
-            Kantin Digital Mandiri Terpercaya
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            Kantin Digital Karyawan Sariroti
           </motion.div>
           
-          <h1 className="text-6xl md:text-7xl font-bold text-zinc-900 mb-6 tracking-tight">
-            SPS <span className="text-emerald-600">Corner</span>
-          </h1>
-          <div className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.3em] mb-6">
-            v2.1.0-emerald-mobile
+          <div className="flex justify-center mb-6">
+            <img src={Logo} alt="SPS Corner Logo" className="h-24 sm:h-32 w-auto object-contain" onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
+            }} />
+            <h1 className="hidden text-5xl sm:text-6xl md:text-7xl font-bold text-zinc-900 tracking-tight">
+              SPS <span className="text-amber-600">Corner</span>
+            </h1>
           </div>
-          <p className="text-xl text-zinc-500 max-w-2xl mx-auto leading-relaxed">
-            Solusi cerdas untuk transaksi kantin yang lebih cepat, aman, dan transparan bagi seluruh warga sekolah.
+          <p className="text-base sm:text-lg md:text-xl text-zinc-500 max-w-2xl mx-auto leading-relaxed px-4">
+            Solusi cerdas untuk transaksi kantin yang lebih cepat, aman, dan transparan bagi seluruh karyawan Sariroti.
           </p>
         </div>
 
@@ -43,9 +47,9 @@ export default function Home() {
             transition={{ type: "spring", stiffness: 300 }}
           >
             <Link to="/kiosk" className="group block h-full">
-              <div className="glass-card h-full p-8 text-left transition-all duration-300 group-hover:border-emerald-500/50 group-hover:shadow-xl group-hover:shadow-emerald-500/10">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mb-6 group-hover:bg-emerald-600 transition-colors duration-300">
-                  <ShoppingCart className="w-8 h-8 text-emerald-700 group-hover:text-white" />
+              <div className="glass-card h-full p-8 text-left transition-all duration-300 group-hover:border-blue-500/50 group-hover:shadow-xl group-hover:shadow-blue-500/10">
+                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors duration-300">
+                  <ShoppingCart className="w-8 h-8 text-blue-700 group-hover:text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-zinc-900 mb-3 flex items-center gap-2">
                   Mode Kiosk
@@ -63,9 +67,9 @@ export default function Home() {
             transition={{ type: "spring", stiffness: 300 }}
           >
             <Link to="/login" className="group block h-full">
-              <div className="glass-card h-full p-8 text-left transition-all duration-300 group-hover:border-blue-500/50 group-hover:shadow-xl group-hover:shadow-blue-500/10">
-                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors duration-300">
-                  <UserCircle className="w-8 h-8 text-blue-700 group-hover:text-white" />
+              <div className="glass-card h-full p-8 text-left transition-all duration-300 group-hover:border-amber-500/50 group-hover:shadow-xl group-hover:shadow-amber-500/10">
+                <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center mb-6 group-hover:bg-amber-600 transition-colors duration-300">
+                  <UserCircle className="w-8 h-8 text-amber-700 group-hover:text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-zinc-900 mb-3 flex items-center gap-2">
                   Masuk Akun
@@ -83,22 +87,27 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="mt-20 pt-8 border-t border-zinc-200 flex flex-wrap justify-center gap-8 text-zinc-400 font-medium text-sm uppercase tracking-widest"
+          className="mt-20 pt-8 border-t border-zinc-200 flex flex-col items-center gap-6"
         >
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-            Aman & Terpercaya
+          <div className="flex flex-wrap justify-center gap-8 text-zinc-400 font-medium text-sm uppercase tracking-widest">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              Aman & Terpercaya
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              Cepat & Efisien
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              Transparan
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500" />
-            Cepat & Efisien
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-amber-500" />
-            Transparan
-          </div>
-          <div className="w-full text-[8px] mt-4 opacity-30">
-            Build: 2026-02-28 07:10:00
+          
+          <div className="text-xs text-zinc-400/80 font-mono text-center max-w-md">
+            <p className="font-bold text-zinc-500 mb-1">v2.1.0-blue-mobile</p>
+            <p>Build: {new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</p>
+            <p className="mt-2 text-[10px]">Jika Anda melihat teks ini, berarti Anda sudah berada di versi terbaru yang saya buat.</p>
           </div>
         </motion.div>
       </motion.div>

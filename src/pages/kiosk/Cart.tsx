@@ -49,7 +49,7 @@ export default function Cart() {
           <motion.div 
             animate={{ y: [0, -10, 0] }}
             transition={{ repeat: Infinity, duration: 2 }}
-            className="absolute -top-2 -right-2 bg-emerald-500 text-white p-3 rounded-2xl shadow-lg shadow-emerald-200"
+            className="absolute -top-2 -right-2 bg-blue-500 text-white p-3 rounded-2xl shadow-lg shadow-blue-200"
           >
             <Plus className="w-6 h-6" />
           </motion.div>
@@ -60,7 +60,7 @@ export default function Cart() {
         </p>
         <button 
           onClick={() => navigate('/kiosk')} 
-          className="btn-primary h-16 px-10 text-lg shadow-emerald-600/20 flex items-center gap-3"
+          className="btn-primary h-16 px-10 text-lg shadow-blue-600/20 flex items-center gap-3"
         >
           <ShoppingBag className="w-6 h-6" />
           Mulai Belanja
@@ -115,11 +115,11 @@ export default function Cart() {
         <div>
           <h1 className="text-4xl font-bold text-zinc-900 tracking-tight mb-2">Keranjang Belanja</h1>
           <p className="text-zinc-500 flex items-center gap-2">
-            <Info className="w-4 h-4 text-emerald-500" />
+            <Info className="w-4 h-4 text-blue-500" />
             Tinjau pesananmu sebelum melanjutkan ke pembayaran
           </p>
         </div>
-        <div className="bg-emerald-50 text-emerald-700 py-2 px-5 rounded-2xl text-sm font-bold border border-emerald-100 shadow-sm flex items-center gap-2">
+        <div className="bg-blue-50 text-blue-700 py-2 px-5 rounded-2xl text-sm font-bold border border-blue-100 shadow-sm flex items-center gap-2">
           <ShoppingCart className="w-4 h-4" />
           {items.length} Item Terpilih
         </div>
@@ -135,9 +135,9 @@ export default function Cart() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="glass-card p-5 flex flex-col sm:flex-row items-center gap-6 group hover:border-emerald-500/30 transition-all duration-300"
+                className="glass-card p-4 sm:p-5 flex flex-row items-center gap-4 sm:gap-6 group hover:border-blue-500/30 transition-all duration-300"
               >
-                <div className="w-28 h-28 bg-zinc-100 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner border border-zinc-200/50">
+                <div className="w-20 h-20 sm:w-28 sm:h-28 bg-zinc-100 rounded-2xl overflow-hidden flex-shrink-0 shadow-inner border border-zinc-200/50">
                   {item.image_url ? (
                     <img
                       src={item.image_url}
@@ -147,18 +147,18 @@ export default function Cart() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                      <ShoppingBag className="w-10 h-10 stroke-[1.5]" />
+                      <ShoppingBag className="w-8 h-8 sm:w-10 sm:h-10 stroke-[1.5]" />
                     </div>
                   )}
                 </div>
 
                 <div className="flex-1 min-w-0 w-full">
                   <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-bold text-xl text-zinc-900 truncate group-hover:text-emerald-600 transition-colors">
+                    <div className="min-w-0 pr-2">
+                      <h3 className="font-bold text-sm sm:text-xl text-zinc-900 truncate group-hover:text-blue-600 transition-colors">
                         {item.name}
                       </h3>
-                      <p className="text-emerald-600 font-extrabold text-lg">
+                      <p className="text-blue-600 font-extrabold text-xs sm:text-lg">
                         {formatRupiah(item.price)}
                       </p>
                     </div>
@@ -167,25 +167,25 @@ export default function Cart() {
                       whileTap={{ scale: 0.9 }}
                       onClick={() => removeItem(item.id)}
                       disabled={isReserving}
-                      className="text-zinc-400 p-2 hover:bg-red-50 rounded-xl transition-colors"
+                      className="text-zinc-400 p-1.5 sm:p-2 hover:bg-red-50 rounded-lg sm:rounded-xl transition-colors flex-shrink-0"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </motion.button>
                   </div>
 
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center bg-zinc-100 rounded-xl p-1.5 border border-zinc-200">
+                  <div className="flex items-center justify-between mt-2 sm:mt-4">
+                    <div className="flex items-center bg-zinc-100 rounded-lg sm:rounded-xl p-1 sm:p-1.5 border border-zinc-200">
                       <motion.button
                         whileTap={{ scale: 0.9 }}
                         onClick={() => {
                           if (item.quantity > 1) updateQuantity(item.id, item.quantity - 1);
                         }}
                         disabled={item.quantity <= 1 || isReserving}
-                        className="h-9 w-9 rounded-lg bg-white shadow-sm flex items-center justify-center text-zinc-500 hover:text-red-600 disabled:opacity-50 transition-colors"
+                        className="h-6 w-6 sm:h-9 sm:w-9 rounded-md sm:rounded-lg bg-white shadow-sm flex items-center justify-center text-zinc-500 hover:text-red-600 disabled:opacity-50 transition-colors"
                       >
-                        <Minus className="w-4 h-4" />
+                        <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
                       </motion.button>
-                      <span className="font-bold w-10 text-center text-zinc-900 text-lg">
+                      <span className="font-bold w-6 sm:w-10 text-center text-zinc-900 text-xs sm:text-lg">
                         {item.quantity}
                       </span>
                       <motion.button
@@ -196,15 +196,15 @@ export default function Cart() {
                           }
                         }}
                         disabled={item.quantity >= item.stock || isReserving}
-                        className="h-9 w-9 rounded-lg bg-white shadow-sm flex items-center justify-center text-zinc-500 hover:text-emerald-600 disabled:opacity-50 transition-colors"
+                        className="h-6 w-6 sm:h-9 sm:w-9 rounded-md sm:rounded-lg bg-white shadow-sm flex items-center justify-center text-zinc-500 hover:text-blue-600 disabled:opacity-50 transition-colors"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                       </motion.button>
                     </div>
                     
                     <div className="text-right">
-                      <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider mb-1">Subtotal</p>
-                      <p className="font-bold text-zinc-900">{formatRupiah(item.price * item.quantity)}</p>
+                      <p className="text-[9px] sm:text-xs text-zinc-400 font-medium uppercase tracking-wider mb-0.5 sm:mb-1">Subtotal</p>
+                      <p className="font-bold text-zinc-900 text-xs sm:text-base">{formatRupiah(item.price * item.quantity)}</p>
                     </div>
                   </div>
                 </div>
@@ -214,34 +214,34 @@ export default function Cart() {
         </div>
 
         <div className="lg:col-span-1">
-          <div className="glass-card p-8 sticky top-24 shadow-xl shadow-zinc-200/50 border-zinc-200/60">
-            <h2 className="text-2xl font-bold text-zinc-900 mb-8 flex items-center gap-3">
-              <CreditCard className="w-6 h-6 text-emerald-500" />
+          <div className="glass-card p-5 sm:p-8 sticky top-20 sm:top-24 shadow-xl shadow-zinc-200/50 border-zinc-200/60">
+            <h2 className="text-lg sm:text-2xl font-bold text-zinc-900 mb-4 sm:mb-8 flex items-center gap-2 sm:gap-3">
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
               Ringkasan
             </h2>
             
-            <div className="space-y-4 mb-8">
-              <div className="flex justify-between text-zinc-500 font-medium">
+            <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+              <div className="flex justify-between text-zinc-500 font-medium text-sm sm:text-base">
                 <span>Total Item</span>
                 <span className="text-zinc-900">
                   {items.reduce((sum, item) => sum + item.quantity, 0)}
                 </span>
               </div>
-              <div className="flex justify-between text-zinc-500 font-medium">
+              <div className="flex justify-between text-zinc-500 font-medium text-sm sm:text-base">
                 <span>Biaya Layanan</span>
                 <span className="text-zinc-900">Rp 0</span>
               </div>
-              <div className="pt-4 border-t border-zinc-100 flex justify-between items-end">
-                <span className="text-zinc-500 font-medium">Total Bayar</span>
-                <span className="text-3xl font-extrabold text-emerald-600 tracking-tight">
+              <div className="pt-3 sm:pt-4 border-t border-zinc-100 flex justify-between items-end">
+                <span className="text-zinc-500 font-medium text-sm sm:text-base">Total Bayar</span>
+                <span className="text-xl sm:text-3xl font-extrabold text-blue-600 tracking-tight">
                   {formatRupiah(getTotal())}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-3 mb-8">
-              <label className="flex items-center gap-2 text-sm font-bold text-zinc-700 ml-1">
-                <User className="w-4 h-4 text-emerald-500" />
+            <div className="space-y-2 sm:space-y-3 mb-6 sm:mb-8">
+              <label className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-bold text-zinc-700 ml-1">
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500" />
                 Nama Pemesan
               </label>
               <div className="relative">
@@ -250,16 +250,16 @@ export default function Cart() {
                   value={buyerName}
                   onChange={(e) => setBuyerName(e.target.value)}
                   disabled={isReserving || !!user}
-                  className={`input-field h-14 text-lg ${user ? 'bg-zinc-100 border-zinc-200 text-zinc-500 cursor-not-allowed' : ''}`}
+                  className={`input-field h-12 sm:h-14 text-sm sm:text-lg ${user ? 'bg-zinc-100 border-zinc-200 text-zinc-500 cursor-not-allowed' : ''}`}
                 />
                 {user?.nik && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-zinc-200/50 px-2 py-1 rounded text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                  <div className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 bg-zinc-200/50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[9px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
                     NIK: {user.nik}
                   </div>
                 )}
               </div>
               {user && (
-                <p className="text-[10px] text-zinc-400 italic ml-1 flex items-center gap-1">
+                <p className="text-[9px] sm:text-[10px] text-zinc-400 italic ml-1 flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3" />
                   Data terverifikasi otomatis dari akun Anda
                 </p>
@@ -269,22 +269,22 @@ export default function Cart() {
             <button
               onClick={handleCheckout}
               disabled={!buyerName.trim() || isReserving}
-              className="btn-primary w-full h-16 text-lg shadow-emerald-600/20 group flex items-center justify-center gap-3"
+              className="btn-primary w-full h-12 sm:h-16 text-sm sm:text-lg shadow-blue-600/20 group flex items-center justify-center gap-2 sm:gap-3"
             >
               {isReserving ? (
                 <>
-                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <Loader2 className="w-4 h-4 sm:w-6 sm:h-6 animate-spin" />
                   Memproses...
                 </>
               ) : (
                 <>
                   Lanjut Pembayaran
-                  <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-4 h-4 sm:w-6 sm:h-6 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
             
-            <p className="text-center text-xs text-zinc-400 mt-6 leading-relaxed">
+            <p className="text-center text-[10px] sm:text-xs text-zinc-400 mt-4 sm:mt-6 leading-relaxed">
               Dengan melanjutkan, kamu menyetujui syarat dan ketentuan yang berlaku di SPS Corner.
             </p>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { 
@@ -15,10 +15,14 @@ import {
   ShieldCheck,
   Bell,
   Search,
-  User as UserIcon
+  User as UserIcon,
+  KeyRound,
+  Settings
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Logo from '../../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
+import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 
 function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -58,14 +62,14 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick }: NavItemProps) => 
       onClick={onClick}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 group ${
         isActive 
-          ? 'text-emerald-700 bg-emerald-50 shadow-sm shadow-emerald-200/50' 
+          ? 'text-blue-700 bg-blue-50 shadow-sm shadow-blue-200/50' 
           : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
       }`}
     >
-      <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-emerald-600' : 'text-zinc-400 group-hover:text-zinc-900'}`} />
+      <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-blue-600' : 'text-zinc-400 group-hover:text-zinc-900'}`} />
       <span className="flex-1 text-left">{label}</span>
       {isActive && (
-        <motion.div layoutId="active-nav" className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+        <motion.div layoutId="active-nav" className="w-1.5 h-1.5 rounded-full bg-blue-600" />
       )}
     </button>
   );
@@ -76,14 +80,33 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const notificationDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+      if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(event.target as Node)) {
+        setIsNotificationDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
         <div className="relative">
-          <div className="w-16 h-16 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+          <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-2 h-2 bg-emerald-600 rounded-full animate-ping" />
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-ping" />
           </div>
         </div>
       </div>
@@ -178,11 +201,15 @@ export default function DashboardLayout() {
       <aside className="w-72 bg-white border-r border-zinc-200 flex flex-col hidden lg:flex relative z-30">
         <div className="h-24 flex items-center px-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+            <img src={Logo} alt="SPS Corner Logo" className="h-10 w-auto object-contain" onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
+            }} />
+            <div className="hidden w-10 h-10 bg-amber-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-200">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
-              SPS <span className="text-emerald-600">Corner</span>
+              SPS <span className="text-amber-600">Corner</span>
             </h1>
           </div>
         </div>
@@ -215,7 +242,7 @@ export default function DashboardLayout() {
 
         <div className="p-6 border-t border-zinc-100">
           <div className="flex items-center gap-4 p-4 mb-2 bg-zinc-50 rounded-2xl border border-zinc-200/50">
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xl shadow-inner">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xl shadow-inner">
               {user.name.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
@@ -227,7 +254,7 @@ export default function DashboardLayout() {
           </div>
           
           <div className="px-4 py-2 mb-2 text-[8px] font-black text-zinc-300 uppercase tracking-[0.3em] text-center">
-            v2.1.0-emerald-mobile
+            v2.1.0-blue-mobile
           </div>
           
           <button
@@ -260,7 +287,11 @@ export default function DashboardLayout() {
             >
               <div className="h-20 flex items-center justify-between px-6 border-b border-zinc-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white">
+                  <img src={Logo} alt="SPS Corner Logo" className="h-8 w-auto object-contain" onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
+                  }} />
+                  <div className="hidden w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center text-white">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <span className="font-black text-xl text-zinc-900">SPS Corner</span>
@@ -276,7 +307,7 @@ export default function DashboardLayout() {
               </div>
               <div className="p-6 border-t border-zinc-100">
                 <div className="mb-4 text-[8px] font-black text-zinc-300 uppercase tracking-[0.3em] text-center">
-                  v2.1.0-emerald-mobile
+                  v2.1.0-blue-mobile
                 </div>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 transition-all"
@@ -302,8 +333,8 @@ export default function DashboardLayout() {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <div className="hidden md:flex items-center gap-3 bg-zinc-100 px-4 py-2 rounded-xl border border-zinc-200/50 group focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
-              <Search className="w-4 h-4 text-zinc-400 group-focus-within:text-emerald-500" />
+            <div className="hidden md:flex items-center gap-3 bg-zinc-100 px-4 py-2 rounded-xl border border-zinc-200/50 group focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+              <Search className="w-4 h-4 text-zinc-400 group-focus-within:text-blue-500" />
               <input 
                 type="text" 
                 placeholder="Cari data..." 
@@ -313,19 +344,133 @@ export default function DashboardLayout() {
           </div>
 
           <div className="flex items-center gap-3 md:gap-6">
-            <button className="relative p-2 text-zinc-400 hover:bg-zinc-100 rounded-xl transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-            </button>
+            <div className="relative" ref={notificationDropdownRef}>
+              <button 
+                onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
+                className="relative p-2 text-zinc-400 hover:bg-zinc-100 rounded-xl transition-colors"
+              >
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+              </button>
+              
+              <AnimatePresence>
+                {isNotificationDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-zinc-100 overflow-hidden z-50"
+                  >
+                    <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
+                      <h3 className="font-bold text-zinc-900">Notifikasi</h3>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-1 rounded-full">1 Baru</span>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      <div 
+                        className="p-4 hover:bg-zinc-50 transition-colors border-b border-zinc-50 cursor-pointer"
+                        onClick={() => {
+                          setIsNotificationDropdownOpen(false);
+                          navigate(isAdmin ? '/dashboard/admin/transactions' : '/dashboard/seller/products');
+                        }}
+                      >
+                        <div className="flex gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                            <Bell className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-zinc-900">Selamat datang di SPS Corner</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">Mulai kelola produk dan transaksi Anda dengan mudah.</p>
+                            <p className="text-[10px] text-zinc-400 font-medium mt-2">Baru saja</p>
+                          </div>
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <div 
+                          className="p-4 hover:bg-zinc-50 transition-colors border-b border-zinc-50 cursor-pointer"
+                          onClick={() => {
+                            setIsNotificationDropdownOpen(false);
+                            navigate('/dashboard/admin/withdrawals');
+                          }}
+                        >
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                              <Bell className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-zinc-900">Permintaan Penarikan Baru</p>
+                              <p className="text-xs text-zinc-500 mt-0.5">Ada permintaan penarikan dana baru yang perlu diproses.</p>
+                              <p className="text-[10px] text-zinc-400 font-medium mt-2">2 jam yang lalu</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 border-t border-zinc-100 text-center">
+                      <button 
+                        onClick={() => setIsNotificationDropdownOpen(false)}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700"
+                      >
+                        Tandai semua dibaca
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="h-8 w-px bg-zinc-200 hidden md:block" />
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-zinc-900 leading-none mb-1">{user.name}</p>
-                <p className="text-[10px] text-zinc-400 font-black uppercase tracking-wider">{user.role}</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-400 border border-zinc-200">
-                <UserIcon className="w-5 h-5" />
-              </div>
+            
+            <div className="relative" ref={profileDropdownRef}>
+              <button 
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="flex items-center gap-3 hover:bg-zinc-50 p-1.5 rounded-2xl transition-colors text-left"
+              >
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-bold text-zinc-900 leading-none mb-1">{user.name}</p>
+                  <p className="text-[10px] text-zinc-400 font-black uppercase tracking-wider">{user.role}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100 font-black text-lg">
+                  {user.name.charAt(0)}
+                </div>
+              </button>
+
+              <AnimatePresence>
+                {isProfileDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-zinc-100 overflow-hidden z-50"
+                  >
+                    <div className="p-4 border-b border-zinc-100 sm:hidden">
+                      <p className="text-sm font-bold text-zinc-900 truncate">{user.name}</p>
+                      <p className="text-[10px] text-zinc-400 font-black uppercase tracking-wider">{user.role}</p>
+                    </div>
+                    <div className="p-2">
+                      <button 
+                        onClick={() => {
+                          setIsProfileDropdownOpen(false);
+                          setIsChangePasswordModalOpen(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+                      >
+                        <KeyRound className="w-4 h-4" />
+                        Ganti Password
+                      </button>
+                      <div className="h-px bg-zinc-100 my-1 mx-2" />
+                      <button 
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Keluar Akun
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </header>
@@ -349,6 +494,11 @@ export default function DashboardLayout() {
           </div>
         </div>
       </main>
+
+      <ChangePasswordModal 
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
+      />
     </div>
   );
 }

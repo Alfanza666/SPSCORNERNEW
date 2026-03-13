@@ -178,10 +178,23 @@ export default function SellerProducts() {
     try {
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
+      
+      // Verify deletion
+      const { data: checkData } = await supabase
+        .from('products')
+        .select('id')
+        .eq('id', id)
+        .single();
+        
+      if (checkData) {
+        throw new Error('Produk gagal dihapus. Periksa kebijakan RLS di Supabase.');
+      }
+
       fetchProducts();
-    } catch (error) {
+      alert('Produk berhasil dihapus');
+    } catch (error: any) {
       console.error('Error deleting product:', error);
-      alert('Gagal menghapus produk');
+      alert(error.message || 'Gagal menghapus produk');
     }
   };
 
@@ -192,7 +205,7 @@ export default function SellerProducts() {
   if (loading && products.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-emerald-600" />
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
       </div>
     );
   }
@@ -205,13 +218,13 @@ export default function SellerProducts() {
             Manajemen Produk
           </h1>
           <p className="text-zinc-500 font-medium flex items-center gap-2">
-            <Package className="w-4 h-4 text-emerald-500" />
+            <Package className="w-4 h-4 text-blue-500" />
             Kelola stok dan harga produk jualan Anda
           </p>
         </div>
         <button 
           onClick={() => setIsAdding(true)} 
-          className="btn-primary h-14 px-8 flex items-center gap-3 shadow-emerald-600/20"
+          className="btn-primary h-14 px-8 flex items-center gap-3 shadow-blue-600/20"
         >
           <Plus className="w-5 h-5" />
           Tambah Produk
@@ -220,7 +233,7 @@ export default function SellerProducts() {
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-emerald-500 transition-colors" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
           <input 
             type="text" 
             placeholder="Cari produk Anda..." 
@@ -245,7 +258,7 @@ export default function SellerProducts() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="glass-card p-8 border-emerald-200 bg-emerald-50/30 mb-10">
+            <div className="glass-card p-8 border-blue-200 bg-blue-50/30 mb-10">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-black text-zinc-900 tracking-tight">Tambah Produk Baru</h2>
                 <button onClick={() => setIsAdding(false)} className="p-2 text-zinc-400 hover:text-zinc-900">
@@ -317,36 +330,23 @@ export default function SellerProducts() {
                         <>
                           <img src={newProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-zinc-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <label htmlFor="new-product-image" className="btn-secondary h-12 px-6 cursor-pointer flex items-center gap-2">
-                                <Upload className="w-4 h-4" />
-                                Ganti Gambar
-                                <input 
-                                  id="new-product-image" 
-                                  type="file" 
-                                  accept="image/*" 
-                                  onChange={(e) => handleImageUpload(e, false)} 
-                                  className="hidden" 
-                                />
-                              </label>
+                            <label htmlFor="new-product-image" className="btn-secondary h-12 px-6 cursor-pointer flex items-center gap-2">
+                              <Upload className="w-4 h-4" />
+                              Ganti Gambar
+                              <input id="new-product-image" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
+                            </label>
                           </div>
                         </>
                       ) : (
                         <label htmlFor="new-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
-                          <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-emerald-500 transition-colors">
+                          <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-blue-500 transition-colors">
                             {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
                           </div>
                           <div>
                             <p className="font-bold text-zinc-900">Klik untuk unggah foto</p>
                             <p className="text-xs text-zinc-400 mt-1">PNG, JPG up to 5MB</p>
                           </div>
-                          <input 
-                            id="new-product-image-empty" 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={(e) => handleImageUpload(e, false)} 
-                            className="hidden" 
-                            disabled={uploadingImage} 
-                          />
+                          <input id="new-product-image-empty" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" disabled={uploadingImage} />
                         </label>
                       )}
                     </div>
@@ -354,7 +354,7 @@ export default function SellerProducts() {
                 </div>
                 <div className="flex justify-end gap-3 pt-6 border-t border-zinc-200/60">
                   <button type="button" onClick={() => setIsAdding(false)} className="btn-secondary px-8">Batal</button>
-                  <button type="submit" disabled={loading || uploadingImage} className="btn-primary px-10 shadow-emerald-600/20">
+                  <button type="submit" disabled={loading || uploadingImage} className="btn-primary px-10 shadow-blue-600/20">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Produk'}
                   </button>
                 </div>
@@ -446,41 +446,24 @@ export default function SellerProducts() {
                               <label htmlFor="edit-product-image" className="btn-secondary h-12 px-6 cursor-pointer flex items-center gap-2">
                                 <Upload className="w-4 h-4" />
                                 Ganti Gambar
-                                <input 
-                                  id="edit-product-image" 
-                                  type="file" 
-                                  accept="image/*" 
-                                  onChange={(e) => handleImageUpload(e, true)} 
-                                  className="hidden" 
-                                />
+                                <input id="edit-product-image" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="hidden" />
                               </label>
                             </div>
                           </>
                         ) : (
-                            <label htmlFor="edit-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
-                              <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-emerald-500 transition-colors">
-                                {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
-                              </div>
-                              <div>
-                                <p className="font-bold text-zinc-900">Klik untuk unggah foto</p>
-                                <p className="text-xs text-zinc-400 mt-1">PNG, JPG up to 5MB</p>
-                              </div>
-                              <input 
-                                id="edit-product-image-empty" 
-                                type="file" 
-                                accept="image/*" 
-                                onChange={(e) => handleImageUpload(e, true)} 
-                                className="hidden" 
-                                disabled={uploadingImage} 
-                              />
-                            </label>
+                          <label htmlFor="edit-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
+                            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-blue-500 transition-colors">
+                              {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
+                            </div>
+                            <input id="edit-product-image-empty" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="hidden" disabled={uploadingImage} />
+                          </label>
                         )}
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 pt-6 border-t border-zinc-200/60">
                     <button type="button" onClick={() => setEditingProduct(null)} className="btn-secondary px-8">Batal</button>
-                    <button type="submit" disabled={loading || uploadingImage} className="btn-primary px-10 shadow-emerald-600/20">
+                    <button type="submit" disabled={loading || uploadingImage} className="btn-primary px-10 shadow-blue-600/20">
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Perubahan'}
                     </button>
                   </div>
@@ -529,7 +512,7 @@ export default function SellerProducts() {
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-zinc-900 group-hover:text-emerald-600 transition-colors">{product.name}</p>
+                        <p className="font-bold text-zinc-900 group-hover:text-blue-600 transition-colors">{product.name}</p>
                         {product.description && <p className="text-[10px] text-zinc-400 font-medium line-clamp-1">{product.description}</p>}
                       </div>
                     </div>
@@ -549,11 +532,11 @@ export default function SellerProducts() {
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min((product.stock / 50) * 100, 100)}%` }}
-                          className={`h-full ${product.stock > 5 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                          className={`h-full ${product.stock > 5 ? 'bg-blue-500' : 'bg-red-500'}`}
                         />
                       </div>
                       <span className={`text-[10px] font-black uppercase tracking-wider ${
-                        product.stock > 5 ? 'text-emerald-600' : 'text-red-600'
+                        product.stock > 5 ? 'text-blue-600' : 'text-red-600'
                       }`}>
                         {product.stock} Tersisa
                       </span>
@@ -561,7 +544,7 @@ export default function SellerProducts() {
                   </td>
                   <td className="p-6">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                      product.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-500'
+                      product.is_active ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-500'
                     }`}>
                       {product.is_active ? 'Tersedia' : 'Nonaktif'}
                     </span>
@@ -573,7 +556,7 @@ export default function SellerProducts() {
                         className={`p-3 rounded-xl transition-all ${
                           product.is_active 
                             ? "text-zinc-400 hover:bg-zinc-100" 
-                            : "text-emerald-500 hover:bg-emerald-50"
+                            : "text-blue-500 hover:bg-blue-50"
                         }`}
                         title={product.is_active ? "Tandai Tidak Tersedia" : "Tandai Tersedia"}
                       >
@@ -581,7 +564,7 @@ export default function SellerProducts() {
                       </button>
                       <button 
                         onClick={() => setEditingProduct(product)}
-                        className="p-3 text-zinc-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                        className="p-3 text-zinc-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                         title="Edit Produk"
                       >
                         <Edit className="w-5 h-5" />
@@ -604,56 +587,56 @@ export default function SellerProducts() {
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-zinc-100">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="p-4 space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200/50 flex-shrink-0">
+            <div key={product.id} className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200/50 flex-shrink-0">
                   {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                      <ImageIcon className="w-8 h-8" />
+                      <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-zinc-900 truncate">{product.name}</p>
-                  <p className="text-emerald-600 font-black text-lg">{formatRupiah(product.price)}</p>
+                  <p className="font-bold text-sm sm:text-base text-zinc-900 truncate">{product.name}</p>
+                  <p className="text-blue-600 font-black text-base sm:text-lg">{formatRupiah(product.price)}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-500 text-[10px] font-black uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-wider">
                       {product.category}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                      product.stock > 5 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${
+                      product.stock > 5 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
                     }`}>
                       Stok: {product.stock}
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-2">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                  product.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-500'
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-50">
+                <span className={`inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${
+                  product.is_active ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-500'
                 }`}>
                   {product.is_active ? 'Tersedia' : 'Nonaktif'}
                 </span>
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={() => handleToggleActive(product.id, product.is_active)}
-                    className="p-3 text-zinc-400 hover:text-emerald-500 transition-colors"
+                    className="p-2 sm:p-3 text-zinc-400 hover:text-blue-500 transition-colors"
                   >
-                    {product.is_active ? <PowerOff className="w-5 h-5" /> : <Power className="w-5 h-5" />}
+                    {product.is_active ? <PowerOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Power className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </button>
                   <button 
                     onClick={() => setEditingProduct(product)}
-                    className="p-3 text-zinc-400 hover:text-emerald-500 transition-colors"
+                    className="p-2 sm:p-3 text-zinc-400 hover:text-blue-500 transition-colors"
                   >
-                    <Edit className="w-5 h-5" />
+                    <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                   <button 
                     onClick={() => handleDeleteProduct(product.id)}
-                    className="p-3 text-zinc-400 hover:text-red-500 transition-colors"
+                    className="p-2 sm:p-3 text-zinc-400 hover:text-red-500 transition-colors"
                   >
-                    <Trash2 className="w-5 h-5" />
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
               </div>

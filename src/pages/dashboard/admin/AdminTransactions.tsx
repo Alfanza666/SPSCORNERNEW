@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { formatRupiah } from '../../../lib/utils';
+import { formatRupiah, exportCSV } from '../../../lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink } from 'lucide-react';
@@ -111,35 +111,34 @@ export default function AdminTransactions() {
     if (dataToExport.length === 0) return;
     
     let headers = [];
-    let csvContent = [];
+    let rows = [];
 
     if (activeTab === 'success') {
       headers = ['ID', 'Pembeli', 'Total', 'Status', 'Tanggal'];
-      csvContent = [
-        headers.join(','),
-        ...dataToExport.map(tx => 
-          `${tx.id},"${tx.buyer_name}",${tx.total_amount},${tx.status},"${format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')}"`
-        )
-      ];
+      rows = dataToExport.map(tx => [
+        tx.id,
+        tx.buyer_name,
+        tx.total_amount,
+        tx.status,
+        format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')
+      ]);
     } else {
       headers = ['ID', 'Pembeli', 'Total Dicoba', 'Alasan', 'Tanggal'];
-      csvContent = [
-        headers.join(','),
-        ...dataToExport.map(tx => 
-          `${tx.id},"${tx.buyer_name}",${tx.attempted_amount},"${tx.reason}","${format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')}"`
-        )
-      ];
+      rows = dataToExport.map(tx => [
+        tx.id,
+        tx.buyer_name,
+        tx.attempted_amount,
+        tx.reason,
+        format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')
+      ]);
     }
 
-    const blob = new Blob([csvContent.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `laporan_transaksi_${activeTab}_${format(new Date(), 'yyyyMMdd')}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    exportCSV(csvContent, `laporan_transaksi_${activeTab}_${format(new Date(), 'yyyyMMdd')}.csv`);
   };
 
   const filteredTransactions = (activeTab === 'success' ? transactions : failedTransactions).filter(tx => {
@@ -158,7 +157,7 @@ export default function AdminTransactions() {
   if (loading && transactions.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-emerald-100 border-t-emerald-600 rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -171,13 +170,13 @@ export default function AdminTransactions() {
             Riwayat Transaksi
           </h1>
           <p className="text-zinc-500 font-medium flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-emerald-500" />
+            <Receipt className="w-4 h-4 text-blue-500" />
             Pantau semua aktivitas pembayaran di SPS Corner
           </p>
         </div>
         <button 
           onClick={exportToCSV} 
-          className="btn-primary h-14 px-8 flex items-center gap-3 shadow-emerald-600/20"
+          className="btn-primary h-14 px-8 flex items-center gap-3 shadow-blue-600/20"
         >
           <Download className="w-5 h-5" />
           Export Laporan
@@ -190,7 +189,7 @@ export default function AdminTransactions() {
             onClick={() => setActiveTab('success')}
             className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
               activeTab === 'success' 
-                ? 'bg-white text-emerald-600 shadow-sm' 
+                ? 'bg-white text-blue-600 shadow-sm' 
                 : 'text-zinc-500 hover:text-zinc-900'
             }`}
           >
@@ -210,7 +209,7 @@ export default function AdminTransactions() {
 
         <div className="flex flex-1 items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-emerald-500 transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
             <input 
               type="text" 
               placeholder="Cari pembeli atau ID..." 
@@ -283,115 +282,151 @@ export default function AdminTransactions() {
       </AnimatePresence>
 
       <div className="glass-card overflow-hidden border-zinc-200/60 shadow-xl shadow-zinc-200/40">
-        {/* Desktop View */}
-        <div className="hidden md:block divide-y divide-zinc-100">
-          {filteredTransactions.map((tx) => (
-            <motion.div 
-              layout
-              key={tx.id} 
-              className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between hover:bg-zinc-50/50 transition-colors group gap-6"
-            >
-              <div className="flex items-center gap-6">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner ${
-                  activeTab === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                }`}>
-                  {activeTab === 'success' ? <CheckCircle2 className="w-8 h-8" /> : <XCircle className="w-8 h-8" />}
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <p className="font-black text-zinc-900 text-xl group-hover:text-emerald-600 transition-colors">{tx.buyer_name}</p>
-                    {tx.buyer_id && (
-                      <span className="bg-zinc-100 text-zinc-500 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Member</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-zinc-400">
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm', { locale: id })}
-                    </span>
-                    <span className="flex items-center gap-1.5 font-mono">
-                      <Receipt className="w-3.5 h-3.5" />
-                      ID: {tx.id.slice(0, 12)}...
-                    </span>
-                  </div>
-                  {activeTab === 'failed' && (
-                    <div className="mt-3 bg-red-50/50 p-3 rounded-xl border border-red-100/50 inline-flex items-center gap-2">
-                       <XCircle className="w-3.5 h-3.5 text-red-500" />
-                       <p className="text-[10px] text-red-700 font-bold uppercase tracking-wider">{tx.reason}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between md:justify-end gap-8 border-t md:border-t-0 pt-4 md:pt-0">
-                <div className="text-left md:text-right">
-                  <p className={`text-2xl font-black tracking-tight ${activeTab === 'success' ? 'text-emerald-600' : 'text-zinc-900'}`}>
-                    {formatRupiah(activeTab === 'success' ? tx.total_amount : tx.attempted_amount)}
-                  </p>
-                  <p className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em] mt-1">
-                    {activeTab === 'success' ? 'Pembayaran Berhasil' : 'Validasi Ditolak'}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => openDetails(tx)}
-                  className="w-12 h-12 rounded-xl bg-zinc-100 text-zinc-400 hover:bg-zinc-900 hover:text-white flex items-center justify-center transition-all shadow-sm"
-                >
-                  <Eye className="w-6 h-6" />
-                </button>
-              </div>
-            </motion.div>
-          ))}
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead>
+              <tr className="border-b border-zinc-100 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] bg-zinc-50/50">
+                <th className="p-4 lg:p-6">ID & Waktu</th>
+                <th className="p-4 lg:p-6">Pembeli</th>
+                <th className="p-4 lg:p-6">Total</th>
+                <th className="p-4 lg:p-6">Status</th>
+                <th className="p-4 lg:p-6 text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              <AnimatePresence mode="popLayout">
+                {filteredTransactions.map((tx) => (
+                  <motion.tr 
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    key={tx.id} 
+                    className="hover:bg-zinc-50/50 transition-colors group"
+                  >
+                    <td className="p-4 lg:p-6">
+                      <div className="flex flex-col gap-1">
+                        <span className="flex items-center gap-1.5 font-mono text-xs font-bold text-zinc-900">
+                          <Receipt className="w-3.5 h-3.5 text-zinc-400" />
+                          {tx.id.slice(0, 8)}...
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm', { locale: id })}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-4 lg:p-6">
+                      <div className="flex items-center gap-2">
+                        <p className="font-black text-zinc-900 text-sm lg:text-base group-hover:text-amber-600 transition-colors truncate max-w-[150px] lg:max-w-[200px]">
+                          {tx.buyer_name}
+                        </p>
+                        {tx.buyer_id && (
+                          <span className="bg-zinc-100 text-zinc-500 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">Member</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-4 lg:p-6">
+                      <p className={`text-sm lg:text-base font-black tracking-tight ${activeTab === 'success' ? 'text-amber-600' : 'text-zinc-900'}`}>
+                        {formatRupiah(activeTab === 'success' ? tx.total_amount : tx.attempted_amount)}
+                      </p>
+                    </td>
+                    <td className="p-4 lg:p-6">
+                      {activeTab === 'success' ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                          <CheckCircle2 className="w-3 h-3 mr-1.5" /> Berhasil
+                        </span>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700 w-fit">
+                            <XCircle className="w-3 h-3 mr-1.5" /> Gagal
+                          </span>
+                          <p className="text-[10px] text-red-600 font-bold truncate max-w-[150px] lg:max-w-[200px]" title={tx.reason}>{tx.reason}</p>
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4 lg:p-6 text-right">
+                      <button 
+                        onClick={() => openDetails(tx)}
+                        className="inline-flex w-8 h-8 lg:w-10 lg:h-10 rounded-xl bg-zinc-100 text-zinc-400 hover:bg-zinc-900 hover:text-white items-center justify-center transition-all shadow-sm shrink-0"
+                        title="Lihat Detail"
+                      >
+                        <Eye className="w-4 h-4 lg:w-5 lg:h-5" />
+                      </button>
+                    </td>
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
+            </tbody>
+          </table>
         </div>
 
-        {/* Mobile View */}
+        {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-zinc-100">
-          {filteredTransactions.map((tx) => (
-            <div key={tx.id} className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    activeTab === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                  }`}>
-                    {activeTab === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+          <AnimatePresence mode="popLayout">
+            {filteredTransactions.map((tx) => (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                key={tx.id} 
+                className="p-3 space-y-3"
+              >
+                <div className="flex justify-between items-start">
+                  <div className="flex flex-col gap-1">
+                    <span className="flex items-center gap-1.5 font-mono text-xs font-bold text-zinc-900">
+                      <Receipt className="w-3.5 h-3.5 text-zinc-400" />
+                      {tx.id.slice(0, 8)}...
+                    </span>
+                    <span className="flex items-center gap-1.5 text-[9px] font-medium text-zinc-500">
+                      <Calendar className="w-3 h-3" />
+                      {format(new Date(tx.created_at), 'dd MMM yy, HH:mm', { locale: id })}
+                    </span>
                   </div>
+                  {activeTab === 'success' ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                      Berhasil
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-100 text-red-700">
+                      Gagal
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex justify-between items-center bg-zinc-50 p-2 rounded-lg border border-zinc-100">
                   <div>
-                    <p className="font-bold text-zinc-900 text-sm">{tx.buyer_name}</p>
-                    <p className="text-[10px] text-zinc-400">{format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}</p>
+                    <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Pembeli</p>
+                    <div className="flex items-center gap-1">
+                      <p className="font-bold text-zinc-900 text-xs truncate max-w-[120px]">{tx.buyer_name}</p>
+                      {tx.buyer_id && <span className="bg-zinc-200 text-zinc-500 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest">Member</span>}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Total</p>
+                    <p className={`font-black text-xs ${activeTab === 'success' ? 'text-amber-600' : 'text-zinc-900'}`}>
+                      {formatRupiah(activeTab === 'success' ? tx.total_amount : tx.attempted_amount)}
+                    </p>
                   </div>
                 </div>
+
+                {activeTab === 'failed' && tx.reason && (
+                  <p className="text-[9px] text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-100 line-clamp-2">{tx.reason}</p>
+                )}
+
                 <button 
                   onClick={() => openDetails(tx)}
-                  className="p-2 text-zinc-400 hover:text-emerald-500"
+                  className="w-full py-2 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 rounded-lg font-bold text-[10px] transition-colors flex items-center justify-center gap-2"
                 >
-                  <Eye className="w-5 h-5" />
+                  <Eye className="w-3.5 h-3.5" /> Lihat Detail
                 </button>
-              </div>
-              <div className="flex items-center justify-between bg-zinc-50 p-3 rounded-xl border border-zinc-100">
-                <div>
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Total</p>
-                  <p className={`font-black text-sm ${activeTab === 'success' ? 'text-emerald-600' : 'text-zinc-900'}`}>
-                    {formatRupiah(activeTab === 'success' ? tx.total_amount : tx.attempted_amount)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Status</p>
-                  <span className={`text-[9px] font-black uppercase tracking-wider ${
-                    activeTab === 'success' ? 'text-emerald-600' : 'text-red-600'
-                  }`}>
-                    {activeTab === 'success' ? 'Berhasil' : 'Gagal'}
-                  </span>
-                </div>
-              </div>
-              {activeTab === 'failed' && (
-                <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                  <p className="text-[10px] text-red-700 font-medium leading-relaxed">
-                    <span className="font-black uppercase mr-1">Alasan:</span>
-                    {tx.reason}
-                  </p>
-                </div>
-              )}
-            </div>
-          ))}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
 
         {filteredTransactions.length === 0 && (
@@ -423,7 +458,7 @@ export default function AdminTransactions() {
             >
               <div className="p-6 md:p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center ${activeTab === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center ${activeTab === 'success' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'}`}>
                     <Receipt className="w-5 h-5 md:w-6 md:h-6" />
                   </div>
                   <div>
@@ -444,7 +479,7 @@ export default function AdminTransactions() {
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Pembeli</span>
                         <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-emerald-500" />
+                          <User className="w-4 h-4 text-blue-500" />
                           <span className="font-bold text-zinc-900">{selectedTx.buyer_name}</span>
                         </div>
                       </div>
@@ -457,7 +492,7 @@ export default function AdminTransactions() {
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</span>
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                          activeTab === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+                          activeTab === 'success' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
                         }`}>
                           {activeTab === 'success' ? 'Berhasil' : 'Gagal'}
                         </span>
@@ -470,7 +505,7 @@ export default function AdminTransactions() {
                       )}
                       <div className="pt-8 border-t border-zinc-200/60 flex flex-col md:flex-row md:justify-between md:items-end gap-2">
                         <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">Total Bayar</span>
-                        <span className={`text-3xl md:text-4xl font-black tracking-tighter ${activeTab === 'success' ? 'text-emerald-600' : 'text-zinc-900'}`}>
+                        <span className={`text-3xl md:text-4xl font-black tracking-tighter ${activeTab === 'success' ? 'text-blue-600' : 'text-zinc-900'}`}>
                           {formatRupiah(activeTab === 'success' ? selectedTx.total_amount : selectedTx.attempted_amount)}
                         </span>
                       </div>
@@ -479,12 +514,12 @@ export default function AdminTransactions() {
                     {activeTab === 'success' && (
                       <div className="space-y-4 md:space-y-6">
                         <h3 className="text-[10px] font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                          <Package className="w-4 h-4 text-emerald-500" /> Item Terbeli
+                          <Package className="w-4 h-4 text-blue-500" /> Item Terbeli
                         </h3>
                         <div className="glass-card overflow-hidden border-zinc-200/60">
                           {loadingItems ? (
                             <div className="p-12 text-center">
-                               <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto" />
+                               <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
                             </div>
                           ) : txItems.length > 0 ? (
                             <div className="overflow-x-auto">
@@ -492,6 +527,7 @@ export default function AdminTransactions() {
                                 <thead className="bg-zinc-50 text-[9px] font-black text-zinc-400 uppercase tracking-widest">
                                   <tr>
                                     <th className="px-4 md:px-6 py-4 text-left">Produk</th>
+                                    <th className="px-4 md:px-6 py-4 text-right">Harga Satuan</th>
                                     <th className="px-4 md:px-6 py-4 text-center">Qty</th>
                                     <th className="px-4 md:px-6 py-4 text-right">Subtotal</th>
                                   </tr>
@@ -500,6 +536,7 @@ export default function AdminTransactions() {
                                   {txItems.map((item) => (
                                     <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors">
                                       <td className="px-4 md:px-6 py-4 text-zinc-900 font-bold">{item.products?.name || 'Produk Terhapus'}</td>
+                                      <td className="px-4 md:px-6 py-4 text-right text-zinc-500 font-medium">{formatRupiah(item.price)}</td>
                                       <td className="px-4 md:px-6 py-4 text-center text-zinc-500 font-black">{item.quantity}</td>
                                       <td className="px-4 md:px-6 py-4 text-right text-zinc-900 font-black">{formatRupiah(item.subtotal)}</td>
                                     </tr>
@@ -518,7 +555,7 @@ export default function AdminTransactions() {
                   {/* Right Column: Receipt */}
                   <div className="space-y-4 md:space-y-6">
                     <h3 className="text-[10px] font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-emerald-500" /> Bukti Pembayaran
+                      <ImageIcon className="w-4 h-4 text-blue-500" /> Bukti Pembayaran
                     </h3>
                     {selectedTx.receipt_image ? (
                       <div className="relative group rounded-3xl md:rounded-[2.5rem] overflow-hidden border-2 border-zinc-100 bg-zinc-50 aspect-[3/4] flex items-center justify-center shadow-inner">
@@ -530,7 +567,7 @@ export default function AdminTransactions() {
                         <div className="absolute inset-0 bg-zinc-900/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm">
                           <button 
                             onClick={() => window.open(selectedTx.receipt_image, '_blank')}
-                            className="btn-primary h-12 md:h-14 px-6 md:px-8 flex items-center gap-2 shadow-emerald-600/20"
+                            className="btn-primary h-12 md:h-14 px-6 md:px-8 flex items-center gap-2 shadow-blue-600/20"
                           >
                             <ExternalLink className="w-4 h-4 md:w-5 md:h-5" />
                             Buka Gambar
