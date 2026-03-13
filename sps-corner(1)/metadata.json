@@ -1,0 +1,5 @@
+{
+  "name": "SPS Corner",
+  "description": "Kantin Digital Karyawan Sariroti dengan Verifikasi AI",
+  "requestFramePermissions": ["camera", "microphone"]
+}
