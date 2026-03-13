@@ -379,31 +379,51 @@ export default function DashboardLayout() {
                             <Bell className="w-4 h-4" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-zinc-900">Selamat datang di SPS Corner</p>
-                            <p className="text-xs text-zinc-500 mt-0.5">Mulai kelola produk dan transaksi Anda dengan mudah.</p>
+                            <p className="text-sm font-bold text-zinc-900">Transaksi Baru</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">Ada pesanan baru yang masuk ke sistem.</p>
                             <p className="text-[10px] text-zinc-400 font-medium mt-2">Baru saja</p>
                           </div>
                         </div>
                       </div>
                       {isAdmin && (
-                        <div 
-                          className="p-4 hover:bg-zinc-50 transition-colors border-b border-zinc-50 cursor-pointer"
-                          onClick={() => {
-                            setIsNotificationDropdownOpen(false);
-                            navigate('/dashboard/admin/withdrawals');
-                          }}
-                        >
-                          <div className="flex gap-3">
-                            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
-                              <Bell className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-zinc-900">Permintaan Penarikan Baru</p>
-                              <p className="text-xs text-zinc-500 mt-0.5">Ada permintaan penarikan dana baru yang perlu diproses.</p>
-                              <p className="text-[10px] text-zinc-400 font-medium mt-2">2 jam yang lalu</p>
+                        <>
+                          <div 
+                            className="p-4 hover:bg-zinc-50 transition-colors border-b border-zinc-50 cursor-pointer"
+                            onClick={() => {
+                              setIsNotificationDropdownOpen(false);
+                              navigate('/dashboard/admin/sellers');
+                            }}
+                          >
+                            <div className="flex gap-3">
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                                <Users className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-zinc-900">Profil Penjual Diperbarui</p>
+                                <p className="text-xs text-zinc-500 mt-0.5">Penjual baru saja memperbarui data profilnya.</p>
+                                <p className="text-[10px] text-zinc-400 font-medium mt-2">1 jam yang lalu</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                          <div 
+                            className="p-4 hover:bg-zinc-50 transition-colors border-b border-zinc-50 cursor-pointer"
+                            onClick={() => {
+                              setIsNotificationDropdownOpen(false);
+                              navigate('/dashboard/admin/withdrawals');
+                            }}
+                          >
+                            <div className="flex gap-3">
+                              <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                                <Bell className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-zinc-900">Permintaan Penarikan Baru</p>
+                                <p className="text-xs text-zinc-500 mt-0.5">Ada permintaan penarikan dana baru yang perlu diproses.</p>
+                                <p className="text-[10px] text-zinc-400 font-medium mt-2">2 jam yang lalu</p>
+                              </div>
+                            </div>
+                          </div>
+                        </>
                       )}
                     </div>
                     <div className="p-3 border-t border-zinc-100 text-center">

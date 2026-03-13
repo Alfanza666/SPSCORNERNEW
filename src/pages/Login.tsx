@@ -82,13 +82,7 @@ export default function Login() {
       >
         <div className="text-center mb-10">
           <div className="flex justify-center mb-6">
-            <img src={Logo} alt="SPS Corner Logo" className="h-20 w-auto object-contain" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-            }} />
-            <div className="hidden inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-              <LogIn className="w-8 h-8" />
-            </div>
+            <img src={Logo} alt="" className="h-20 w-auto object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Selamat Datang Kembali</h1>
           <p className="text-zinc-500 mt-2">Masuk ke akun SPS Corner Anda</p>

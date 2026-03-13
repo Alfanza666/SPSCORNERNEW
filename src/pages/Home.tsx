@@ -28,13 +28,7 @@ export default function Home() {
           </motion.div>
           
           <div className="flex justify-center mb-6">
-            <img src={Logo} alt="SPS Corner Logo" className="h-24 sm:h-32 w-auto object-contain" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-            }} />
-            <h1 className="hidden text-5xl sm:text-6xl md:text-7xl font-bold text-zinc-900 tracking-tight">
-              SPS <span className="text-amber-600">Corner</span>
-            </h1>
+            <img src={Logo} alt="" className="h-24 sm:h-32 w-auto object-contain" />
           </div>
           <p className="text-base sm:text-lg md:text-xl text-zinc-500 max-w-2xl mx-auto leading-relaxed px-4">
             Solusi cerdas untuk transaksi kantin yang lebih cepat, aman, dan transparan bagi seluruh karyawan Sariroti.
@@ -106,8 +100,7 @@ export default function Home() {
           
           <div className="text-xs text-zinc-400/80 font-mono text-center max-w-md">
             <p className="font-bold text-zinc-500 mb-1">v2.1.0-blue-mobile</p>
-            <p>Build: {new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</p>
-            <p className="mt-2 text-[10px]">Jika Anda melihat teks ini, berarti Anda sudah berada di versi terbaru yang saya buat.</p>
+            <p className="mt-2 text-[10px]">Dikembangkan oleh SPS Corner Team</p>
           </div>
         </motion.div>
       </motion.div>

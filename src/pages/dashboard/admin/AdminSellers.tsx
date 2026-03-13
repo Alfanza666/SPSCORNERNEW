@@ -23,7 +23,7 @@ export default function AdminSellers() {
   const [sellers, setSellers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [newSeller, setNewSeller] = useState({ email: '', password: '', name: '' });
+  const [newSeller, setNewSeller] = useState({ nik: '', password: '', name: '' });
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -52,6 +52,25 @@ export default function AdminSellers() {
     e.preventDefault();
     setLoading(true);
     try {
+      const cleanNik = newSeller.nik.trim();
+      
+      // Check if NIK already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('nik', cleanNik)
+        .maybeSingle();
+
+      if (checkError) {
+        throw new Error('Gagal memeriksa NIK. Silakan coba lagi.');
+      }
+
+      if (existingUser) {
+        alert('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
+        setLoading(false);
+        return;
+      }
+
       const { createClient } = await import('@supabase/supabase-js');
       const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
       const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
@@ -65,22 +84,31 @@ export default function AdminSellers() {
         }
       });
       
+      const email = `${cleanNik}@sps.local`;
+      
       const { data: authData, error: authError } = await tempSupabase.auth.signUp({
-        email: newSeller.email.trim().toLowerCase(),
+        email: email,
         password: newSeller.password,
         options: {
           data: {
+            nik: cleanNik,
             name: newSeller.name,
             role: 'seller'
           }
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        const errorMessage = authError.message?.toLowerCase() || '';
+        if (errorMessage.includes('database error saving new user') || errorMessage.includes('user already registered')) {
+          throw new Error('NIK ini sudah terdaftar di sistem.');
+        }
+        throw authError;
+      }
 
       alert('Penjual berhasil ditambahkan!');
       setIsAdding(false);
-      setNewSeller({ email: '', password: '', name: '' });
+      setNewSeller({ nik: '', password: '', name: '' });
       fetchSellers();
     } catch (error: any) {
       console.error('Error adding seller:', error);
@@ -198,13 +226,13 @@ export default function AdminSellers() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Email Login</label>
+                    <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">NIK Login</label>
                     <input 
                       required 
-                      type="email"
-                      value={newSeller.email}
-                      onChange={(e) => setNewSeller({...newSeller, email: e.target.value})}
-                      placeholder="email@penjual.com"
+                      type="text"
+                      value={newSeller.nik}
+                      onChange={(e) => setNewSeller({...newSeller, nik: e.target.value})}
+                      placeholder="Masukkan NIK"
                       className="input-field"
                     />
                   </div>

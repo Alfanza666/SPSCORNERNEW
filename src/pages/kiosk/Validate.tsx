@@ -90,7 +90,7 @@ export default function Validate() {
         Structure:
         {
           "valid": boolean,
-          "reason": "string explaining why it's valid or invalid in Indonesian. Explicitly mention the date and amount found in the image."
+          "reason": "string. Jika valid, berikan pesan sukses singkat. Jika tidak valid, berikan alasan spesifik dalam Bahasa Indonesia (misal: 'Jumlah transfer tidak sesuai. Diharapkan Rp ${totalAmount}, tetapi yang tertera adalah Rp X', atau 'Gambar buram dan nominal tidak terbaca', atau 'Ini bukan bukti transfer yang sah')."
         }
       `;
 
@@ -291,31 +291,43 @@ export default function Validate() {
             <div className="mt-6 sm:mt-10 flex flex-col sm:flex-row gap-3 sm:gap-4">
               {imageSrc && (
                 <>
-                  <button 
-                    onClick={retake} 
-                    disabled={isValidating || validationResult?.valid}
-                    className="btn-secondary flex-1 h-12 sm:h-16 flex items-center justify-center gap-2 text-sm sm:text-base"
-                  >
-                    <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
-                    Ganti Gambar
-                  </button>
-                  <button 
-                    onClick={validateReceipt}
-                    disabled={isValidating || validationResult?.valid}
-                    className="btn-primary flex-[2] h-12 sm:h-16 flex items-center justify-center gap-2 sm:gap-3 shadow-blue-600/20 text-sm sm:text-base"
-                  >
-                    {isValidating ? (
-                      <>
-                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
-                        Memproses...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
-                        Verifikasi Sekarang
-                      </>
-                    )}
-                  </button>
+                  {validationResult?.valid === false ? (
+                    <button 
+                      onClick={retake} 
+                      className="btn-primary w-full h-12 sm:h-16 flex items-center justify-center gap-2 text-sm sm:text-base bg-red-600 hover:bg-red-700 shadow-red-600/20"
+                    >
+                      <Upload className="w-4 h-4 sm:w-5 sm:h-5" />
+                      Unggah Ulang Bukti
+                    </button>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={retake} 
+                        disabled={isValidating || validationResult?.valid}
+                        className="btn-secondary flex-1 h-12 sm:h-16 flex items-center justify-center gap-2 text-sm sm:text-base"
+                      >
+                        <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                        Ganti Gambar
+                      </button>
+                      <button 
+                        onClick={validateReceipt}
+                        disabled={isValidating || validationResult?.valid}
+                        className="btn-primary flex-[2] h-12 sm:h-16 flex items-center justify-center gap-2 sm:gap-3 shadow-blue-600/20 text-sm sm:text-base"
+                      >
+                        {isValidating ? (
+                          <>
+                            <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" />
+                            Memproses...
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
+                            Verifikasi Sekarang
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
                 </>
               )}
             </div>

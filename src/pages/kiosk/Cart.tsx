@@ -284,7 +284,15 @@ export default function Cart() {
               )}
             </button>
             
-            <p className="text-center text-[10px] sm:text-xs text-zinc-400 mt-4 sm:mt-6 leading-relaxed">
+            <button
+              onClick={() => navigate('/kiosk')}
+              className="w-full py-3 sm:py-4 text-zinc-400 hover:text-zinc-600 transition-colors font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 mt-2"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              Kembali ke Menu
+            </button>
+            
+            <p className="text-center text-[10px] sm:text-xs text-zinc-400 mt-2 sm:mt-4 leading-relaxed">
               Dengan melanjutkan, kamu menyetujui syarat dan ketentuan yang berlaku di SPS Corner.
             </p>
           </div>

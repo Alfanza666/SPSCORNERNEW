@@ -8,7 +8,7 @@ import { QrCode, Upload, ShieldCheck, Info, ArrowLeft, CreditCard } from 'lucide
 import { motion } from 'framer-motion';
 
 export default function Checkout() {
-  const { items, getTotal } = useCartStore();
+  const { items, getTotal, reservations, setReservations } = useCartStore();
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [qrisUrl, setQrisUrl] = useState<string>('');
@@ -39,6 +39,20 @@ export default function Checkout() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBack = async () => {
+    if (reservations.length > 0) {
+      try {
+        for (const resId of reservations) {
+          await supabase.rpc('release_stock', { p_reservation_id: resId });
+        }
+        setReservations([]);
+      } catch (error) {
+        console.error('Error releasing reservations on back:', error);
+      }
+    }
+    navigate('/kiosk/cart');
   };
 
   return (
@@ -153,7 +167,7 @@ export default function Checkout() {
               </button>
 
               <button
-                onClick={() => navigate('/kiosk/cart')}
+                onClick={handleBack}
                 className="w-full py-3 sm:py-4 text-zinc-400 hover:text-zinc-600 transition-colors font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2"
               >
                 <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

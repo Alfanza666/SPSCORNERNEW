@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Home, LogOut, User } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Home, LogOut, User, Check } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
@@ -23,6 +23,14 @@ function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, reset
   );
 }
 
+const STEPS = [
+  { path: '/kiosk', label: 'Menu' },
+  { path: '/kiosk/cart', label: 'Keranjang' },
+  { path: '/kiosk/checkout', label: 'Bayar' },
+  { path: '/kiosk/validate', label: 'Validasi' },
+  { path: '/kiosk/success', label: 'Selesai' }
+];
+
 export default function KioskLayout() {
   const { items, clearCart, reservations, setReservations } = useCartStore();
   const { user, signOut } = useAuthStore();
@@ -30,6 +38,8 @@ export default function KioskLayout() {
   const location = useLocation();
   const isCatalog = location.pathname === '/kiosk';
   const isSuccess = location.pathname === '/kiosk/success';
+
+  const currentStepIndex = STEPS.findIndex(step => step.path === location.pathname);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -46,6 +56,27 @@ export default function KioskLayout() {
     clearCart();
     sessionStorage.removeItem('buyerName');
     navigate('/');
+  };
+
+  const handleBack = async () => {
+    // If we are on checkout and going back to cart, we should release reservations
+    if (location.pathname === '/kiosk/checkout' && reservations.length > 0) {
+      try {
+        for (const resId of reservations) {
+          await supabase.rpc('release_stock', { p_reservation_id: resId });
+        }
+        setReservations([]);
+      } catch (error) {
+        console.error('Error releasing reservations on back:', error);
+      }
+    }
+    
+    // Custom back navigation based on current step
+    if (currentStepIndex > 0) {
+      navigate(STEPS[currentStepIndex - 1].path);
+    } else {
+      navigate(-1);
+    }
   };
 
   // Idle timeout (2 minutes)
@@ -103,7 +134,7 @@ export default function KioskLayout() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => navigate(-1)}
+                  onClick={handleBack}
                   className="rounded-full bg-slate-100 hover:bg-slate-200 h-8 w-8 sm:h-10 sm:w-10"
                 >
                   <ArrowLeft className="w-4 h-4 sm:w-6 sm:h-6 text-slate-700" />
@@ -177,6 +208,43 @@ export default function KioskLayout() {
               )}
             </div>
           </div>
+          
+          {/* Stepper Indicator */}
+          {currentStepIndex >= 0 && currentStepIndex < STEPS.length - 1 && (
+            <div className="bg-slate-100/50 border-t border-slate-200 px-4 py-3">
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center justify-between relative">
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-slate-200 -z-10"></div>
+                  <div 
+                    className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-amber-600 -z-10 transition-all duration-500"
+                    style={{ width: `${(currentStepIndex / (STEPS.length - 2)) * 100}%` }}
+                  ></div>
+                  
+                  {STEPS.slice(0, -1).map((step, index) => {
+                    const isActive = index === currentStepIndex;
+                    const isPast = index < currentStepIndex;
+                    
+                    return (
+                      <div key={step.path} className="flex flex-col items-center gap-1.5 bg-slate-100/50 sm:bg-transparent px-1">
+                        <div 
+                          className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-colors ${
+                            isActive ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' : 
+                            isPast ? 'bg-amber-600 text-white' : 
+                            'bg-white text-slate-400 border-2 border-slate-200'
+                          }`}
+                        >
+                          {isPast ? <Check className="w-3 h-3 sm:w-4 sm:h-4" /> : index + 1}
+                        </div>
+                        <span className={`text-[10px] sm:text-xs font-medium ${isActive ? 'text-amber-700' : isPast ? 'text-slate-600' : 'text-slate-400'}`}>
+                          {step.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </header>
       )}
 

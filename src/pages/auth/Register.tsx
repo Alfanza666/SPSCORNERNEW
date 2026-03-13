@@ -19,22 +19,40 @@ export default function Register() {
     setLoading(true);
     setError('');
 
-    if (nik.length < 3) {
-      setError('NIK terlalu pendek');
+    const cleanNik = nik.trim().replace(/[\s-.]/g, '');
+    if (cleanNik.length < 3) {
+      setError('NIK tidak valid');
       setLoading(false);
       return;
     }
 
     try {
-      const email = `${nik}@sps.local`;
+      // Check if NIK already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('nik', cleanNik)
+        .maybeSingle();
+
+      if (checkError) {
+        throw new Error('Gagal memeriksa NIK. Silakan coba lagi.');
+      }
+
+      if (existingUser) {
+        setError('Gagal mendaftar. NIK ini sudah terdaftar di sistem.');
+        setLoading(false);
+        return;
+      }
+
+      const email = `${cleanNik}@sps.local`;
       
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            nik,
-            name,
+            nik: cleanNik,
+            name: name.trim(),
             role: 'buyer'
           }
         }
@@ -50,7 +68,12 @@ export default function Register() {
       }
     } catch (err: any) {
       console.error('Registration error:', err);
-      setError(err.message || 'Gagal mendaftar. NIK mungkin sudah terdaftar.');
+      const errorMessage = err.message?.toLowerCase() || '';
+      if (errorMessage.includes('database error saving new user') || errorMessage.includes('user already registered')) {
+        setError('Gagal mendaftar. NIK ini sudah terdaftar di sistem.');
+      } else {
+        setError(err.message || 'Gagal mendaftar. Silakan coba lagi.');
+      }
     } finally {
       setLoading(false);
     }
@@ -99,13 +122,7 @@ export default function Register() {
       >
         <div className="text-center mb-10">
           <div className="flex justify-center mb-6">
-            <img src={Logo} alt="SPS Corner Logo" className="h-20 w-auto object-contain" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-            }} />
-            <div className="hidden inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-              <UserPlus className="w-8 h-8" />
-            </div>
+            <img src={Logo} alt="" className="h-20 w-auto object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Daftar Akun Baru</h1>
           <p className="text-zinc-500 mt-2">Lengkapi data diri Anda untuk mulai berbelanja di SPS Corner</p>
