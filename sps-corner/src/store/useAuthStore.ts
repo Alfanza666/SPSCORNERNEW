@@ -1,0 +1,46 @@
+import { create } from 'zustand';
+import { supabase } from '../lib/supabase';
+
+export interface UserProfile {
+  id: string;
+  role: 'admin' | 'seller' | 'buyer';
+  name: string;
+  nik?: string;
+  balance: number;
+}
+
+interface AuthState {
+  user: UserProfile | null;
+  isLoading: boolean;
+  setUser: (user: UserProfile | null) => void;
+  fetchProfile: (userId: string) => Promise<void>;
+  signOut: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  isLoading: true,
+  setUser: (user) => set({ user }),
+  fetchProfile: async (userId) => {
+    try {
+      set({ isLoading: true });
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      set({ user: data as UserProfile });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      set({ user: null });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+  signOut: async () => {
+    await supabase.auth.signOut();
+    set({ user: null });
+  },
+}));
