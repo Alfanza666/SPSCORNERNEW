@@ -72,10 +72,7 @@ export default function AdminSellers() {
       }
 
       const { createClient } = await import('@supabase/supabase-js');
-      const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
-      const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
-      const supabaseUrl = typeof envUrl === 'string' && envUrl.startsWith('http') ? envUrl : '';
-      const supabaseAnonKey = typeof envKey === 'string' && envKey.trim() !== '' ? envKey : '';
+      const { supabaseUrl, supabaseAnonKey } = await import('../../../lib/supabase');
       
       const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
