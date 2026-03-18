@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { exportCSV, formatRupiah } from '../../../lib/utils';
+import { Skeleton } from '../../../components/ui/Skeleton';
 import { 
   Users, 
   TrendingUp, 
@@ -19,11 +20,13 @@ import {
   Calendar,
   ChevronRight,
   Upload,
-  Search
+  Search,
+  KeyRound
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
+import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const { user } = useAuthStore();
@@ -38,6 +41,7 @@ export default function AdminDashboard() {
   });
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [failedTransactions, setFailedTransactions] = useState<any[]>([]);
+  const [resetRequests, setResetRequests] = useState<any[]>([]);
   const [qrisUrl, setQrisUrl] = useState('');
   const [newQrisUrl, setNewQrisUrl] = useState('');
   const [loading, setLoading] = useState(true);
@@ -148,6 +152,13 @@ export default function AdminDashboard() {
         .limit(5);
       setFailedTransactions(failedTx || []);
 
+      const { data: resets } = await supabase
+        .from('password_reset_requests')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      setResetRequests(resets || []);
+
       const { data: qrisData } = await supabase
         .from('settings')
         .select('value')
@@ -203,6 +214,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCompleteReset = async (requestId: string) => {
+    if (!confirm('Tandai permintaan ini sebagai selesai? Pastikan Anda sudah mereset password user di dashboard Supabase menjadi 123456.')) return;
+
+    try {
+      const { error } = await supabase
+        .from('password_reset_requests')
+        .update({ status: 'completed' })
+        .eq('id', requestId);
+
+      if (error) throw error;
+      toast.success('Permintaan ditandai selesai');
+      fetchDashboardData();
+    } catch (err: any) {
+      console.error('Error completing reset:', err);
+      toast.error('Gagal memperbarui status permintaan');
+    }
+  };
+
   const exportToCSV = async () => {
     try {
       const { data: allTx, error } = await supabase
@@ -233,8 +262,38 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+      <div className="space-y-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <div className="flex gap-3">
+            <Skeleton className="h-12 w-32 rounded-xl" />
+            <Skeleton className="h-12 w-32 rounded-xl" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-2xl" />
+          ))}
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-2 space-y-10">
+            <Skeleton className="h-96 rounded-2xl" />
+            <div className="grid md:grid-cols-2 gap-10">
+              <Skeleton className="h-64 rounded-2xl md:col-span-2" />
+              <Skeleton className="h-64 rounded-2xl" />
+              <Skeleton className="h-64 rounded-2xl" />
+            </div>
+          </div>
+          <div className="space-y-10">
+            <Skeleton className="h-96 rounded-2xl" />
+            <Skeleton className="h-48 rounded-2xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -280,14 +339,14 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={fetchDashboardData}
-            className="btn-secondary h-10 px-3 sm:h-12 sm:px-5 flex items-center gap-2 text-xs sm:text-sm"
+            className="btn-clay-secondary h-10 px-3 sm:h-12 sm:px-5 flex items-center gap-2 text-xs sm:text-sm"
           >
             <Activity className="w-3 h-3 sm:w-4 sm:h-4" />
             Refresh Data
           </button>
           <button 
             onClick={exportToCSV} 
-            className="btn-primary h-10 px-3 sm:h-12 sm:px-5 flex items-center gap-2 shadow-blue-600/20 text-xs sm:text-sm"
+            className="btn-clay-primary h-10 px-3 sm:h-12 sm:px-5 flex items-center gap-2 text-xs sm:text-sm"
           >
             <Download className="w-3 h-3 sm:w-4 sm:h-4" />
             Export Laporan
@@ -328,7 +387,7 @@ export default function AdminDashboard() {
       <div className="grid lg:grid-cols-3 gap-6 sm:gap-10">
         {/* Sales Chart */}
         <div className="lg:col-span-2 space-y-6 sm:space-y-10">
-          <div className="glass-card p-4 sm:p-8 border-zinc-200/60">
+          <div className="clay-card p-4 sm:p-8">
             <div className="flex items-center justify-between mb-6 sm:mb-10">
               <div>
                 <h2 className="text-lg sm:text-xl font-black text-zinc-900 tracking-tight">Grafik Penjualan</h2>
@@ -379,8 +438,63 @@ export default function AdminDashboard() {
 
           {/* Transactions Lists */}
           <div className="grid md:grid-cols-2 gap-10">
-            <div className="glass-card overflow-hidden border-zinc-200/60">
-              <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
+            {/* Password Reset Requests */}
+            <div className="clay-card overflow-hidden md:col-span-2">
+              <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-amber-50/50">
+                <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-amber-600" />
+                  Permintaan Reset Password
+                  {resetRequests.length > 0 && (
+                    <span className="bg-amber-600 text-white text-[10px] px-2 py-0.5 rounded-full animate-pulse">
+                      {resetRequests.length}
+                    </span>
+                  )}
+                </h3>
+              </div>
+              <div className="divide-y divide-zinc-100">
+                <AnimatePresence mode="popLayout">
+                  {resetRequests.map((req) => (
+                    <motion.div 
+                      layout
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      key={req.id} 
+                      className="p-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-zinc-50 transition-colors gap-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center clay-icon">
+                          <Users className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-zinc-900">{req.user_name}</p>
+                          <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">NIK: {req.user_nik}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between sm:justify-end gap-3">
+                        <div className="text-right mr-0 sm:mr-4">
+                          <p className="text-[10px] text-zinc-400 font-medium">
+                            {format(new Date(req.created_at), 'dd MMM, HH:mm', { locale: id })}
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => handleCompleteReset(req.id)}
+                          className="btn-clay-primary py-2 px-4 text-[10px] bg-amber-600 hover:bg-amber-700 border-amber-700"
+                        >
+                          Selesai Reset
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {resetRequests.length === 0 && (
+                  <div className="p-10 text-center text-zinc-400 text-sm font-medium italic">Tidak ada permintaan reset pending</div>
+                )}
+              </div>
+            </div>
+
+            <div className="clay-card overflow-hidden">
+              <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
                 <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-blue-500" />
                   Transaksi Sukses
@@ -396,10 +510,10 @@ export default function AdminDashboard() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       key={tx.id} 
-                      className="p-3 sm:p-5 flex items-center justify-between hover:bg-zinc-50 transition-colors group"
+                      className="p-4 sm:p-5 flex items-center justify-between hover:bg-zinc-50 transition-colors group"
                     >
                       <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xs sm:text-sm">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm clay-icon">
                           {tx.buyer_name.charAt(0)}
                         </div>
                         <div>
@@ -411,7 +525,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="text-right">
                         <p className="font-black text-zinc-900 text-xs sm:text-sm">{formatRupiah(tx.total_amount)}</p>
-                        <span className="text-[8px] sm:text-[9px] font-black text-blue-600 uppercase tracking-tighter">Berhasil</span>
+                        <span className="clay-badge bg-blue-100 text-blue-600">Berhasil</span>
                       </div>
                     </motion.div>
                   ))}
@@ -422,8 +536,8 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="glass-card overflow-hidden border-zinc-200/60">
-              <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
+            <div className="clay-card overflow-hidden">
+              <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
                 <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
                   <XCircle className="w-4 h-4 text-red-500" />
                   Indikasi Palsu
@@ -439,11 +553,11 @@ export default function AdminDashboard() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       key={tx.id} 
-                      className="p-3 sm:p-5 flex flex-col gap-2 sm:gap-3 hover:bg-zinc-50 transition-colors"
+                      className="p-4 sm:p-5 flex flex-col gap-3 hover:bg-zinc-50 transition-colors"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-black text-[10px] sm:text-xs">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-black text-xs clay-icon">
                             {tx.buyer_name.charAt(0)}
                           </div>
                           <div>
@@ -455,9 +569,9 @@ export default function AdminDashboard() {
                         </div>
                         <p className="font-black text-zinc-900 text-xs sm:text-sm">{formatRupiah(tx.attempted_amount)}</p>
                       </div>
-                      <div className="flex items-start gap-2 sm:gap-3 bg-red-50/50 p-2 sm:p-3 rounded-xl border border-red-100/50">
-                         <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 shrink-0 mt-0.5" />
-                         <p className="text-[9px] sm:text-[10px] text-red-700 font-medium leading-relaxed line-clamp-2">
+                      <div className="flex items-start gap-3 bg-red-50/50 p-3 rounded-xl border border-red-100/50">
+                         <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                         <p className="text-[10px] text-red-700 font-medium leading-relaxed line-clamp-2">
                            {tx.reason}
                          </p>
                       </div>
@@ -474,28 +588,28 @@ export default function AdminDashboard() {
 
         {/* Sidebar Settings */}
         <div className="space-y-6 sm:space-y-10">
-          <div className="glass-card p-4 sm:p-8 border-zinc-200/60">
-            <h3 className="text-xs sm:text-sm font-black text-zinc-900 uppercase tracking-widest mb-4 sm:mb-8 flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+          <div className="clay-card p-6 sm:p-8">
+            <h3 className="text-xs sm:text-sm font-black text-zinc-900 uppercase tracking-widest mb-6 sm:mb-8 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-blue-600" />
               Pengaturan QRIS
             </h3>
             
             <div className="space-y-6 sm:space-y-8">
               <div className="relative group">
                 <div className="absolute -inset-2 bg-blue-500/5 rounded-3xl blur-xl group-hover:bg-blue-500/10 transition-colors" />
-                <div className="relative bg-zinc-50 p-4 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-zinc-200/60 flex justify-center shadow-inner">
+                <div className="relative bg-zinc-50 p-6 rounded-[2rem] border border-zinc-200/60 flex justify-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)]">
                   {qrisUrl ? (
                     <img src={qrisUrl} alt="QRIS Aktif" className="w-full aspect-square object-contain rounded-xl" />
                   ) : (
-                    <div className="w-full aspect-square flex flex-col items-center justify-center text-zinc-300 gap-2 sm:gap-3">
-                      <QrCode className="w-12 h-12 sm:w-16 sm:h-16 stroke-[1]" />
+                    <div className="w-full aspect-square flex flex-col items-center justify-center text-zinc-300 gap-3">
+                      <QrCode className="w-16 h-16 stroke-[1]" />
                       <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Belum Ada QRIS</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-3 sm:space-y-4">
+              <div className="space-y-4">
                 <label className="text-[10px] sm:text-xs font-black text-zinc-400 uppercase tracking-widest ml-1">Ganti Gambar QRIS</label>
                 <div className="relative">
                   <input 
@@ -508,13 +622,13 @@ export default function AdminDashboard() {
                   />
                   <label 
                     htmlFor="qris-upload"
-                    className="w-full h-12 sm:h-14 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl flex items-center justify-center gap-2 sm:gap-3 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                    className="w-full h-12 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl flex items-center justify-center gap-3 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group"
                   >
                     {uploadingQris ? (
-                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-blue-600" />
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                     ) : (
                       <>
-                        <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400 group-hover:text-blue-600" />
+                        <Upload className="w-5 h-5 text-zinc-400 group-hover:text-blue-600" />
                         <span className="text-xs sm:text-sm font-bold text-zinc-500 group-hover:text-blue-600">Pilih File Baru</span>
                       </>
                     )}
@@ -525,12 +639,12 @@ export default function AdminDashboard() {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-amber-50 rounded-xl border border-amber-100"
+                    className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100"
                   >
-                    <img src={newQrisUrl} alt="Preview" className="w-10 h-10 sm:w-12 h-12 object-cover rounded-lg shadow-sm" />
+                    <img src={newQrisUrl} alt="Preview" className="w-12 h-12 object-cover rounded-lg shadow-sm" />
                     <div className="flex-1">
-                      <p className="text-[9px] sm:text-[10px] font-black text-amber-700 uppercase tracking-wider">Preview Terunggah</p>
-                      <p className="text-[8px] sm:text-[9px] text-amber-500 font-medium">Klik simpan untuk menerapkan</p>
+                      <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider">Preview Terunggah</p>
+                      <p className="text-[9px] text-amber-500 font-medium">Klik simpan untuk menerapkan</p>
                     </div>
                   </motion.div>
                 )}
@@ -539,15 +653,15 @@ export default function AdminDashboard() {
               <button 
                 onClick={handleUpdateQris} 
                 disabled={!newQrisUrl || newQrisUrl === qrisUrl}
-                className="btn-primary w-full h-12 sm:h-14 flex items-center justify-center gap-2 shadow-blue-600/20 disabled:opacity-50 disabled:shadow-none text-xs sm:text-sm"
+                className="btn-clay-primary w-full h-12 flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none text-xs sm:text-sm"
               >
-                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ShieldCheck className="w-5 h-5" />
                 Simpan Perubahan
               </button>
             </div>
           </div>
 
-          <div className="glass-card p-8 border-zinc-200/60 bg-zinc-900 text-white relative overflow-hidden">
+          <div className="clay-card p-8 bg-zinc-900 text-white relative overflow-hidden border-none">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 blur-3xl rounded-full -mr-16 -mt-16" />
             <div className="relative z-10">
               <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">

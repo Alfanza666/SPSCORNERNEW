@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { Skeleton } from '../../../components/ui/Skeleton';
+
 export default function SellerWithdrawals() {
   const { user } = useAuthStore();
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -115,8 +117,30 @@ export default function SellerWithdrawals() {
 
   if (loading && withdrawals.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      <div className="space-y-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          <div className="lg:col-span-4 space-y-8">
+            <Skeleton className="h-48 w-full rounded-3xl" />
+            <Skeleton className="h-96 w-full rounded-3xl" />
+          </div>
+          <div className="lg:col-span-8">
+            <div className="clay-card h-full p-6 space-y-4">
+              <Skeleton className="h-8 w-48" />
+              <div className="space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -143,27 +167,27 @@ export default function SellerWithdrawals() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card p-8 bg-zinc-900 text-white border-zinc-800 relative overflow-hidden"
+            className="clay-card p-8 bg-zinc-900 text-white border-none relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 blur-3xl rounded-full -mr-16 -mt-16" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-8">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Saldo Tersedia</p>
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center clay-icon border-white/10">
                   <CreditCard className="w-5 h-5 text-blue-400" />
                 </div>
               </div>
               <h2 className="text-4xl font-black tracking-tighter mb-4">
                 {formatRupiah(balance)}
               </h2>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 p-2 rounded-lg inline-flex">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 p-2 rounded-lg inline-flex clay-badge border-blue-500/20">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Aman & Terverifikasi
               </div>
             </div>
           </motion.div>
 
-          <div className="glass-card p-8 border-zinc-200/60">
+          <div className="clay-card p-8">
             <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-6 flex items-center gap-2">
               <ArrowUpRight className="w-4 h-4 text-blue-500" />
               Ajukan Penarikan
@@ -181,7 +205,7 @@ export default function SellerWithdrawals() {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="Minimal 50.000"
-                    className="input-field pl-12"
+                    className="input-clay pl-12"
                   />
                 </div>
               </div>
@@ -194,7 +218,7 @@ export default function SellerWithdrawals() {
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="bg-zinc-50 p-6 rounded-2xl border border-zinc-100 space-y-3">
+                    <div className="bg-zinc-50 p-6 rounded-2xl border border-zinc-100 space-y-3 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)]">
                       <div className="flex justify-between text-xs font-bold text-zinc-500 uppercase tracking-widest">
                         <span>Kotor</span>
                         <span>{formatRupiah(Number(amount))}</span>
@@ -212,7 +236,7 @@ export default function SellerWithdrawals() {
                 )}
               </AnimatePresence>
 
-              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex gap-3">
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex gap-3 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.02)]">
                 <Info className="w-5 h-5 text-amber-600 shrink-0" />
                 <p className="text-[10px] text-amber-800 font-bold uppercase tracking-wider leading-relaxed">
                   Proses penarikan membutuhkan waktu 1-3 hari kerja untuk verifikasi admin.
@@ -221,7 +245,7 @@ export default function SellerWithdrawals() {
 
               <button 
                 type="submit" 
-                className="btn-primary w-full h-14 shadow-blue-600/20" 
+                className="btn-clay-primary w-full h-12" 
                 disabled={isRequesting || Number(amount) < 50000 || Number(amount) > balance}
               >
                 {isRequesting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Tarik Dana Sekarang'}
@@ -231,7 +255,7 @@ export default function SellerWithdrawals() {
         </div>
 
         <div className="lg:col-span-8">
-          <div className="glass-card h-full border-zinc-200/60 overflow-hidden flex flex-col">
+          <div className="clay-card h-full overflow-hidden flex flex-col">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
               <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
                 <History className="w-4 h-4 text-blue-500" />
@@ -263,22 +287,22 @@ export default function SellerWithdrawals() {
                       </td>
                       <td className="p-6">
                         {w.status === 'pending' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                          <span className="clay-badge bg-amber-100 text-amber-700">
                             <Clock className="w-3 h-3 mr-1.5" /> Pending
                           </span>
                         )}
                         {w.status === 'approved' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                          <span className="clay-badge bg-amber-100 text-amber-700">
                             <CheckCircle2 className="w-3 h-3 mr-1.5" /> Disetujui
                           </span>
                         )}
                         {w.status === 'paid' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">
+                          <span className="clay-badge bg-blue-100 text-blue-700">
                             <CheckCircle2 className="w-3 h-3 mr-1.5" /> Dibayar
                           </span>
                         )}
                         {w.status === 'rejected' && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700">
+                          <span className="clay-badge bg-red-100 text-red-700">
                             <XCircle className="w-3 h-3 mr-1.5" /> Ditolak
                           </span>
                         )}
@@ -302,48 +326,48 @@ export default function SellerWithdrawals() {
             {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-zinc-100 flex-1 overflow-y-auto">
               {withdrawals.map((w) => (
-                <div key={w.id} className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+                <div key={w.id} className="p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-bold text-xs sm:text-sm text-zinc-900">{format(new Date(w.created_at), 'dd MMM yyyy', { locale: id })}</p>
-                      <p className="text-[9px] sm:text-[10px] text-zinc-400 font-medium">{format(new Date(w.created_at), 'HH:mm', { locale: id })} WIB</p>
+                      <p className="font-bold text-sm text-zinc-900">{format(new Date(w.created_at), 'dd MMM yyyy', { locale: id })}</p>
+                      <p className="text-[10px] text-zinc-400 font-medium">{format(new Date(w.created_at), 'HH:mm', { locale: id })} WIB</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-blue-600 text-base sm:text-lg tracking-tight">{formatRupiah(w.net_amount)}</p>
-                      <p className="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Diterima</p>
+                      <p className="font-black text-blue-600 text-lg tracking-tight">{formatRupiah(w.net_amount)}</p>
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Diterima</p>
                     </div>
                   </div>
                   
-                  <div className="bg-zinc-50 p-2 sm:p-3 rounded-lg sm:rounded-xl border border-zinc-100 flex justify-between items-center">
+                  <div className="bg-zinc-50 p-3 rounded-2xl border border-zinc-100 flex justify-between items-center shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)]">
                     <div>
-                      <p className="text-[9px] sm:text-[10px] text-zinc-500 font-black uppercase tracking-wider">Kotor</p>
-                      <p className="text-xs sm:text-sm font-bold text-zinc-900">{formatRupiah(w.amount)}</p>
+                      <p className="text-[10px] text-zinc-500 font-black uppercase tracking-wider">Kotor</p>
+                      <p className="text-sm font-bold text-zinc-900">{formatRupiah(w.amount)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[9px] sm:text-[10px] text-red-500 font-black uppercase tracking-wider">Biaya (8%)</p>
-                      <p className="text-xs sm:text-sm font-bold text-red-500">-{formatRupiah(w.fee)}</p>
+                      <p className="text-[10px] text-red-500 font-black uppercase tracking-wider">Biaya (8%)</p>
+                      <p className="text-sm font-bold text-red-500">-{formatRupiah(w.fee)}</p>
                     </div>
                   </div>
 
-                  <div className="pt-1 sm:pt-2">
+                  <div className="pt-2">
                     {w.status === 'pending' && (
-                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
-                        <Clock className="w-3 h-3 mr-1 sm:mr-1.5" /> Pending
+                      <span className="clay-badge bg-amber-100 text-amber-700">
+                        <Clock className="w-3 h-3 mr-1.5" /> Pending
                       </span>
                     )}
                     {w.status === 'approved' && (
-                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
-                        <CheckCircle2 className="w-3 h-3 mr-1 sm:mr-1.5" /> Disetujui
+                      <span className="clay-badge bg-amber-100 text-amber-700">
+                        <CheckCircle2 className="w-3 h-3 mr-1.5" /> Disetujui
                       </span>
                     )}
                     {w.status === 'paid' && (
-                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">
-                        <CheckCircle2 className="w-3 h-3 mr-1 sm:mr-1.5" /> Dibayar
+                      <span className="clay-badge bg-blue-100 text-blue-700">
+                        <CheckCircle2 className="w-3 h-3 mr-1.5" /> Dibayar
                       </span>
                     )}
                     {w.status === 'rejected' && (
-                      <span className="inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700">
-                        <XCircle className="w-3 h-3 mr-1 sm:mr-1.5" /> Ditolak
+                      <span className="clay-badge bg-red-100 text-red-700">
+                        <XCircle className="w-3 h-3 mr-1.5" /> Ditolak
                       </span>
                     )}
                   </div>

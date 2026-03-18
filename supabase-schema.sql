@@ -6,7 +6,7 @@ create extension if not exists "uuid-ossp";
 -- 1. Profiles Table (Extends Supabase Auth)
 create table if not exists public.profiles (
   id uuid not null primary key references auth.users(id) on delete cascade,
-  role text not null check (role in ('admin', 'seller', 'buyer')),
+  role text not null,
   name text not null,
   nik text unique,
   balance numeric not null default 0,
@@ -17,20 +17,32 @@ create table if not exists public.profiles (
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
--- Ensure check constraint exists (safe: attempt to add only if not present)
+-- Ensure the role check constraint is correctly set and unique
 do $$
 begin
-  if not exists (
-    select 1 from pg_constraint c
-    join pg_class t on c.conrelid = t.oid
-    join pg_namespace n on t.relnamespace = n.oid
-    where n.nspname = 'public' and t.relname = 'profiles'
-      and c.conname = 'profiles_role_check'
-  ) then
-    alter table public.profiles add constraint profiles_role_check check (role in ('admin','seller','buyer'));
-  end if;
-exception when duplicate_object then
-  -- nothing
+  -- Drop any existing check constraints on the role column to avoid conflicts
+  -- We try to find constraints that check the 'role' column
+  declare
+    constraint_name text;
+  begin
+    for constraint_name in (
+      select conname
+      from pg_constraint c
+      join pg_class t on c.conrelid = t.oid
+      join pg_namespace n on t.relnamespace = n.oid
+      where n.nspname = 'public' 
+        and t.relname = 'profiles' 
+        and c.contype = 'c'
+        and pg_get_constraintdef(c.oid) ilike '%role%'
+    ) loop
+      execute 'alter table public.profiles drop constraint ' || constraint_name;
+    end loop;
+  end;
+
+  -- Add the definitive constraint
+  alter table public.profiles add constraint profiles_role_check check (role in ('admin', 'seller', 'buyer'));
+exception when others then
+  raise log 'Error updating profiles_role_check: %', SQLERRM;
 end;
 $$;
 
@@ -176,6 +188,23 @@ create table if not exists public.failed_transactions (
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
+-- 6. Categories Table
+create table if not exists public.categories (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null unique,
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+
+-- 7. Password Reset Requests Table
+create table if not exists public.password_reset_requests (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  user_name text not null,
+  user_nik text,
+  status text not null default 'pending' check (status in ('pending', 'completed')),
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+
 -- Ensure buyer_id exists in failed_transactions
 do $$
 begin
@@ -239,9 +268,18 @@ create trigger on_transaction_item_created
   for each row
   execute function public.update_seller_balance();
 
+-- Function to check if a NIK exists (bypasses RLS)
+create or replace function public.check_nik_exists(p_nik text)
+returns boolean language sql security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profiles
+    where nik = p_nik
+  );
+$$;
+
 -- AUTOMATIC PROFILE CREATION TRIGGER
 create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 declare
   is_first_user boolean;
   user_name text;
@@ -249,29 +287,35 @@ declare
   user_nik text;
 begin
   -- Check if this is the very first user in the profiles table
-  select not exists(select 1 from public.profiles) into is_first_user;
+  select not exists(select 1 from public.profiles limit 1) into is_first_user;
 
-  -- derive a name from raw_user_meta_data if present, else from email
+  -- derive a name from raw_user_meta_data if present, else from email, else default
   user_name := coalesce(
-    (new.raw_user_meta_data ->> 'name'),
-    split_part(new.email, '@', 1)
+    nullif(trim(new.raw_user_meta_data ->> 'name'), ''),
+    nullif(split_part(new.email, '@', 1), ''),
+    'User'
   );
   
   -- derive role from metadata, default to 'seller' or 'buyer'
-  user_role := coalesce(
-    (new.raw_user_meta_data ->> 'role'),
+  -- Ensure it is lowercase and trimmed
+  user_role := lower(trim(coalesce(
+    nullif(new.raw_user_meta_data ->> 'role', ''),
     case when is_first_user then 'admin' else 'buyer' end
-  );
+  )));
 
-  user_nik := (new.raw_user_meta_data ->> 'nik');
+  -- Ensure role is strictly one of the allowed values
+  if user_role not in ('admin', 'seller', 'buyer') then
+    user_role := 'buyer';
+  end if;
 
-  insert into public.profiles (id, role, name, nik, balance, total_sales, total_withdrawn, total_fee_paid, is_active)
+  user_nik := nullif(trim(new.raw_user_meta_data ->> 'nik'), '');
+
+  insert into public.profiles (id, role, name, nik)
   values (
     new.id,
     user_role,
     user_name,
-    user_nik,
-    0, 0, 0, 0, true
+    user_nik
   )
   on conflict (id) do update 
   set 
@@ -280,6 +324,12 @@ begin
     nik = excluded.nik;
 
   return new;
+exception
+  when others then
+    -- Log the error but allow the user creation to proceed if possible, 
+    -- or at least provide a clear error in the postgres logs.
+    raise log 'Error in handle_new_user trigger: %', SQLERRM;
+    raise;
 end;
 $$;
 

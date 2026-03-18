@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
+import { Toaster } from 'react-hot-toast';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
 
@@ -8,16 +9,22 @@ import { useAuthStore } from './store/useAuthStore';
 const Home = React.lazy(() => import('./pages/Home'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/auth/Register'));
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
 const KioskLayout = React.lazy(() => import('./pages/kiosk/KioskLayout'));
 const Catalog = React.lazy(() => import('./pages/kiosk/Catalog'));
 const Cart = React.lazy(() => import('./pages/kiosk/Cart'));
 const Checkout = React.lazy(() => import('./pages/kiosk/Checkout'));
 const Validate = React.lazy(() => import('./pages/kiosk/Validate'));
 const Success = React.lazy(() => import('./pages/kiosk/Success'));
+const History = React.lazy(() => import('./pages/kiosk/History'));
+const Profile = React.lazy(() => import('./pages/kiosk/Profile'));
+const Terms = React.lazy(() => import('./pages/Terms'));
+const Contact = React.lazy(() => import('./pages/Contact'));
 
 const DashboardLayout = React.lazy(() => import('./pages/dashboard/DashboardLayout'));
 const AdminDashboard = React.lazy(() => import('./pages/dashboard/admin/AdminDashboard'));
 const AdminSellers = React.lazy(() => import('./pages/dashboard/admin/AdminSellers'));
+const AdminCategories = React.lazy(() => import('./pages/dashboard/admin/AdminCategories'));
 const AdminProducts = React.lazy(() => import('./pages/dashboard/admin/AdminProducts'));
 const AdminTransactions = React.lazy(() => import('./pages/dashboard/admin/AdminTransactions'));
 const AdminWithdrawals = React.lazy(() => import('./pages/dashboard/admin/AdminWithdrawals'));
@@ -76,14 +83,37 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, [fetchProfile, setUser]);
 
+  // Automatic dark mode based on time
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const hour = new Date().getHours();
+      // Night time is between 18:00 and 06:00
+      const isNight = hour >= 18 || hour < 6;
+      if (isNight) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+
+    checkDarkMode();
+    // Check every minute
+    const interval = setInterval(checkDarkMode, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <BrowserRouter>
+        <Toaster />
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/contact" element={<Contact />} />
             
             {/* Kiosk Routes */}
             <Route path="/kiosk" element={<KioskLayout />}>
@@ -92,12 +122,15 @@ export default function App() {
               <Route path="checkout" element={<Checkout />} />
               <Route path="validate" element={<Validate />} />
               <Route path="success" element={<Success />} />
+              <Route path="history" element={<History />} />
+              <Route path="profile" element={<Profile />} />
             </Route>
 
             {/* Dashboard Routes */}
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route path="admin" element={<AdminDashboard />} />
               <Route path="admin/sellers" element={<AdminSellers />} />
+              <Route path="admin/categories" element={<AdminCategories />} />
               <Route path="admin/products" element={<AdminProducts />} />
               <Route path="admin/transactions" element={<AdminTransactions />} />
               <Route path="admin/withdrawals" element={<AdminWithdrawals />} />

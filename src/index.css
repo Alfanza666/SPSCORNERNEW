@@ -1,30 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Fredoka", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* Override blue to be Blue (Sariroti Primary) */
-  --color-blue-50: #eff6ff;
-  --color-blue-100: #dbeafe;
-  --color-blue-200: #bfdbfe;
-  --color-blue-300: #93c5fd;
-  --color-blue-400: #60a5fa;
-  --color-blue-500: #3b82f6;
-  --color-blue-600: #2563eb;
-  --color-blue-700: #1d4ed8;
-  --color-blue-800: #1e40af;
-  --color-blue-900: #1e3a8a;
-  --color-blue-950: #172554;
+  /* Sariroti Brand Colors */
+  --color-sariroti-blue: #0054a6;
+  --color-sariroti-yellow: #ffcc00;
+  
+  /* Override blue to be Sariroti Blue */
+  --color-blue-50: #eef7ff;
+  --color-blue-100: #d9eeff;
+  --color-blue-200: #bcdfff;
+  --color-blue-300: #8ecbff;
+  --color-blue-400: #58aeff;
+  --color-blue-500: #318fff;
+  --color-blue-600: #0054a6; /* Primary */
+  --color-blue-700: #1469c1;
+  --color-blue-800: #17569c;
+  --color-blue-900: #184881;
+  --color-blue-950: #102d54;
 
-  /* Override amber to be Amber/Yellow (Sariroti Accent) */
+  /* Override amber to be Sariroti Yellow */
   --color-amber-50: #fffbeb;
-  --color-amber-100: #fef3c7;
-  --color-amber-200: #fde68a;
-  --color-amber-300: #fcd34d;
-  --color-amber-400: #fbbf24;
+  --color-amber-100: #fff3c7;
+  --color-amber-200: #ffe68a;
+  --color-amber-300: #ffd34d;
+  --color-amber-400: #ffcc00; /* Primary */
   --color-amber-500: #f59e0b;
   --color-amber-600: #d97706;
   --color-amber-700: #b45309;
@@ -35,32 +41,193 @@
 
 @layer base {
   body {
-    @apply bg-zinc-50 text-zinc-900 font-sans antialiased;
+    /* Slightly more tinted background for better contrast with white cards, dark mode support */
+    @apply bg-[#e8ebf0] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans antialiased selection:bg-blue-100 selection:text-blue-900 dark:selection:bg-blue-900 dark:selection:text-blue-100;
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-zinc-200/50 shadow-sm rounded-2xl;
+  /* Clay Cards - Stronger shadows for better depth and contrast */
+  .clay-card {
+    @apply bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-transparent dark:border-zinc-800 transition-all duration-300;
+    box-shadow: 
+      8px 8px 16px rgba(0, 0, 0, 0.06),
+      inset -4px -4px 8px rgba(0, 0, 0, 0.03),
+      inset 4px 4px 8px rgba(255, 255, 255, 0.9);
   }
   
-  .btn-primary {
-    @apply px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-sm shadow-blue-200;
+  .dark .clay-card {
+    box-shadow: 
+      8px 8px 16px rgba(0, 0, 0, 0.4),
+      inset -4px -4px 8px rgba(0, 0, 0, 0.2),
+      inset 4px 4px 8px rgba(255, 255, 255, 0.05);
   }
 
-  .btn-secondary {
-    @apply px-6 py-2.5 bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-medium rounded-xl transition-all active:scale-95 shadow-sm;
+  .clay-card-lg {
+    @apply bg-white dark:bg-zinc-900 rounded-3xl sm:rounded-[2rem] border border-transparent dark:border-zinc-800 transition-all duration-300;
+    box-shadow: 
+      12px 12px 24px rgba(0, 0, 0, 0.06),
+      inset -6px -6px 12px rgba(0, 0, 0, 0.03),
+      inset 6px 6px 12px rgba(255, 255, 255, 0.9);
   }
 
-  .input-field {
-    @apply w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all;
+  .dark .clay-card-lg {
+    box-shadow: 
+      12px 12px 24px rgba(0, 0, 0, 0.4),
+      inset -6px -6px 12px rgba(0, 0, 0, 0.2),
+      inset 6px 6px 12px rgba(255, 255, 255, 0.05);
   }
 
-  .badge {
-    @apply px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider;
+  .clay-card:hover {
+    @apply shadow-[10px_10px_20px_rgba(0,0,0,0.08)] dark:shadow-[10px_10px_20px_rgba(0,0,0,0.5)];
+  }
+
+  .clay-card-lg:hover {
+    @apply shadow-[16px_16px_32px_rgba(0,0,0,0.08)] dark:shadow-[16px_16px_32px_rgba(0,0,0,0.5)];
+  }
+
+  .clay-card-blue {
+    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-2xl sm:rounded-3xl;
+    box-shadow: 
+      8px 8px 16px rgba(0, 84, 166, 0.2),
+      inset -4px -4px 8px rgba(0, 0, 0, 0.15),
+      inset 4px 4px 8px rgba(255, 255, 255, 0.2);
+  }
+
+  .clay-card-blue-lg {
+    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-3xl sm:rounded-[2rem];
+    box-shadow: 
+      12px 12px 24px rgba(0, 84, 166, 0.2),
+      inset -6px -6px 12px rgba(0, 0, 0, 0.15),
+      inset 6px 6px 12px rgba(255, 255, 255, 0.2);
+  }
+
+  .clay-card-amber {
+    @apply bg-amber-400 dark:bg-amber-500 text-amber-950 dark:text-amber-950 rounded-2xl sm:rounded-3xl;
+    box-shadow: 
+      8px 8px 16px rgba(255, 204, 0, 0.25),
+      inset -4px -4px 8px rgba(0, 0, 0, 0.1),
+      inset 4px 4px 8px rgba(255, 255, 255, 0.3);
+  }
+
+  /* Clay Buttons */
+  .btn-clay-primary {
+    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2;
+    box-shadow: 
+      4px 4px 8px rgba(0, 84, 166, 0.25),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.15),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.25);
+  }
+
+  .btn-clay-primary-lg {
+    @apply px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2;
+    box-shadow: 
+      6px 6px 12px rgba(0, 84, 166, 0.25),
+      inset -3px -3px 6px rgba(0, 0, 0, 0.15),
+      inset 3px 3px 6px rgba(255, 255, 255, 0.25);
+  }
+
+  .btn-clay-primary:hover {
+    @apply bg-blue-700 dark:bg-blue-600 -translate-y-0.5;
+    box-shadow: 
+      6px 6px 12px rgba(0, 84, 166, 0.3),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.15),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.25);
+  }
+
+  .btn-clay-secondary {
+    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 border border-transparent dark:border-zinc-700;
+    box-shadow: 
+      4px 4px 8px rgba(0, 0, 0, 0.05),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.02),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.9);
+  }
+
+  .dark .btn-clay-secondary {
+    box-shadow: 
+      4px 4px 8px rgba(0, 0, 0, 0.3),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.2),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.05);
+  }
+
+  .btn-clay-danger {
+    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-red-500 dark:bg-red-600 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2;
+    box-shadow: 
+      4px 4px 8px rgba(239, 68, 68, 0.25),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.15),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.25);
+  }
+
+  /* Clay Inputs */
+  .input-clay {
+    @apply w-full px-3 py-1.5 sm:px-4 sm:py-2 bg-[#f8f9fa] dark:bg-zinc-900 border-none rounded-xl outline-none transition-all font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500;
+    box-shadow: 
+      inset 3px 3px 6px rgba(0, 0, 0, 0.05),
+      inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+  }
+
+  .dark .input-clay {
+    box-shadow: 
+      inset 3px 3px 6px rgba(0, 0, 0, 0.3),
+      inset -3px -3px 6px rgba(255, 255, 255, 0.02);
+  }
+
+  .input-clay:focus {
+    @apply bg-white dark:bg-zinc-800 ring-2 ring-blue-500/10 dark:ring-blue-500/30;
+    box-shadow: 
+      inset 3px 3px 6px rgba(0, 84, 166, 0.05),
+      inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+  }
+
+  .dark .input-clay:focus {
+    box-shadow: 
+      inset 3px 3px 6px rgba(0, 0, 0, 0.4),
+      inset -3px -3px 6px rgba(255, 255, 255, 0.05);
+  }
+
+  /* Clay Icons */
+  .clay-icon {
+    @apply rounded-xl flex items-center justify-center transition-all duration-300 bg-white dark:bg-zinc-800;
+    box-shadow: 
+      4px 4px 8px rgba(0, 0, 0, 0.05),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.02),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.9);
+  }
+
+  .dark .clay-icon {
+    box-shadow: 
+      4px 4px 8px rgba(0, 0, 0, 0.3),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.2),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.05);
+  }
+
+  .clay-icon-blue {
+    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-xl flex items-center justify-center transition-all;
+    box-shadow: 
+      4px 4px 8px rgba(0, 84, 166, 0.25),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.15),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.2);
+  }
+
+  .clay-icon-amber {
+    @apply bg-amber-400 dark:bg-amber-500 text-amber-950 dark:text-amber-950 rounded-xl flex items-center justify-center transition-all;
+    box-shadow: 
+      4px 4px 8px rgba(255, 204, 0, 0.25),
+      inset -2px -2px 4px rgba(0, 0, 0, 0.1),
+      inset 2px 2px 4px rgba(255, 255, 255, 0.3);
+  }
+
+  /* Badges */
+  .clay-badge {
+    @apply px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider dark:bg-zinc-800 dark:text-zinc-200;
+    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .dark .clay-badge {
+    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.3);
   }
 }
 
 .markdown-body {
-  @apply prose prose-zinc max-w-none;
+  @apply prose prose-zinc dark:prose-invert max-w-none prose-headings:font-black prose-p:text-zinc-600 dark:prose-p:text-zinc-400;
 }

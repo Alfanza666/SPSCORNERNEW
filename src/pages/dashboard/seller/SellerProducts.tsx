@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
@@ -19,11 +20,12 @@ import {
   ChevronRight,
   AlertCircle
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Skeleton, TableRowSkeleton, ProductSkeleton } from '../../../components/ui/Skeleton';
 
 export default function SellerProducts() {
   const { user } = useAuthStore();
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
@@ -75,8 +77,22 @@ export default function SellerProducts() {
   useEffect(() => {
     if (user?.role === 'seller') {
       fetchProducts();
+      fetchCategories();
     }
   }, [user]);
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -204,8 +220,43 @@ export default function SellerProducts() {
 
   if (loading && products.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      <div className="space-y-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-12 w-48 rounded-2xl" />
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <Skeleton className="h-12 w-full md:w-96 rounded-2xl" />
+          <Skeleton className="h-12 w-40 rounded-2xl" />
+        </div>
+
+        <div className="clay-card overflow-hidden">
+          <div className="hidden md:block">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-zinc-100 bg-zinc-50/50">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <th key={i} className="p-6"><Skeleton className="h-4 w-20" /></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRowSkeleton key={i} columns={6} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="md:hidden divide-y divide-zinc-100">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <ProductSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -224,7 +275,7 @@ export default function SellerProducts() {
         </div>
         <button 
           onClick={() => setIsAdding(true)} 
-          className="btn-primary h-14 px-8 flex items-center gap-3 shadow-blue-600/20"
+          className="btn-clay-primary h-12 px-8 flex items-center gap-3"
         >
           <Plus className="w-5 h-5" />
           Tambah Produk
@@ -233,17 +284,17 @@ export default function SellerProducts() {
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-600 transition-colors" />
           <input 
             type="text" 
             placeholder="Cari produk Anda..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-12 h-14"
+            className="input-clay pl-12 h-12"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <button className="btn-secondary h-14 px-6 flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button className="btn-clay-secondary h-12 px-6 flex-1 md:flex-none flex items-center gap-2">
             <Filter className="w-4 h-4" />
             Filter
           </button>
@@ -258,7 +309,7 @@ export default function SellerProducts() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="glass-card p-8 border-blue-200 bg-blue-50/30 mb-10">
+            <div className="clay-card p-8 border-blue-200 bg-blue-50/30 mb-10">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-black text-zinc-900 tracking-tight">Tambah Produk Baru</h2>
                 <button onClick={() => setIsAdding(false)} className="p-2 text-zinc-400 hover:text-zinc-900">
@@ -275,19 +326,23 @@ export default function SellerProducts() {
                         value={newProduct.name}
                         onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
                         placeholder="Contoh: Nasi Goreng Spesial"
-                        className="input-field"
+                        className="input-clay"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Kategori</label>
-                        <input 
+                        <select 
                           required 
                           value={newProduct.category}
                           onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-                          placeholder="Makanan"
-                          className="input-field"
-                        />
+                          className="input-clay appearance-none"
+                        >
+                          <option value="">Pilih Kategori</option>
+                          {categories.map(cat => (
+                            <option key={cat.id} value={cat.name}>{cat.name}</option>
+                          ))}
+                        </select>
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Stok Awal</label>
@@ -297,7 +352,7 @@ export default function SellerProducts() {
                           value={newProduct.stock}
                           onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
                           placeholder="20"
-                          className="input-field"
+                          className="input-clay"
                         />
                       </div>
                     </div>
@@ -309,7 +364,7 @@ export default function SellerProducts() {
                         value={newProduct.price}
                         onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
                         placeholder="15000"
-                        className="input-field"
+                        className="input-clay"
                       />
                     </div>
                     <div className="space-y-2">
@@ -318,19 +373,19 @@ export default function SellerProducts() {
                         value={newProduct.description}
                         onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
                         placeholder="Deskripsi singkat produk..."
-                        className="input-field min-h-[100px] py-4"
+                        className="input-clay min-h-[100px] py-4"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-6">
                     <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Gambar Produk</label>
-                    <div className="relative aspect-square rounded-2xl md:rounded-[2.5rem] border-2 border-dashed border-zinc-200 bg-zinc-50 flex flex-col items-center justify-center overflow-hidden group">
+                    <div className="relative aspect-square rounded-[2.5rem] border-4 border-dashed border-zinc-100 bg-zinc-50 flex flex-col items-center justify-center overflow-hidden group shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)]">
                       {newProduct.image_url ? (
                         <>
                           <img src={newProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-zinc-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <label htmlFor="new-product-image" className="btn-secondary h-12 px-6 cursor-pointer flex items-center gap-2">
+                            <label htmlFor="new-product-image" className="btn-clay-secondary h-12 px-6 cursor-pointer flex items-center gap-2">
                               <Upload className="w-4 h-4" />
                               Ganti Gambar
                               <input id="new-product-image" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" />
@@ -339,7 +394,7 @@ export default function SellerProducts() {
                         </>
                       ) : (
                         <label htmlFor="new-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
-                          <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-blue-500 transition-colors">
+                          <div className="w-16 h-16 rounded-2xl bg-white clay-icon flex items-center justify-center text-zinc-400 group-hover:text-blue-600 transition-colors">
                             {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
                           </div>
                           <div>
@@ -352,9 +407,9 @@ export default function SellerProducts() {
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-end gap-3 pt-6 border-t border-zinc-200/60">
-                  <button type="button" onClick={() => setIsAdding(false)} className="btn-secondary px-8">Batal</button>
-                  <button type="submit" disabled={loading || uploadingImage} className="btn-primary px-10 shadow-blue-600/20">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-zinc-100">
+                  <button type="button" onClick={() => setIsAdding(false)} className="btn-clay-secondary px-8">Batal</button>
+                  <button type="submit" disabled={loading || uploadingImage} className="btn-clay-primary px-10">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Produk'}
                   </button>
                 </div>
@@ -392,18 +447,23 @@ export default function SellerProducts() {
                           required 
                           value={editingProduct.name}
                           onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
-                          className="input-field"
+                          className="input-clay"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Kategori</label>
-                          <input 
+                          <select 
                             required 
                             value={editingProduct.category}
                             onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
-                            className="input-field"
-                          />
+                            className="input-clay appearance-none"
+                          >
+                            <option value="">Pilih Kategori</option>
+                            {categories.map(cat => (
+                              <option key={cat.id} value={cat.name}>{cat.name}</option>
+                            ))}
+                          </select>
                         </div>
                         <div className="space-y-2">
                           <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Stok</label>
@@ -412,7 +472,7 @@ export default function SellerProducts() {
                             type="number"
                             value={editingProduct.stock}
                             onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value})}
-                            className="input-field"
+                            className="input-clay"
                           />
                         </div>
                       </div>
@@ -423,7 +483,7 @@ export default function SellerProducts() {
                           type="number"
                           value={editingProduct.price}
                           onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
-                          className="input-field"
+                          className="input-clay"
                         />
                       </div>
                       <div className="space-y-2">
@@ -431,19 +491,19 @@ export default function SellerProducts() {
                         <textarea 
                           value={editingProduct.description || ''}
                           onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
-                          className="input-field min-h-[100px] py-4"
+                          className="input-clay min-h-[100px] py-4"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-6">
                       <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Gambar Produk</label>
-                      <div className="relative aspect-square rounded-2xl md:rounded-[2.5rem] border-2 border-dashed border-zinc-200 bg-zinc-50 flex flex-col items-center justify-center overflow-hidden group">
+                      <div className="relative aspect-square rounded-[2.5rem] border-4 border-dashed border-zinc-100 bg-zinc-50 flex flex-col items-center justify-center overflow-hidden group shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)]">
                         {editingProduct.image_url ? (
                           <>
                             <img src={editingProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-zinc-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <label htmlFor="edit-product-image" className="btn-secondary h-12 px-6 cursor-pointer flex items-center gap-2">
+                              <label htmlFor="edit-product-image" className="btn-clay-secondary h-12 px-6 cursor-pointer flex items-center gap-2">
                                 <Upload className="w-4 h-4" />
                                 Ganti Gambar
                                 <input id="edit-product-image" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="hidden" />
@@ -452,7 +512,7 @@ export default function SellerProducts() {
                           </>
                         ) : (
                           <label htmlFor="edit-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
-                            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center text-zinc-400 group-hover:text-blue-500 transition-colors">
+                            <div className="w-16 h-16 rounded-2xl bg-white clay-icon flex items-center justify-center text-zinc-400 group-hover:text-blue-600 transition-colors">
                               {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
                             </div>
                             <input id="edit-product-image-empty" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="hidden" disabled={uploadingImage} />
@@ -461,9 +521,9 @@ export default function SellerProducts() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-3 pt-6 border-t border-zinc-200/60">
-                    <button type="button" onClick={() => setEditingProduct(null)} className="btn-secondary px-8">Batal</button>
-                    <button type="submit" disabled={loading || uploadingImage} className="btn-primary px-10 shadow-blue-600/20">
+                  <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-zinc-100">
+                    <button type="button" onClick={() => setEditingProduct(null)} className="btn-clay-secondary px-8">Batal</button>
+                    <button type="submit" disabled={loading || uploadingImage} className="btn-clay-primary px-10">
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Perubahan'}
                     </button>
                   </div>
@@ -474,7 +534,7 @@ export default function SellerProducts() {
         )}
       </AnimatePresence>
 
-      <div className="glass-card overflow-hidden border-zinc-200/60 shadow-xl shadow-zinc-200/40">
+      <div className="clay-card overflow-hidden">
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -497,7 +557,7 @@ export default function SellerProducts() {
                 >
                   <td className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200/50 flex-shrink-0 shadow-inner">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-white clay-icon flex-shrink-0">
                         {product.image_url ? (
                           <img 
                             src={product.image_url} 
@@ -518,7 +578,7 @@ export default function SellerProducts() {
                     </div>
                   </td>
                   <td className="p-6">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-100 text-zinc-600 text-[10px] font-black uppercase tracking-wider">
+                    <span className="clay-badge bg-zinc-100 text-zinc-600 flex items-center gap-1.5 w-fit">
                       <Tag className="w-3 h-3" />
                       {product.category}
                     </span>
@@ -528,11 +588,11 @@ export default function SellerProducts() {
                   </td>
                   <td className="p-6">
                     <div className="flex flex-col gap-1">
-                      <div className="w-24 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                      <div className="w-24 h-2 bg-zinc-100 rounded-full overflow-hidden shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min((product.stock / 50) * 100, 100)}%` }}
-                          className={`h-full ${product.stock > 5 ? 'bg-blue-500' : 'bg-red-500'}`}
+                          className={`h-full ${product.stock > 5 ? 'bg-blue-600' : 'bg-red-500'}`}
                         />
                       </div>
                       <span className={`text-[10px] font-black uppercase tracking-wider ${
@@ -543,7 +603,7 @@ export default function SellerProducts() {
                     </div>
                   </td>
                   <td className="p-6">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    <span className={`clay-badge ${
                       product.is_active ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-500'
                     }`}>
                       {product.is_active ? 'Tersedia' : 'Nonaktif'}
@@ -553,10 +613,10 @@ export default function SellerProducts() {
                     <div className="flex items-center justify-end gap-2">
                       <button 
                         onClick={() => handleToggleActive(product.id, product.is_active)}
-                        className={`p-3 rounded-xl transition-all ${
+                        className={`w-10 h-10 clay-icon bg-white transition-all ${
                           product.is_active 
-                            ? "text-zinc-400 hover:bg-zinc-100" 
-                            : "text-blue-500 hover:bg-blue-50"
+                            ? "text-zinc-400 hover:text-zinc-900" 
+                            : "text-blue-600"
                         }`}
                         title={product.is_active ? "Tandai Tidak Tersedia" : "Tandai Tersedia"}
                       >
@@ -564,14 +624,14 @@ export default function SellerProducts() {
                       </button>
                       <button 
                         onClick={() => setEditingProduct(product)}
-                        className="p-3 text-zinc-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                        className="w-10 h-10 clay-icon bg-white text-zinc-400 hover:text-blue-600 transition-all"
                         title="Edit Produk"
                       >
                         <Edit className="w-5 h-5" />
                       </button>
                       <button 
                         onClick={() => handleDeleteProduct(product.id)}
-                        className="p-3 text-zinc-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        className="w-10 h-10 clay-icon bg-white text-zinc-400 hover:text-red-600 transition-all"
                         title="Hapus Produk"
                       >
                         <Trash2 className="w-5 h-5" />
@@ -587,25 +647,25 @@ export default function SellerProducts() {
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-zinc-100">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-100 border border-zinc-200/50 flex-shrink-0">
+            <div key={product.id} className="p-4 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white clay-icon flex-shrink-0">
                   {product.image_url ? (
                     <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                      <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8" />
+                      <ImageIcon className="w-8 h-8" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm sm:text-base text-zinc-900 truncate">{product.name}</p>
-                  <p className="text-blue-600 font-black text-base sm:text-lg">{formatRupiah(product.price)}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-500 text-[9px] sm:text-[10px] font-black uppercase tracking-wider">
+                  <p className="font-black text-zinc-900 text-base leading-tight mb-1">{product.name}</p>
+                  <p className="text-blue-600 font-black text-lg mb-2">{formatRupiah(product.price)}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="clay-badge bg-zinc-100 text-zinc-500">
                       {product.category}
                     </span>
-                    <span className={`px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${
+                    <span className={`clay-badge ${
                       product.stock > 5 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
                     }`}>
                       Stok: {product.stock}
@@ -613,30 +673,30 @@ export default function SellerProducts() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-zinc-50">
-                <span className={`inline-flex items-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${
+              <div className="flex items-center justify-between pt-4 border-t border-zinc-50">
+                <span className={`clay-badge ${
                   product.is_active ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-500'
                 }`}>
                   {product.is_active ? 'Tersedia' : 'Nonaktif'}
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleToggleActive(product.id, product.is_active)}
-                    className="p-2 sm:p-3 text-zinc-400 hover:text-blue-500 transition-colors"
+                    className="w-10 h-10 clay-icon bg-white text-zinc-400"
                   >
-                    {product.is_active ? <PowerOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Power className="w-4 h-4 sm:w-5 sm:h-5" />}
+                    {product.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                   </button>
                   <button 
                     onClick={() => setEditingProduct(product)}
-                    className="p-2 sm:p-3 text-zinc-400 hover:text-blue-500 transition-colors"
+                    className="w-10 h-10 clay-icon bg-white text-zinc-400"
                   >
-                    <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <Edit className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => handleDeleteProduct(product.id)}
-                    className="p-2 sm:p-3 text-zinc-400 hover:text-red-500 transition-colors"
+                    className="w-10 h-10 clay-icon bg-red-50 text-red-500"
                   >
-                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>

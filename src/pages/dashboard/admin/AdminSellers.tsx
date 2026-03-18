@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../../../lib/supabase';
 import { formatRupiah } from '../../../lib/utils';
 import { 
   Users, 
@@ -18,6 +18,8 @@ import {
   UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+import { Skeleton } from '../../../components/ui/Skeleton';
 
 export default function AdminSellers() {
   const [sellers, setSellers] = useState<any[]>([]);
@@ -55,24 +57,37 @@ export default function AdminSellers() {
       const cleanNik = newSeller.nik.trim();
       
       // Check if NIK already exists
-      const { data: existingUser, error: checkError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('nik', cleanNik)
-        .maybeSingle();
+      const { data: nikExists, error: checkError } = await supabase
+        .rpc('check_nik_exists', { p_nik: cleanNik });
 
       if (checkError) {
-        throw new Error('Gagal memeriksa NIK. Silakan coba lagi.');
-      }
+        console.warn('check_nik_exists RPC failed, falling back to direct select:', checkError);
+        // Fallback to direct select if RPC is not available
+        const { data: existingUser, error: fallbackError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('nik', cleanNik)
+          .maybeSingle();
+          
+        if (fallbackError) {
+          console.error('Fallback NIK check failed:', fallbackError);
+          alert('Terjadi kesalahan pada database. Pastikan schema database sudah diperbarui (menjalankan supabase-schema.sql).');
+          setLoading(false);
+          return;
+        }
 
-      if (existingUser) {
+        if (existingUser) {
+          alert('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
+          setLoading(false);
+          return;
+        }
+      } else if (nikExists) {
         alert('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
         setLoading(false);
         return;
       }
 
       const { createClient } = await import('@supabase/supabase-js');
-      const { supabaseUrl, supabaseAnonKey } = await import('../../../lib/supabase');
       
       const tempSupabase = createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
@@ -169,7 +184,7 @@ export default function AdminSellers() {
         </div>
         <button 
           onClick={() => setIsAdding(true)} 
-          className="btn-primary h-14 px-8 flex items-center gap-3 shadow-blue-600/20"
+          className="btn-clay-primary h-12 px-8 flex items-center gap-3 shadow-blue-600/20"
         >
           <UserPlus className="w-5 h-5" />
           Tambah Penjual
@@ -184,11 +199,11 @@ export default function AdminSellers() {
             placeholder="Cari nama penjual..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-12 h-14"
+            className="input-clay pl-12 h-12"
           />
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn-secondary h-14 px-6 flex items-center gap-2">
+          <button className="btn-clay-secondary h-12 px-6 flex items-center gap-2">
             <Filter className="w-4 h-4" />
             Filter
           </button>
@@ -219,7 +234,7 @@ export default function AdminSellers() {
                       value={newSeller.name}
                       onChange={(e) => setNewSeller({...newSeller, name: e.target.value})}
                       placeholder="Contoh: Kantin Sehat"
-                      className="input-field"
+                      className="input-clay"
                     />
                   </div>
                   <div className="space-y-2">
@@ -230,7 +245,7 @@ export default function AdminSellers() {
                       value={newSeller.nik}
                       onChange={(e) => setNewSeller({...newSeller, nik: e.target.value})}
                       placeholder="Masukkan NIK"
-                      className="input-field"
+                      className="input-clay"
                     />
                   </div>
                   <div className="space-y-2">
@@ -242,13 +257,13 @@ export default function AdminSellers() {
                       value={newSeller.password}
                       onChange={(e) => setNewSeller({...newSeller, password: e.target.value})}
                       placeholder="Minimal 6 karakter"
-                      className="input-field"
+                      className="input-clay"
                     />
                   </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
-                  <button type="button" onClick={() => setIsAdding(false)} className="btn-secondary px-8">Batal</button>
-                  <button type="submit" disabled={loading} className="btn-primary px-10 shadow-blue-600/20">
+                  <button type="button" onClick={() => setIsAdding(false)} className="btn-clay-secondary px-8">Batal</button>
+                  <button type="submit" disabled={loading} className="btn-clay-primary px-10 shadow-blue-600/20">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Penjual'}
                   </button>
                 </div>

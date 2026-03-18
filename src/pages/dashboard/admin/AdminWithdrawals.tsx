@@ -6,6 +6,8 @@ import { id } from 'date-fns/locale';
 import { CheckCircle2, XCircle, Clock, Download, Search, Filter, Wallet, ArrowRight, Loader2, User, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+import { Skeleton } from '../../../components/ui/Skeleton';
+
 export default function AdminWithdrawals() {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,8 +121,27 @@ export default function AdminWithdrawals() {
 
   if (loading && withdrawals.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      <div className="space-y-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-12 w-48 rounded-xl" />
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <Skeleton className="h-12 w-full md:w-96 rounded-xl" />
+          <Skeleton className="h-12 w-48 rounded-xl" />
+        </div>
+
+        <div className="clay-card overflow-hidden">
+          <div className="p-6 space-y-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-xl" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -139,7 +160,7 @@ export default function AdminWithdrawals() {
         </div>
         <button 
           onClick={exportToCSV} 
-          className="btn-primary h-14 px-8 flex items-center gap-3 shadow-blue-600/20"
+          className="btn-clay-primary h-12 px-8 flex items-center gap-3"
         >
           <Download className="w-5 h-5" />
           Export Laporan
@@ -154,16 +175,16 @@ export default function AdminWithdrawals() {
             placeholder="Cari nama penjual..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-field pl-12 h-14"
+            className="input-clay pl-12 h-12"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:flex-none">
             <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="input-field pl-10 h-14 appearance-none pr-10"
+              className="input-clay pl-10 h-12 appearance-none pr-10 w-full"
             >
               <option value="all">Semua Status</option>
               <option value="pending">Pending</option>
@@ -175,7 +196,7 @@ export default function AdminWithdrawals() {
         </div>
       </div>
 
-      <div className="glass-card overflow-hidden border-zinc-200/60 shadow-xl shadow-zinc-200/40">
+      <div className="clay-card overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -196,7 +217,7 @@ export default function AdminWithdrawals() {
                 >
                   <td className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-zinc-100 text-zinc-500 flex items-center justify-center font-black text-xl shadow-inner">
+                      <div className="w-12 h-12 rounded-xl bg-zinc-100 text-zinc-500 flex items-center justify-center font-black text-xl clay-icon">
                         {w.profiles?.name.charAt(0)}
                       </div>
                       <div>
@@ -219,22 +240,22 @@ export default function AdminWithdrawals() {
                   </td>
                   <td className="p-6">
                     {w.status === 'pending' && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                      <span className="clay-badge bg-amber-100 text-amber-700">
                         <Clock className="w-3 h-3 mr-1.5" /> Pending
                       </span>
                     )}
                     {w.status === 'approved' && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                      <span className="clay-badge bg-amber-100 text-amber-700">
                         <CheckCircle2 className="w-3 h-3 mr-1.5" /> Disetujui
                       </span>
                     )}
                     {w.status === 'paid' && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">
+                      <span className="clay-badge bg-blue-100 text-blue-700">
                         <CheckCircle2 className="w-3 h-3 mr-1.5" /> Dibayar
                       </span>
                     )}
                     {w.status === 'rejected' && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700">
+                      <span className="clay-badge bg-red-100 text-red-700">
                         <XCircle className="w-3 h-3 mr-1.5" /> Ditolak
                       </span>
                     )}
@@ -245,13 +266,13 @@ export default function AdminWithdrawals() {
                         <>
                           <button 
                             onClick={() => handleUpdateStatus(w.id, 'approved', w.seller_id, w.amount)}
-                            className="btn-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-amber-600 hover:bg-amber-50"
+                            className="btn-clay-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-amber-600"
                           >
                             Setujui
                           </button>
                           <button 
                             onClick={() => handleUpdateStatus(w.id, 'rejected', w.seller_id, w.amount)}
-                            className="btn-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50"
+                            className="btn-clay-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-red-600"
                           >
                             Tolak
                           </button>
@@ -260,7 +281,7 @@ export default function AdminWithdrawals() {
                       {w.status === 'approved' && (
                         <button 
                           onClick={() => handleUpdateStatus(w.id, 'paid', w.seller_id, w.amount)}
-                          className="btn-primary h-10 px-6 text-[10px] font-black uppercase tracking-widest shadow-blue-600/20"
+                          className="btn-clay-primary h-10 px-6 text-[10px] font-black uppercase tracking-widest"
                         >
                           Tandai Dibayar
                         </button>
@@ -286,71 +307,71 @@ export default function AdminWithdrawals() {
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-zinc-100">
           {filteredWithdrawals.map((w) => (
-            <div key={w.id} className="p-3 space-y-3">
+            <div key={w.id} className="p-4 space-y-4">
               <div className="flex justify-between items-start">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-500 flex items-center justify-center font-black text-sm shadow-inner flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-zinc-100 text-zinc-500 flex items-center justify-center font-black text-sm clay-icon flex-shrink-0">
                     {w.profiles?.name.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-zinc-900 text-sm truncate">{w.profiles?.name || 'Unknown'}</p>
-                    <p className="text-[9px] text-zinc-400 font-medium flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5" />
+                    <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
                       {format(new Date(w.created_at), 'dd MMM yy, HH:mm', { locale: id })}
                     </p>
                   </div>
                 </div>
                 <div>
                   {w.status === 'pending' && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                    <span className="clay-badge bg-amber-100 text-amber-700">
                       Pending
                     </span>
                   )}
                   {w.status === 'approved' && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                    <span className="clay-badge bg-amber-100 text-amber-700">
                       Disetujui
                     </span>
                   )}
                   {w.status === 'paid' && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">
+                    <span className="clay-badge bg-blue-100 text-blue-700">
                       Dibayar
                     </span>
                   )}
                   {w.status === 'rejected' && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-red-100 text-red-700">
+                    <span className="clay-badge bg-red-100 text-red-700">
                       Ditolak
                     </span>
                   )}
                 </div>
               </div>
               
-              <div className="bg-zinc-50 p-2 rounded-lg border border-zinc-100 flex justify-between items-center">
+              <div className="bg-zinc-50 p-3 rounded-2xl border border-zinc-100 flex justify-between items-center shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)]">
                 <div>
                   <p className="text-[8px] text-zinc-500 font-black uppercase tracking-wider">Kotor</p>
-                  <p className="text-xs font-bold text-zinc-900">{formatRupiah(w.amount)}</p>
+                  <p className="text-sm font-bold text-zinc-900">{formatRupiah(w.amount)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-[8px] text-red-500 font-black uppercase tracking-wider">Biaya</p>
-                  <p className="text-xs font-bold text-red-500">-{formatRupiah(w.fee)}</p>
+                  <p className="text-sm font-bold text-red-500">-{formatRupiah(w.fee)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[8px] text-blue-600 font-black uppercase tracking-wider">Bersih</p>
-                  <p className="text-sm font-black text-blue-600 tracking-tight">{formatRupiah(w.net_amount)}</p>
+                  <p className="text-base font-black text-blue-600 tracking-tight">{formatRupiah(w.net_amount)}</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-3">
                 {w.status === 'pending' && (
                   <>
                     <button 
                       onClick={() => handleUpdateStatus(w.id, 'approved', w.seller_id, w.amount)}
-                      className="flex-1 py-1.5 bg-amber-50 text-amber-600 rounded-lg font-bold text-[10px] transition-colors"
+                      className="flex-1 btn-clay-secondary h-10 text-[10px] text-amber-600"
                     >
                       Setujui
                     </button>
                     <button 
                       onClick={() => handleUpdateStatus(w.id, 'rejected', w.seller_id, w.amount)}
-                      className="flex-1 py-1.5 bg-red-50 text-red-600 rounded-lg font-bold text-[10px] transition-colors"
+                      className="flex-1 btn-clay-secondary h-10 text-[10px] text-red-600"
                     >
                       Tolak
                     </button>
@@ -359,7 +380,7 @@ export default function AdminWithdrawals() {
                 {w.status === 'approved' && (
                   <button 
                     onClick={() => handleUpdateStatus(w.id, 'paid', w.seller_id, w.amount)}
-                    className="w-full py-1.5 bg-blue-600 text-white rounded-lg font-bold text-[10px] transition-colors shadow-blue-600/20"
+                    className="w-full btn-clay-primary h-12 text-[10px]"
                   >
                     Tandai Dibayar
                   </button>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../lib/supabase';
 import { formatRupiah, exportCSV } from '../../../lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Skeleton, TableRowSkeleton, TransactionSkeleton } from '../../../components/ui/Skeleton';
 
 export default function AdminTransactions() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -156,8 +157,46 @@ export default function AdminTransactions() {
 
   if (loading && transactions.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+      <div className="space-y-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-12 w-40 rounded-2xl" />
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <Skeleton className="h-12 w-full md:w-96 rounded-2xl" />
+          <div className="flex gap-2 w-full md:w-auto">
+            <Skeleton className="h-12 w-32 rounded-2xl" />
+            <Skeleton className="h-12 w-32 rounded-2xl" />
+          </div>
+        </div>
+
+        <div className="clay-card overflow-hidden">
+          <div className="hidden md:block">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-zinc-100 bg-zinc-50/50">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <th key={i} className="p-6"><Skeleton className="h-4 w-20" /></th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TableRowSkeleton key={i} columns={5} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="md:hidden divide-y divide-zinc-100">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <TransactionSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -176,7 +215,7 @@ export default function AdminTransactions() {
         </div>
         <button 
           onClick={exportToCSV} 
-          className="btn-primary h-14 px-8 flex items-center gap-3 shadow-blue-600/20"
+          className="btn-clay-primary h-12 px-8 flex items-center gap-3"
         >
           <Download className="w-5 h-5" />
           Export Laporan
@@ -184,7 +223,7 @@ export default function AdminTransactions() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
-        <div className="flex bg-zinc-100 p-1.5 rounded-2xl border border-zinc-200/60 w-full md:w-auto">
+        <div className="flex bg-zinc-100 p-1.5 rounded-2xl border border-zinc-200/60 w-full md:w-auto shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)]">
           <button
             onClick={() => setActiveTab('success')}
             className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
@@ -209,18 +248,18 @@ export default function AdminTransactions() {
 
         <div className="flex flex-1 items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-600 transition-colors" />
             <input 
               type="text" 
               placeholder="Cari pembeli atau ID..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-field pl-12 h-14"
+              className="input-clay pl-12 h-12"
             />
           </div>
           <button 
             onClick={() => setShowFilters(!showFilters)}
-            className={`btn-secondary h-14 px-6 flex items-center gap-2 transition-colors shrink-0 ${showFilters ? 'bg-zinc-900 text-white border-zinc-900' : ''}`}
+            className={`btn-clay-secondary h-12 px-6 flex items-center gap-2 transition-colors shrink-0 ${showFilters ? 'bg-zinc-900 text-white border-zinc-900' : ''}`}
           >
             <Filter className="w-4 h-4" />
             <span className="hidden sm:inline">{showFilters ? 'Tutup Filter' : 'Filter Lanjut'}</span>
@@ -236,14 +275,14 @@ export default function AdminTransactions() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="glass-card p-8 border-zinc-200/60 bg-zinc-50/30 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="clay-card p-8 border-zinc-200/60 bg-zinc-50/30 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Dari Tanggal</label>
                 <input 
                   type="date" 
                   value={filters.startDate}
                   onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-                  className="input-field h-12"
+                  className="input-clay h-12"
                 />
               </div>
               <div className="space-y-2">
@@ -252,7 +291,7 @@ export default function AdminTransactions() {
                   type="date" 
                   value={filters.endDate}
                   onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-                  className="input-field h-12"
+                  className="input-clay h-12"
                 />
               </div>
               <div className="space-y-2">
@@ -260,7 +299,7 @@ export default function AdminTransactions() {
                 <select 
                   value={filters.sellerId}
                   onChange={(e) => setFilters({...filters, sellerId: e.target.value})}
-                  className="input-field h-12 appearance-none"
+                  className="input-clay h-12 appearance-none"
                 >
                   <option value="">Semua Penjual</option>
                   {sellers.map(s => (
@@ -281,7 +320,7 @@ export default function AdminTransactions() {
         )}
       </AnimatePresence>
 
-      <div className="glass-card overflow-hidden border-zinc-200/60 shadow-xl shadow-zinc-200/40">
+      <div className="clay-card overflow-hidden">
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -314,33 +353,33 @@ export default function AdminTransactions() {
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500">
                           <Calendar className="w-3.5 h-3.5" />
-                          {format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm', { locale: id })}
+                          {format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm:ss', { locale: id })}
                         </span>
                       </div>
                     </td>
                     <td className="p-4 lg:p-6">
                       <div className="flex items-center gap-2">
-                        <p className="font-black text-zinc-900 text-sm lg:text-base group-hover:text-amber-600 transition-colors truncate max-w-[150px] lg:max-w-[200px]">
+                        <p className="font-black text-zinc-900 text-sm lg:text-base group-hover:text-blue-600 transition-colors truncate max-w-[150px] lg:max-w-[200px]">
                           {tx.buyer_name}
                         </p>
                         {tx.buyer_id && (
-                          <span className="bg-zinc-100 text-zinc-500 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shrink-0">Member</span>
+                          <span className="clay-badge bg-zinc-100 text-zinc-500">Member</span>
                         )}
                       </div>
                     </td>
                     <td className="p-4 lg:p-6">
-                      <p className={`text-sm lg:text-base font-black tracking-tight ${activeTab === 'success' ? 'text-amber-600' : 'text-zinc-900'}`}>
+                      <p className={`text-sm lg:text-base font-black tracking-tight ${activeTab === 'success' ? 'text-blue-600' : 'text-zinc-900'}`}>
                         {formatRupiah(activeTab === 'success' ? tx.total_amount : tx.attempted_amount)}
                       </p>
                     </td>
                     <td className="p-4 lg:p-6">
                       {activeTab === 'success' ? (
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                        <span className="clay-badge bg-blue-100 text-blue-700">
                           <CheckCircle2 className="w-3 h-3 mr-1.5" /> Berhasil
                         </span>
                       ) : (
                         <div className="flex flex-col gap-1">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700 w-fit">
+                          <span className="clay-badge bg-red-100 text-red-700 w-fit">
                             <XCircle className="w-3 h-3 mr-1.5" /> Gagal
                           </span>
                           <p className="text-[10px] text-red-600 font-bold truncate max-w-[150px] lg:max-w-[200px]" title={tx.reason}>{tx.reason}</p>
@@ -350,7 +389,7 @@ export default function AdminTransactions() {
                     <td className="p-4 lg:p-6 text-right">
                       <button 
                         onClick={() => openDetails(tx)}
-                        className="inline-flex w-8 h-8 lg:w-10 lg:h-10 rounded-xl bg-zinc-100 text-zinc-400 hover:bg-zinc-900 hover:text-white items-center justify-center transition-all shadow-sm shrink-0"
+                        className="w-10 h-10 clay-icon bg-white text-zinc-400 hover:text-blue-600 transition-all"
                         title="Lihat Detail"
                       >
                         <Eye className="w-4 h-4 lg:w-5 lg:h-5" />
@@ -374,7 +413,7 @@ export default function AdminTransactions() {
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
                 key={tx.id} 
-                className="p-3 space-y-3"
+                className="p-4 space-y-4"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex flex-col gap-1">
@@ -382,47 +421,47 @@ export default function AdminTransactions() {
                       <Receipt className="w-3.5 h-3.5 text-zinc-400" />
                       {tx.id.slice(0, 8)}...
                     </span>
-                    <span className="flex items-center gap-1.5 text-[9px] font-medium text-zinc-500">
+                    <span className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500">
                       <Calendar className="w-3 h-3" />
-                      {format(new Date(tx.created_at), 'dd MMM yy, HH:mm', { locale: id })}
+                      {format(new Date(tx.created_at), 'dd MMM yy, HH:mm:ss', { locale: id })}
                     </span>
                   </div>
                   {activeTab === 'success' ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-700">
+                    <span className="clay-badge bg-blue-100 text-blue-700">
                       Berhasil
                     </span>
                   ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-100 text-red-700">
+                    <span className="clay-badge bg-red-100 text-red-700">
                       Gagal
                     </span>
                   )}
                 </div>
                 
-                <div className="flex justify-between items-center bg-zinc-50 p-2 rounded-lg border border-zinc-100">
+                <div className="flex justify-between items-center bg-zinc-50 p-3 rounded-2xl border border-zinc-100 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)]">
                   <div>
                     <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Pembeli</p>
                     <div className="flex items-center gap-1">
-                      <p className="font-bold text-zinc-900 text-xs truncate max-w-[120px]">{tx.buyer_name}</p>
-                      {tx.buyer_id && <span className="bg-zinc-200 text-zinc-500 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest">Member</span>}
+                      <p className="font-bold text-zinc-900 text-sm truncate max-w-[120px]">{tx.buyer_name}</p>
+                      {tx.buyer_id && <span className="clay-badge bg-zinc-200 text-zinc-500 text-[8px]">Member</span>}
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Total</p>
-                    <p className={`font-black text-xs ${activeTab === 'success' ? 'text-amber-600' : 'text-zinc-900'}`}>
+                    <p className={`font-black text-sm ${activeTab === 'success' ? 'text-blue-600' : 'text-zinc-900'}`}>
                       {formatRupiah(activeTab === 'success' ? tx.total_amount : tx.attempted_amount)}
                     </p>
                   </div>
                 </div>
 
                 {activeTab === 'failed' && tx.reason && (
-                  <p className="text-[9px] text-red-600 font-bold bg-red-50 p-2 rounded-lg border border-red-100 line-clamp-2">{tx.reason}</p>
+                  <p className="text-[10px] text-red-600 font-bold bg-red-50 p-3 rounded-xl border border-red-100 line-clamp-2">{tx.reason}</p>
                 )}
 
                 <button 
                   onClick={() => openDetails(tx)}
-                  className="w-full py-2 bg-zinc-100 text-zinc-600 hover:bg-zinc-200 rounded-lg font-bold text-[10px] transition-colors flex items-center justify-center gap-2"
+                  className="btn-clay-secondary w-full h-12 flex items-center justify-center gap-2"
                 >
-                  <Eye className="w-3.5 h-3.5" /> Lihat Detail
+                  <Eye className="w-4 h-4" /> Lihat Detail
                 </button>
               </motion.div>
             ))}
@@ -567,7 +606,7 @@ export default function AdminTransactions() {
                         <div className="absolute inset-0 bg-zinc-900/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-sm">
                           <button 
                             onClick={() => window.open(selectedTx.receipt_image, '_blank')}
-                            className="btn-primary h-12 md:h-14 px-6 md:px-8 flex items-center gap-2 shadow-blue-600/20"
+                            className="btn-clay-primary h-10 md:h-12 px-6 md:px-8 flex items-center gap-2 shadow-blue-600/20"
                           >
                             <ExternalLink className="w-4 h-4 md:w-5 md:h-5" />
                             Buka Gambar
@@ -587,7 +626,7 @@ export default function AdminTransactions() {
               <div className="p-6 md:p-8 border-t border-zinc-100 bg-zinc-50/50 flex justify-end">
                 <button 
                   onClick={() => setSelectedTx(null)} 
-                  className="btn-secondary h-12 md:h-14 px-8 md:px-10 w-full md:w-auto"
+                  className="btn-clay-secondary h-10 md:h-12 px-8 md:px-10 w-full md:w-auto"
                 >
                   Tutup Detail
                 </button>

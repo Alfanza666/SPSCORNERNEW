@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, Product } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
-import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight } from 'lucide-react';
+import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Catalog() {
@@ -54,25 +54,25 @@ export default function Catalog() {
 
   if (loading) {
     return (
-      <div className="space-y-10">
-        <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
-          <div className="w-full md:w-96 h-14 bg-zinc-200 animate-pulse rounded-2xl"></div>
-          <div className="flex gap-3 overflow-x-auto w-full md:w-auto pb-2">
+      <div className="space-y-6 sm:space-y-8">
+        <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-center justify-between">
+          <div className="w-full md:w-72 h-12 bg-zinc-200 animate-pulse rounded-[20px] shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)]"></div>
+          <div className="flex gap-2 sm:gap-3 overflow-x-auto w-full md:w-auto pb-2">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-12 w-28 bg-zinc-200 animate-pulse rounded-full shrink-0"></div>
+              <div key={i} className="h-10 w-24 bg-zinc-200 animate-pulse rounded-full shrink-0 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)]"></div>
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-            <div key={i} className="glass-card overflow-hidden flex flex-col h-[400px]">
-              <div className="aspect-square bg-zinc-200 animate-pulse"></div>
-              <div className="p-6 flex flex-col flex-1 gap-4">
-                <div className="space-y-2">
-                  <div className="h-6 bg-zinc-200 animate-pulse rounded w-3/4"></div>
-                  <div className="h-6 bg-zinc-200 animate-pulse rounded w-1/2"></div>
+            <div key={i} className="clay-card overflow-hidden flex flex-col h-[320px] sm:h-[360px]">
+              <div className="aspect-square bg-zinc-200 animate-pulse rounded-2xl sm:rounded-[24px] m-3 sm:m-4"></div>
+              <div className="p-4 sm:p-6 flex flex-col flex-1 gap-4 sm:gap-5">
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="h-5 sm:h-6 bg-zinc-200 animate-pulse rounded-full w-3/4"></div>
+                  <div className="h-5 sm:h-6 bg-zinc-200 animate-pulse rounded-full w-1/2"></div>
                 </div>
-                <div className="h-12 bg-zinc-200 animate-pulse rounded-xl mt-auto"></div>
+                <div className="h-10 sm:h-12 bg-zinc-200 animate-pulse rounded-[20px] mt-auto"></div>
               </div>
             </div>
           ))}
@@ -82,56 +82,72 @@ export default function Catalog() {
   }
 
   return (
-    <div className="space-y-10">
-      {/* Search and Filter Section */}
-      <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
-        <div className="relative w-full lg:max-w-md group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 w-5 h-5 group-focus-within:text-blue-500 transition-colors" />
-          <input
-            placeholder="Cari menu favoritmu..."
-            className="input-field pl-12 h-14 text-lg shadow-sm"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        <div className="flex items-center gap-3 overflow-x-auto pb-2 w-full lg:w-auto no-scrollbar">
-          <div className="flex items-center gap-2 text-zinc-400 mr-2 shrink-0">
-            <Filter className="w-4 h-4" />
-            <span className="text-sm font-medium">Kategori:</span>
+    <div className="min-h-screen bg-[#e8ebf0] pb-24 sm:pb-32">
+      {/* Header Section */}
+      <div className="bg-white px-4 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 rounded-b-2xl sm:rounded-b-3xl shadow-sm relative z-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-5">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tighter mb-0.5">
+                Pilih <span className="text-blue-600">Menu</span>
+              </h1>
+              <p className="text-zinc-400 text-[10px] sm:text-xs font-bold tracking-tight">Kantin Digital Sariroti</p>
+            </div>
+            
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Cari roti atau minuman..."
+                className="input-clay pl-9 sm:pl-10 text-[10px] sm:text-xs h-9 sm:h-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
-          {categories.map((category) => (
+
+          {/* Categories */}
+          <div className="mt-3 sm:mt-4 flex gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 sm:pb-2 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
             <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
-              className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap border ${
-                activeCategory === category 
-                  ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200' 
-                  : 'bg-white border-zinc-200 text-zinc-600 hover:border-blue-300 hover:text-blue-600'
+              onClick={() => setActiveCategory('Semua')}
+              className={`whitespace-nowrap px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all ${
+                activeCategory === 'Semua'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-zinc-50 text-zinc-500 hover:bg-zinc-100'
               }`}
             >
-              {category}
+              Semua Menu
             </button>
-          ))}
+            {categories.filter(c => c !== 'Semua').map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`whitespace-nowrap px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all flex items-center gap-1 sm:gap-1.5 ${
+                  activeCategory === cat
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-zinc-50 text-zinc-500 hover:bg-zinc-100'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Product Grid */}
-      {filteredProducts.length === 0 ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center py-32 glass-card"
-        >
-          <div className="w-24 h-24 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Search className="w-10 h-10 text-zinc-300" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-8 sm:py-12">
+            <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-600 mb-2 sm:mb-3" />
+            <p className="text-zinc-400 text-[8px] sm:text-[10px] font-bold uppercase tracking-widest">Memuat Menu...</p>
           </div>
-          <h3 className="text-2xl font-bold text-zinc-900 mb-2">Menu tidak ditemukan</h3>
-          <p className="text-zinc-500 max-w-sm mx-auto">Coba cari dengan kata kunci lain atau pilih kategori yang berbeda.</p>
-        </motion.div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-          <AnimatePresence mode="popLayout">
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-8 sm:py-12 bg-white/50 rounded-xl sm:rounded-2xl border border-dashed border-zinc-200">
+            <p className="text-zinc-400 text-[10px] sm:text-xs font-bold">Menu tidak ditemukan</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
             {filteredProducts.map((product) => {
               const cartItem = items.find((item) => item.id === product.id);
               const quantity = cartItem?.quantity || 0;
@@ -142,116 +158,76 @@ export default function Catalog() {
                   layout
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.3 }}
-                  className="glass-card overflow-hidden flex flex-col group hover:shadow-xl hover:shadow-zinc-200/50 transition-all duration-300 border-zinc-200/60"
+                  whileHover={{ y: -2 }}
+                  className="clay-card group overflow-hidden flex flex-col h-full"
                 >
-                  <div className="aspect-square bg-zinc-100 relative overflow-hidden">
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                        <ShoppingBag className="w-10 h-10 sm:w-16 sm:h-16 stroke-[1.5]" />
+                  <div className="relative aspect-square overflow-hidden bg-zinc-50">
+                    <img
+                      src={product.image_url || 'https://picsum.photos/seed/bread/400/400'}
+                      alt={product.name}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      referrerPolicy="no-referrer"
+                    />
+                    {product.stock <= 5 && product.stock > 0 && (
+                      <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1 py-0.5 sm:px-1.5 sm:py-0.5 bg-amber-400 text-amber-950 text-[6px] sm:text-[8px] font-bold rounded-full shadow-sm uppercase tracking-wider">
+                        Sisa: {product.stock}
                       </div>
                     )}
-                    
-                    {/* Floating Badges */}
-                    <div className="absolute top-2 left-2 sm:top-4 sm:left-4 flex flex-col gap-2">
-                      <div className="bg-white/90 backdrop-blur-md px-2 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold text-zinc-900 shadow-sm border border-zinc-200/50 flex items-center gap-1 sm:gap-1.5 uppercase tracking-wider">
-                        <Tag className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-500" />
-                        {product.category}
+                    {product.stock === 0 && (
+                      <div className="absolute inset-0 bg-zinc-900/60 backdrop-blur-[2px] flex items-center justify-center">
+                        <span className="px-2 py-1 sm:px-3 sm:py-1 bg-white text-zinc-900 text-[8px] sm:text-[10px] font-bold rounded-full shadow-md uppercase tracking-widest">Habis</span>
                       </div>
-                    </div>
-
-                    <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
-                      <div className={`px-2 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold shadow-sm border backdrop-blur-md flex items-center gap-1 sm:gap-1.5 uppercase tracking-wider ${
-                        product.stock < 5 
-                          ? 'bg-red-50/90 border-red-100 text-red-600' 
-                          : 'bg-white/90 border-zinc-200 text-zinc-600'
-                      }`}>
-                        <Info className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                        Sisa {product.stock}
-                      </div>
-                    </div>
-
-                    {/* Quick Add Overlay */}
-                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                       {quantity === 0 && (
-                         <motion.button
-                           whileHover={{ scale: 1.05 }}
-                           whileTap={{ scale: 0.95 }}
-                           onClick={() => addItem(product)}
-                           className="bg-white text-zinc-900 px-4 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl font-bold shadow-xl flex items-center gap-2 text-xs sm:text-base"
-                         >
-                           <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                           Tambah
-                         </motion.button>
-                       )}
-                    </div>
+                    )}
                   </div>
-                  
-                  <div className="p-3 sm:p-5 lg:p-6 flex flex-col flex-1 justify-between gap-3 sm:gap-4">
-                    <div>
-                      <h3 className="font-bold text-sm sm:text-lg text-zinc-900 leading-snug mb-1 sm:mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                        {product.name}
-                      </h3>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-blue-600 font-extrabold text-base sm:text-xl lg:text-2xl">
-                          {formatRupiah(product.price)}
-                        </span>
-                      </div>
-                    </div>
 
+                  <div className="p-2.5 sm:p-3 flex flex-col flex-1">
+                    <h3 className="text-[10px] sm:text-xs font-bold text-zinc-900 mb-0.5 sm:mb-1 tracking-tight line-clamp-1">{product.name}</h3>
+                    <p className="text-blue-600 text-xs sm:text-sm font-black mb-2 sm:mb-3">{formatRupiah(product.price)}</p>
+                    
                     <div className="mt-auto">
-                      {quantity === 0 ? (
-                        <button
-                          onClick={() => addItem(product)}
-                          className="btn-secondary w-full py-2 sm:py-3 text-xs sm:text-sm flex items-center justify-center gap-1 sm:gap-2 border-zinc-200 hover:border-blue-500 hover:text-blue-600"
-                        >
-                          <Plus className="w-4 h-4 sm:w-5 sm:h-5" /> Tambah
-                        </button>
-                      ) : (
-                        <div className="flex items-center justify-between bg-zinc-100 rounded-lg sm:rounded-xl p-1 sm:p-1.5 border border-zinc-200">
-                          <motion.button
-                            whileTap={{ scale: 0.9 }}
+                      {quantity > 0 ? (
+                        <div className="flex items-center justify-between bg-zinc-50 rounded-md sm:rounded-lg p-0.5 sm:p-1 shadow-inner">
+                          <button
                             onClick={() => {
                               if (quantity === 1) removeItem(product.id);
                               else updateQuantity(product.id, quantity - 1);
                             }}
-                            className="h-7 w-7 sm:h-10 sm:w-10 rounded-md sm:rounded-lg bg-white shadow-sm flex items-center justify-center text-zinc-500 hover:text-red-600 transition-colors"
+                            className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center bg-white text-zinc-900 rounded shadow-sm active:scale-95 transition-all"
                           >
-                            <Minus className="w-3 h-3 sm:w-5 sm:h-5" />
-                          </motion.button>
-                          <span className="font-bold text-sm sm:text-lg w-6 sm:w-10 text-center text-zinc-900">
-                            {quantity}
-                          </span>
-                          <motion.button
-                            whileTap={{ scale: 0.9 }}
+                            <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                          </button>
+                          <span className="font-bold text-[10px] sm:text-xs text-zinc-900">{quantity}</span>
+                          <button
                             onClick={() => {
                               if (quantity < product.stock) {
                                 updateQuantity(product.id, quantity + 1);
                               }
                             }}
                             disabled={quantity >= product.stock}
-                            className="h-7 w-7 sm:h-10 sm:w-10 rounded-md sm:rounded-lg bg-white shadow-sm flex items-center justify-center text-zinc-500 hover:text-blue-600 disabled:opacity-50 transition-colors"
+                            className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center bg-blue-600 text-white rounded shadow-sm active:scale-95 transition-all disabled:opacity-50"
                           >
-                            <Plus className="w-3 h-3 sm:w-5 sm:h-5" />
-                          </motion.button>
+                            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                          </button>
                         </div>
+                      ) : (
+                        <button
+                          onClick={() => addItem(product)}
+                          disabled={product.stock === 0}
+                          className="w-full btn-clay-primary py-1 sm:py-1.5 text-[8px] sm:text-[10px] flex items-center justify-center gap-1 sm:gap-1.5"
+                        >
+                          <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                          Tambah
+                        </button>
                       )}
                     </div>
                   </div>
                 </motion.div>
               );
             })}
-          </AnimatePresence>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
+
       {/* Floating Cart Bar */}
       <AnimatePresence>
         {totalItems > 0 && (
@@ -259,37 +235,30 @@ export default function Catalog() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-8 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-full md:max-w-2xl z-50"
+            className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-50"
           >
-            <button
-              onClick={() => navigate('/kiosk/cart')}
-              className="w-full bg-zinc-900 text-white p-4 rounded-3xl shadow-2xl shadow-zinc-900/40 flex items-center justify-between group overflow-hidden relative"
-            >
-              {/* Shine effect */}
-              <motion.div 
-                animate={{ x: ['-100%', '200%'] }}
-                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent skew-x-12"
-              />
-              
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center relative shadow-lg shadow-blue-500/20">
-                  <ShoppingCart className="w-6 h-6 text-white" />
-                  <span className="absolute -top-2 -right-2 bg-white text-blue-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black border-2 border-zinc-900">
+            <div className="max-w-3xl mx-auto clay-card-blue p-2.5 sm:p-3 flex items-center justify-between gap-2.5 sm:gap-4">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md rounded-md sm:rounded-lg flex items-center justify-center relative shadow-inner">
+                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-amber-400 text-amber-950 text-[8px] sm:text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm border border-blue-600">
                     {totalItems}
                   </span>
                 </div>
-                <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Total Pesanan</p>
-                  <p className="text-xl font-black tracking-tight">{formatRupiah(totalAmount)}</p>
+                <div>
+                  <p className="text-[6px] sm:text-[8px] font-bold text-blue-100 uppercase tracking-widest mb-0.5">Total Pesanan</p>
+                  <p className="text-sm sm:text-base font-black text-white tracking-tighter">{formatRupiah(totalAmount)}</p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3 relative z-10 bg-white/10 px-6 py-3 rounded-2xl group-hover:bg-blue-500 transition-colors">
-                <span className="text-xs font-black uppercase tracking-widest">Checkout</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </button>
+              
+              <button
+                onClick={() => navigate('/kiosk/cart')}
+                className="btn-clay-secondary px-2.5 py-1 sm:px-4 sm:py-1.5 text-[8px] sm:text-[10px] flex items-center gap-1 sm:gap-1.5 shadow-sm"
+              >
+                Lihat Keranjang
+                <ArrowRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
