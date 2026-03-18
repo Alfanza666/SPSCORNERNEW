@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import toast from 'react-hot-toast';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -32,7 +33,7 @@ export function exportCSV(csvContent: string, filename: string) {
       newWindow.document.write(`<pre>${csvContent}</pre>`);
       newWindow.document.title = filename;
     } else {
-      alert('Gagal mengunduh laporan. Pastikan popup tidak diblokir.');
+      toast.error('Gagal mengunduh laporan. Pastikan popup tidak diblokir.');
     }
   }
 }

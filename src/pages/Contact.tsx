@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, Mail, Phone, MapPin, Clock } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
 
 export default function Contact() {
@@ -100,7 +100,7 @@ export default function Contact() {
                   <Clock className="w-6 h-6 text-zinc-600 dark:text-zinc-400" />
                 </div>
                 <div>
-                  <h3 className="font-black text-zinc-900 dark:text-white mb-1">Jam Operasional Kantin</h3>
+                  <h3 className="font-black text-zinc-900 dark:text-white mb-1">Jam Operasional Layanan</h3>
                   <p className="text-zinc-600 dark:text-zinc-400 font-medium">
                     Buka 24 Jam<br />
                     Senin - Minggu

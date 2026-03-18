@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { ArrowLeft, KeyRound, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';

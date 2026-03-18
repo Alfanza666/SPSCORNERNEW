@@ -18,6 +18,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import toast from 'react-hot-toast';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
 
@@ -71,18 +72,18 @@ export default function AdminSellers() {
           
         if (fallbackError) {
           console.error('Fallback NIK check failed:', fallbackError);
-          alert('Terjadi kesalahan pada database. Pastikan schema database sudah diperbarui (menjalankan supabase-schema.sql).');
+          toast.error('Terjadi kesalahan pada database. Pastikan schema database sudah diperbarui (menjalankan supabase-schema.sql).');
           setLoading(false);
           return;
         }
 
         if (existingUser) {
-          alert('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
+          toast.error('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
           setLoading(false);
           return;
         }
       } else if (nikExists) {
-        alert('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
+        toast.error('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
         setLoading(false);
         return;
       }
@@ -118,22 +119,19 @@ export default function AdminSellers() {
         throw authError;
       }
 
-      alert('Penjual berhasil ditambahkan!');
+      toast.success('Penjual berhasil ditambahkan!');
       setIsAdding(false);
       setNewSeller({ nik: '', password: '', name: '' });
       fetchSellers();
     } catch (error: any) {
       console.error('Error adding seller:', error);
-      alert(`Gagal menambahkan penjual: ${error.message}`);
+      toast.error(`Gagal menambahkan penjual: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
-    const action = currentStatus ? 'menonaktifkan' : 'mengaktifkan';
-    if (!confirm(`Yakin ingin ${action} penjual ini?`)) return;
-    
     try {
       const { error } = await supabase
         .from('profiles')
@@ -144,13 +142,11 @@ export default function AdminSellers() {
       fetchSellers();
     } catch (error) {
       console.error('Error updating seller status:', error);
-      alert('Gagal mengubah status penjual');
+      toast.error('Gagal mengubah status penjual');
     }
   };
 
   const handleDeleteSeller = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus penjual ini? Semua produk dan data terkait akan terhapus.')) return;
-    
     try {
       // Delete products first to avoid foreign key constraint errors
       await supabase.from('products').delete().eq('seller_id', id);
@@ -160,9 +156,10 @@ export default function AdminSellers() {
       if (error) throw error;
       
       fetchSellers();
+      toast.success('Penjual berhasil dihapus');
     } catch (error: any) {
       console.error('Error deleting seller:', error);
-      alert(`Gagal menghapus penjual: ${error.message}`);
+      toast.error(`Gagal menghapus penjual: ${error.message}`);
     }
   };
 
@@ -174,11 +171,11 @@ export default function AdminSellers() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-zinc-900 tracking-tight mb-2">
+          <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight mb-2">
             Manajemen Penjual
           </h1>
-          <p className="text-zinc-500 font-medium flex items-center gap-2">
-            <Users className="w-4 h-4 text-blue-500" />
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-2">
+            <Users className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             Total {sellers.length} mitra penjual terdaftar
           </p>
         </div>
@@ -193,7 +190,7 @@ export default function AdminSellers() {
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
           <input 
             type="text" 
             placeholder="Cari nama penjual..." 
@@ -218,27 +215,27 @@ export default function AdminSellers() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="glass-card p-8 border-blue-200 bg-blue-50/30 mb-10">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-blue-100 dark:border-blue-900/30 shadow-sm p-8 bg-blue-50/30 dark:bg-blue-900/10 mb-10">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-black text-zinc-900 tracking-tight">Tambah Penjual Baru</h2>
-                <button onClick={() => setIsAdding(false)} className="p-2 text-zinc-400 hover:text-zinc-900">
+                <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Tambah Penjual Baru</h2>
+                <button onClick={() => setIsAdding(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
                   <X className="w-6 h-6" />
                 </button>
               </div>
               <form onSubmit={handleAddSeller} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Nama Toko/Penjual</label>
+                    <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Nama Toko/Penjual</label>
                     <input 
                       required 
                       value={newSeller.name}
                       onChange={(e) => setNewSeller({...newSeller, name: e.target.value})}
-                      placeholder="Contoh: Kantin Sehat"
+                      placeholder="Contoh: Toko Sejahtera"
                       className="input-clay"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">NIK Login</label>
+                    <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">NIK Login</label>
                     <input 
                       required 
                       type="text"
@@ -249,7 +246,7 @@ export default function AdminSellers() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Password</label>
+                    <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Password</label>
                     <input 
                       required 
                       type="password"
@@ -273,12 +270,12 @@ export default function AdminSellers() {
         )}
       </AnimatePresence>
 
-      <div className="glass-card overflow-hidden border-zinc-200/60 shadow-xl shadow-zinc-200/40">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-100 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] bg-zinc-50/50">
+              <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] bg-zinc-50/50 dark:bg-zinc-800/50">
                 <th className="p-6">Profil Penjual</th>
                 <th className="p-6">Total Penjualan</th>
                 <th className="p-6">Penjualan Bersih</th>
@@ -287,21 +284,21 @@ export default function AdminSellers() {
                 <th className="p-6 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filteredSellers.map((seller) => (
                 <motion.tr 
                   layout
                   key={seller.id} 
-                  className="hover:bg-zinc-50/50 transition-colors group"
+                  className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group"
                 >
                   <td className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-xl shadow-inner">
+                      <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 flex items-center justify-center font-black text-xl shadow-inner">
                         {seller.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-zinc-900 group-hover:text-blue-600 transition-colors">{seller.name}</p>
-                        <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1">
+                        <p className="font-bold text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{seller.name}</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium flex items-center gap-1">
                           <Mail className="w-3 h-3" />
                           {seller.id.slice(0, 8)}...
                         </p>
@@ -309,20 +306,20 @@ export default function AdminSellers() {
                     </div>
                   </td>
                   <td className="p-6">
-                    <p className="font-bold text-zinc-900">{formatRupiah(seller.total_sales || 0)}</p>
-                    <p className="text-[10px] text-zinc-400 font-medium">Akumulasi kotor</p>
+                    <p className="font-bold text-zinc-900 dark:text-white">{formatRupiah(seller.total_sales || 0)}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">Akumulasi kotor</p>
                   </td>
                   <td className="p-6">
-                    <p className="font-bold text-amber-600">{formatRupiah((seller.total_sales || 0) * 0.92)}</p>
-                    <p className="text-[10px] text-zinc-400 font-medium">Setelah biaya 8%</p>
+                    <p className="font-bold text-amber-600 dark:text-amber-500">{formatRupiah((seller.total_sales || 0) * 0.92)}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">Setelah biaya 8%</p>
                   </td>
                   <td className="p-6">
-                    <p className="font-black text-blue-600">{formatRupiah(seller.balance || 0)}</p>
-                    <p className="text-[10px] text-zinc-400 font-medium">Siap ditarik</p>
+                    <p className="font-black text-blue-600 dark:text-blue-400">{formatRupiah(seller.balance || 0)}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">Siap ditarik</p>
                   </td>
                   <td className="p-6">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                      seller.is_active ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                      seller.is_active ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                     }`}>
                       {seller.is_active ? 'Aktif' : 'Nonaktif'}
                     </span>
@@ -333,8 +330,8 @@ export default function AdminSellers() {
                         onClick={() => handleToggleActive(seller.id, seller.is_active)}
                         className={`p-3 rounded-xl transition-all ${
                           seller.is_active 
-                            ? "text-red-500 hover:bg-red-50" 
-                            : "text-blue-500 hover:bg-blue-50"
+                            ? "text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10" 
+                            : "text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10"
                         }`}
                         title={seller.is_active ? "Nonaktifkan" : "Aktifkan"}
                       >
@@ -342,7 +339,7 @@ export default function AdminSellers() {
                       </button>
                       <button 
                         onClick={() => handleDeleteSeller(seller.id)}
-                        className="p-3 text-zinc-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        className="p-3 text-zinc-300 dark:text-zinc-600 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all"
                         title="Hapus"
                       >
                         <Trash2 className="w-5 h-5" />
@@ -356,31 +353,31 @@ export default function AdminSellers() {
         </div>
 
         {/* Mobile Card View */}
-        <div className="md:hidden divide-y divide-zinc-100">
+        <div className="md:hidden divide-y divide-zinc-100 dark:divide-zinc-800">
           {filteredSellers.map((seller) => (
             <div key={seller.id} className="p-3 space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black text-lg">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 flex items-center justify-center font-black text-lg">
                   {seller.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-zinc-900 text-sm truncate">{seller.name}</p>
-                  <p className="text-[9px] text-zinc-400 font-medium">{seller.id.slice(0, 8)}...</p>
+                  <p className="font-bold text-zinc-900 dark:text-white text-sm truncate">{seller.name}</p>
+                  <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium">{seller.id.slice(0, 8)}...</p>
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                  seller.is_active ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                  seller.is_active ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                 }`}>
                   {seller.is_active ? 'Aktif' : 'Nonaktif'}
                 </span>
               </div>
-              <div className="flex justify-between items-center bg-zinc-50 p-2 rounded-lg border border-zinc-100">
+              <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg border border-zinc-100 dark:border-zinc-800">
                 <div>
-                  <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Saldo</p>
-                  <p className="font-bold text-blue-600 text-xs">{formatRupiah(seller.balance || 0)}</p>
+                  <p className="text-[8px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Saldo</p>
+                  <p className="font-bold text-blue-600 dark:text-blue-400 text-xs">{formatRupiah(seller.balance || 0)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Penjualan</p>
-                  <p className="font-bold text-zinc-900 text-xs">{formatRupiah(seller.total_sales || 0)}</p>
+                  <p className="text-[8px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Penjualan</p>
+                  <p className="font-bold text-zinc-900 dark:text-white text-xs">{formatRupiah(seller.total_sales || 0)}</p>
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2 pt-1">
@@ -388,15 +385,15 @@ export default function AdminSellers() {
                   onClick={() => handleToggleActive(seller.id, seller.is_active)}
                   className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
                     seller.is_active 
-                      ? "bg-red-50 text-red-600 border border-red-100" 
-                      : "bg-blue-50 text-blue-600 border border-blue-100"
+                      ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-500/20" 
+                      : "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
                   }`}
                 >
                   {seller.is_active ? "Nonaktifkan" : "Aktifkan"}
                 </button>
                 <button 
                   onClick={() => handleDeleteSeller(seller.id)}
-                  className="px-3 py-1.5 bg-zinc-100 text-zinc-500 rounded-lg hover:bg-red-50 hover:text-red-600 transition-all"
+                  className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-all"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -407,9 +404,9 @@ export default function AdminSellers() {
 
         {filteredSellers.length === 0 && (
           <div className="p-20 text-center">
-            <div className="flex flex-col items-center gap-4 text-zinc-300">
+            <div className="flex flex-col items-center gap-4 text-zinc-300 dark:text-zinc-600">
               <Users className="w-16 h-16 stroke-[1]" />
-              <p className="font-bold text-zinc-400">Tidak ada penjual ditemukan</p>
+              <p className="font-bold text-zinc-400 dark:text-zinc-500">Tidak ada penjual ditemukan</p>
             </div>
           </div>
         )}

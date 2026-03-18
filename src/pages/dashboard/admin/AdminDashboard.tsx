@@ -77,10 +77,10 @@ export default function AdminDashboard() {
         .getPublicUrl(filePath);
 
       setNewQrisUrl(publicUrl);
-      alert('Gambar QRIS berhasil diunggah! Jangan lupa klik Simpan QRIS.');
+      toast.success('Gambar QRIS berhasil diunggah! Jangan lupa klik Simpan QRIS.');
     } catch (error: any) {
       console.error('Error uploading QRIS:', error);
-      alert(`Gagal mengunggah QRIS: ${error.message}`);
+      toast.error(`Gagal mengunggah QRIS: ${error.message}`);
     } finally {
       setUploadingQris(false);
     }
@@ -207,16 +207,14 @@ export default function AdminDashboard() {
         
       if (error) throw error;
       setQrisUrl(newQrisUrl);
-      alert('QRIS berhasil diperbarui');
+      toast.success('QRIS berhasil diperbarui');
     } catch (error) {
       console.error('Error updating QRIS:', error);
-      alert('Gagal memperbarui QRIS');
+      toast.error('Gagal memperbarui QRIS');
     }
   };
 
   const handleCompleteReset = async (requestId: string) => {
-    if (!confirm('Tandai permintaan ini sebagai selesai? Pastikan Anda sudah mereset password user di dashboard Supabase menjadi 123456.')) return;
-
     try {
       const { error } = await supabase
         .from('password_reset_requests')
@@ -241,7 +239,7 @@ export default function AdminDashboard() {
         
       if (error) throw error;
       if (!allTx || allTx.length === 0) {
-        alert('Tidak ada data transaksi untuk diexport.');
+        toast.error('Tidak ada data transaksi untuk diexport.');
         return;
       }
       
@@ -256,7 +254,7 @@ export default function AdminDashboard() {
       exportCSV(csvContent, `laporan_penjualan_lengkap_${format(new Date(), 'yyyyMMdd')}.csv`);
     } catch (error: any) {
       console.error('Error exporting CSV:', error);
-      alert(`Gagal mengekspor laporan: ${error.message}`);
+      toast.error(`Gagal mengekspor laporan: ${error.message}`);
     }
   };
 
@@ -302,23 +300,23 @@ export default function AdminDashboard() {
 
   const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
     <motion.div 
-      whileHover={{ y: -2 }}
-      className="glass-card p-3 sm:p-5 flex flex-col gap-2 border-zinc-200/60"
+      whileHover={{ y: -4, scale: 1.02 }}
+      className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-6 flex flex-col gap-4 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md dark:shadow-none transition-all"
     >
       <div className="flex items-center justify-between">
-        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${color} shadow-sm`}>
-          <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center ${color}`}>
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
         {trend && (
-          <div className={`flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-xs font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg ${trend > 0 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
-            {trend > 0 ? <ArrowUpRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <ArrowDownLeft className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+          <div className={`flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full ${trend > 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
+            {trend > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
             {Math.abs(trend)}%
           </div>
         )}
       </div>
       <div>
-        <p className="text-[9px] sm:text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-0.5 truncate">{title}</p>
-        <h3 className="text-sm sm:text-xl font-black text-zinc-900 tracking-tight truncate">{value}</h3>
+        <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">{title}</p>
+        <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate">{value}</h3>
       </div>
     </motion.div>
   );
@@ -326,84 +324,100 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 sm:space-y-10">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-black text-zinc-900 tracking-tight mb-1 sm:mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight mb-2">
             Overview Dashboard
           </h1>
-          <p className="text-sm sm:text-base text-zinc-500 flex items-center gap-2 font-medium">
-            <Calendar className="w-4 h-4 text-blue-500" />
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2 font-medium">
+            <Calendar className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             Hari ini, {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
           </p>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3">
           <button 
             onClick={fetchDashboardData}
-            className="btn-clay-secondary h-10 px-3 sm:h-12 sm:px-5 flex items-center gap-2 text-xs sm:text-sm"
+            className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-all h-10 px-4 sm:h-11 sm:px-5 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-sm dark:shadow-none"
           >
-            <Activity className="w-3 h-3 sm:w-4 sm:h-4" />
+            <Activity className="w-4 h-4" />
             Refresh Data
           </button>
           <button 
             onClick={exportToCSV} 
-            className="btn-clay-primary h-10 px-3 sm:h-12 sm:px-5 flex items-center gap-2 text-xs sm:text-sm"
+            className="bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white transition-all h-10 px-4 sm:h-11 sm:px-5 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-sm shadow-blue-600/20 dark:shadow-none"
           >
-            <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+            <Download className="w-4 h-4" />
             Export Laporan
           </button>
         </div>
       </div>
 
+      {/* Midtrans Integration Status Banner */}
+      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+            <CreditCard className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-100">Integrasi Midtrans Disiapkan</h3>
+            <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80 mt-0.5">Sistem telah siap untuk dihubungkan dengan payment gateway Midtrans.</p>
+          </div>
+        </div>
+        <button className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-zinc-800 px-4 py-2 rounded-lg shadow-sm border border-indigo-100 dark:border-indigo-800/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors shrink-0">
+          Konfigurasi Midtrans
+        </button>
+      </div>
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatCard 
           title="Total Pendapatan" 
           value={formatRupiah(stats.totalSales)} 
           icon={DollarSign} 
-          color="bg-blue-100 text-blue-600"
+          color="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
           trend={12}
         />
         <StatCard 
           title="Total Biaya (8%)" 
           value={formatRupiah(stats.totalFees)} 
           icon={CreditCard} 
-          color="bg-amber-100 text-amber-600"
+          color="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
           trend={8}
         />
         <StatCard 
           title="Penjual Aktif" 
           value={`${stats.activeSellers} / ${stats.totalSellers}`} 
           icon={Users} 
-          color="bg-amber-100 text-amber-600"
+          color="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
         />
         <StatCard 
           title="Penarikan Pending" 
           value={stats.pendingWithdrawals} 
           icon={AlertTriangle} 
-          color="bg-red-100 text-red-600"
+          color="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
         />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 sm:gap-10">
         {/* Sales Chart */}
         <div className="lg:col-span-2 space-y-6 sm:space-y-10">
-          <div className="clay-card p-4 sm:p-8">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-4 sm:p-8">
             <div className="flex items-center justify-between mb-6 sm:mb-10">
               <div>
-                <h2 className="text-lg sm:text-xl font-black text-zinc-900 tracking-tight">Grafik Penjualan</h2>
-                <p className="text-[10px] sm:text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">7 Hari Terakhir</p>
+                <h2 className="text-lg sm:text-xl font-black text-zinc-900 dark:text-white tracking-tight">Grafik Penjualan</h2>
+                <p className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mt-1">7 Hari Terakhir</p>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500" />
-                  <span className="text-[8px] sm:text-[10px] font-black text-zinc-400 uppercase tracking-wider">Pendapatan</span>
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500 dark:bg-blue-400" />
+                  <span className="text-[8px] sm:text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Pendapatan</span>
                 </div>
               </div>
             </div>
             
             <div className="h-[200px] sm:h-[350px] w-full flex items-end gap-2 sm:gap-3 pt-6 sm:pt-10">
               {salesData.length === 0 ? (
-                <div className="w-full h-full flex flex-col items-center justify-center text-zinc-300 gap-4">
+                <div className="w-full h-full flex flex-col items-center justify-center text-zinc-300 dark:text-zinc-600 gap-4">
                   <TrendingUp className="w-12 h-12 stroke-[1]" />
                   <p className="font-bold">Belum ada data penjualan</p>
                 </div>
@@ -417,16 +431,16 @@ export default function AdminDashboard() {
                           initial={{ height: 0 }}
                           animate={{ height: `${Math.max(heightPercentage, 4)}%` }}
                           transition={{ duration: 1, delay: index * 0.1, ease: "easeOut" }}
-                          className="w-full max-w-[48px] bg-blue-500 rounded-t-xl transition-all duration-300 group-hover:bg-blue-600 group-hover:shadow-lg group-hover:shadow-blue-500/20 relative"
+                          className="w-full max-w-[48px] bg-blue-500 dark:bg-blue-600 rounded-t-xl transition-all duration-300 group-hover:bg-blue-600 dark:group-hover:bg-blue-500 group-hover:shadow-lg group-hover:shadow-blue-500/20 relative"
                         >
                           {/* Tooltip */}
-                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-zinc-900 text-white text-[10px] font-black py-2 px-3 rounded-lg whitespace-nowrap z-20 shadow-xl pointer-events-none">
+                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-black py-2 px-3 rounded-lg whitespace-nowrap z-20 shadow-xl pointer-events-none">
                             {formatRupiah(data.sales)}
-                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 dark:bg-white rotate-45" />
                           </div>
                         </motion.div>
                       </div>
-                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider truncate w-full text-center">
+                      <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate w-full text-center">
                         {data.date}
                       </span>
                     </div>
@@ -439,19 +453,19 @@ export default function AdminDashboard() {
           {/* Transactions Lists */}
           <div className="grid md:grid-cols-2 gap-10">
             {/* Password Reset Requests */}
-            <div className="clay-card overflow-hidden md:col-span-2">
-              <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-amber-50/50">
-                <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                  <KeyRound className="w-4 h-4 text-amber-600" />
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden md:col-span-2">
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-amber-50/50 dark:bg-amber-900/20">
+                <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-500" />
                   Permintaan Reset Password
                   {resetRequests.length > 0 && (
-                    <span className="bg-amber-600 text-white text-[10px] px-2 py-0.5 rounded-full animate-pulse">
+                    <span className="bg-amber-600 dark:bg-amber-500 text-white dark:text-amber-950 text-[10px] px-2 py-0.5 rounded-full animate-pulse">
                       {resetRequests.length}
                     </span>
                   )}
                 </h3>
               </div>
-              <div className="divide-y divide-zinc-100">
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 <AnimatePresence mode="popLayout">
                   {resetRequests.map((req) => (
                     <motion.div 
@@ -460,26 +474,26 @@ export default function AdminDashboard() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20 }}
                       key={req.id} 
-                      className="p-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-zinc-50 transition-colors gap-4"
+                      className="p-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors gap-4"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center clay-icon">
+                        <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center clay-icon">
                           <Users className="w-6 h-6" />
                         </div>
                         <div>
-                          <p className="font-bold text-zinc-900">{req.user_name}</p>
-                          <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">NIK: {req.user_nik}</p>
+                          <p className="font-bold text-zinc-900 dark:text-white">{req.user_name}</p>
+                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">NIK: {req.user_nik}</p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-3">
                         <div className="text-right mr-0 sm:mr-4">
-                          <p className="text-[10px] text-zinc-400 font-medium">
+                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
                             {format(new Date(req.created_at), 'dd MMM, HH:mm', { locale: id })}
                           </p>
                         </div>
                         <button 
                           onClick={() => handleCompleteReset(req.id)}
-                          className="btn-clay-primary py-2 px-4 text-[10px] bg-amber-600 hover:bg-amber-700 border-amber-700"
+                          className="btn-clay-primary py-2 px-4 text-[10px] bg-amber-600 dark:bg-amber-500 hover:bg-amber-700 dark:hover:bg-amber-600 border-amber-700 dark:border-amber-600 text-white dark:text-amber-950"
                         >
                           Selesai Reset
                         </button>
@@ -493,15 +507,15 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="clay-card overflow-hidden">
-              <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-                <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-blue-500" />
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
+                <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                   Transaksi Sukses
                 </h3>
-                <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Lihat Semua</button>
+                <button className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline">Lihat Semua</button>
               </div>
-              <div className="divide-y divide-zinc-100">
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 <AnimatePresence mode="popLayout">
                   {recentTransactions.map((tx) => (
                     <motion.div 
@@ -510,41 +524,41 @@ export default function AdminDashboard() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       key={tx.id} 
-                      className="p-4 sm:p-5 flex items-center justify-between hover:bg-zinc-50 transition-colors group"
+                      className="p-4 sm:p-5 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
                     >
                       <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm clay-icon">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-sm clay-icon">
                           {tx.buyer_name.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-bold text-zinc-900 text-xs sm:text-sm group-hover:text-blue-600 transition-colors">{tx.buyer_name}</p>
-                          <p className="text-[9px] sm:text-[10px] text-zinc-400 font-medium">
+                          <p className="font-bold text-zinc-900 dark:text-white text-xs sm:text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{tx.buyer_name}</p>
+                          <p className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
                             {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-black text-zinc-900 text-xs sm:text-sm">{formatRupiah(tx.total_amount)}</p>
-                        <span className="clay-badge bg-blue-100 text-blue-600">Berhasil</span>
+                        <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-sm">{formatRupiah(tx.total_amount)}</p>
+                        <span className="clay-badge bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">Berhasil</span>
                       </div>
                     </motion.div>
                   ))}
                 </AnimatePresence>
                 {recentTransactions.length === 0 && (
-                  <div className="p-10 text-center text-zinc-400 text-sm font-medium italic">Belum ada transaksi</div>
+                  <div className="p-10 text-center text-zinc-400 dark:text-zinc-500 text-sm font-medium italic">Belum ada transaksi</div>
                 )}
               </div>
             </div>
 
-            <div className="clay-card overflow-hidden">
-              <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-                <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-                  <XCircle className="w-4 h-4 text-red-500" />
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
+                <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                  <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
                   Indikasi Palsu
                 </h3>
-                <button className="text-[10px] font-black text-red-600 uppercase tracking-widest hover:underline">Lihat Semua</button>
+                <button className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest hover:underline">Lihat Semua</button>
               </div>
-              <div className="divide-y divide-zinc-100">
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 <AnimatePresence mode="popLayout">
                   {failedTransactions.map((tx) => (
                     <motion.div 
@@ -553,25 +567,25 @@ export default function AdminDashboard() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       key={tx.id} 
-                      className="p-4 sm:p-5 flex flex-col gap-3 hover:bg-zinc-50 transition-colors"
+                      className="p-4 sm:p-5 flex flex-col gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-black text-xs clay-icon">
+                          <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center font-black text-xs clay-icon">
                             {tx.buyer_name.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-bold text-zinc-900 text-xs sm:text-sm">{tx.buyer_name}</p>
-                            <p className="text-[9px] sm:text-[10px] text-zinc-400 font-medium">
+                            <p className="font-bold text-zinc-900 dark:text-white text-xs sm:text-sm">{tx.buyer_name}</p>
+                            <p className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
                               {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
                             </p>
                           </div>
                         </div>
-                        <p className="font-black text-zinc-900 text-xs sm:text-sm">{formatRupiah(tx.attempted_amount)}</p>
+                        <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-sm">{formatRupiah(tx.attempted_amount)}</p>
                       </div>
-                      <div className="flex items-start gap-3 bg-red-50/50 p-3 rounded-xl border border-red-100/50">
-                         <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                         <p className="text-[10px] text-red-700 font-medium leading-relaxed line-clamp-2">
+                      <div className="flex items-start gap-3 bg-red-50/50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100/50 dark:border-red-800/30">
+                         <AlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
+                         <p className="text-[10px] text-red-700 dark:text-red-300 font-medium leading-relaxed line-clamp-2">
                            {tx.reason}
                          </p>
                       </div>
@@ -579,7 +593,7 @@ export default function AdminDashboard() {
                   ))}
                 </AnimatePresence>
                 {failedTransactions.length === 0 && (
-                  <div className="p-10 text-center text-zinc-400 text-sm font-medium italic">Tidak ada catatan gagal</div>
+                  <div className="p-10 text-center text-zinc-400 dark:text-zinc-500 text-sm font-medium italic">Tidak ada catatan gagal</div>
                 )}
               </div>
             </div>
@@ -588,20 +602,20 @@ export default function AdminDashboard() {
 
         {/* Sidebar Settings */}
         <div className="space-y-6 sm:space-y-10">
-          <div className="clay-card p-6 sm:p-8">
-            <h3 className="text-xs sm:text-sm font-black text-zinc-900 uppercase tracking-widest mb-6 sm:mb-8 flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-blue-600" />
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6 sm:p-8">
+            <h3 className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest mb-6 sm:mb-8 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               Pengaturan QRIS
             </h3>
             
             <div className="space-y-6 sm:space-y-8">
               <div className="relative group">
-                <div className="absolute -inset-2 bg-blue-500/5 rounded-3xl blur-xl group-hover:bg-blue-500/10 transition-colors" />
-                <div className="relative bg-zinc-50 p-6 rounded-[2rem] border border-zinc-200/60 flex justify-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)]">
+                <div className="absolute -inset-2 bg-blue-500/5 dark:bg-blue-500/10 rounded-3xl blur-xl group-hover:bg-blue-500/10 dark:group-hover:bg-blue-500/20 transition-colors" />
+                <div className="relative bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-[2rem] border border-zinc-200/60 dark:border-zinc-700/50 flex justify-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
                   {qrisUrl ? (
                     <img src={qrisUrl} alt="QRIS Aktif" className="w-full aspect-square object-contain rounded-xl" />
                   ) : (
-                    <div className="w-full aspect-square flex flex-col items-center justify-center text-zinc-300 gap-3">
+                    <div className="w-full aspect-square flex flex-col items-center justify-center text-zinc-300 dark:text-zinc-600 gap-3">
                       <QrCode className="w-16 h-16 stroke-[1]" />
                       <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Belum Ada QRIS</p>
                     </div>
@@ -610,7 +624,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] sm:text-xs font-black text-zinc-400 uppercase tracking-widest ml-1">Ganti Gambar QRIS</label>
+                <label className="text-[10px] sm:text-xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Ganti Gambar QRIS</label>
                 <div className="relative">
                   <input 
                     type="file"
@@ -622,14 +636,14 @@ export default function AdminDashboard() {
                   />
                   <label 
                     htmlFor="qris-upload"
-                    className="w-full h-12 bg-zinc-50 border-2 border-dashed border-zinc-200 rounded-xl flex items-center justify-center gap-3 cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                    className="w-full h-12 bg-zinc-50 dark:bg-zinc-800/50 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl flex items-center justify-center gap-3 cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
                   >
                     {uploadingQris ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-600 dark:text-blue-400" />
                     ) : (
                       <>
-                        <Upload className="w-5 h-5 text-zinc-400 group-hover:text-blue-600" />
-                        <span className="text-xs sm:text-sm font-bold text-zinc-500 group-hover:text-blue-600">Pilih File Baru</span>
+                        <Upload className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                        <span className="text-xs sm:text-sm font-bold text-zinc-500 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">Pilih File Baru</span>
                       </>
                     )}
                   </label>
@@ -639,12 +653,12 @@ export default function AdminDashboard() {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100"
+                    className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800/30"
                   >
                     <img src={newQrisUrl} alt="Preview" className="w-12 h-12 object-cover rounded-lg shadow-sm" />
                     <div className="flex-1">
-                      <p className="text-[10px] font-black text-amber-700 uppercase tracking-wider">Preview Terunggah</p>
-                      <p className="text-[9px] text-amber-500 font-medium">Klik simpan untuk menerapkan</p>
+                      <p className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">Preview Terunggah</p>
+                      <p className="text-[9px] text-amber-500 dark:text-amber-500/80 font-medium">Klik simpan untuk menerapkan</p>
                     </div>
                   </motion.div>
                 )}
@@ -661,32 +675,32 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="clay-card p-8 bg-zinc-900 text-white relative overflow-hidden border-none">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 blur-3xl rounded-full -mr-16 -mt-16" />
+          <div className="bg-zinc-900 dark:bg-zinc-950 rounded-2xl p-8 text-white relative overflow-hidden border-none shadow-sm">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 dark:bg-blue-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
             <div className="relative z-10">
               <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-blue-500" />
+                <ShieldCheck className="w-4 h-4 text-blue-500 dark:text-blue-400" />
                 Status Sistem
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-zinc-400 font-medium">Database</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse" />
                     Online
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-zinc-400 font-medium">AI Validator</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse" />
                     Ready
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-zinc-400 font-medium">Storage</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse" />
                     Active
                   </span>
                 </div>

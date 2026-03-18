@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import toast from 'react-hot-toast';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
+import Papa from 'papaparse';
 import { 
   Package, 
   Plus, 
@@ -18,7 +20,8 @@ import {
   Loader2,
   Tag,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, ProductSkeleton } from '../../../components/ui/Skeleton';
 
@@ -30,6 +33,8 @@ export default function SellerProducts() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [importingCSV, setImportingCSV] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -39,6 +44,54 @@ export default function SellerProducts() {
     category: '',
     image_url: ''
   });
+
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user?.id) return;
+
+    setImportingCSV(true);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const productsToInsert = results.data.map((row: any) => ({
+            seller_id: user.id,
+            name: row.name || row.Nama || row.Produk || '',
+            description: row.description || row.Deskripsi || '',
+            price: Number(row.price || row.Harga || 0),
+            stock: Number(row.stock || row.Stok || 0),
+            category: row.category || row.Kategori || 'Sariroti',
+            image_url: row.image_url || row.Gambar || '',
+            is_active: true
+          })).filter((p: any) => p.name && p.price > 0);
+
+          if (productsToInsert.length === 0) {
+            toast.error('Tidak ada data valid yang ditemukan di file CSV. Pastikan ada kolom name, price, stock, category.');
+            setImportingCSV(false);
+            return;
+          }
+
+          const { error } = await supabase.from('products').insert(productsToInsert);
+          if (error) throw error;
+
+          toast.success(`Berhasil mengimpor ${productsToInsert.length} produk!`);
+          fetchProducts();
+        } catch (error: any) {
+          console.error('Error importing CSV:', error);
+          toast.error(`Gagal mengimpor CSV: ${error.message}`);
+        } finally {
+          setImportingCSV(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      },
+      error: (error) => {
+        console.error('Error parsing CSV:', error);
+        toast.error('Gagal membaca file CSV');
+        setImportingCSV(false);
+      }
+    });
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     try {
@@ -68,7 +121,7 @@ export default function SellerProducts() {
       }
     } catch (error: any) {
       console.error('Error uploading image:', error);
-      alert(`Gagal mengunggah gambar: ${error.message}`);
+      toast.error(`Gagal mengunggah gambar: ${error.message}`);
     } finally {
       setUploadingImage(false);
     }
@@ -134,7 +187,7 @@ export default function SellerProducts() {
       fetchProducts();
     } catch (error: any) {
       console.error('Error adding product:', error);
-      alert(`Gagal menambahkan produk: ${error.message}`);
+      toast.error(`Gagal menambahkan produk: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -164,16 +217,13 @@ export default function SellerProducts() {
       fetchProducts();
     } catch (error: any) {
       console.error('Error updating product:', error);
-      alert(`Gagal memperbarui produk: ${error.message}`);
+      toast.error(`Gagal memperbarui produk: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
-    const action = currentStatus ? 'menonaktifkan' : 'mengaktifkan';
-    if (!confirm(`Yakin ingin ${action} ketersediaan produk ini?`)) return;
-
     try {
       const { error } = await supabase
         .from('products')
@@ -184,13 +234,11 @@ export default function SellerProducts() {
       fetchProducts();
     } catch (error) {
       console.error('Error updating product status:', error);
-      alert('Gagal mengubah status produk');
+      toast.error('Gagal mengubah status produk');
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus produk ini?')) return;
-    
     try {
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
@@ -207,10 +255,10 @@ export default function SellerProducts() {
       }
 
       fetchProducts();
-      alert('Produk berhasil dihapus');
+      toast.success('Produk berhasil dihapus');
     } catch (error: any) {
       console.error('Error deleting product:', error);
-      alert(error.message || 'Gagal menghapus produk');
+      toast.error(error.message || 'Gagal menghapus produk');
     }
   };
 
@@ -234,11 +282,11 @@ export default function SellerProducts() {
           <Skeleton className="h-12 w-40 rounded-2xl" />
         </div>
 
-        <div className="clay-card overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
           <div className="hidden md:block">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50/50">
+                <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <th key={i} className="p-6"><Skeleton className="h-4 w-20" /></th>
                   ))}
@@ -251,7 +299,7 @@ export default function SellerProducts() {
               </tbody>
             </table>
           </div>
-          <div className="md:hidden divide-y divide-zinc-100">
+          <div className="md:hidden divide-y divide-zinc-100 dark:divide-zinc-800">
             {Array.from({ length: 5 }).map((_, i) => (
               <ProductSkeleton key={i} />
             ))}
@@ -265,26 +313,43 @@ export default function SellerProducts() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-zinc-900 tracking-tight mb-2">
+          <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight mb-2">
             Manajemen Produk
           </h1>
-          <p className="text-zinc-500 font-medium flex items-center gap-2">
-            <Package className="w-4 h-4 text-blue-500" />
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-2">
+            <Package className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             Kelola stok dan harga produk jualan Anda
           </p>
         </div>
-        <button 
-          onClick={() => setIsAdding(true)} 
-          className="btn-clay-primary h-12 px-8 flex items-center gap-3"
-        >
-          <Plus className="w-5 h-5" />
-          Tambah Produk
-        </button>
+        <div className="flex items-center gap-3">
+          <input 
+            type="file" 
+            accept=".csv" 
+            ref={fileInputRef}
+            onChange={handleImportCSV}
+            className="hidden"
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()} 
+            disabled={importingCSV}
+            className="btn-clay-secondary h-12 px-6 flex items-center gap-3"
+          >
+            {importingCSV ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5" />}
+            <span className="hidden sm:inline">Import CSV</span>
+          </button>
+          <button 
+            onClick={() => setIsAdding(true)} 
+            className="btn-clay-primary h-12 px-8 flex items-center gap-3"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Tambah Produk</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-600 transition-colors" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors" />
           <input 
             type="text" 
             placeholder="Cari produk Anda..." 
@@ -309,10 +374,10 @@ export default function SellerProducts() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="clay-card p-8 border-blue-200 bg-blue-50/30 mb-10">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-blue-100 dark:border-blue-900/50 shadow-sm p-8 bg-blue-50/30 dark:bg-blue-900/10 mb-10">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-black text-zinc-900 tracking-tight">Tambah Produk Baru</h2>
-                <button onClick={() => setIsAdding(false)} className="p-2 text-zinc-400 hover:text-zinc-900">
+                <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Tambah Produk Baru</h2>
+                <button onClick={() => setIsAdding(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -320,7 +385,7 @@ export default function SellerProducts() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Nama Produk</label>
+                      <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Nama Produk</label>
                       <input 
                         required 
                         value={newProduct.name}
@@ -331,7 +396,7 @@ export default function SellerProducts() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Kategori</label>
+                        <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Kategori</label>
                         <select 
                           required 
                           value={newProduct.category}
@@ -345,7 +410,7 @@ export default function SellerProducts() {
                         </select>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Stok Awal</label>
+                        <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Stok Awal</label>
                         <input 
                           required 
                           type="number"
@@ -357,7 +422,7 @@ export default function SellerProducts() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Harga (Rp)</label>
+                      <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Harga (Rp)</label>
                       <input 
                         required 
                         type="number"
@@ -368,7 +433,7 @@ export default function SellerProducts() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Deskripsi (Opsional)</label>
+                      <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Deskripsi (Opsional)</label>
                       <textarea 
                         value={newProduct.description}
                         onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
@@ -379,8 +444,8 @@ export default function SellerProducts() {
                   </div>
 
                   <div className="space-y-6">
-                    <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Gambar Produk</label>
-                    <div className="relative aspect-square rounded-[2.5rem] border-4 border-dashed border-zinc-100 bg-zinc-50 flex flex-col items-center justify-center overflow-hidden group shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)]">
+                    <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Gambar Produk</label>
+                    <div className="relative aspect-square rounded-[2.5rem] border-4 border-dashed border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 flex flex-col items-center justify-center overflow-hidden group shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)] dark:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]">
                       {newProduct.image_url ? (
                         <>
                           <img src={newProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
@@ -394,12 +459,12 @@ export default function SellerProducts() {
                         </>
                       ) : (
                         <label htmlFor="new-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
-                          <div className="w-16 h-16 rounded-2xl bg-white clay-icon flex items-center justify-center text-zinc-400 group-hover:text-blue-600 transition-colors">
+                          <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center text-zinc-400 dark:text-zinc-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                             {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
                           </div>
                           <div>
-                            <p className="font-bold text-zinc-900">Klik untuk unggah foto</p>
-                            <p className="text-xs text-zinc-400 mt-1">PNG, JPG up to 5MB</p>
+                            <p className="font-bold text-zinc-900 dark:text-white">Klik untuk unggah foto</p>
+                            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">PNG, JPG up to 5MB</p>
                           </div>
                           <input id="new-product-image-empty" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} className="hidden" disabled={uploadingImage} />
                         </label>
@@ -407,7 +472,7 @@ export default function SellerProducts() {
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-zinc-100">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
                   <button type="button" onClick={() => setIsAdding(false)} className="btn-clay-secondary px-8">Batal</button>
                   <button type="submit" disabled={loading || uploadingImage} className="btn-clay-primary px-10">
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Produk'}
@@ -428,12 +493,12 @@ export default function SellerProducts() {
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-3xl md:rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl"
+              className="bg-white dark:bg-zinc-900 rounded-3xl md:rounded-[2.5rem] w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl"
             >
               <div className="p-6 md:p-10">
                 <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Edit Produk</h2>
-                  <button onClick={() => setEditingProduct(null)} className="p-2 text-zinc-400 hover:text-zinc-900">
+                  <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Edit Produk</h2>
+                  <button onClick={() => setEditingProduct(null)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
                     <X className="w-6 h-6" />
                   </button>
                 </div>
@@ -442,7 +507,7 @@ export default function SellerProducts() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Nama Produk</label>
+                        <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Nama Produk</label>
                         <input 
                           required 
                           value={editingProduct.name}
@@ -452,7 +517,7 @@ export default function SellerProducts() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Kategori</label>
+                          <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Kategori</label>
                           <select 
                             required 
                             value={editingProduct.category}
@@ -466,7 +531,7 @@ export default function SellerProducts() {
                           </select>
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Stok</label>
+                          <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Stok</label>
                           <input 
                             required 
                             type="number"
@@ -477,7 +542,7 @@ export default function SellerProducts() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Harga (Rp)</label>
+                        <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Harga (Rp)</label>
                         <input 
                           required 
                           type="number"
@@ -487,7 +552,7 @@ export default function SellerProducts() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Deskripsi</label>
+                        <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Deskripsi</label>
                         <textarea 
                           value={editingProduct.description || ''}
                           onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
@@ -497,8 +562,8 @@ export default function SellerProducts() {
                     </div>
 
                     <div className="space-y-6">
-                      <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Gambar Produk</label>
-                      <div className="relative aspect-square rounded-[2.5rem] border-4 border-dashed border-zinc-100 bg-zinc-50 flex flex-col items-center justify-center overflow-hidden group shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)]">
+                      <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Gambar Produk</label>
+                      <div className="relative aspect-square rounded-[2.5rem] border-4 border-dashed border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 flex flex-col items-center justify-center overflow-hidden group shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)] dark:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]">
                         {editingProduct.image_url ? (
                           <>
                             <img src={editingProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
@@ -512,7 +577,7 @@ export default function SellerProducts() {
                           </>
                         ) : (
                           <label htmlFor="edit-product-image-empty" className="cursor-pointer flex flex-col items-center gap-4 p-6 md:p-10 text-center w-full h-full justify-center">
-                            <div className="w-16 h-16 rounded-2xl bg-white clay-icon flex items-center justify-center text-zinc-400 group-hover:text-blue-600 transition-colors">
+                            <div className="w-16 h-16 rounded-2xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center text-zinc-400 dark:text-zinc-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {uploadingImage ? <Loader2 className="w-8 h-8 animate-spin" /> : <Upload className="w-8 h-8" />}
                             </div>
                             <input id="edit-product-image-empty" type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} className="hidden" disabled={uploadingImage} />
@@ -521,7 +586,7 @@ export default function SellerProducts() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-zinc-100">
+                  <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
                     <button type="button" onClick={() => setEditingProduct(null)} className="btn-clay-secondary px-8">Batal</button>
                     <button type="submit" disabled={loading || uploadingImage} className="btn-clay-primary px-10">
                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Perubahan'}
@@ -534,12 +599,12 @@ export default function SellerProducts() {
         )}
       </AnimatePresence>
 
-      <div className="clay-card overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-100 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] bg-zinc-50/50">
+              <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] bg-zinc-50/50 dark:bg-zinc-800/50">
                 <th className="p-6">Produk</th>
                 <th className="p-6">Kategori</th>
                 <th className="p-6">Harga</th>
@@ -548,16 +613,16 @@ export default function SellerProducts() {
                 <th className="p-6 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filteredProducts.map((product) => (
                 <motion.tr 
                   layout
                   key={product.id} 
-                  className="hover:bg-zinc-50/50 transition-colors group"
+                  className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group"
                 >
                   <td className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-white clay-icon flex-shrink-0">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-white dark:bg-zinc-800 clay-icon flex-shrink-0">
                         {product.image_url ? (
                           <img 
                             src={product.image_url} 
@@ -566,29 +631,29 @@ export default function SellerProducts() {
                             referrerPolicy="no-referrer"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                          <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-600">
                             <ImageIcon className="w-6 h-6 stroke-[1.5]" />
                           </div>
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-zinc-900 group-hover:text-blue-600 transition-colors">{product.name}</p>
-                        {product.description && <p className="text-[10px] text-zinc-400 font-medium line-clamp-1">{product.description}</p>}
+                        <p className="font-bold text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{product.name}</p>
+                        {product.description && <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium line-clamp-1">{product.description}</p>}
                       </div>
                     </div>
                   </td>
                   <td className="p-6">
-                    <span className="clay-badge bg-zinc-100 text-zinc-600 flex items-center gap-1.5 w-fit">
+                    <span className="clay-badge bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 flex items-center gap-1.5 w-fit">
                       <Tag className="w-3 h-3" />
                       {product.category}
                     </span>
                   </td>
                   <td className="p-6">
-                    <p className="font-black text-zinc-900">{formatRupiah(product.price)}</p>
+                    <p className="font-black text-zinc-900 dark:text-white">{formatRupiah(product.price)}</p>
                   </td>
                   <td className="p-6">
                     <div className="flex flex-col gap-1">
-                      <div className="w-24 h-2 bg-zinc-100 rounded-full overflow-hidden shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]">
+                      <div className="w-24 h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] dark:shadow-[inset_1px_1px_2px_rgba(0,0,0,0.3)]">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min((product.stock / 50) * 100, 100)}%` }}
@@ -596,7 +661,7 @@ export default function SellerProducts() {
                         />
                       </div>
                       <span className={`text-[10px] font-black uppercase tracking-wider ${
-                        product.stock > 5 ? 'text-blue-600' : 'text-red-600'
+                        product.stock > 5 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
                       }`}>
                         {product.stock} Tersisa
                       </span>
@@ -604,7 +669,9 @@ export default function SellerProducts() {
                   </td>
                   <td className="p-6">
                     <span className={`clay-badge ${
-                      product.is_active ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-500'
+                      product.is_active 
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
+                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
                     }`}>
                       {product.is_active ? 'Tersedia' : 'Nonaktif'}
                     </span>
@@ -613,10 +680,10 @@ export default function SellerProducts() {
                     <div className="flex items-center justify-end gap-2">
                       <button 
                         onClick={() => handleToggleActive(product.id, product.is_active)}
-                        className={`w-10 h-10 clay-icon bg-white transition-all ${
+                        className={`w-10 h-10 clay-icon bg-white dark:bg-zinc-800 transition-all ${
                           product.is_active 
-                            ? "text-zinc-400 hover:text-zinc-900" 
-                            : "text-blue-600"
+                            ? "text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white" 
+                            : "text-blue-600 dark:text-blue-400"
                         }`}
                         title={product.is_active ? "Tandai Tidak Tersedia" : "Tandai Tersedia"}
                       >
@@ -624,14 +691,14 @@ export default function SellerProducts() {
                       </button>
                       <button 
                         onClick={() => setEditingProduct(product)}
-                        className="w-10 h-10 clay-icon bg-white text-zinc-400 hover:text-blue-600 transition-all"
+                        className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all"
                         title="Edit Produk"
                       >
                         <Edit className="w-5 h-5" />
                       </button>
                       <button 
                         onClick={() => handleDeleteProduct(product.id)}
-                        className="w-10 h-10 clay-icon bg-white text-zinc-400 hover:text-red-600 transition-all"
+                        className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400 transition-all"
                         title="Hapus Produk"
                       >
                         <Trash2 className="w-5 h-5" />
@@ -645,56 +712,60 @@ export default function SellerProducts() {
         </div>
 
         {/* Mobile Card View */}
-        <div className="md:hidden divide-y divide-zinc-100">
+        <div className="md:hidden divide-y divide-zinc-100 dark:divide-zinc-800">
           {filteredProducts.map((product) => (
             <div key={product.id} className="p-4 space-y-4">
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white clay-icon flex-shrink-0">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white dark:bg-zinc-800 clay-icon flex-shrink-0">
                   {product.image_url ? (
                     <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                    <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-600">
                       <ImageIcon className="w-8 h-8" />
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-zinc-900 text-base leading-tight mb-1">{product.name}</p>
-                  <p className="text-blue-600 font-black text-lg mb-2">{formatRupiah(product.price)}</p>
+                  <p className="font-black text-zinc-900 dark:text-white text-base leading-tight mb-1">{product.name}</p>
+                  <p className="text-blue-600 dark:text-blue-400 font-black text-lg mb-2">{formatRupiah(product.price)}</p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="clay-badge bg-zinc-100 text-zinc-500">
+                    <span className="clay-badge bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
                       {product.category}
                     </span>
                     <span className={`clay-badge ${
-                      product.stock > 5 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
+                      product.stock > 5 
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                        : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                     }`}>
                       Stok: {product.stock}
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-50">
+              <div className="flex items-center justify-between pt-4 border-t border-zinc-50 dark:border-zinc-800/50">
                 <span className={`clay-badge ${
-                  product.is_active ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-500'
+                  product.is_active 
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' 
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
                 }`}>
                   {product.is_active ? 'Tersedia' : 'Nonaktif'}
                 </span>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleToggleActive(product.id, product.is_active)}
-                    className="w-10 h-10 clay-icon bg-white text-zinc-400"
+                    className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500"
                   >
                     {product.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
                   </button>
                   <button 
                     onClick={() => setEditingProduct(product)}
-                    className="w-10 h-10 clay-icon bg-white text-zinc-400"
+                    className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => handleDeleteProduct(product.id)}
-                    className="w-10 h-10 clay-icon bg-red-50 text-red-500"
+                    className="w-10 h-10 clay-icon bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -706,9 +777,9 @@ export default function SellerProducts() {
 
         {filteredProducts.length === 0 && (
           <div className="p-20 text-center">
-            <div className="flex flex-col items-center gap-4 text-zinc-300">
+            <div className="flex flex-col items-center gap-4 text-zinc-300 dark:text-zinc-600">
               <Package className="w-16 h-16 stroke-[1]" />
-              <p className="font-bold text-zinc-400">Tidak ada produk ditemukan</p>
+              <p className="font-bold text-zinc-400 dark:text-zinc-500">Tidak ada produk ditemukan</p>
             </div>
           </div>
         )}

@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { CheckCircle2, XCircle, Clock, Download, Search, Filter, Wallet, ArrowRight, Loader2, User, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import toast from 'react-hot-toast';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
 
@@ -35,8 +36,6 @@ export default function AdminWithdrawals() {
   };
 
   const handleUpdateStatus = async (id: string, newStatus: string, sellerId: string, amount: number) => {
-    if (!confirm(`Yakin ingin mengubah status penarikan ini menjadi ${newStatus}?`)) return;
-
     try {
       const { error } = await supabase
         .from('withdrawals')
@@ -82,10 +81,10 @@ export default function AdminWithdrawals() {
       }
 
       fetchWithdrawals();
-      alert(`Status berhasil diubah menjadi ${newStatus}`);
+      toast.success(`Status berhasil diubah menjadi ${newStatus}`);
     } catch (error) {
       console.error('Error updating withdrawal status:', error);
-      alert('Gagal mengubah status penarikan');
+      toast.error('Gagal mengubah status penarikan');
     }
   };
 
@@ -135,7 +134,7 @@ export default function AdminWithdrawals() {
           <Skeleton className="h-12 w-48 rounded-xl" />
         </div>
 
-        <div className="clay-card overflow-hidden">
+        <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
           <div className="p-6 space-y-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-20 w-full rounded-xl" />
@@ -150,11 +149,11 @@ export default function AdminWithdrawals() {
     <div className="space-y-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-zinc-900 tracking-tight mb-2">
+          <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight mb-2">
             Permintaan Penarikan
           </h1>
-          <p className="text-zinc-500 font-medium flex items-center gap-2">
-            <Wallet className="w-4 h-4 text-blue-500" />
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             Validasi dan proses pencairan dana mitra penjual
           </p>
         </div>
@@ -169,7 +168,7 @@ export default function AdminWithdrawals() {
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
           <input 
             type="text" 
             placeholder="Cari nama penjual..." 
@@ -180,7 +179,7 @@ export default function AdminWithdrawals() {
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
           <div className="relative flex-1 md:flex-none">
-            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-zinc-500" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -196,11 +195,11 @@ export default function AdminWithdrawals() {
         </div>
       </div>
 
-      <div className="clay-card overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-100 text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] bg-zinc-50/50">
+              <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] bg-zinc-50/50 dark:bg-zinc-800/50">
                 <th className="p-6">Penjual</th>
                 <th className="p-6">Rincian Dana</th>
                 <th className="p-6">Diterima</th>
@@ -208,21 +207,21 @@ export default function AdminWithdrawals() {
                 <th className="p-6 text-right">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filteredWithdrawals.map((w) => (
                 <motion.tr 
                   layout
                   key={w.id} 
-                  className="hover:bg-zinc-50/50 transition-colors group"
+                  className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group"
                 >
                   <td className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-zinc-100 text-zinc-500 flex items-center justify-center font-black text-xl clay-icon">
+                      <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center font-black text-xl clay-icon">
                         {w.profiles?.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-zinc-900 group-hover:text-blue-600 transition-colors">{w.profiles?.name || 'Unknown'}</p>
-                        <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1">
+                        <p className="font-bold text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{w.profiles?.name || 'Unknown'}</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {format(new Date(w.created_at), 'dd MMM yyyy, HH:mm', { locale: id })}
                         </p>
@@ -231,31 +230,31 @@ export default function AdminWithdrawals() {
                   </td>
                   <td className="p-6">
                     <div className="space-y-1">
-                      <p className="text-sm font-bold text-zinc-900">{formatRupiah(w.amount)}</p>
-                      <p className="text-[10px] text-red-500 font-black uppercase tracking-wider">Biaya Admin: {formatRupiah(w.fee)}</p>
+                      <p className="text-sm font-bold text-zinc-900 dark:text-white">{formatRupiah(w.amount)}</p>
+                      <p className="text-[10px] text-red-500 dark:text-red-400 font-black uppercase tracking-wider">Biaya Admin: {formatRupiah(w.fee)}</p>
                     </div>
                   </td>
                   <td className="p-6">
-                    <p className="font-black text-blue-600 text-lg tracking-tight">{formatRupiah(w.net_amount)}</p>
+                    <p className="font-black text-blue-600 dark:text-blue-400 text-lg tracking-tight">{formatRupiah(w.net_amount)}</p>
                   </td>
                   <td className="p-6">
                     {w.status === 'pending' && (
-                      <span className="clay-badge bg-amber-100 text-amber-700">
+                      <span className="clay-badge bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400">
                         <Clock className="w-3 h-3 mr-1.5" /> Pending
                       </span>
                     )}
                     {w.status === 'approved' && (
-                      <span className="clay-badge bg-amber-100 text-amber-700">
+                      <span className="clay-badge bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400">
                         <CheckCircle2 className="w-3 h-3 mr-1.5" /> Disetujui
                       </span>
                     )}
                     {w.status === 'paid' && (
-                      <span className="clay-badge bg-blue-100 text-blue-700">
+                      <span className="clay-badge bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
                         <CheckCircle2 className="w-3 h-3 mr-1.5" /> Dibayar
                       </span>
                     )}
                     {w.status === 'rejected' && (
-                      <span className="clay-badge bg-red-100 text-red-700">
+                      <span className="clay-badge bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
                         <XCircle className="w-3 h-3 mr-1.5" /> Ditolak
                       </span>
                     )}
@@ -266,13 +265,13 @@ export default function AdminWithdrawals() {
                         <>
                           <button 
                             onClick={() => handleUpdateStatus(w.id, 'approved', w.seller_id, w.amount)}
-                            className="btn-clay-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-amber-600"
+                            className="btn-clay-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500"
                           >
                             Setujui
                           </button>
                           <button 
                             onClick={() => handleUpdateStatus(w.id, 'rejected', w.seller_id, w.amount)}
-                            className="btn-clay-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-red-600"
+                            className="btn-clay-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500"
                           >
                             Tolak
                           </button>
@@ -293,9 +292,9 @@ export default function AdminWithdrawals() {
               {filteredWithdrawals.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-20 text-center">
-                    <div className="flex flex-col items-center gap-4 text-zinc-300">
+                    <div className="flex flex-col items-center gap-4 text-zinc-300 dark:text-zinc-600">
                       <Wallet className="w-16 h-16 stroke-[1]" />
-                      <p className="font-bold text-zinc-400">Tidak ada permintaan penarikan</p>
+                      <p className="font-bold text-zinc-400 dark:text-zinc-500">Tidak ada permintaan penarikan</p>
                     </div>
                   </td>
                 </tr>
@@ -305,17 +304,17 @@ export default function AdminWithdrawals() {
         </div>
 
         {/* Mobile Card View */}
-        <div className="md:hidden divide-y divide-zinc-100">
+        <div className="md:hidden divide-y divide-zinc-100 dark:divide-zinc-800">
           {filteredWithdrawals.map((w) => (
             <div key={w.id} className="p-4 space-y-4">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-zinc-100 text-zinc-500 flex items-center justify-center font-black text-sm clay-icon flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center font-black text-sm clay-icon flex-shrink-0">
                     {w.profiles?.name.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-zinc-900 text-sm truncate">{w.profiles?.name || 'Unknown'}</p>
-                    <p className="text-[10px] text-zinc-400 font-medium flex items-center gap-1">
+                    <p className="font-bold text-zinc-900 dark:text-white text-sm truncate">{w.profiles?.name || 'Unknown'}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {format(new Date(w.created_at), 'dd MMM yy, HH:mm', { locale: id })}
                     </p>
@@ -323,40 +322,40 @@ export default function AdminWithdrawals() {
                 </div>
                 <div>
                   {w.status === 'pending' && (
-                    <span className="clay-badge bg-amber-100 text-amber-700">
+                    <span className="clay-badge bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400">
                       Pending
                     </span>
                   )}
                   {w.status === 'approved' && (
-                    <span className="clay-badge bg-amber-100 text-amber-700">
+                    <span className="clay-badge bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400">
                       Disetujui
                     </span>
                   )}
                   {w.status === 'paid' && (
-                    <span className="clay-badge bg-blue-100 text-blue-700">
+                    <span className="clay-badge bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
                       Dibayar
                     </span>
                   )}
                   {w.status === 'rejected' && (
-                    <span className="clay-badge bg-red-100 text-red-700">
+                    <span className="clay-badge bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
                       Ditolak
                     </span>
                   )}
                 </div>
               </div>
               
-              <div className="bg-zinc-50 p-3 rounded-2xl border border-zinc-100 flex justify-between items-center shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)]">
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex justify-between items-center shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)]">
                 <div>
-                  <p className="text-[8px] text-zinc-500 font-black uppercase tracking-wider">Kotor</p>
-                  <p className="text-sm font-bold text-zinc-900">{formatRupiah(w.amount)}</p>
+                  <p className="text-[8px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-wider">Kotor</p>
+                  <p className="text-sm font-bold text-zinc-900 dark:text-white">{formatRupiah(w.amount)}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-[8px] text-red-500 font-black uppercase tracking-wider">Biaya</p>
-                  <p className="text-sm font-bold text-red-500">-{formatRupiah(w.fee)}</p>
+                  <p className="text-[8px] text-red-500 dark:text-red-400 font-black uppercase tracking-wider">Biaya</p>
+                  <p className="text-sm font-bold text-red-500 dark:text-red-400">-{formatRupiah(w.fee)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] text-blue-600 font-black uppercase tracking-wider">Bersih</p>
-                  <p className="text-base font-black text-blue-600 tracking-tight">{formatRupiah(w.net_amount)}</p>
+                  <p className="text-[8px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-wider">Bersih</p>
+                  <p className="text-base font-black text-blue-600 dark:text-blue-400 tracking-tight">{formatRupiah(w.net_amount)}</p>
                 </div>
               </div>
 
@@ -365,13 +364,13 @@ export default function AdminWithdrawals() {
                   <>
                     <button 
                       onClick={() => handleUpdateStatus(w.id, 'approved', w.seller_id, w.amount)}
-                      className="flex-1 btn-clay-secondary h-10 text-[10px] text-amber-600"
+                      className="flex-1 btn-clay-secondary h-10 text-[10px] text-amber-600 dark:text-amber-500"
                     >
                       Setujui
                     </button>
                     <button 
                       onClick={() => handleUpdateStatus(w.id, 'rejected', w.seller_id, w.amount)}
-                      className="flex-1 btn-clay-secondary h-10 text-[10px] text-red-600"
+                      className="flex-1 btn-clay-secondary h-10 text-[10px] text-red-600 dark:text-red-500"
                     >
                       Tolak
                     </button>

@@ -6,8 +6,9 @@ import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
 import { RefreshCw, CheckCircle2, XCircle, Loader2, Upload, FileImage, ShieldCheck, AlertCircle, Info, ArrowLeft } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
+import toast from 'react-hot-toast';
 
 export default function Validate() {
   const { items, getTotal, clearCart, reservations } = useCartStore();
@@ -31,7 +32,7 @@ export default function Validate() {
 
     try {
       if (!file.type.startsWith('image/')) {
-        alert('File harus berupa gambar (JPG, PNG, dll).');
+        toast.error('File harus berupa gambar (JPG, PNG, dll).');
         return;
       }
       
@@ -49,7 +50,7 @@ export default function Validate() {
       reader.readAsDataURL(compressedFile);
     } catch (error) {
       console.error('Error compressing image:', error);
-      alert('Gagal memproses gambar. Silakan coba lagi.');
+      toast.error('Gagal memproses gambar. Silakan coba lagi.');
     }
   };
 
@@ -154,7 +155,7 @@ export default function Validate() {
         setTimeout(() => {
           clearCart();
           sessionStorage.removeItem('buyerName');
-          navigate('/kiosk/success');
+          navigate('/kiosk/success', { state: { transactionId: txData.id } });
         }, 2000);
 
       } else {
@@ -188,12 +189,12 @@ export default function Validate() {
         transition={{ duration: 0.6, type: "spring", bounce: 0.4 }}
         className="text-center mb-6 sm:mb-8"
       >
-        <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-blue-50 text-blue-700 text-[8px] sm:text-[10px] font-bold mb-4 sm:mb-6 shadow-inner border border-blue-100/50 uppercase tracking-widest">
+        <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[8px] sm:text-[10px] font-bold mb-4 sm:mb-6 shadow-inner dark:shadow-none border border-blue-100/50 dark:border-blue-900/30 uppercase tracking-widest">
           <ShieldCheck className="w-3 h-3 sm:w-4 sm:h-4" />
           Verifikasi AI Otomatis
         </div>
-        <h1 className="text-xl sm:text-3xl font-black text-zinc-900 mb-1.5 sm:mb-2 tracking-tighter">Konfirmasi Pembayaran</h1>
-        <p className="text-zinc-500 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed px-4 font-medium">
+        <h1 className="text-xl sm:text-3xl font-black text-zinc-900 dark:text-white mb-1.5 sm:mb-2 tracking-tighter">Konfirmasi Pembayaran</h1>
+        <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed px-4 font-medium">
           Upload bukti transfer Anda untuk verifikasi instan oleh sistem kecerdasan buatan kami.
         </p>
       </motion.div>
@@ -201,17 +202,17 @@ export default function Validate() {
       <div className="grid lg:grid-cols-5 gap-4 sm:gap-6">
         <div className="lg:col-span-3">
           <div className="clay-card p-4 sm:p-6">
-            <div className="relative bg-zinc-50 rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/3] flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 group transition-all duration-500 hover:border-blue-200 shadow-inner">
+            <div className="relative bg-zinc-50 dark:bg-zinc-800/50 rounded-xl sm:rounded-2xl overflow-hidden aspect-[4/3] flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-700 group transition-all duration-500 hover:border-blue-200 dark:hover:border-blue-800 shadow-inner">
               {!imageSrc ? (
                 <div className="text-center p-4 sm:p-6">
                   <motion.div 
                     whileHover={{ scale: 1.1, rotate: 5 }}
-                    className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-100 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4 transition-all duration-500 group-hover:bg-blue-600 group-hover:text-white text-blue-700 shadow-sm"
+                    className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-100 dark:bg-blue-900/30 rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4 transition-all duration-500 group-hover:bg-blue-600 group-hover:text-white text-blue-700 dark:text-blue-400 shadow-sm"
                   >
                     <FileImage className="w-6 h-6 sm:w-8 sm:h-8 stroke-[1.5]" />
                   </motion.div>
-                  <h3 className="text-base sm:text-xl font-black text-zinc-900 mb-1 tracking-tighter">Pilih File Bukti</h3>
-                  <p className="text-[8px] sm:text-xs text-zinc-400 mb-4 sm:mb-6 max-w-[200px] sm:max-w-[250px] mx-auto font-medium leading-relaxed">Format JPG, PNG atau Screenshot M-Banking</p>
+                  <h3 className="text-base sm:text-xl font-black text-zinc-900 dark:text-white mb-1 tracking-tighter">Pilih File Bukti</h3>
+                  <p className="text-[8px] sm:text-xs text-zinc-400 dark:text-zinc-500 mb-4 sm:mb-6 max-w-[200px] sm:max-w-[250px] mx-auto font-medium leading-relaxed">Format JPG, PNG atau Screenshot M-Banking</p>
                   <input
                     type="file"
                     accept="image/*"
@@ -268,8 +269,8 @@ export default function Validate() {
                   animate={{ opacity: 1, y: 0 }}
                   className={`mt-4 sm:mt-6 p-3 sm:p-4 rounded-xl sm:rounded-2xl flex items-start gap-2 sm:gap-3 border-2 ${
                     validationResult.valid 
-                      ? 'bg-blue-50 text-blue-800 border-blue-100 shadow-inner' 
-                      : 'bg-red-50 text-red-800 border-red-100 shadow-inner'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-100 dark:border-blue-800 shadow-inner' 
+                      : 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-100 dark:border-red-800 shadow-inner'
                   }`}
                 >
                   <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl shrink-0 shadow-md ${validationResult.valid ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'}`}>
@@ -337,31 +338,31 @@ export default function Validate() {
 
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           <div className="clay-card p-4 sm:p-6">
-            <h3 className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4 sm:mb-6 flex items-center gap-1.5 sm:gap-2">
-              <Info className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" />
+            <h3 className="text-[10px] sm:text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-4 sm:mb-6 flex items-center gap-1.5 sm:gap-2">
+              <Info className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
               Ringkasan Pembayaran
             </h3>
             
             <div className="space-y-3 sm:space-y-4">
               <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] sm:text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Nama Pembeli</span>
-                <span className="font-black text-zinc-900 text-base sm:text-lg tracking-tighter">{buyerName}</span>
+                <span className="text-[8px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest">Nama Pembeli</span>
+                <span className="font-black text-zinc-900 dark:text-white text-base sm:text-lg tracking-tighter">{buyerName}</span>
               </div>
               
-              <div className="h-px bg-zinc-100" />
+              <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
               
               <div className="flex flex-col gap-0.5">
-                <span className="text-[8px] sm:text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Total Tagihan</span>
-                <span className="font-black text-blue-600 text-lg sm:text-2xl tracking-tighter">
+                <span className="text-[8px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest">Total Tagihan</span>
+                <span className="font-black text-blue-600 dark:text-blue-400 text-lg sm:text-2xl tracking-tighter">
                   {formatRupiah(totalAmount)}
                 </span>
               </div>
               
               <div className="pt-3 sm:pt-4">
-                <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 bg-amber-50 rounded-lg sm:rounded-xl border border-amber-100 shadow-inner">
-                  <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-[8px] sm:text-[10px] text-amber-900 leading-relaxed font-medium">
-                    Pastikan nominal yang Anda transfer <b className="text-amber-700">sama persis</b> dengan total tagihan. AI akan menolak struk jika nominal tidak sesuai atau gambar tidak jelas.
+                <div className="flex items-start gap-2 sm:gap-3 p-3 sm:p-4 bg-amber-50 dark:bg-amber-900/30 rounded-lg sm:rounded-xl border border-amber-100 dark:border-amber-800 shadow-inner">
+                  <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-[8px] sm:text-[10px] text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
+                    Pastikan nominal yang Anda transfer <b className="text-amber-700 dark:text-amber-400">sama persis</b> dengan total tagihan. AI akan menolak struk jika nominal tidak sesuai atau gambar tidak jelas.
                   </p>
                 </div>
               </div>
@@ -371,7 +372,7 @@ export default function Validate() {
           <button
             onClick={() => navigate('/kiosk/checkout')}
             disabled={isValidating || validationResult?.valid}
-            className="w-full py-2 sm:py-3 text-zinc-400 hover:text-blue-600 transition-colors font-bold text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2 group uppercase tracking-widest"
+            className="w-full py-2 sm:py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2 group uppercase tracking-widest"
           >
             <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 group-hover:-translate-x-1.5 transition-transform" />
             Kembali ke QRIS

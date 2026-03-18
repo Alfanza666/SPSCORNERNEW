@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
 
 export default function Terms() {
@@ -58,7 +58,7 @@ export default function Terms() {
 
             <h2>2. Layanan Kami</h2>
             <p>
-              SPS Corner menyediakan platform kantin digital (kiosk) yang memungkinkan pengguna untuk melihat, memesan, dan membayar produk makanan dan minuman yang disediakan oleh penjual terdaftar di lingkungan kami.
+              SPS Corner menyediakan platform pusat belanja digital (kiosk & marketplace) yang memungkinkan karyawan untuk melihat, memesan, dan membayar berbagai produk, termasuk namun tidak terbatas pada makanan, minuman, produk Sariroti, serta produk digital yang disediakan oleh penjual terdaftar di lingkungan kami.
             </p>
 
             <h2>3. Ketentuan Pengguna</h2>
@@ -72,12 +72,12 @@ export default function Terms() {
             <ul>
               <li>Semua harga yang tercantum sudah termasuk pajak yang berlaku kecuali dinyatakan lain.</li>
               <li>Pembayaran harus diselesaikan dalam batas waktu yang ditentukan setelah kode QRIS dibuat.</li>
-              <li>Transaksi yang telah berhasil dibayar tidak dapat dibatalkan atau di-refund kecuali ada kesalahan dari pihak penjual.</li>
+              <li>Transaksi yang telah berhasil dibayar tidak dapat dibatalkan atau di-refund kecuali ada kesalahan dari pihak penjual atau kegagalan sistem pada pengiriman produk digital.</li>
             </ul>
 
-            <h2>5. Pengambilan Barang</h2>
+            <h2>5. Pengambilan & Pengiriman Barang</h2>
             <p>
-              Kantin ini beroperasi dengan sistem kejujuran (honesty system). Pembeli wajib mengambil barang sesuai dengan pesanan dan jumlah yang telah dibayarkan. Area kantin diawasi oleh CCTV untuk memastikan keamanan dan ketertiban.
+              Untuk produk fisik di area SPS Corner, beroperasi dengan sistem kejujuran (honesty system). Pembeli wajib mengambil barang sesuai dengan pesanan dan jumlah yang telah dibayarkan. Area pengambilan diawasi oleh CCTV untuk memastikan keamanan dan ketertiban. Untuk produk digital, pengiriman akan dilakukan secara otomatis atau manual oleh penjual melalui sistem atau kontak yang terdaftar.
             </p>
 
             <h2>6. Penafian (Disclaimer)</h2>

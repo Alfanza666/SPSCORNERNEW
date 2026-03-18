@@ -21,7 +21,7 @@ import {
   Tag
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import Logo from '../../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 

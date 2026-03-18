@@ -5,6 +5,7 @@ export interface UserProfile {
   id: string;
   role: 'admin' | 'seller' | 'buyer';
   name: string;
+  email?: string;
   nik?: string;
   balance: number;
 }
@@ -24,6 +25,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   fetchProfile: async (userId) => {
     try {
       set({ isLoading: true });
+      
+      // Get session to get email
+      const { data: { session } } = await supabase.auth.getSession();
+      const email = session?.user?.email;
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -31,7 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         .single();
 
       if (error) throw error;
-      set({ user: data as UserProfile });
+      set({ user: { ...data, email } as UserProfile });
     } catch (error) {
       console.error('Error fetching profile:', error);
       set({ user: null });

@@ -1,11 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Fredoka", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Sariroti Brand Colors */
@@ -47,184 +47,109 @@
 }
 
 @layer components {
-  /* Clay Cards - Stronger shadows for better depth and contrast */
+  /* Clean White Cards - Replaces old clay style */
   .clay-card {
-    @apply bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-transparent dark:border-zinc-800 transition-all duration-300;
-    box-shadow: 
-      8px 8px 16px rgba(0, 0, 0, 0.06),
-      inset -4px -4px 8px rgba(0, 0, 0, 0.03),
-      inset 4px 4px 8px rgba(255, 255, 255, 0.9);
+    @apply bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm transition-all duration-300;
   }
   
   .dark .clay-card {
-    box-shadow: 
-      8px 8px 16px rgba(0, 0, 0, 0.4),
-      inset -4px -4px 8px rgba(0, 0, 0, 0.2),
-      inset 4px 4px 8px rgba(255, 255, 255, 0.05);
+    @apply shadow-none;
   }
 
   .clay-card-lg {
-    @apply bg-white dark:bg-zinc-900 rounded-3xl sm:rounded-[2rem] border border-transparent dark:border-zinc-800 transition-all duration-300;
-    box-shadow: 
-      12px 12px 24px rgba(0, 0, 0, 0.06),
-      inset -6px -6px 12px rgba(0, 0, 0, 0.03),
-      inset 6px 6px 12px rgba(255, 255, 255, 0.9);
+    @apply bg-white dark:bg-zinc-900 rounded-3xl sm:rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm transition-all duration-300;
   }
 
   .dark .clay-card-lg {
-    box-shadow: 
-      12px 12px 24px rgba(0, 0, 0, 0.4),
-      inset -6px -6px 12px rgba(0, 0, 0, 0.2),
-      inset 6px 6px 12px rgba(255, 255, 255, 0.05);
+    @apply shadow-none;
   }
 
   .clay-card:hover {
-    @apply shadow-[10px_10px_20px_rgba(0,0,0,0.08)] dark:shadow-[10px_10px_20px_rgba(0,0,0,0.5)];
+    @apply shadow-md dark:shadow-none;
   }
 
   .clay-card-lg:hover {
-    @apply shadow-[16px_16px_32px_rgba(0,0,0,0.08)] dark:shadow-[16px_16px_32px_rgba(0,0,0,0.5)];
+    @apply shadow-md dark:shadow-none;
   }
 
   .clay-card-blue {
-    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-2xl sm:rounded-3xl;
-    box-shadow: 
-      8px 8px 16px rgba(0, 84, 166, 0.2),
-      inset -4px -4px 8px rgba(0, 0, 0, 0.15),
-      inset 4px 4px 8px rgba(255, 255, 255, 0.2);
+    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-2xl sm:rounded-3xl shadow-sm border border-blue-500 dark:border-blue-600;
   }
 
   .clay-card-blue-lg {
-    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-3xl sm:rounded-[2rem];
-    box-shadow: 
-      12px 12px 24px rgba(0, 84, 166, 0.2),
-      inset -6px -6px 12px rgba(0, 0, 0, 0.15),
-      inset 6px 6px 12px rgba(255, 255, 255, 0.2);
+    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-3xl sm:rounded-[2rem] shadow-sm border border-blue-500 dark:border-blue-600;
   }
 
   .clay-card-amber {
-    @apply bg-amber-400 dark:bg-amber-500 text-amber-950 dark:text-amber-950 rounded-2xl sm:rounded-3xl;
-    box-shadow: 
-      8px 8px 16px rgba(255, 204, 0, 0.25),
-      inset -4px -4px 8px rgba(0, 0, 0, 0.1),
-      inset 4px 4px 8px rgba(255, 255, 255, 0.3);
+    @apply bg-amber-400 dark:bg-amber-500 text-amber-950 dark:text-amber-950 rounded-2xl sm:rounded-3xl shadow-sm border border-amber-300 dark:border-amber-400;
   }
 
-  /* Clay Buttons */
+  /* Clean Buttons */
   .btn-clay-primary {
-    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2;
-    box-shadow: 
-      4px 4px 8px rgba(0, 84, 166, 0.25),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.15),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.25);
+    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-md hover:-translate-y-0.5;
   }
 
   .btn-clay-primary-lg {
-    @apply px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2;
-    box-shadow: 
-      6px 6px 12px rgba(0, 84, 166, 0.25),
-      inset -3px -3px 6px rgba(0, 0, 0, 0.15),
-      inset 3px 3px 6px rgba(255, 255, 255, 0.25);
+    @apply px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-md hover:-translate-y-0.5;
   }
 
   .btn-clay-primary:hover {
-    @apply bg-blue-700 dark:bg-blue-600 -translate-y-0.5;
-    box-shadow: 
-      6px 6px 12px rgba(0, 84, 166, 0.3),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.15),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.25);
+    /* Handled via @apply */
   }
 
   .btn-clay-secondary {
-    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 border border-transparent dark:border-zinc-700;
-    box-shadow: 
-      4px 4px 8px rgba(0, 0, 0, 0.05),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.02),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.9);
+    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:shadow-md hover:-translate-y-0.5;
   }
 
   .dark .btn-clay-secondary {
-    box-shadow: 
-      4px 4px 8px rgba(0, 0, 0, 0.3),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.2),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.05);
+    @apply shadow-none;
   }
 
   .btn-clay-danger {
-    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-red-500 dark:bg-red-600 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2;
-    box-shadow: 
-      4px 4px 8px rgba(239, 68, 68, 0.25),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.15),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.25);
+    @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-red-500 dark:bg-red-600 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm hover:bg-red-600 dark:hover:bg-red-500 hover:shadow-md hover:-translate-y-0.5;
   }
 
-  /* Clay Inputs */
+  /* Clean Inputs */
   .input-clay {
-    @apply w-full px-3 py-1.5 sm:px-4 sm:py-2 bg-[#f8f9fa] dark:bg-zinc-900 border-none rounded-xl outline-none transition-all font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500;
-    box-shadow: 
-      inset 3px 3px 6px rgba(0, 0, 0, 0.05),
-      inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+    @apply w-full px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none transition-all font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500;
   }
 
   .dark .input-clay {
-    box-shadow: 
-      inset 3px 3px 6px rgba(0, 0, 0, 0.3),
-      inset -3px -3px 6px rgba(255, 255, 255, 0.02);
+    @apply shadow-none;
   }
 
   .input-clay:focus {
-    @apply bg-white dark:bg-zinc-800 ring-2 ring-blue-500/10 dark:ring-blue-500/30;
-    box-shadow: 
-      inset 3px 3px 6px rgba(0, 84, 166, 0.05),
-      inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+    /* Handled via @apply */
   }
 
   .dark .input-clay:focus {
-    box-shadow: 
-      inset 3px 3px 6px rgba(0, 0, 0, 0.4),
-      inset -3px -3px 6px rgba(255, 255, 255, 0.05);
+    /* Handled via @apply */
   }
 
-  /* Clay Icons */
+  /* Clean Icons */
   .clay-icon {
-    @apply rounded-xl flex items-center justify-center transition-all duration-300 bg-white dark:bg-zinc-800;
-    box-shadow: 
-      4px 4px 8px rgba(0, 0, 0, 0.05),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.02),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.9);
+    @apply rounded-xl flex items-center justify-center transition-all duration-300 bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shadow-sm;
   }
 
   .dark .clay-icon {
-    box-shadow: 
-      4px 4px 8px rgba(0, 0, 0, 0.3),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.2),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.05);
+    @apply shadow-none;
   }
 
   .clay-icon-blue {
-    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-xl flex items-center justify-center transition-all;
-    box-shadow: 
-      4px 4px 8px rgba(0, 84, 166, 0.25),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.15),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.2);
+    @apply bg-blue-600 dark:bg-blue-700 text-white rounded-xl flex items-center justify-center transition-all shadow-sm border border-blue-500 dark:border-blue-600;
   }
 
   .clay-icon-amber {
-    @apply bg-amber-400 dark:bg-amber-500 text-amber-950 dark:text-amber-950 rounded-xl flex items-center justify-center transition-all;
-    box-shadow: 
-      4px 4px 8px rgba(255, 204, 0, 0.25),
-      inset -2px -2px 4px rgba(0, 0, 0, 0.1),
-      inset 2px 2px 4px rgba(255, 255, 255, 0.3);
+    @apply bg-amber-400 dark:bg-amber-500 text-amber-950 dark:text-amber-950 rounded-xl flex items-center justify-center transition-all shadow-sm border border-amber-300 dark:border-amber-400;
   }
 
   /* Badges */
   .clay-badge {
-    @apply px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider dark:bg-zinc-800 dark:text-zinc-200;
-    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.05);
+    @apply px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider dark:bg-zinc-800 dark:text-zinc-200 border border-zinc-100 dark:border-zinc-700 shadow-sm;
   }
   
   .dark .clay-badge {
-    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.3);
+    @apply shadow-none;
   }
 }
 

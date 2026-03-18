@@ -18,7 +18,7 @@ export default defineConfig(({mode}) => {
       },
     },
     optimizeDeps: {
-      include: ['react', 'react-dom', 'framer-motion'],
+      include: ['react', 'react-dom', 'motion/react'],
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

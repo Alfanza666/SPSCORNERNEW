@@ -105,7 +105,15 @@ export default function App() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <BrowserRouter>
-        <Toaster />
+        <Toaster 
+          toastOptions={{
+            className: 'text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-3',
+            style: {
+              maxWidth: '90vw',
+              borderRadius: '12px',
+            }
+          }}
+        />
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />

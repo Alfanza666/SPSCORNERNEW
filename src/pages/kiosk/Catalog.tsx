@@ -4,12 +4,13 @@ import { supabase } from '../../lib/supabase';
 import { useCartStore, Product } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
 import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Catalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('Semua');
+  const [storeType, setStoreType] = useState<'kantin' | 'koperasi'>('kantin');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -23,6 +24,12 @@ export default function Catalog() {
     fetchProducts();
   }, []);
 
+  const isKoperasiProduct = (p: Product) => {
+    const cat = (p.category || '').toLowerCase();
+    const name = (p.name || '').toLowerCase();
+    return cat.includes('sariroti') || cat.includes('sari roti') || name.includes('sariroti') || name.includes('sari roti') || cat.includes('roti tawar') || cat.includes('roti manis') || cat.includes('kue') || cat.includes('sandwich') || name.includes('sari choco') || name.includes('dorayaki') || name.includes('cake');
+  };
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -35,9 +42,30 @@ export default function Catalog() {
       if (error) throw error;
 
       if (data) {
-        setProducts(data);
-        const uniqueCategories = Array.from(new Set(data.map((p) => p.category)));
-        setCategories(['Semua', ...uniqueCategories]);
+        // Categorize Koperasi products into Roti Tawar, Roti Manis, Roti Sandwich, Kue, and Sari Choco
+        const processedProducts = data.map(p => {
+          if (isKoperasiProduct(p)) {
+            let newCategory = p.category;
+            const name = p.name.toLowerCase();
+            const cat = (p.category || '').toLowerCase();
+            
+            if (name.includes('tawar') || cat.includes('tawar') || name.includes('milky soft')) {
+              newCategory = 'Roti Tawar';
+            } else if (name.includes('sandwich') || cat.includes('sandwich')) {
+              newCategory = 'Roti Sandwich';
+            } else if (name.includes('kue') || name.includes('cake') || name.includes('dorayaki') || name.includes('bolu') || name.includes('waffle') || name.includes('muffin') || name.includes('bamkuhen') || name.includes('bamkuchen') || name.includes('croissant') || name.includes('lapis') || cat.includes('kue')) {
+              newCategory = 'Kue';
+            } else if (name.includes('sari choco') || (name.includes('susu') && name.includes('milk')) || name.includes('meises') || name.includes('spread')) {
+              newCategory = 'Sari Choco';
+            } else {
+              newCategory = 'Roti Manis';
+            }
+            return { ...p, category: newCategory };
+          }
+          return p;
+        });
+
+        setProducts(processedProducts);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -46,7 +74,19 @@ export default function Catalog() {
     }
   };
 
-  const filteredProducts = products.filter((product) => {
+  // Filter products by store type first
+  const storeProducts = products.filter(p => 
+    storeType === 'koperasi' ? isKoperasiProduct(p) : !isKoperasiProduct(p)
+  );
+
+  // Update categories based on store type
+  useEffect(() => {
+    const uniqueCategories = Array.from(new Set(storeProducts.map((p) => p.category)));
+    setCategories(['Semua', ...uniqueCategories]);
+    setActiveCategory('Semua');
+  }, [storeType, products]);
+
+  const filteredProducts = storeProducts.filter((product) => {
     const matchesCategory = activeCategory === 'Semua' || product.category === activeCategory;
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -56,23 +96,23 @@ export default function Catalog() {
     return (
       <div className="space-y-6 sm:space-y-8">
         <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-center justify-between">
-          <div className="w-full md:w-72 h-12 bg-zinc-200 animate-pulse rounded-[20px] shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)]"></div>
+          <div className="w-full md:w-72 h-12 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-[20px] shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-none"></div>
           <div className="flex gap-2 sm:gap-3 overflow-x-auto w-full md:w-auto pb-2">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-10 w-24 bg-zinc-200 animate-pulse rounded-full shrink-0 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)]"></div>
+              <div key={i} className="h-10 w-24 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-full shrink-0 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-none"></div>
             ))}
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
             <div key={i} className="clay-card overflow-hidden flex flex-col h-[320px] sm:h-[360px]">
-              <div className="aspect-square bg-zinc-200 animate-pulse rounded-2xl sm:rounded-[24px] m-3 sm:m-4"></div>
+              <div className="aspect-square bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-2xl sm:rounded-[24px] m-3 sm:m-4"></div>
               <div className="p-4 sm:p-6 flex flex-col flex-1 gap-4 sm:gap-5">
                 <div className="space-y-2 sm:space-y-3">
-                  <div className="h-5 sm:h-6 bg-zinc-200 animate-pulse rounded-full w-3/4"></div>
-                  <div className="h-5 sm:h-6 bg-zinc-200 animate-pulse rounded-full w-1/2"></div>
+                  <div className="h-5 sm:h-6 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-full w-3/4"></div>
+                  <div className="h-5 sm:h-6 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-full w-1/2"></div>
                 </div>
-                <div className="h-10 sm:h-12 bg-zinc-200 animate-pulse rounded-[20px] mt-auto"></div>
+                <div className="h-10 sm:h-12 bg-zinc-200 dark:bg-zinc-800 animate-pulse rounded-[20px] mt-auto"></div>
               </div>
             </div>
           ))}
@@ -82,27 +122,53 @@ export default function Catalog() {
   }
 
   return (
-    <div className="min-h-screen bg-[#e8ebf0] pb-24 sm:pb-32">
+    <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 pb-24 sm:pb-32 transition-colors duration-300">
       {/* Header Section */}
-      <div className="bg-white px-4 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 rounded-b-2xl sm:rounded-b-3xl shadow-sm relative z-20">
+      <div className="bg-white dark:bg-zinc-900 px-4 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 rounded-b-2xl sm:rounded-b-3xl shadow-sm dark:shadow-black/20 relative z-20 transition-colors duration-300">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-5">
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tighter mb-0.5">
-                Pilih <span className="text-blue-600">Menu</span>
+              <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tracking-tighter mb-0.5 transition-colors">
+                Pilih <span className="text-blue-600 dark:text-blue-400">Menu</span>
               </h1>
-              <p className="text-zinc-400 text-[10px] sm:text-xs font-bold tracking-tight">Kantin Digital Sariroti</p>
+              <p className="text-zinc-400 dark:text-zinc-500 text-[10px] sm:text-xs font-bold tracking-tight">Pusat Belanja & Kantin</p>
             </div>
             
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400" />
-              <input
-                type="text"
-                placeholder="Cari roti atau minuman..."
-                className="input-clay pl-9 sm:pl-10 text-[10px] sm:text-xs h-9 sm:h-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex flex-col sm:flex-row gap-3 items-center">
+              {/* Store Type Toggle */}
+              <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl w-full sm:w-auto transition-colors">
+                <button
+                  onClick={() => setStoreType('kantin')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    storeType === 'kantin' 
+                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Kantin
+                </button>
+                <button
+                  onClick={() => setStoreType('koperasi')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    storeType === 'koperasi' 
+                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  Koperasi
+                </button>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 dark:text-zinc-500" />
+                <input
+                  type="text"
+                  placeholder="Cari menu..."
+                  className="input-clay pl-9 sm:pl-10 text-[10px] sm:text-xs h-9 sm:h-10 w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
@@ -112,8 +178,8 @@ export default function Catalog() {
               onClick={() => setActiveCategory('Semua')}
               className={`whitespace-nowrap px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all ${
                 activeCategory === 'Semua'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-zinc-50 text-zinc-500 hover:bg-zinc-100'
+                  ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
+                  : 'bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
               }`}
             >
               Semua Menu
@@ -124,8 +190,8 @@ export default function Catalog() {
                 onClick={() => setActiveCategory(cat)}
                 className={`whitespace-nowrap px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all flex items-center gap-1 sm:gap-1.5 ${
                   activeCategory === cat
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-zinc-50 text-zinc-500 hover:bg-zinc-100'
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
+                    : 'bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
                 }`}
               >
                 {cat}
@@ -139,12 +205,12 @@ export default function Catalog() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-8 sm:py-12">
-            <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-600 mb-2 sm:mb-3" />
-            <p className="text-zinc-400 text-[8px] sm:text-[10px] font-bold uppercase tracking-widest">Memuat Menu...</p>
+            <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-600 dark:text-blue-400 mb-2 sm:mb-3" />
+            <p className="text-zinc-400 dark:text-zinc-500 text-[8px] sm:text-[10px] font-bold uppercase tracking-widest">Memuat Menu...</p>
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-8 sm:py-12 bg-white/50 rounded-xl sm:rounded-2xl border border-dashed border-zinc-200">
-            <p className="text-zinc-400 text-[10px] sm:text-xs font-bold">Menu tidak ditemukan</p>
+          <div className="text-center py-8 sm:py-12 bg-white/50 dark:bg-zinc-900/50 rounded-xl sm:rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+            <p className="text-zinc-400 dark:text-zinc-500 text-[10px] sm:text-xs font-bold">Menu tidak ditemukan</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
@@ -161,7 +227,7 @@ export default function Catalog() {
                   whileHover={{ y: -2 }}
                   className="clay-card group overflow-hidden flex flex-col h-full"
                 >
-                  <div className="relative aspect-square overflow-hidden bg-zinc-50">
+                  <div className="relative aspect-square overflow-hidden bg-zinc-50 dark:bg-zinc-800/50">
                     <img
                       src={product.image_url || 'https://picsum.photos/seed/bread/400/400'}
                       alt={product.name}
@@ -169,34 +235,34 @@ export default function Catalog() {
                       referrerPolicy="no-referrer"
                     />
                     {product.stock <= 5 && product.stock > 0 && (
-                      <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1 py-0.5 sm:px-1.5 sm:py-0.5 bg-amber-400 text-amber-950 text-[6px] sm:text-[8px] font-bold rounded-full shadow-sm uppercase tracking-wider">
+                      <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1 py-0.5 sm:px-1.5 sm:py-0.5 bg-amber-400 dark:bg-amber-500 text-amber-950 text-[6px] sm:text-[8px] font-bold rounded-full shadow-sm uppercase tracking-wider">
                         Sisa: {product.stock}
                       </div>
                     )}
                     {product.stock === 0 && (
-                      <div className="absolute inset-0 bg-zinc-900/60 backdrop-blur-[2px] flex items-center justify-center">
-                        <span className="px-2 py-1 sm:px-3 sm:py-1 bg-white text-zinc-900 text-[8px] sm:text-[10px] font-bold rounded-full shadow-md uppercase tracking-widest">Habis</span>
+                      <div className="absolute inset-0 bg-zinc-900/60 dark:bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
+                        <span className="px-2 py-1 sm:px-3 sm:py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white text-[8px] sm:text-[10px] font-bold rounded-full shadow-md uppercase tracking-widest">Habis</span>
                       </div>
                     )}
                   </div>
 
                   <div className="p-2.5 sm:p-3 flex flex-col flex-1">
-                    <h3 className="text-[10px] sm:text-xs font-bold text-zinc-900 mb-0.5 sm:mb-1 tracking-tight line-clamp-1">{product.name}</h3>
-                    <p className="text-blue-600 text-xs sm:text-sm font-black mb-2 sm:mb-3">{formatRupiah(product.price)}</p>
+                    <h3 className="text-[10px] sm:text-xs font-bold text-zinc-900 dark:text-white mb-0.5 sm:mb-1 tracking-tight line-clamp-1">{product.name}</h3>
+                    <p className="text-blue-600 dark:text-blue-400 text-xs sm:text-sm font-black mb-2 sm:mb-3">{formatRupiah(product.price)}</p>
                     
                     <div className="mt-auto">
                       {quantity > 0 ? (
-                        <div className="flex items-center justify-between bg-zinc-50 rounded-md sm:rounded-lg p-0.5 sm:p-1 shadow-inner">
+                        <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-md sm:rounded-lg p-0.5 sm:p-1 shadow-inner dark:shadow-none">
                           <button
                             onClick={() => {
                               if (quantity === 1) removeItem(product.id);
                               else updateQuantity(product.id, quantity - 1);
                             }}
-                            className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center bg-white text-zinc-900 rounded shadow-sm active:scale-95 transition-all"
+                            className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white rounded shadow-sm dark:shadow-none active:scale-95 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-600"
                           >
                             <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           </button>
-                          <span className="font-bold text-[10px] sm:text-xs text-zinc-900">{quantity}</span>
+                          <span className="font-bold text-[10px] sm:text-xs text-zinc-900 dark:text-white">{quantity}</span>
                           <button
                             onClick={() => {
                               if (quantity < product.stock) {
