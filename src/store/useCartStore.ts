@@ -6,8 +6,13 @@ export interface Product {
   name: string;
   price: number;
   stock: number;
-  category: string;
+  category?: string;
+  category_id?: string;
   image_url: string;
+  description?: string;
+  is_digital?: boolean;
+  target_number?: string;
+  sku?: string;
 }
 
 export interface CartItem extends Product {

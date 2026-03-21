@@ -98,6 +98,10 @@ export default function SellerProducts() {
       if (!e.target.files || e.target.files.length === 0) return;
       
       const file = e.target.files[0];
+      if (file.size > 2 * 1024 * 1024) {
+        throw new Error('Ukuran file terlalu besar. Maksimal 2MB.');
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${user?.id}/${fileName}`;
@@ -106,9 +110,17 @@ export default function SellerProducts() {
 
       const { error: uploadError } = await supabase.storage
         .from('products')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        if (uploadError.message.includes('fetch') || uploadError.message.includes('NetworkError')) {
+          throw new Error('Gagal mengunggah karena masalah jaringan atau bucket storage belum siap.');
+        }
+        throw uploadError;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('products')

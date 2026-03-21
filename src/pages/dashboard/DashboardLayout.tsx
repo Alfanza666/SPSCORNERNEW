@@ -181,27 +181,33 @@ export default function DashboardLayout() {
 
       {isSeller && (
         <>
-          <NavItem 
-            to="/dashboard/seller" 
-            icon={LayoutDashboard} 
-            label="Overview" 
-            isActive={location.pathname === "/dashboard/seller"}
-            onClick={() => { navigate("/dashboard/seller"); setIsSidebarOpen(false); }}
-          />
-          <NavItem 
-            to="/dashboard/seller/products" 
-            icon={Package} 
-            label="Produk Saya" 
-            isActive={location.pathname === "/dashboard/seller/products"}
-            onClick={() => { navigate("/dashboard/seller/products"); setIsSidebarOpen(false); }}
-          />
-          <NavItem 
-            to="/dashboard/seller/withdrawals" 
-            icon={CreditCard} 
-            label="Penarikan" 
-            isActive={location.pathname === "/dashboard/seller/withdrawals"}
-            onClick={() => { navigate("/dashboard/seller/withdrawals"); setIsSidebarOpen(false); }}
-          />
+          <div className="tour-seller-sidebar-overview">
+            <NavItem 
+              to="/dashboard/seller" 
+              icon={LayoutDashboard} 
+              label="Overview" 
+              isActive={location.pathname === "/dashboard/seller"}
+              onClick={() => { navigate("/dashboard/seller"); setIsSidebarOpen(false); }}
+            />
+          </div>
+          <div className="tour-seller-sidebar-products">
+            <NavItem 
+              to="/dashboard/seller/products" 
+              icon={Package} 
+              label="Produk Saya" 
+              isActive={location.pathname === "/dashboard/seller/products"}
+              onClick={() => { navigate("/dashboard/seller/products"); setIsSidebarOpen(false); }}
+            />
+          </div>
+          <div className="tour-seller-sidebar-withdrawals">
+            <NavItem 
+              to="/dashboard/seller/withdrawals" 
+              icon={CreditCard} 
+              label="Penarikan" 
+              isActive={location.pathname === "/dashboard/seller/withdrawals"}
+              onClick={() => { navigate("/dashboard/seller/withdrawals"); setIsSidebarOpen(false); }}
+            />
+          </div>
         </>
       )}
     </>
@@ -251,7 +257,7 @@ export default function DashboardLayout() {
             <div className="px-4 py-2 mb-4 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
               Akses Cepat
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 tour-seller-sidebar-kiosk">
               <button
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
                 onClick={() => navigate('/kiosk')}

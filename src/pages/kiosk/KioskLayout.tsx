@@ -184,7 +184,7 @@ export default function KioskLayout() {
                   )}
                   <button
                     onClick={() => navigate('/kiosk/cart')}
-                    className="relative clay-icon-amber h-7 w-7 sm:h-8 sm:w-auto sm:px-3 group"
+                    className="relative clay-icon-amber h-7 w-7 sm:h-8 sm:w-auto sm:px-3 group tour-cart-button"
                   >
                     <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5 group-hover:scale-110 transition-transform" />
                     <span className="hidden sm:inline text-[10px] font-bold">Keranjang</span>

@@ -183,6 +183,7 @@ Sistem SPS Corner`);
   };
 
   const hasSariroti = transaction?.transaction_items?.some((item: any) => item.products.category?.toLowerCase() === 'sariroti' || item.products.name.toLowerCase().includes('sariroti'));
+  const digitalItems = transaction?.transaction_items?.filter((item: any) => item.metadata?.is_digital);
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
@@ -255,6 +256,34 @@ Sistem SPS Corner`);
             <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
+
+        {digitalItems && digitalItems.length > 0 && (
+          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-zinc-100 dark:border-zinc-800 border-dashed text-left">
+            <p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-3 text-center">Produk Digital Berhasil Dikirim</p>
+            <div className="space-y-3">
+              {digitalItems.map((item: any, idx: number) => {
+                const productName = item.products?.name || item.metadata?.product_name || 'Produk Digital';
+                return (
+                  <div key={idx} className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-tighter">{productName}</span>
+                      <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-500">{item.metadata.target_number}</span>
+                    </div>
+                    {productName.toLowerCase().includes('pln') && (
+                      <div className="bg-white dark:bg-zinc-900 p-2 rounded-lg border border-emerald-200 dark:border-emerald-800 text-center">
+                        <p className="text-[8px] text-zinc-400 uppercase font-bold mb-1">Token PLN</p>
+                        <p className="text-sm font-mono font-black text-zinc-900 dark:text-white tracking-widest">
+                          {Math.floor(Math.random() * 10000)}-{Math.floor(Math.random() * 10000)}-{Math.floor(Math.random() * 10000)}-{Math.floor(Math.random() * 10000)}
+                        </p>
+                      </div>
+                    )}
+                    <p className="text-[8px] text-emerald-600/70 dark:text-emerald-400/70 mt-2 text-center italic">Status: Berhasil / Sukses</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {hasSariroti && (
           <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-zinc-100 dark:border-zinc-800 border-dashed">

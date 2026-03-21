@@ -286,28 +286,56 @@ Sistem SPS Corner`);
                   </div>
 
                   <div className="space-y-2 sm:space-y-3">
-                    {tx.transaction_items.map((item) => (
-                      <div key={item.id} className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg sm:rounded-xl border border-zinc-50 dark:border-zinc-800 shadow-inner">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white dark:bg-zinc-800 rounded-md sm:rounded-lg overflow-hidden shadow-sm border border-zinc-100 dark:border-zinc-700 shrink-0">
-                          {item.products.image_url ? (
-                            <img src={item.products.image_url} alt={item.products.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-200 dark:text-zinc-700">
-                              <Package className="w-5 h-5 sm:w-6 sm:h-6" />
+                    {tx.transaction_items.map((item) => {
+                      const productName = item.products?.name || item.metadata?.product_name || 'Produk Terhapus';
+                      const imageUrl = item.products?.image_url;
+                      
+                      return (
+                        <div key={item.id} className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg sm:rounded-xl border border-zinc-50 dark:border-zinc-800 shadow-inner">
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white dark:bg-zinc-800 rounded-md sm:rounded-lg overflow-hidden shadow-sm border border-zinc-100 dark:border-zinc-700 shrink-0">
+                            {imageUrl ? (
+                              <img src={imageUrl} alt={productName} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-zinc-200 dark:text-zinc-700">
+                                <Package className="w-5 h-5 sm:w-6 sm:h-6" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-zinc-900 dark:text-white text-xs sm:text-sm truncate tracking-tight">{productName}</h4>
+                              {item.metadata?.is_digital && (
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-widest ${
+                                  item.status === 'delivered' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                  item.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                                  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                }`}>
+                                  {item.status === 'delivered' ? 'Sukses' : item.status === 'failed' ? 'Gagal' : 'Proses'}
+                                </span>
+                              )}
                             </div>
-                          )}
+                            <p className="text-[8px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium mt-0.5">
+                              {item.quantity} x {formatRupiah(item.price_at_time)}
+                            </p>
+                            {item.metadata?.is_digital && (
+                              <div className="flex flex-col gap-0.5 mt-1">
+                                <p className="text-[8px] font-mono text-emerald-600 dark:text-emerald-400">
+                                  Tujuan: {item.metadata.target_number}
+                                </p>
+                                {item.metadata.sn && (
+                                  <p className="text-[8px] font-mono text-zinc-500 dark:text-zinc-400">
+                                    SN: {item.metadata.sn}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-base tracking-tighter">{formatRupiah(item.price_at_time * item.quantity)}</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-zinc-900 dark:text-white text-xs sm:text-sm truncate tracking-tight">{item.products.name}</h4>
-                          <p className="text-[8px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium mt-0.5">
-                            {item.quantity} x {formatRupiah(item.price)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-base tracking-tighter">{formatRupiah(item.subtotal)}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-zinc-100 dark:border-zinc-800 border-dashed flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">

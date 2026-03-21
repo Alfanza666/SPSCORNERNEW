@@ -348,17 +348,41 @@ export default function AdminProducts() {
       const objectUrl = URL.createObjectURL(file);
       setEditingProduct((prev: any) => ({ ...prev, image_url: objectUrl }));
 
+      if (file.size > 2 * 1024 * 1024) {
+        throw new Error('Ukuran file terlalu besar. Maksimal 2MB.');
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${editingProduct.seller_id}/${fileName}`;
 
       setUploadingImage(true);
+      setImageError(null);
+
+      // Check if supabase is reachable
+      try {
+        const { error: pingError } = await supabase.from('products').select('id').limit(1);
+        if (pingError && pingError.message.includes('fetch')) {
+          throw new Error('Koneksi ke server gagal. Periksa koneksi internet Anda atau hubungi admin.');
+        }
+      } catch (e) {
+        console.warn('Ping check failed:', e);
+      }
 
       const { error: uploadError } = await supabase.storage
         .from('products')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        if (uploadError.message.includes('fetch') || uploadError.message.includes('NetworkError')) {
+          throw new Error('Gagal mengunggah karena masalah jaringan atau bucket storage belum siap. Pastikan bucket "products" sudah dibuat di Supabase.');
+        }
+        throw uploadError;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('products')
@@ -663,6 +687,7 @@ export default function AdminProducts() {
                             alt={product.name} 
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                             referrerPolicy="no-referrer"
+                            loading="lazy"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-zinc-300 dark:text-zinc-600">

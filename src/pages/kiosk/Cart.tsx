@@ -7,6 +7,7 @@ import { Trash2, Plus, Minus, ArrowRight, ArrowLeft, ShoppingCart, ShoppingBag, 
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
+import Joyride, { Step, STATUS } from 'react-joyride';
 
 export default function Cart() {
   const { items, removeItem, updateQuantity, getTotal, reservations, setReservations } = useCartStore();
@@ -14,6 +15,46 @@ export default function Cart() {
   const navigate = useNavigate();
   const [buyerName, setBuyerName] = useState('');
   const [isReserving, setIsReserving] = useState(false);
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    // Check if user has seen the cart tour
+    const hasSeenCartTour = localStorage.getItem('hasSeenCartTour');
+    if (!hasSeenCartTour && items.length > 0) {
+      // Small delay to ensure elements are rendered
+      const timer = setTimeout(() => {
+        setRunTour(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [items.length]);
+
+  const handleJoyrideCallback = (data: any) => {
+    const { status } = data;
+    const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
+    if (finishedStatuses.includes(status)) {
+      setRunTour(false);
+      localStorage.setItem('hasSeenCartTour', 'true');
+    }
+  };
+
+  const tourSteps: Step[] = [
+    {
+      target: '.tour-buyer-name',
+      title: 'Langkah Terakhir: Isi Nama Anda 👤',
+      content: 'Sebelum melanjutkan ke pembayaran, pastikan Anda mengisi nama Anda di sini agar pesanan tidak tertukar.',
+      placement: 'top',
+      spotlightPadding: 8,
+      disableBeacon: true,
+    },
+    {
+      target: '.tour-checkout-button',
+      title: 'Lanjut Pembayaran 💳',
+      content: 'Jika nama sudah terisi dan pesanan sudah sesuai, klik tombol ini untuk memilih metode pembayaran.',
+      placement: 'top',
+      spotlightPadding: 8,
+    }
+  ];
 
   useEffect(() => {
     if (user) {
@@ -81,6 +122,9 @@ export default function Cart() {
       const newReservations: string[] = [];
       
       for (const item of items) {
+        // Skip reservation for digital products as they don't have physical stock in the database
+        if (item.is_digital) continue;
+
         const { data: resId, error } = await supabase.rpc('reserve_stock', {
           p_product_id: item.id,
           p_quantity: item.quantity,
@@ -112,6 +156,56 @@ export default function Cart() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <Joyride
+        steps={tourSteps}
+        run={runTour}
+        continuous
+        showProgress
+        showSkipButton
+        callback={handleJoyrideCallback}
+        styles={{
+          options: {
+            primaryColor: '#3b82f6',
+            zIndex: 10000,
+            overlayColor: 'rgba(0, 0, 0, 0.6)',
+            width: 320,
+          },
+          tooltip: {
+            borderRadius: '16px',
+            padding: '16px',
+          },
+          buttonNext: {
+            backgroundColor: '#3b82f6',
+            borderRadius: '8px',
+            padding: '8px 16px',
+            fontWeight: 'bold',
+            fontSize: '12px',
+          },
+          buttonBack: {
+            marginRight: '8px',
+            color: '#6b7280',
+            fontSize: '12px',
+            fontWeight: 'bold',
+          },
+          buttonSkip: {
+            color: '#ef4444',
+            fontSize: '12px',
+            fontWeight: 'bold',
+          }
+        }}
+        locale={{
+          back: 'Kembali',
+          close: 'Tutup',
+          last: 'Selesai',
+          next: 'Lanjut',
+          skip: 'Lewati Tutorial',
+        }}
+        floaterProps={{
+          disableAnimation: true,
+        }}
+        spotlightClicks={true}
+        disableOverlayClose={true}
+      />
       <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-4 sm:mb-8 gap-3 sm:gap-6">
         <div>
           <h1 className="text-xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter mb-0.5 sm:mb-1">Keranjang Belanja</h1>
@@ -145,6 +239,7 @@ export default function Cart() {
                       alt={item.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
                       referrerPolicy="no-referrer"
+                      loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-200 dark:text-zinc-700">
@@ -159,6 +254,12 @@ export default function Cart() {
                       <h3 className="font-black text-xs sm:text-sm text-zinc-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors tracking-tighter">
                         {item.name}
                       </h3>
+                      {item.is_digital && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">Digital</span>
+                          <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{item.target_number}</span>
+                        </div>
+                      )}
                       <p className="text-blue-600 dark:text-blue-400 font-black text-[10px] sm:text-xs mt-0.5 tracking-tighter">
                         {formatRupiah(item.price)}
                       </p>
@@ -240,7 +341,7 @@ export default function Cart() {
               </div>
             </div>
 
-            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 tour-buyer-name">
               <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 uppercase tracking-widest">
                 <User className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
                 Nama Pemesan
@@ -270,7 +371,7 @@ export default function Cart() {
             <button
               onClick={handleCheckout}
               disabled={!buyerName.trim() || isReserving}
-              className="btn-clay-primary w-full h-10 sm:h-12 text-xs sm:text-sm group flex items-center justify-center gap-1.5 sm:gap-2"
+              className="btn-clay-primary w-full h-10 sm:h-12 text-xs sm:text-sm group flex items-center justify-center gap-1.5 sm:gap-2 tour-checkout-button"
             >
               {isReserving ? (
                 <>

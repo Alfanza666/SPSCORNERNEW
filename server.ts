@@ -2,12 +2,23 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import midtransClient from "midtrans-client";
+import CryptoJS from "crypto-js";
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
+// Initialize Supabase Client (Server-side with Service Role Key for bypass RLS)
+const envUrl = process.env.VITE_SUPABASE_URL;
+const supabaseUrl = typeof envUrl === 'string' && envUrl.startsWith('http') ? envUrl : 'https://jofwebrbdlovwkgklwab.supabase.co';
+
+const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceKey = typeof envKey === 'string' && envKey.trim() !== '' ? envKey : 'sb_publishable_n4yagUnGhlpqiEBDwtzhwg_Sfvy8F8v';
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
 // Initialize Midtrans Snap
 const snap = new midtransClient.Snap({
-  isProduction: true, // Based on the keys provided
+  isProduction: process.env.VITE_MIDTRANS_IS_PRODUCTION === 'true',
   serverKey: process.env.MIDTRANS_SERVER_KEY || 'Mid-server-No9-Xc1Gg9IIAR2N932D0YS9',
   clientKey: process.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-oF_aGIBVFAqo0nd-'
 });
@@ -22,6 +33,193 @@ async function startServer() {
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Digiflazz API Config
+  const DIGIFLAZZ_USERNAME = process.env.DIGIFLAZZ_USERNAME || 'lemicooBKLAD';
+  const DIGIFLAZZ_API_KEY = process.env.DIGIFLAZZ_API_KEY || '12434e87-6814-5ad0-8eab-2f2e3f511af9';
+  const FIXIE_URL = process.env.FIXIE_URL; // e.g. http://fixie:password@velodrome.usefixie.com:80
+
+  // Helper to get Axios config with proxy if available
+  const getDigiflazzAxiosConfig = () => {
+    const config: any = {};
+    if (FIXIE_URL) {
+      const { HttpsProxyAgent } = require('https-proxy-agent');
+      config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
+      config.proxy = false;
+    }
+    return config;
+  };
+
+  // 1. Get Real-time Prices from Digiflazz
+  app.post("/api/digital/prices", async (req, res) => {
+    try {
+      const { category } = req.body;
+      const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
+      
+      const axios = require('axios');
+      const response = await axios.post('https://api.digiflazz.com/v1/price-list', {
+        cmd: 'prepaid',
+        username: DIGIFLAZZ_USERNAME,
+        sign: sign
+      }, getDigiflazzAxiosConfig());
+
+      const data = response.data;
+      
+      if (data.data) {
+        // Filter by category if provided
+        let filtered = data.data;
+        if (category) {
+          filtered = data.data.filter((p: any) => p.category.toLowerCase().includes(category.toLowerCase()));
+        }
+        return res.json({ success: true, data: filtered });
+      }
+      
+      res.status(500).json({ error: 'Failed to fetch prices from provider' });
+    } catch (error: any) {
+      console.error('Digiflazz Price Error:', error.response?.data || error.message);
+      res.status(500).json({ error: error.response?.data || error.message });
+    }
+  });
+
+  // 1.5 Cek Saldo Digiflazz (Test Endpoint)
+  app.get("/api/digital/cek-saldo", async (req, res) => {
+    try {
+      const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
+      
+      const axios = require('axios');
+      const response = await axios.post('https://api.digiflazz.com/v1/cek-saldo', {
+        cmd: 'deposit',
+        username: DIGIFLAZZ_USERNAME,
+        sign: sign
+      }, getDigiflazzAxiosConfig());
+
+      res.json({ success: true, data: response.data.data });
+    } catch (error: any) {
+      console.error('Digiflazz Cek Saldo Error:', error.response?.data || error.message);
+      res.status(500).json({ error: error.response?.data || error.message });
+    }
+  });
+
+  // 2. Place Order to Digiflazz
+  app.post("/api/digital/order", async (req, res) => {
+    try {
+      const { sku, customer_no, ref_id } = req.body;
+      const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+
+      const axios = require('axios');
+      const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+        username: DIGIFLAZZ_USERNAME,
+        buyer_sku_code: sku,
+        customer_no: customer_no,
+        ref_id: ref_id,
+        sign: sign
+      }, getDigiflazzAxiosConfig());
+
+      const data = response.data;
+      res.json({ success: true, data: data.data });
+    } catch (error: any) {
+      console.error('Digiflazz Order Error:', error.response?.data || error.message);
+      res.status(500).json({ error: error.response?.data || error.message });
+    }
+  });
+
+  // 3. Digiflazz Webhook (Callback)
+  app.post("/api/digital/callback", async (req, res) => {
+    try {
+      const callbackData = req.body;
+      console.log('🔔 Digiflazz Callback Received:', callbackData);
+
+      // Digiflazz sends data in 'data' object
+      const { ref_id, status, sn, message } = callbackData.data;
+
+      // Update transaction status in Supabase
+      if (ref_id) {
+        const { error } = await supabase
+          .from('transaction_items')
+          .update({ 
+            status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
+            metadata: { 
+              ...callbackData.data, // Store full callback data for reference
+              sn: sn,
+              last_update: new Date().toISOString()
+            }
+          })
+          .eq('transaction_id', ref_id)
+          .contains('metadata', { is_digital: true });
+
+        if (error) console.error('Error updating transaction item from Digiflazz callback:', error);
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Webhook Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // 4. Midtrans Notification Handler
+  app.post("/api/payment/notification", async (req, res) => {
+    try {
+      const notification = req.body;
+      const statusResponse = await snap.transaction.notification(notification);
+      
+      const orderId = statusResponse.order_id;
+      const transactionStatus = statusResponse.transaction_status;
+      const fraudStatus = statusResponse.fraud_status;
+
+      console.log(`Transaction notification received. Order ID: ${orderId}. Status: ${transactionStatus}. Fraud Status: ${fraudStatus}`);
+
+      if (transactionStatus == 'capture' || transactionStatus == 'settlement') {
+        if (fraudStatus == 'accept') {
+          // 1. Update Transaction Status in Supabase
+          const { data: transaction, error: updateError } = await supabase
+            .from('transactions')
+            .update({ status: 'paid' })
+            .eq('id', orderId)
+            .select('*, transaction_items(*)')
+            .single();
+
+          if (updateError) throw updateError;
+
+          // 2. Check for Digital Products and Place Digiflazz Orders
+          const digitalItems = transaction.transaction_items.filter((item: any) => item.metadata?.is_digital);
+          
+          for (const item of digitalItems) {
+            const sku = item.metadata?.sku;
+            const target = item.metadata?.target_number;
+            
+            if (sku && target) {
+              console.log(`Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${orderId}`);
+              
+              const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + orderId).toString();
+              
+              const axios = require('axios');
+              const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', {
+                username: DIGIFLAZZ_USERNAME,
+                buyer_sku_code: sku,
+                customer_no: target,
+                ref_id: orderId,
+                sign: sign
+              }, getDigiflazzAxiosConfig());
+              
+              const digiData = digiResponse.data;
+              console.log('Digiflazz Order Response:', digiData);
+            }
+          }
+        }
+      } else if (transactionStatus == 'cancel' || transactionStatus == 'deny' || transactionStatus == 'expire') {
+        await supabase
+          .from('transactions')
+          .update({ status: 'failed' })
+          .eq('id', orderId);
+      }
+
+      res.status(200).send('OK');
+    } catch (error: any) {
+      console.error('Midtrans Notification Error:', error);
+      res.status(500).json({ error: error.message });
+    }
   });
 
   // Midtrans Create Transaction Endpoint

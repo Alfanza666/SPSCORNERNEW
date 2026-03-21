@@ -66,10 +66,16 @@ export default function Checkout() {
       // 2. Create transaction items
       const txItems = items.map(item => ({
         transaction_id: tx.id,
-        product_id: item.id,
+        product_id: item.is_digital ? null : item.id,
         quantity: item.quantity,
         price_at_time: item.price,
-        seller_id: item.seller_id
+        seller_id: item.is_digital ? null : item.seller_id,
+        metadata: item.is_digital ? {
+          is_digital: true,
+          target_number: item.target_number,
+          product_name: item.name,
+          sku: item.sku
+        } : null
       }));
 
       const { error: itemsError } = await supabase

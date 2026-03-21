@@ -18,6 +18,7 @@ const Validate = React.lazy(() => import('./pages/kiosk/Validate'));
 const Success = React.lazy(() => import('./pages/kiosk/Success'));
 const History = React.lazy(() => import('./pages/kiosk/History'));
 const Profile = React.lazy(() => import('./pages/kiosk/Profile'));
+const DigitalProducts = React.lazy(() => import('./pages/kiosk/DigitalProducts'));
 const Terms = React.lazy(() => import('./pages/Terms'));
 const Contact = React.lazy(() => import('./pages/Contact'));
 
@@ -35,16 +36,36 @@ const SellerWithdrawals = React.lazy(() => import('./pages/dashboard/seller/Sell
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center">
-        <h2 className="text-2xl font-bold text-red-600 mb-4">Oops! Terjadi Kesalahan</h2>
-        <p className="text-slate-600 mb-6">{error.message}</p>
-        <button
-          onClick={resetErrorBoundary}
-          className="bg-amber-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-amber-800 transition-colors"
-        >
-          Coba Lagi
-        </button>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-zinc-950 p-4">
+      <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-slate-100 dark:border-zinc-800">
+        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <svg className="w-8 h-8 text-red-600 dark:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Oops! Terjadi Kesalahan</h2>
+        <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6 leading-relaxed">
+          Maaf, sistem mengalami gangguan sementara. Silakan muat ulang halaman atau kembali ke beranda.
+        </p>
+        <div className="bg-slate-50 dark:bg-zinc-950 p-4 rounded-xl mb-6 text-left overflow-auto max-h-32">
+          <p className="text-xs font-mono text-red-600 dark:text-red-400 break-words">
+            {error.message}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => window.location.href = '/'}
+            className="flex-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 px-4 py-3 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors text-sm"
+          >
+            Ke Beranda
+          </button>
+          <button
+            onClick={resetErrorBoundary}
+            className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors text-sm shadow-lg shadow-blue-600/20"
+          >
+            Coba Lagi
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -52,8 +73,12 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetError
 
 function LoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-900"></div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-zinc-950 gap-4">
+      <div className="relative w-16 h-16">
+        <div className="absolute inset-0 border-4 border-slate-200 dark:border-zinc-800 rounded-full"></div>
+        <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+      </div>
+      <p className="text-sm font-bold text-slate-400 dark:text-zinc-500 animate-pulse tracking-widest uppercase">Memuat...</p>
     </div>
   );
 }
@@ -132,6 +157,7 @@ export default function App() {
               <Route path="success" element={<Success />} />
               <Route path="history" element={<History />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="digital" element={<DigitalProducts />} />
             </Route>
 
             {/* Dashboard Routes */}
