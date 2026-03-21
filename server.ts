@@ -44,7 +44,6 @@ async function startServer() {
   const getDigiflazzAxiosConfig = () => {
     const config: any = {};
     if (FIXIE_URL) {
-      const { HttpsProxyAgent } = require('https-proxy-agent');
       config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
       config.proxy = false;
     }
@@ -57,7 +56,6 @@ async function startServer() {
       const { category } = req.body;
       const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
       
-      const axios = require('axios');
       const response = await axios.post('https://api.digiflazz.com/v1/price-list', {
         cmd: 'prepaid',
         username: DIGIFLAZZ_USERNAME,
@@ -87,7 +85,6 @@ async function startServer() {
     try {
       const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
       
-      const axios = require('axios');
       const response = await axios.post('https://api.digiflazz.com/v1/cek-saldo', {
         cmd: 'deposit',
         username: DIGIFLAZZ_USERNAME,
@@ -107,7 +104,6 @@ async function startServer() {
       const { sku, customer_no, ref_id } = req.body;
       const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
 
-      const axios = require('axios');
       const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
         username: DIGIFLAZZ_USERNAME,
         buyer_sku_code: sku,
@@ -194,7 +190,6 @@ async function startServer() {
               
               const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + orderId).toString();
               
-              const axios = require('axios');
               const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', {
                 username: DIGIFLAZZ_USERNAME,
                 buyer_sku_code: sku,
