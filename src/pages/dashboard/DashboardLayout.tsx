@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
-import Logo from '../../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
+import Logo from '../../components/ui/logo.png';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 
 function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {

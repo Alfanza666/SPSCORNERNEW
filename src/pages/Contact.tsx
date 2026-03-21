@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, Mail, Phone, MapPin, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
-import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
+import Logo from '../components/ui/logo.png';
 
 export default function Contact() {
   const navigate = useNavigate();

@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { motion, AnimatePresence } from 'motion/react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
-import Logo from '../../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
+import Logo from '../../components/ui/logo.png';
 
 function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
