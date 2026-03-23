@@ -48,7 +48,7 @@ app.get("/api/health", (req, res) => {
 app.post("/api/digital/prices", async (req, res) => {
   try {
     const { category } = req.body;
-    const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
+    const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
     
     const response = await axios.post('https://api.digiflazz.com/v1/price-list', {
       cmd: 'prepaid',
@@ -75,7 +75,7 @@ app.post("/api/digital/prices", async (req, res) => {
 
 app.get("/api/digital/cek-saldo", async (req, res) => {
   try {
-    const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
+    const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
     
     const response = await axios.post('https://api.digiflazz.com/v1/cek-saldo', {
       cmd: 'deposit',
@@ -93,7 +93,7 @@ app.get("/api/digital/cek-saldo", async (req, res) => {
 app.post("/api/digital/order", async (req, res) => {
   try {
     const { sku, customer_no, ref_id } = req.body;
-    const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+    const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
 
     const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
       username: DIGIFLAZZ_USERNAME,
@@ -173,7 +173,7 @@ app.post("/api/payment/notification", async (req, res) => {
           if (sku && target) {
             console.log(`Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${orderId}`);
             
-            const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + orderId).toString();
+            const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + orderId).toString();
             
             const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', {
               username: DIGIFLAZZ_USERNAME,

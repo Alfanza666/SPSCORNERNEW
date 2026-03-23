@@ -4,9 +4,6 @@ import dotenv from "dotenv";
 import midtransClient from "midtrans-client";
 import CryptoJS from "crypto-js";
 import { createClient } from '@supabase/supabase-js';
-import axios from "axios";
-import { HttpsProxyAgent } from "https-proxy-agent";
-import path from "path";
 
 dotenv.config();
 
@@ -57,7 +54,7 @@ async function startServer() {
   app.post("/api/digital/prices", async (req, res) => {
     try {
       const { category } = req.body;
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
+      const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
       
       const response = await axios.post('https://api.digiflazz.com/v1/price-list', {
         cmd: 'prepaid',
@@ -86,7 +83,7 @@ async function startServer() {
   // 1.5 Cek Saldo Digiflazz (Test Endpoint)
   app.get("/api/digital/cek-saldo", async (req, res) => {
     try {
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
+      const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
       
       const response = await axios.post('https://api.digiflazz.com/v1/cek-saldo', {
         cmd: 'deposit',
@@ -105,7 +102,7 @@ async function startServer() {
   app.post("/api/digital/order", async (req, res) => {
     try {
       const { sku, customer_no, ref_id } = req.body;
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+      const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
 
       const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
         username: DIGIFLAZZ_USERNAME,
@@ -191,7 +188,7 @@ async function startServer() {
             if (sku && target) {
               console.log(`Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${orderId}`);
               
-              const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + orderId).toString();
+              const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + orderId).toString();
               
               const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', {
                 username: DIGIFLAZZ_USERNAME,
