@@ -13,6 +13,7 @@ export interface Product {
   is_digital?: boolean;
   target_number?: string;
   sku?: string;
+  metadata?: any;
 }
 
 export interface CartItem extends Product {

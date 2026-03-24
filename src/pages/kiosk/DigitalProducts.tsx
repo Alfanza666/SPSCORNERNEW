@@ -9,7 +9,10 @@ import {
   ArrowLeft,
   Search,
   Loader2,
-  ShoppingCart
+  ShoppingCart,
+  Droplets,
+  HeartPulse,
+  Tv
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -31,7 +34,47 @@ const categories: DigitalCategory[] = [
   { id: 'pln', name: 'Token PLN', icon: Zap, description: 'Listrik prabayar', color: 'bg-amber-500', apiCategory: 'PLN' },
   { id: 'game', name: 'Voucher Game', icon: Gamepad2, description: 'Top up game favorit', color: 'bg-purple-500', apiCategory: 'Games' },
   { id: 'e-money', name: 'E-Money', icon: CreditCard, description: 'Top up saldo dompet digital', color: 'bg-indigo-500', apiCategory: 'E-Money' },
+  { id: 'pdam', name: 'PDAM', icon: Droplets, description: 'Bayar tagihan air', color: 'bg-cyan-500', apiCategory: 'PDAM' },
+  { id: 'bpjs', name: 'BPJS', icon: HeartPulse, description: 'Bayar iuran kesehatan', color: 'bg-red-500', apiCategory: 'BPJS' },
+  { id: 'internet', name: 'Internet & TV', icon: Tv, description: 'Indihome, CBN, dll', color: 'bg-orange-500', apiCategory: 'Internet' },
 ];
+
+const getProviderFromNumber = (number: string): string => {
+  if (!number || number.length < 4) return '';
+  
+  const prefix = number.substring(0, 4);
+  
+  if (['0811', '0812', '0813', '0821', '0822', '0823', '0852', '0853', '0851'].includes(prefix)) return 'TELKOMSEL';
+  if (['0814', '0815', '0816', '0855', '0856', '0857', '0858'].includes(prefix)) return 'INDOSAT';
+  if (['0817', '0818', '0819', '0859', '0877', '0878'].includes(prefix)) return 'XL';
+  if (['0831', '0832', '0833', '0838'].includes(prefix)) return 'AXIS';
+  if (['0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'].includes(prefix)) return 'SMARTFREN';
+  if (['0895', '0896', '0897', '0898', '0899'].includes(prefix)) return 'TRI';
+  
+  return '';
+};
+
+const getProductLogo = (brand: string, category: string) => {
+  const b = brand.toLowerCase();
+  if (b.includes('telkomsel')) return 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Telkomsel_2021_icon.svg';
+  if (b.includes('indosat')) return 'https://upload.wikimedia.org/wikipedia/commons/9/9d/Logo_Indosat_Ooredoo_Hutchison.svg';
+  if (b.includes('xl')) return 'https://upload.wikimedia.org/wikipedia/commons/9/9a/XL_Axiata_logo_2016.svg';
+  if (b.includes('axis')) return 'https://upload.wikimedia.org/wikipedia/commons/8/83/Axis_logo_2015.svg';
+  if (b.includes('smartfren')) return 'https://upload.wikimedia.org/wikipedia/commons/1/14/Smartfren_Logo.svg';
+  if (b.includes('tri') || b.includes('three')) return 'https://upload.wikimedia.org/wikipedia/commons/4/40/Tiga_logo.svg';
+  if (b.includes('pln')) return 'https://upload.wikimedia.org/wikipedia/commons/9/97/Logo_PLN.png';
+  if (b.includes('gopay')) return 'https://upload.wikimedia.org/wikipedia/commons/8/86/Gopay_logo.svg';
+  if (b.includes('ovo')) return 'https://upload.wikimedia.org/wikipedia/commons/e/eb/Logo_ovo_purple.svg';
+  if (b.includes('dana')) return 'https://upload.wikimedia.org/wikipedia/commons/7/72/Logo_dana_blue.svg';
+  if (b.includes('shopee')) return 'https://upload.wikimedia.org/wikipedia/commons/f/fe/ShopeePay_Logo.png';
+  if (b.includes('linkaja')) return 'https://upload.wikimedia.org/wikipedia/commons/8/85/LinkAja.svg';
+  
+  if (category === 'Pulsa' || category === 'Data') return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=400';
+  if (category === 'Games') return 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&q=80&w=400';
+  if (category === 'PLN') return 'https://upload.wikimedia.org/wikipedia/commons/9/97/Logo_PLN.png';
+  
+  return 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&q=80&w=400';
+};
 
 export default function DigitalProducts() {
   const navigate = useNavigate();
@@ -42,12 +85,16 @@ export default function DigitalProducts() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [inquiryResult, setInquiryResult] = useState<any>(null);
+  const [inquiryLoading, setInquiryLoading] = useState(false);
 
   const fetchProducts = async (categoryName: string) => {
     setLoading(true);
+    setInquiryResult(null);
     try {
       const response = await axios.post('/api/digital/prices', {
-        category: categoryName
+        category: categoryName,
+        type: ['PDAM', 'BPJS', 'Internet'].includes(categoryName) ? 'postpaid' : 'prepaid'
       });
       if (response.data.success) {
         // Filter out inactive products and sort by price
@@ -63,6 +110,46 @@ export default function DigitalProducts() {
       toast.error('Terjadi kesalahan jaringan');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInquiry = async () => {
+    if (!targetNumber) {
+      toast.error('Masukkan nomor tujuan/ID pelanggan');
+      return;
+    }
+
+    setInquiryLoading(true);
+    setInquiryResult(null);
+    try {
+      let endpoint = '';
+      let payload = {};
+
+      if (selectedCategory?.id === 'pln') {
+        endpoint = '/api/digital/inquiry-pln';
+        payload = { customer_no: targetNumber };
+      } else if (['pdam', 'bpjs', 'internet'].includes(selectedCategory?.id || '')) {
+        // For postpaid, we might need a specific SKU to inquire
+        // But usually we inquire first to get the bill
+        // For now let's just support PLN inquiry as it's explicitly in the PDF
+        endpoint = '/api/digital/inquiry-pln'; // Fallback or placeholder
+        payload = { customer_no: targetNumber };
+      }
+
+      if (endpoint) {
+        const response = await axios.post(endpoint, payload);
+        if (response.data.success) {
+          setInquiryResult(response.data.data);
+          toast.success('Data pelanggan ditemukan');
+        } else {
+          toast.error(response.data.error || 'Data tidak ditemukan');
+        }
+      }
+    } catch (error: any) {
+      console.error('Inquiry Error:', error);
+      toast.error(error.response?.data?.error || 'Gagal melakukan pengecekan');
+    } finally {
+      setInquiryLoading(false);
     }
   };
 
@@ -98,21 +185,39 @@ export default function DigitalProducts() {
       name: product.product_name,
       price: finalPrice,
       stock: 999,
-      image_url: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&q=80&w=400',
+      image_url: getProductLogo(product.brand, selectedCategory?.name || ''),
       is_digital: true,
       target_number: targetNumber,
       sku: product.buyer_sku_code,
-      category: selectedCategory?.name
+      category: selectedCategory?.name,
+      metadata: {
+        is_digital: true,
+        is_postpaid: ['PDAM', 'BPJS', 'Internet'].includes(selectedCategory?.name || ''),
+        sku: product.buyer_sku_code,
+        target_number: targetNumber,
+        customer_name: inquiryResult?.name || null,
+        segment_power: inquiryResult?.segment_power || null
+      }
     });
 
     toast.success(`${product.product_name} ditambahkan ke keranjang`);
     navigate('/kiosk/cart');
   };
 
-  const filteredProducts = products.filter(p => 
-    p.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.brand.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const detectedProvider = (selectedCategory?.id === 'pulsa' || selectedCategory?.id === 'data') 
+    ? getProviderFromNumber(targetNumber) 
+    : '';
+
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.product_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          p.brand.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (detectedProvider) {
+      return p.brand.toUpperCase().includes(detectedProvider) && matchesSearch;
+    }
+    
+    return matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 pb-24">
@@ -167,17 +272,56 @@ export default function DigitalProducts() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-slate-100 dark:border-zinc-800 shadow-sm">
-                <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">
-                  Nomor Tujuan / ID Pelanggan
-                </label>
-                <input
-                  type="text"
-                  value={targetNumber}
-                  onChange={(e) => setTargetNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                  placeholder="Contoh: 081234567890"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all dark:text-white text-lg tracking-wide"
-                />
+              <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-slate-100 dark:border-zinc-800 shadow-sm space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">
+                    Nomor Tujuan / ID Pelanggan
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={targetNumber}
+                        onChange={(e) => setTargetNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="Contoh: 081234567890"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all dark:text-white text-lg tracking-wide"
+                      />
+                      {detectedProvider && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <img 
+                            src={getProductLogo(detectedProvider, selectedCategory?.name || '')} 
+                            alt={detectedProvider} 
+                            className="h-6 object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {['pln', 'pdam', 'bpjs', 'internet'].includes(selectedCategory?.id || '') && (
+                      <button
+                        onClick={handleInquiry}
+                        disabled={inquiryLoading || !targetNumber}
+                        className="px-6 py-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+                      >
+                        {inquiryLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Cek'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {inquiryResult && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl"
+                  >
+                    <div className="text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider mb-1">Data Pelanggan</div>
+                    <div className="text-lg font-black text-emerald-900 dark:text-emerald-100">{inquiryResult.name}</div>
+                    {inquiryResult.segment_power && (
+                      <div className="text-sm text-emerald-700 dark:text-emerald-300">{inquiryResult.segment_power}</div>
+                    )}
+                  </motion.div>
+                )}
               </div>
 
               <div className="relative">
@@ -204,7 +348,13 @@ export default function DigitalProducts() {
                       className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm flex items-center justify-between gap-4"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <img 
+                            src={getProductLogo(product.brand, selectedCategory?.name || '')} 
+                            alt={product.brand} 
+                            className="w-8 h-8 object-contain rounded-md"
+                            referrerPolicy="no-referrer"
+                          />
                           <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-md">
                             {product.brand}
                           </span>

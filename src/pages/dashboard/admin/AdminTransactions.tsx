@@ -568,15 +568,34 @@ export default function AdminTransactions() {
                                     <th className="px-4 md:px-6 py-4 text-left">Produk</th>
                                     <th className="px-4 md:px-6 py-4 text-right">Harga Satuan</th>
                                     <th className="px-4 md:px-6 py-4 text-center">Qty</th>
+                                    <th className="px-4 md:px-6 py-4 text-center">Status</th>
                                     <th className="px-4 md:px-6 py-4 text-right">Subtotal</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                   {txItems.map((item) => (
                                     <tr key={item.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
-                                      <td className="px-4 md:px-6 py-4 text-zinc-900 dark:text-white font-bold">{item.products?.name || 'Produk Terhapus'}</td>
+                                      <td className="px-4 md:px-6 py-4 text-zinc-900 dark:text-white font-bold">
+                                        {item.products?.name || 'Produk Terhapus'}
+                                        {item.metadata?.is_digital && (
+                                          <span className="ml-2 text-[8px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded uppercase tracking-tighter">Digital</span>
+                                        )}
+                                      </td>
                                       <td className="px-4 md:px-6 py-4 text-right text-zinc-500 dark:text-zinc-400 font-medium">{formatRupiah(item.price)}</td>
                                       <td className="px-4 md:px-6 py-4 text-center text-zinc-500 dark:text-zinc-400 font-black">{item.quantity}</td>
+                                      <td className="px-4 md:px-6 py-4 text-center">
+                                        <span className={`clay-badge text-[8px] ${
+                                          item.status === 'delivered' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' :
+                                          item.status === 'failed' ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400' :
+                                          item.status === 'processing' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 animate-pulse' :
+                                          'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                                        }`}>
+                                          {item.status === 'delivered' ? 'Sukses' : 
+                                           item.status === 'failed' ? 'Gagal' : 
+                                           item.status === 'processing' ? 'Proses' : 
+                                           item.status || 'Pending'}
+                                        </span>
+                                      </td>
                                       <td className="px-4 md:px-6 py-4 text-right text-zinc-900 dark:text-white font-black">{formatRupiah(item.subtotal)}</td>
                                     </tr>
                                   ))}

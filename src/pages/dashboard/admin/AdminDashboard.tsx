@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Upload,
   Search,
-  KeyRound
+  KeyRound,
+  Wallet
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -37,7 +38,8 @@ export default function AdminDashboard() {
     totalSellers: 0,
     activeSellers: 0,
     totalFees: 0,
-    pendingWithdrawals: 0
+    pendingWithdrawals: 0,
+    digiflazzBalance: 0
   });
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [failedTransactions, setFailedTransactions] = useState<any[]>([]);
@@ -140,6 +142,18 @@ export default function AdminDashboard() {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending');
 
+      // Fetch Digiflazz Balance
+      let digiflazzBalance = 0;
+      try {
+        const response = await fetch('/api/digital/cek-saldo');
+        const data = await response.json();
+        if (data.success) {
+          digiflazzBalance = data.data.deposit || 0;
+        }
+      } catch (err) {
+        console.error('Error fetching Digiflazz balance:', err);
+      }
+
       setStats({
         totalSales,
         totalTransactions: txCount || 0,
@@ -147,7 +161,8 @@ export default function AdminDashboard() {
         totalSellers: sellerCount || 0,
         activeSellers: activeSellerCount || 0,
         totalFees,
-        pendingWithdrawals: pendingWithdrawalsCount || 0
+        pendingWithdrawals: pendingWithdrawalsCount || 0,
+        digiflazzBalance
       });
 
       const { data: recentTx } = await supabase
@@ -381,7 +396,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
         <StatCard 
           title="Total Pendapatan" 
           value={formatRupiah(stats.totalSales)} 
@@ -395,6 +410,12 @@ export default function AdminDashboard() {
           icon={CreditCard} 
           color="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
           trend={8}
+        />
+        <StatCard 
+          title="Saldo Digiflazz" 
+          value={formatRupiah(stats.digiflazzBalance)} 
+          icon={Wallet} 
+          color="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
         />
         <StatCard 
           title="Penjual Aktif" 

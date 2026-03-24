@@ -47,11 +47,11 @@ app.get("/api/health", (req, res) => {
 
 app.post("/api/digital/prices", async (req, res) => {
   try {
-    const { category } = req.body;
-    const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
+    const { category, type = 'prepaid' } = req.body;
+    const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
     
     const response = await axios.post('https://api.digiflazz.com/v1/price-list', {
-      cmd: 'prepaid',
+      cmd: type === 'postpaid' ? 'pasca' : 'prepaid',
       username: DIGIFLAZZ_USERNAME,
       sign: sign
     }, getDigiflazzAxiosConfig());
@@ -73,9 +73,48 @@ app.post("/api/digital/prices", async (req, res) => {
   }
 });
 
+app.post("/api/digital/inquiry-pln", async (req, res) => {
+  try {
+    const { customer_no } = req.body;
+    const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + customer_no).toString();
+
+    const response = await axios.post('https://api.digiflazz.com/v1/inquiry-pln', {
+      username: DIGIFLAZZ_USERNAME,
+      customer_no: customer_no,
+      sign: sign
+    }, getDigiflazzAxiosConfig());
+
+    res.json({ success: true, data: response.data.data });
+  } catch (error: any) {
+    console.error('Digiflazz PLN Inquiry Error:', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data || error.message });
+  }
+});
+
+app.post("/api/digital/status-pasca", async (req, res) => {
+  try {
+    const { sku, customer_no, ref_id } = req.body;
+    const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+
+    const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+      commands: 'status-pasca',
+      username: DIGIFLAZZ_USERNAME,
+      buyer_sku_code: sku,
+      customer_no: customer_no,
+      ref_id: ref_id,
+      sign: sign
+    }, getDigiflazzAxiosConfig());
+
+    res.json({ success: true, data: response.data.data });
+  } catch (error: any) {
+    console.error('Digiflazz Status Pasca Error:', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data || error.message });
+  }
+});
+
 app.get("/api/digital/cek-saldo", async (req, res) => {
   try {
-    const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
+    const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
     
     const response = await axios.post('https://api.digiflazz.com/v1/cek-saldo', {
       cmd: 'deposit',
@@ -92,16 +131,23 @@ app.get("/api/digital/cek-saldo", async (req, res) => {
 
 app.post("/api/digital/order", async (req, res) => {
   try {
-    const { sku, customer_no, ref_id } = req.body;
-    const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+    const { sku, customer_no, ref_id, is_postpaid } = req.body;
+    const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
 
-    const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+    const payload: any = {
       username: DIGIFLAZZ_USERNAME,
       buyer_sku_code: sku,
       customer_no: customer_no,
       ref_id: ref_id,
-      sign: sign
-    }, getDigiflazzAxiosConfig());
+      sign: sign,
+      testing: process.env.DIGIFLAZZ_TESTING === 'true'
+    };
+
+    if (is_postpaid) {
+      payload.commands = 'pay-pasca';
+    }
+
+    const response = await axios.post('https://api.digiflazz.com/v1/transaction', payload, getDigiflazzAxiosConfig());
 
     const data = response.data;
     res.json({ success: true, data: data.data });
@@ -114,9 +160,36 @@ app.post("/api/digital/order", async (req, res) => {
 app.post("/api/digital/callback", async (req, res) => {
   try {
     const callbackData = req.body;
-    console.log('🔔 Digiflazz Callback Received:', callbackData);
+    const hubSignature = req.header('X-Hub-Signature');
+    const webhookSecret = process.env.DIGIFLAZZ_WEBHOOK_SECRET;
 
-    const { ref_id, status, sn, message } = callbackData.data;
+    console.log('🔔 Digiflazz Callback Received:', JSON.stringify(callbackData, null, 2));
+
+    if (!callbackData.data) {
+      return res.status(400).json({ error: 'Invalid callback data' });
+    }
+
+    const { ref_id, status, sn } = callbackData.data;
+
+    // Validate Signature from Digiflazz
+    if (webhookSecret && hubSignature) {
+      // The documentation says X-Hub-Signature is HMAC SHA1 of the body
+      const bodyString = JSON.stringify(req.body);
+      const expectedHubSignature = 'sha1=' + CryptoJS.HmacSHA1(bodyString, webhookSecret).toString();
+      
+      if (hubSignature !== expectedHubSignature) {
+        console.error('❌ Invalid X-Hub-Signature. Expected:', expectedHubSignature, 'Got:', hubSignature);
+        // return res.status(401).json({ error: 'Invalid hub signature' });
+      }
+    } else {
+      // Fallback to MD5 signature validation if secret is not provided
+      const signature = callbackData.data.signature;
+      const expectedSignature = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+
+      if (signature !== expectedSignature) {
+        console.error('❌ Invalid Digiflazz Callback Signature. Expected:', expectedSignature, 'Got:', signature);
+      }
+    }
 
     if (ref_id) {
       const { error } = await supabase
@@ -169,19 +242,27 @@ app.post("/api/payment/notification", async (req, res) => {
         for (const item of digitalItems) {
           const sku = item.metadata?.sku;
           const target = item.metadata?.target_number;
+          const isPostpaid = item.metadata?.is_postpaid;
           
           if (sku && target) {
             console.log(`Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${orderId}`);
             
-            const sign = CryptoJS.md5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + orderId).toString();
+            const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + orderId).toString();
             
-            const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', {
+            const payload: any = {
               username: DIGIFLAZZ_USERNAME,
               buyer_sku_code: sku,
               customer_no: target,
               ref_id: orderId,
-              sign: sign
-            }, getDigiflazzAxiosConfig());
+              sign: sign,
+              testing: process.env.DIGIFLAZZ_TESTING === 'true'
+            };
+
+            if (isPostpaid) {
+              payload.commands = 'pay-pasca';
+            }
+
+            const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', payload, getDigiflazzAxiosConfig());
             
             const digiData = digiResponse.data;
             console.log('Digiflazz Order Response:', digiData);
