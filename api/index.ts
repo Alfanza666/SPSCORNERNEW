@@ -1,3 +1,5 @@
+import app from '../server.js';
+export default app;
 import express from "express";
 import dotenv from "dotenv";
 import CryptoJS from "crypto-js";
