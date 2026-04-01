@@ -15,7 +15,8 @@ export default function Success() {
   const { user } = useAuthStore();
   const [currentTime] = useState(new Date());
   const [transaction, setTransaction] = useState<any>(null);
-  const transactionId = location.state?.transactionId;
+  const queryParams = new URLSearchParams(location.search);
+  const transactionId = location.state?.transactionId || queryParams.get('id');
 
   useEffect(() => {
     if (transactionId) {
@@ -219,16 +220,22 @@ Sistem SPS Corner`);
           initial={{ scale: 0, rotate: -45 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-          className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-md"
+          className={`w-14 h-14 sm:w-16 sm:h-16 ${transaction?.status === 'pending' ? 'bg-amber-500' : 'bg-blue-500'} rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-md`}
         >
-          <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-white stroke-[1.5]" />
+          {transaction?.status === 'pending' ? (
+            <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-white stroke-[1.5]" />
+          ) : (
+            <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-white stroke-[1.5]" />
+          )}
         </motion.div>
 
         <h1 className="text-xl sm:text-3xl font-black text-zinc-900 dark:text-white mb-2 sm:mb-3 tracking-tight">
-          Yuhuu! Berhasil.
+          {transaction?.status === 'pending' ? 'Pesanan Diterima!' : 'Yuhuu! Berhasil.'}
         </h1>
         <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mb-4 sm:mb-6 leading-relaxed px-2 font-medium">
-          Terima kasih telah berbelanja di <span className="text-blue-600 dark:text-blue-400 font-black">SPS Corner</span>. Pesananmu sudah tercatat dan siap untuk dinikmati!
+          {transaction?.status === 'pending' 
+            ? 'Pesanan Anda sedang menunggu konfirmasi pembayaran dari Admin. Silakan cek status pesanan Anda secara berkala.'
+            : <>Terima kasih telah berbelanja di <span className="text-blue-600 dark:text-blue-400 font-black">SPS Corner</span>. Pesananmu sudah tercatat dan siap untuk dinikmati!</>}
         </p>
 
         <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-3 sm:p-4 mb-6 sm:mb-8 border border-zinc-100 dark:border-zinc-800 flex flex-col items-center justify-center gap-1.5 shadow-inner">

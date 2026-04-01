@@ -22,7 +22,7 @@ export default function Terms() {
             <img 
               src={Logo} 
               alt="SPS Corner Logo" 
-              className="h-8 w-auto object-contain drop-shadow-sm transition-transform group-hover:scale-105" 
+              className="h-12 w-auto object-contain drop-shadow-sm transition-transform group-hover:scale-105" 
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
                 (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');

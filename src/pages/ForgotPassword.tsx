@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { ArrowLeft, KeyRound, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
-import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
+import SPSLogo from '../components/SPSLogo';
 
 export default function ForgotPassword() {
   const [nik, setNik] = useState('');
@@ -65,7 +65,7 @@ export default function ForgotPassword() {
       >
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex justify-center mb-4 sm:mb-6">
-            <img src={Logo} alt="" className="h-12 sm:h-16 w-auto object-contain drop-shadow-md" />
+            <SPSLogo variant="stack" className="h-12 sm:h-16" />
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight">Lupa Password?</h1>
           <p className="text-[10px] sm:text-xs text-zinc-500 mt-1.5 sm:mt-2 font-bold">Kirim permintaan reset password ke administrator</p>

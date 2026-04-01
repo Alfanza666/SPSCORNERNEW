@@ -150,17 +150,29 @@ create table if not exists public.transactions (
   buyer_name text not null,
   buyer_id uuid references public.profiles(id) on delete set null,
   total_amount numeric not null check (total_amount >= 0),
-  status text not null default 'pending' check (status in ('pending','success','failed')),
+  status text not null default 'pending' check (status in ('pending','success','failed','paid')),
+  payment_method text,
   receipt_image text,
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
--- Ensure buyer_id exists in transactions
+-- Ensure buyer_id and payment_method exist in transactions
 do $$
 begin
   alter table public.transactions add column if not exists buyer_id uuid references public.profiles(id) on delete set null;
+  alter table public.transactions add column if not exists payment_method text;
 exception when duplicate_column then
   -- nothing
+end;
+$$;
+
+-- Update status check constraint
+do $$
+begin
+  alter table public.transactions drop constraint if exists transactions_status_check;
+  alter table public.transactions add constraint transactions_status_check check (status in ('pending','success','failed','paid'));
+exception when others then
+  raise log 'Error updating transactions_status_check: %', SQLERRM;
 end;
 $$;
 
@@ -173,8 +185,18 @@ create table if not exists public.transaction_items (
   quantity integer not null check (quantity > 0),
   price numeric not null check (price >= 0),
   subtotal numeric not null check (subtotal >= 0),
+  metadata jsonb,
   created_at timestamptz not null default timezone('utc'::text, now())
 );
+
+-- Ensure metadata exists in transaction_items
+do $$
+begin
+  alter table public.transaction_items add column if not exists metadata jsonb;
+exception when duplicate_column then
+  -- nothing
+end;
+$$;
 
 -- 5. Failed Transactions Log
 create table if not exists public.failed_transactions (
@@ -466,6 +488,10 @@ begin
 
   if not exists (select 1 from pg_policies where schemaname='public' and tablename='transactions' and policyname='transactions_select_buyer') then
     create policy transactions_select_buyer on public.transactions for select using (auth.uid() = buyer_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='transactions' and policyname='transactions_update_public') then
+    create policy transactions_update_public on public.transactions for update using (true);
   end if;
 end;
 $$;

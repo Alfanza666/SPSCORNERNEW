@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { useAuthStore } from '../store/useAuthStore';
 import { LogIn, ArrowLeft, UserPlus, ShieldCheck, AlertCircle } from 'lucide-react';
-import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
+import SPSLogo from '../components/SPSLogo';
 
 export default function Login() {
   const [nik, setNik] = useState('');
@@ -82,12 +82,11 @@ export default function Login() {
       >
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex justify-center mb-4 sm:mb-6">
-            <motion.img 
+            <motion.div
               whileHover={{ rotate: 5, scale: 1.1 }}
-              src={Logo} 
-              alt="" 
-              className="h-12 sm:h-16 w-auto object-contain drop-shadow-md" 
-            />
+            >
+              <SPSLogo variant="stack" className="h-16 sm:h-20" />
+            </motion.div>
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">Selamat Datang</h1>
           <p className="text-zinc-500 mt-1.5 sm:mt-2 text-xs sm:text-sm font-medium">Masuk ke akun SPS Corner Anda</p>

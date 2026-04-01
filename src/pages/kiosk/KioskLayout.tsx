@@ -144,7 +144,7 @@ export default function KioskLayout() {
                     whileHover={{ scale: 1.1, rotate: 5 }}
                     src={Logo} 
                     alt="SPS Corner Logo" 
-                    className="h-6 sm:h-8 w-auto object-contain drop-shadow-sm" 
+                    className="h-10 sm:h-14 w-auto object-contain drop-shadow-sm" 
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                       (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');

@@ -119,29 +119,43 @@ export default function Validate() {
       const aiResult = JSON.parse(responseText);
 
       if (aiResult.valid) {
-        const { data: txData, error: txError } = await supabase
-          .from('transactions')
-          .insert({
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
+        const createRes = await fetch('/api/transactions/create', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
             buyer_name: buyerName,
             buyer_id: user?.id || null,
             total_amount: totalAmount,
             status: 'success',
-            receipt_image: imageSrc
+            receipt_image: imageSrc,
+            items: items
           })
-          .select()
-          .single();
+        });
 
-        if (txError) throw txError;
+        let errorData;
+        if (!createRes.ok) {
+          try {
+            errorData = await createRes.json();
+          } catch (e) {
+            throw new Error(`Server error: ${createRes.status} ${createRes.statusText}`);
+          }
+          throw new Error(errorData?.error || 'Failed to create transaction');
+        }
 
-        for (const item of items) {
-          await supabase.from('transaction_items').insert({
-            transaction_id: txData.id,
-            product_id: item.id,
-            seller_id: item.seller_id,
-            quantity: item.quantity,
-            price: item.price,
-            subtotal: item.price * item.quantity
-          });
+        let txData;
+        try {
+          const data = await createRes.json();
+          txData = data.transaction;
+        } catch (e) {
+          throw new Error('Invalid response from server when creating transaction');
         }
 
         for (const resId of reservations) {

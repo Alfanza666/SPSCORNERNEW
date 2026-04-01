@@ -7,6 +7,7 @@ import {
   Users, 
   TrendingUp, 
   AlertTriangle, 
+  CircleAlert,
   CheckCircle2, 
   XCircle,
   Image as ImageIcon,
@@ -42,6 +43,7 @@ export default function AdminDashboard() {
     digiflazzBalance: 0
   });
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
   const [failedTransactions, setFailedTransactions] = useState<any[]>([]);
   const [resetRequests, setResetRequests] = useState<any[]>([]);
   const [qrisUrl, setQrisUrl] = useState('');
@@ -168,9 +170,17 @@ export default function AdminDashboard() {
       const { data: recentTx } = await supabase
         .from('transactions')
         .select('*')
+        .eq('status', 'success')
         .order('created_at', { ascending: false })
         .limit(5);
       setRecentTransactions(recentTx || []);
+
+      const { data: pendingTx } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      setPendingTransactions(pendingTx || []);
 
       const { data: failedTx } = await supabase
         .from('failed_transactions')
@@ -254,6 +264,103 @@ export default function AdminDashboard() {
     } catch (err: any) {
       console.error('Error completing reset:', err);
       toast.error('Gagal memperbarui status permintaan');
+    }
+  };
+
+  const handleApproveTransaction = async (txId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch('/api/admin/transactions/approve', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ transaction_id: txId })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.error || 'Gagal menyetujui transaksi');
+      }
+
+      toast.success('Transaksi berhasil disetujui!');
+      fetchDashboardData();
+    } catch (error: any) {
+      console.error('Error approving transaction:', error);
+      toast.error(error.message);
+    }
+  };
+
+  const handleRejectTransaction = async (txId: string) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ status: 'failed' })
+        .eq('id', txId);
+
+      if (error) throw error;
+      toast.success('Transaksi ditolak');
+      fetchDashboardData();
+    } catch (error: any) {
+      console.error('Error rejecting transaction:', error);
+      toast.error('Gagal menolak transaksi');
+    }
+  };
+
+  const handleTestEmail = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userEmail = session?.user?.email;
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      // Prompt user for target email, defaulting to the admin email
+      const targetEmail = prompt('Masukkan email tujuan untuk test (default: email Admin Sariroti):', 'Sales.Adm.bjm@sariroti.com');
+      
+      if (!targetEmail) return;
+
+      const response = await fetch('/api/admin/test-email', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ to: targetEmail })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Gagal kirim email';
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.details?.name === 'validation_error') {
+            errorMessage = `Resend Error: ${errorJson.details.message}`;
+          } else {
+            errorMessage = errorJson.error || errorMessage;
+          }
+          if (errorJson.tip) errorMessage += `\n\n💡 ${errorJson.tip}`;
+        } catch (e) {
+          errorMessage = `Server Error (${response.status}): ${errorText.substring(0, 50)}...`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success(`Email test berhasil dikirim ke ${targetEmail}!`);
+      } else {
+        toast.error('Gagal kirim email: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error: any) {
+      console.error('Error testing email:', error);
+      toast.error(error.message || 'Terjadi kesalahan saat mencoba kirim email test');
     }
   };
 
@@ -363,6 +470,13 @@ export default function AdminDashboard() {
         </div>
         <div className="flex items-center gap-3">
           <button 
+            onClick={handleTestEmail}
+            className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all h-10 px-4 sm:h-11 sm:px-5 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-sm"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            Test Email Sariroti
+          </button>
+          <button 
             onClick={fetchDashboardData}
             className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-all h-10 px-4 sm:h-11 sm:px-5 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-sm dark:shadow-none"
           >
@@ -394,6 +508,22 @@ export default function AdminDashboard() {
           Konfigurasi Midtrans
         </button>
       </div>
+
+      {/* Configuration Alert */}
+      {stats.digiflazzBalance === 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+            <CircleAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200 mb-1">Peringatan Konfigurasi</h4>
+            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+              Saldo Digiflazz terbaca Rp 0 atau gagal terhubung. Pastikan <strong>DIGIFLAZZ_USERNAME</strong> dan <strong>DIGIFLAZZ_API_KEY</strong> sudah diatur dengan benar di menu Settings. 
+              Jika menggunakan Resend, pastikan <strong>RESEND_API_KEY</strong> juga sudah aktif.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
@@ -485,6 +615,65 @@ export default function AdminDashboard() {
 
           {/* Transactions Lists */}
           <div className="grid md:grid-cols-2 gap-10">
+            {/* Pending Transactions */}
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden md:col-span-2">
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-blue-50/50 dark:bg-blue-900/20">
+                <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-blue-600 dark:text-blue-500" />
+                  Transaksi Menunggu Konfirmasi (QRIS Manual)
+                  {pendingTransactions.length > 0 && (
+                    <span className="bg-blue-600 dark:bg-blue-500 text-white dark:text-blue-950 text-[10px] px-2 py-0.5 rounded-full animate-pulse">
+                      {pendingTransactions.length}
+                    </span>
+                  )}
+                </h3>
+              </div>
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <AnimatePresence mode="popLayout">
+                  {pendingTransactions.map((tx) => (
+                    <motion.div 
+                      layout
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      key={tx.id} 
+                      className="p-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors gap-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center clay-icon">
+                          <QrCode className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-zinc-900 dark:text-white">{tx.buyer_name}</p>
+                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">Total: {formatRupiah(tx.total_amount)}</p>
+                          <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium">
+                            {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleRejectTransaction(tx.id)}
+                          className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                        >
+                          Tolak
+                        </button>
+                        <button 
+                          onClick={() => handleApproveTransaction(tx.id)}
+                          className="btn-clay-primary py-2 px-6 text-[10px] bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 border-blue-700 dark:border-blue-600 text-white dark:text-blue-950"
+                        >
+                          Konfirmasi Bayar
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {pendingTransactions.length === 0 && (
+                  <div className="p-10 text-center text-zinc-400 text-sm font-medium italic">Tidak ada transaksi pending</div>
+                )}
+              </div>
+            </div>
+
             {/* Password Reset Requests */}
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden md:col-span-2">
               <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-amber-50/50 dark:bg-amber-900/20">

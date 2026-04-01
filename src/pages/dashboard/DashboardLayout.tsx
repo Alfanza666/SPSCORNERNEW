@@ -224,7 +224,7 @@ export default function DashboardLayout() {
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 src={Logo} 
                 alt="SPS Corner Logo" 
-                className="h-12 w-auto object-contain drop-shadow-md" 
+                className="h-16 w-auto object-contain drop-shadow-md" 
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                   (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
@@ -316,7 +316,7 @@ export default function DashboardLayout() {
             >
               <div className="h-20 flex items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
-                  <img src={Logo} alt="SPS Corner Logo" className="h-8 w-auto object-contain" onError={(e) => {
+                  <img src={Logo} alt="SPS Corner Logo" className="h-12 w-auto object-contain" onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                     (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
                   }} />

@@ -38,7 +38,7 @@ export default function Home() {
               transition={{ type: "spring", damping: 12 }}
               src={Logo} 
               alt="SPS Corner Logo" 
-              className="h-12 sm:h-20 w-auto object-contain drop-shadow-md dark:drop-shadow-[0_0_25px_rgba(255,255,255,0.15)] relative z-10" 
+              className="h-20 sm:h-32 w-auto object-contain drop-shadow-md dark:drop-shadow-[0_0_25px_rgba(255,255,255,0.15)] relative z-10" 
             />
           </div>
           <h1 className="text-2xl sm:text-4xl font-black text-zinc-900 dark:text-white mb-2 tracking-tighter leading-tight transition-colors">
