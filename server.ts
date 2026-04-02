@@ -1,6 +1,5 @@
 import express from "express";
 import dotenv from "dotenv";
-import CryptoJS from "crypto-js";
 import { createClient } from '@supabase/supabase-js';
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -105,7 +104,7 @@ app.use(express.json({ limit: '50mb' }));
 
           console.log(`Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${refId}`);
           
-          const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).toString();
+          const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).digest('hex');
           
           const payload: any = {
             username: DIGIFLAZZ_USERNAME,
@@ -272,7 +271,7 @@ app.use(express.json({ limit: '50mb' }));
       console.log('Running background Digiflazz price update...');
       const types = ['prepaid', 'postpaid'];
       for (const type of types) {
-        const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
+        const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").digest('hex');
         const response = await axios.post('https://api.digiflazz.com/v1/price-list', {
           cmd: type === 'postpaid' ? 'pasca' : 'prepaid',
           username: DIGIFLAZZ_USERNAME,
@@ -295,8 +294,10 @@ app.use(express.json({ limit: '50mb' }));
   };
 
   // Run immediately and then every 1 hour
-  setTimeout(updateDigiflazzCache, 5000);
-  setInterval(updateDigiflazzCache, CACHE_TTL);
+  if (!process.env.VERCEL) {
+    setTimeout(updateDigiflazzCache, 5000);
+    setInterval(updateDigiflazzCache, CACHE_TTL);
+  }
 
   // Helper function to generate mock products when rate limited
   const generateMockProducts = (category: string, type: string) => {
@@ -346,7 +347,7 @@ app.use(express.json({ limit: '50mb' }));
         return res.json({ success: true, data: filtered, cached: true });
       }
 
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").toString();
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").digest('hex');
       
       const response = await axios.post('https://api.digiflazz.com/v1/price-list', {
         cmd: type === 'postpaid' ? 'pasca' : 'prepaid',
@@ -443,7 +444,7 @@ app.use(express.json({ limit: '50mb' }));
         return res.status(400).json({ success: false, error: 'Nomor pelanggan harus diisi' });
       }
 
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + customer_no).toString();
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + customer_no).digest('hex');
 
       console.log('Digiflazz PLN Inquiry Request:', { customer_no });
 
@@ -491,7 +492,7 @@ app.use(express.json({ limit: '50mb' }));
       }
 
       const ref_id = `cek_${sku}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
 
       console.log('Digiflazz E-Wallet Inquiry Request:', { customer_no, brand, sku, ref_id });
 
@@ -535,7 +536,7 @@ app.use(express.json({ limit: '50mb' }));
   app.post("/api/digital/status-pasca", async (req, res) => {
     try {
       const { sku, customer_no, ref_id } = req.body;
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
 
       const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
         commands: 'status-pasca',
@@ -565,7 +566,7 @@ app.use(express.json({ limit: '50mb' }));
   app.post("/api/digital/inq-pasca", async (req, res) => {
     try {
       const { sku, customer_no, ref_id } = req.body;
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
 
       const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
         commands: 'inq-pasca',
@@ -601,7 +602,7 @@ app.use(express.json({ limit: '50mb' }));
         return res.status(400).json({ success: false, error: 'Amount, bank, and owner_name are required' });
       }
 
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "deposit").toString();
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "deposit").digest('hex');
 
       const response = await axios.post('https://api.digiflazz.com/v1/deposit', {
         username: DIGIFLAZZ_USERNAME,
@@ -638,7 +639,7 @@ app.use(express.json({ limit: '50mb' }));
         });
       }
 
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").toString();
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").digest('hex');
       
       console.log('🔍 Cek Saldo Debug:', {
         username: DIGIFLAZZ_USERNAME,
@@ -678,7 +679,7 @@ app.use(express.json({ limit: '50mb' }));
   app.post("/api/digital/order", async (req, res) => {
     try {
       const { sku, customer_no, ref_id, is_postpaid } = req.body;
-      const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
 
       const payload: any = {
         username: DIGIFLAZZ_USERNAME,
@@ -797,14 +798,14 @@ app.use(express.json({ limit: '50mb' }));
       // Validate Signature from Digiflazz
       if (webhookSecret && hubSignature) {
         const bodyString = JSON.stringify(req.body);
-        const expectedHubSignature = 'sha1=' + CryptoJS.HmacSHA1(bodyString, webhookSecret).toString();
+        const expectedHubSignature = 'sha1=' + crypto.createHmac('sha1', webhookSecret).update(bodyString).digest('hex');
         
         if (hubSignature !== expectedHubSignature) {
           console.error('❌ Invalid X-Hub-Signature. Expected:', expectedHubSignature, 'Got:', hubSignature);
         }
       } else {
         const signature = callbackData.data.signature;
-        const expectedSignature = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).toString();
+        const expectedSignature = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
 
         if (signature !== expectedSignature) {
           console.error('❌ Invalid Digiflazz Callback Signature. Expected:', expectedSignature, 'Got:', signature);
@@ -858,9 +859,9 @@ app.use(express.json({ limit: '50mb' }));
         price: items.map((i: any) => i.price),
       };
 
-      const bodyHash = CryptoJS.SHA256(JSON.stringify(body)).toString(CryptoJS.enc.Hex).toLowerCase();
+      const bodyHash = crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex').toLowerCase();
       const stringToSign = `POST:${IPAYMU_VA}:${bodyHash}:${IPAYMU_API_KEY}`;
-      const signature = CryptoJS.HmacSHA256(stringToSign, IPAYMU_API_KEY).toString(CryptoJS.enc.Hex);
+      const signature = crypto.createHmac('sha256', IPAYMU_API_KEY).update(stringToSign).digest('hex');
       const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
 
       const response = await axios.post(IPAYMU_URL, body, {
@@ -1000,7 +1001,7 @@ app.use(express.json({ limit: '50mb' }));
               
               console.log(`Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${refId}`);
               
-              const sign = CryptoJS.MD5(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).toString();
+              const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).digest('hex');
               
               const payload: any = {
                 username: DIGIFLAZZ_USERNAME,
@@ -1129,7 +1130,8 @@ app.use(express.json({ limit: '50mb' }));
     const PORT = 3000;
     (async () => {
       if (process.env.NODE_ENV !== "production") {
-        const { createServer: createViteServer } = await import("vite");
+        const viteModule = "vite";
+        const { createServer: createViteServer } = await import(viteModule);
         const vite = await createViteServer({
           server: { middlewareMode: true },
           appType: "spa",

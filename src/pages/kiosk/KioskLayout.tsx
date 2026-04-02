@@ -4,7 +4,6 @@ import { ShoppingCart, ArrowLeft, Home, LogOut, User, Check, Clock } from 'lucid
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
-import { motion, AnimatePresence } from 'motion/react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
 import Logo from '../../components/ui/logo.png';
@@ -140,11 +139,10 @@ export default function KioskLayout() {
               )}
               <div className="flex items-center gap-2 cursor-pointer group" onClick={handleHomeClick}>
                 <div className="relative">
-                  <motion.img 
-                    whileHover={{ scale: 1.1, rotate: 5 }}
+                  <img 
                     src={Logo} 
                     alt="SPS Corner Logo" 
-                    className="h-10 sm:h-14 w-auto object-contain drop-shadow-sm" 
+                    className="h-10 sm:h-14 w-auto object-contain drop-shadow-sm transition-transform hover:scale-110 hover:rotate-3" 
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                       (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
@@ -188,18 +186,13 @@ export default function KioskLayout() {
                   >
                     <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5 group-hover:scale-110 transition-transform" />
                     <span className="hidden sm:inline text-[10px] font-bold">Keranjang</span>
-                    <AnimatePresence>
-                      {totalItems > 0 && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          exit={{ scale: 0 }}
+                    {totalItems > 0 && (
+                        <div
                           className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 bg-red-500 text-white w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center text-[6px] sm:text-[8px] font-bold shadow-sm border border-white dark:border-zinc-800"
                         >
                           {totalItems}
-                        </motion.div>
+                        </div>
                       )}
-                    </AnimatePresence>
                   </button>
                 </div>
               )}
