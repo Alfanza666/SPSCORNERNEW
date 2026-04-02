@@ -1125,30 +1125,47 @@ app.use(express.json({ limit: '50mb' }));
     }
   });
 
-  // Vite middleware for development
-  if (!process.env.VERCEL) {
-    const PORT = 3000;
-    (async () => {
-      if (process.env.NODE_ENV !== "production") {
-        const viteModule = "vite";
-        const { createServer: createViteServer } = await import(viteModule);
-        const vite = await createViteServer({
-          server: { middlewareMode: true },
-          appType: "spa",
-        });
-        app.use(vite.middlewares);
-      } else {
-        app.use(express.static('dist'));
-        app.get('*', (req, res) => {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-          res.sendFile('dist/index.html', { root: '.' });
-        });
-      }
-
-      app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on http://localhost:${PORT}`);
+// Vite middleware for development & production
+if (!process.env.VERCEL) {
+  // Development mode
+  const PORT = 3000;
+  (async () => {
+    if (process.env.NODE_ENV !== "production") {
+      const viteModule = "vite";
+      const { createServer: createViteServer } = await import(viteModule);
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
       });
-    })();
-  }
+      app.use(vite.middlewares);
+    } else {
+      // Production fallback
+      app.use(express.static('dist'));
+      app.get('*', (req, res) => {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.sendFile('dist/index.html', { root: '.' });
+      });
+    }
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  })();
+} else {
+  // Vercel production environment
+  app.use(express.static('dist', {
+    maxAge: '1d',
+    etag: false
+  }));
+  
+  // SPA fallback route - MUST BE LAST after all API routes
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.sendFile('dist/index.html', { root: '.' });
+  });
+}
 
 export default app;
