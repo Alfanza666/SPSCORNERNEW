@@ -1,16 +1,15 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "serverCommand": "node server.js",
   "installCommand": "npm install",
   "regions": ["auto"],
   "routes": [
     {
       "src": "^/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/$0"
     },
     {
-      "src": "^/(?!_next)(?!.*\\.(js|css|png|jpg|jpeg|svg|gif|ico|webp|woff|woff2|ttf|eot)$).*$",
+      "src": "^(?!.*\\.\\w+$)(.*)",
       "dest": "/index.html"
     }
   ]
