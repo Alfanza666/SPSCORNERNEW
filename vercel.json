@@ -1,9 +1,17 @@
 {
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
+  "serverCommand": "node server.js",
+  "installCommand": "npm install",
+  "regions": ["auto"],
+  "routes": [
     {
-      "source": "/((?!api/.*).*)",
-      "destination": "/index.html"
+      "src": "^/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "^/(?!_next)(?!.*\\.(js|css|png|jpg|jpeg|svg|gif|ico|webp|woff|woff2|ttf|eot)$).*$",
+      "dest": "/index.html"
     }
   ]
 }
