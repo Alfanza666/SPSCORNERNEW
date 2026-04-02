@@ -17,22 +17,12 @@ export default defineConfig(({mode}) => {
         'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       },
     },
-    build: {
-      outDir: 'dist',
-      sourcemap: false,
-      minify: 'terser',
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js'],
-          }
-        }
-      }
-    },
     optimizeDeps: {
       include: ['react', 'react-dom', 'motion/react'],
     },
     server: {
+      // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };
