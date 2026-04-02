@@ -3,11 +3,5 @@ node_modules
 .gitignore
 .env.local
 .env.*.local
-src
-pages
-components
 *.tsx
-tsconfig.json
-vite.config.ts
-package-lock.json
 README.md
