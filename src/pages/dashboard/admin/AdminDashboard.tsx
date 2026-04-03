@@ -340,11 +340,7 @@ export default function AdminDashboard() {
         let errorMessage = 'Gagal kirim email';
         try {
           const errorJson = JSON.parse(errorText);
-          if (errorJson.details?.name === 'validation_error') {
-            errorMessage = `Resend Error: ${errorJson.details.message}`;
-          } else {
-            errorMessage = errorJson.error || errorMessage;
-          }
+          errorMessage = errorJson.error || errorMessage;
           if (errorJson.tip) errorMessage += `\n\n💡 ${errorJson.tip}`;
         } catch (e) {
           errorMessage = `Server Error (${response.status}): ${errorText.substring(0, 50)}...`;

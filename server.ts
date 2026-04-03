@@ -5,6 +5,7 @@ import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import path from "path";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -166,40 +167,39 @@ app.use(express.json({ limit: '50mb' }));
     return allDigitalSuccess;
   };
 
-  // Helper to send email via Resend
+  // Helper to send email via Nodemailer (Gmail)
   const sendSarirotiEmailInternal = async (to: string, subject: string, html: string) => {
-    const RESEND_API_KEY = process.env.RESEND_API_KEY;
-    if (!RESEND_API_KEY) {
-      console.log('⚠️ RESEND_API_KEY not set. Mocking email send:', { to, subject });
+    const GMAIL_USER = process.env.GMAIL_USER;
+    const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+
+    if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+      console.log('⚠️ GMAIL_USER or GMAIL_APP_PASSWORD not set. Mocking email send:', { to, subject });
       return { success: true, mock: true };
     }
 
     try {
-      console.log(`📧 Attempting to send email to ${to} via Resend...`);
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'Sariroti Order <orders@sariroti.com>';
-      const response = await axios.post('https://api.resend.com/emails', {
-        from: fromEmail,
-        to: [to],
-        subject: subject,
-        html: html,
-      }, {
-        headers: {
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
+      console.log(`📧 Attempting to send email to ${to} via Gmail...`);
+      
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: GMAIL_USER,
+          pass: GMAIL_APP_PASSWORD
         }
       });
-      console.log('✅ Email sent successfully:', response.data);
-      return { success: true, data: response.data };
+
+      const info = await transporter.sendMail({
+        from: `"SPS Corner" <${GMAIL_USER}>`,
+        to: to,
+        subject: subject,
+        html: html,
+      });
+
+      console.log('✅ Email sent successfully:', info.messageId);
+      return { success: true, data: info };
     } catch (error: any) {
-      const errorData = error.response?.data || error.message;
-      console.error('❌ Error sending email via Resend:', JSON.stringify(errorData, null, 2));
-      
-      // Check for common Resend errors
-      if (errorData?.name === 'validation_error') {
-        console.error('💡 Tip: If you are using the default "onboarding@resend.dev" sender, you can only send emails to the email address associated with your Resend account unless you verify your domain.');
-      }
-      
-      return { success: false, error: errorData };
+      console.error('❌ Error sending email via Gmail:', error);
+      return { success: false, error: error.message };
     }
   };
 
@@ -1103,8 +1103,7 @@ app.use(express.json({ limit: '50mb' }));
             <p><strong>Waktu:</strong> ${new Date().toLocaleString('id-ID')}</p>
             <p><strong>Target:</strong> ${targetEmail}</p>
           </div>
-          <p>Jika Anda menerima email ini, berarti konfigurasi Resend sudah benar.</p>
-          <p style="color: #666; font-size: 12px;">Catatan: Jika menggunakan onboarding@resend.dev, email hanya bisa dikirim ke email pemilik akun Resend.</p>
+          <p>Jika Anda menerima email ini, berarti konfigurasi Gmail Nodemailer sudah benar.</p>
         </div>
       `;
 
@@ -1116,7 +1115,7 @@ app.use(express.json({ limit: '50mb' }));
         res.status(500).json({ 
           error: 'Failed to send test email', 
           details: result.error,
-          tip: 'If using onboarding@resend.dev, you can only send to your own email address.'
+          tip: 'Pastikan GMAIL_USER dan GMAIL_APP_PASSWORD sudah benar di Vercel.'
         });
       }
     } catch (error: any) {
