@@ -110,6 +110,8 @@ console.log('✅ Ipaymu Client Ready:', {
  */
 app.post('/api/payment/ipaymu', async (req, res) => {
   try {
+    console.log('📥 Payment request received:', req.body);
+    
     const { buyer_name, buyer_email, buyer_phone, amount, items, reference_id } = req.body;
 
     if (!buyer_name || !buyer_email || !buyer_phone || !amount || !reference_id) {
@@ -119,6 +121,8 @@ app.post('/api/payment/ipaymu', async (req, res) => {
     if (!IPAYMU_VA || !IPAYMU_API_KEY) {
       return res.status(500).json({ success: false, error: 'Ipaymu not configured' });
     }
+
+    console.log('🔧 Ipaymu Client:', { va: IPAYMU_VA ? 'Set' : 'Not Set', apiKey: IPAYMU_API_KEY ? 'Set' : 'Not Set' });
 
     const paymentData = {
       name: buyer_name,
@@ -137,34 +141,45 @@ app.post('/api/payment/ipaymu', async (req, res) => {
       paymentData.price = items.map((i: any) => i.price);
     }
 
+    console.log('📤 Creating payment with:', paymentData);
+
     const response = await ipaymuClient.createPayment(paymentData);
 
-   const { data: insertData, error: insertError } = await supabase
-  .from('transactions')
-  .insert({
-    id: reference_id,
-    buyer_name,
-    total_amount: amount,
-    status: 'pending',
-    payment_method: 'ipaymu',
-  });
-    
-if (insertError) {
-  console.error('❌ Supabase Insert Error:', {
-    code: insertError.code,
-    message: insertError.message,
-    details: insertError.details,
-    hint: insertError.hint,
-  });
-  throw insertError;
-}
+    console.log('✅ Ipaymu response:', response);
 
-console.log('✅ Transaction inserted:', insertData);
+    // Insert to DB
+    const { data: insertData, error: insertError } = await supabase
+      .from('transactions')
+      .insert({
+        id: reference_id,
+        buyer_name,
+        total_amount: amount,
+        status: 'pending',
+        payment_method: 'ipaymu',
+      });
 
-    res.json({ success: true, payment_url: response.Data?.Url, session_id: response.Data?.SessionId });
+    if (insertError) {
+      console.error('❌ DB Insert Error:', insertError);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Failed to create transaction: ' + insertError.message 
+      });
+    }
+
+    console.log('✅ Transaction created in DB:', insertData);
+
+    return res.json({ 
+      success: true, 
+      payment_url: response.Data?.Url, 
+      session_id: response.Data?.SessionId 
+    });
+
   } catch (error: any) {
     console.error('❌ Payment Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Internal server error' 
+    });
   }
 });
 
