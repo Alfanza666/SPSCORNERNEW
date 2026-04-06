@@ -5,13 +5,13 @@ import {
   Wifi, 
   Zap, 
   Gamepad2, 
-  CreditCard,
+  Wallet,
   ArrowLeft,
   Search,
   Loader2,
   ShoppingCart,
   Droplets,
-  HeartPulse,
+  Activity,
   Tv,
   Info
 } from 'lucide-react';
@@ -34,9 +34,9 @@ const categories: DigitalCategory[] = [
   { id: 'data', name: 'Paket Data', icon: Wifi, description: 'Kuota internet hemat', color: 'bg-emerald-500', apiCategory: 'Data' },
   { id: 'pln', name: 'Token PLN', icon: Zap, description: 'Listrik prabayar', color: 'bg-amber-500', apiCategory: 'PLN' },
   { id: 'game', name: 'Voucher Game', icon: Gamepad2, description: 'Top up game favorit', color: 'bg-purple-500', apiCategory: 'Games' },
-  { id: 'e-money', name: 'E-Money', icon: CreditCard, description: 'Top up saldo dompet digital', color: 'bg-indigo-500', apiCategory: 'E-Money' },
+  { id: 'e-money', name: 'E-Money', icon: Wallet, description: 'Top up saldo dompet digital', color: 'bg-indigo-500', apiCategory: 'E-Money' },
   { id: 'pdam', name: 'PDAM', icon: Droplets, description: 'Bayar tagihan air', color: 'bg-cyan-500', apiCategory: 'PDAM' },
-  { id: 'bpjs', name: 'BPJS', icon: HeartPulse, description: 'Bayar iuran kesehatan', color: 'bg-red-500', apiCategory: 'BPJS' },
+  { id: 'bpjs', name: 'BPJS', icon: Activity, description: 'Bayar iuran kesehatan', color: 'bg-red-500', apiCategory: 'BPJS' },
   { id: 'internet', name: 'Internet & TV', icon: Tv, description: 'Indihome, CBN, dll', color: 'bg-orange-500', apiCategory: 'Internet' },
 ];
 
@@ -326,19 +326,19 @@ export default function DigitalProducts() {
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 pb-24">
       <div className="max-w-4xl mx-auto px-4 pt-8">
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
             <button 
               onClick={handleBack}
-              className="p-2 bg-white dark:bg-zinc-900 rounded-xl shadow-sm hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              className="p-3 bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.2)] hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all hover:-translate-x-1"
             >
-              <ArrowLeft className="w-6 h-6 text-slate-600 dark:text-zinc-400" />
+              <ArrowLeft className="w-6 h-6 text-slate-700 dark:text-zinc-300" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+              <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-1">
                 {selectedCategory ? selectedCategory.name : 'Produk Digital'}
               </h1>
-              <p className="text-slate-500 dark:text-zinc-500 text-sm">
-                {selectedCategory ? 'Pilih produk dan masukkan nomor tujuan' : 'Pilih kategori layanan'}
+              <p className="text-slate-500 dark:text-zinc-400 font-medium">
+                {selectedCategory ? 'Pilih produk dan masukkan nomor tujuan' : 'Pilih kategori layanan yang Anda butuhkan'}
               </p>
             </div>
           </div>
@@ -351,19 +351,25 @@ export default function DigitalProducts() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="grid grid-cols-2 md:grid-cols-3 gap-4"
+              className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"
             >
               {categories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryClick(cat)}
-                  className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-slate-100 dark:border-zinc-800 shadow-sm text-left relative overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all group"
+                  className="group relative bg-white dark:bg-zinc-900 p-6 rounded-[2rem] border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.2)] text-left overflow-hidden transition-all duration-300 hover:-translate-y-1"
                 >
-                  <div className={`${cat.color} w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-white group-hover:scale-110 transition-transform`}>
-                    <cat.icon className="w-6 h-6" />
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/40 to-transparent dark:from-white/5 rounded-full blur-2xl -mr-10 -mt-10 transition-transform group-hover:scale-150" />
+                  
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 relative z-10 overflow-hidden ${cat.color}`}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                    <cat.icon className="w-7 h-7 text-white relative z-10" />
                   </div>
-                  <h3 className="font-bold text-slate-900 dark:text-white mb-1">{cat.name}</h3>
-                  <p className="text-xs text-slate-500 dark:text-zinc-500 leading-relaxed">{cat.description}</p>
+                  
+                  <div className="relative z-10">
+                    <h3 className="font-black text-lg text-slate-900 dark:text-white mb-1.5 tracking-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{cat.name}</h3>
+                    <p className="text-xs font-medium text-slate-500 dark:text-zinc-400 leading-relaxed line-clamp-2">{cat.description}</p>
+                  </div>
                 </button>
               ))}
             </motion.div>
@@ -375,18 +381,20 @@ export default function DigitalProducts() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-slate-100 dark:border-zinc-800 shadow-sm space-y-4">
+              <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2rem] border border-slate-100 dark:border-zinc-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.2)] space-y-6">
                 {['game', 'e-money'].includes(selectedCategory?.id || '') ? (
                   !selectedBrand ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                       {uniqueBrands.map(brand => (
                         <button
                           key={brand}
                           onClick={() => setSelectedBrand(brand)}
-                          className="bg-slate-50 dark:bg-zinc-800 p-4 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm text-center hover:ring-2 hover:ring-blue-500 transition-all"
+                          className="group bg-slate-50 dark:bg-zinc-800/50 p-6 rounded-3xl border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 shadow-sm text-center transition-all duration-300 hover:-translate-y-1"
                         >
-                          <img src={getProductLogo(brand, selectedCategory?.apiCategory || '')} alt={brand} className="w-16 h-16 mx-auto mb-3 object-contain rounded-xl" referrerPolicy="no-referrer" />
-                          <h3 className="font-bold text-slate-900 dark:text-white text-xs md:text-sm">{brand}</h3>
+                          <div className="w-20 h-20 mx-auto mb-4 bg-white dark:bg-zinc-800 rounded-2xl shadow-sm flex items-center justify-center p-2 group-hover:scale-110 transition-transform duration-300">
+                            <img src={getProductLogo(brand, selectedCategory?.apiCategory || '')} alt={brand} className="w-full h-full object-contain rounded-xl" referrerPolicy="no-referrer" />
+                          </div>
+                          <h3 className="font-bold text-slate-900 dark:text-white text-sm tracking-tight">{brand}</h3>
                         </button>
                       ))}
                     </div>
@@ -429,11 +437,12 @@ export default function DigitalProducts() {
                   )
                 ) : (
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">
+                    <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-3">
                       Nomor Tujuan / ID Pelanggan
                     </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
+                    <div className="flex gap-3">
+                      <div className="relative flex-1 group">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-[1.1rem] opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 blur-sm" />
                         <input
                           type="text"
                           value={targetNumber}
@@ -442,10 +451,10 @@ export default function DigitalProducts() {
                             setInquiryResult(null);
                           }}
                           placeholder="Contoh: 081234567890"
-                          className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all dark:text-white text-lg tracking-wide"
+                          className="relative w-full px-5 py-4 bg-white dark:bg-zinc-900 border-2 border-slate-200 dark:border-zinc-700 rounded-2xl focus:border-transparent outline-none transition-all dark:text-white text-lg font-medium tracking-wide shadow-sm"
                         />
                         {detectedProvider && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-white dark:bg-zinc-800 p-1.5 rounded-lg shadow-sm border border-slate-100 dark:border-zinc-700">
                             <img 
                               src={getProductLogo(detectedProvider, selectedCategory?.name || '')} 
                               alt={detectedProvider} 
@@ -459,12 +468,12 @@ export default function DigitalProducts() {
                         <button
                           onClick={handleInquiry}
                           disabled={inquiryLoading || !targetNumber}
-                          className="px-6 py-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50 flex flex-col items-center justify-center whitespace-nowrap"
+                          className="px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 shadow-[0_8px_16px_-6px_rgba(37,99,235,0.4)] hover:shadow-[0_8px_20px_-6px_rgba(37,99,235,0.6)] transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none flex flex-col items-center justify-center whitespace-nowrap"
                         >
-                          {inquiryLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
+                          {inquiryLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
                             <>
-                              <span>Cek</span>
-                              {selectedCategory?.id === 'e-money' && <span className="text-[10px] font-normal opacity-80">(Gratis)</span>}
+                              <span className="text-base">Cek Tagihan</span>
+                              {selectedCategory?.id === 'e-money' && <span className="text-[10px] font-normal opacity-80 mt-0.5">(Gratis)</span>}
                             </>
                           )}
                         </button>
@@ -524,41 +533,49 @@ export default function DigitalProducts() {
                 </div>
               ) : (
                 (selectedCategory?.id !== 'game' || selectedBrand) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                     {filteredProducts.map((product) => (
                       <div 
                         key={product.buyer_sku_code}
-                        className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm flex items-center justify-between gap-4"
+                        className="group bg-white dark:bg-zinc-900 p-5 rounded-[1.5rem] border-2 border-transparent hover:border-blue-500 dark:hover:border-blue-400 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.2)] flex flex-col justify-between gap-4 transition-all duration-300 hover:-translate-y-1"
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2">
-                            <img 
-                              src={getProductLogo(product.brand, selectedCategory?.name || '')} 
-                              alt={product.brand} 
-                              className="w-8 h-8 object-contain rounded-md"
-                              referrerPolicy="no-referrer"
-                            />
-                            <span className="text-xs font-medium px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-md">
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 bg-slate-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center p-1.5 shadow-sm">
+                              <img 
+                                src={getProductLogo(product.brand, selectedCategory?.name || '')} 
+                                alt={product.brand} 
+                                className="w-full h-full object-contain rounded-lg"
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg">
                               {product.brand}
                             </span>
                           </div>
-                          <h4 className="font-bold text-slate-900 dark:text-white truncate">
+                          <h4 className="font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug">
                             {product.product_name}
                           </h4>
-                          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 line-clamp-2">
-                            {product.desc}
-                          </p>
-                          <div className="mt-2 font-bold text-blue-600 dark:text-blue-400">
+                          {product.desc && product.desc !== '-' && (
+                            <p className="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-2 line-clamp-2">
+                              {product.desc}
+                            </p>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-zinc-800 mt-2">
+                          <div className="font-black text-lg text-blue-600 dark:text-blue-400">
                             Rp {(product.price + 2000).toLocaleString('id-ID')}
                           </div>
+                          <button
+                            onClick={() => handleBuy(product)}
+                            disabled={selectedCategory?.id === 'game' ? false : !targetNumber}
+                            className="shrink-0 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 dark:disabled:bg-zinc-800 disabled:text-slate-400 dark:disabled:text-zinc-600 text-white font-bold rounded-xl transition-all shadow-[0_4px_12px_-4px_rgba(37,99,235,0.4)] hover:shadow-[0_4px_16px_-4px_rgba(37,99,235,0.6)] disabled:shadow-none flex items-center gap-2 group-hover:scale-105 active:scale-95"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                            <span className="text-sm">Beli</span>
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleBuy(product)}
-                          disabled={selectedCategory?.id === 'game' ? false : !targetNumber}
-                          className="shrink-0 p-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 text-white rounded-xl transition-colors flex items-center justify-center"
-                        >
-                          <ShoppingCart className="w-5 h-5" />
-                        </button>
                       </div>
                     ))}
                     

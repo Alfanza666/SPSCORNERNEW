@@ -95,8 +95,8 @@ export default function Profile() {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 sm:px-6">
         <div className="clay-card p-8 sm:p-12 max-w-md w-full">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl sm:rounded-[32px] flex items-center justify-center mx-auto mb-6 sm:mb-8 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)] dark:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]">
-            <User className="w-10 h-10 sm:w-12 sm:h-12 text-zinc-300 dark:text-zinc-600" />
+          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl sm:rounded-[32px] flex items-center justify-center mx-auto mb-6 sm:mb-8 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)] dark:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)] overflow-hidden">
+            <User className="w-10 h-10 sm:w-12 sm:h-12 text-zinc-400" />
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white mb-3 sm:mb-4">Akses Terbatas</h2>
           <p className="text-zinc-500 dark:text-zinc-400 mb-8 sm:mb-10 font-bold text-sm sm:text-base">Silakan masuk untuk mengelola profil Anda.</p>
@@ -143,8 +143,8 @@ export default function Profile() {
             
             <div className="relative z-10">
               <div className="flex items-center gap-4 sm:gap-5 mb-6 sm:mb-8">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-inner shrink-0">
-                  <User className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-inner shrink-0 overflow-hidden">
+                  <User className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
                 <div className="min-w-0">
                   <h2 className="text-lg sm:text-2xl font-black text-zinc-900 dark:text-white truncate leading-tight tracking-tighter">{user.name}</h2>

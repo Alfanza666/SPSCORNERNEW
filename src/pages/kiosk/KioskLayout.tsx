@@ -6,7 +6,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
 import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
-import Logo from '../../components/ui/logo.png';
+import Logo from '../../components/ui/logo-landscape.png';
 
 function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -152,12 +152,6 @@ export default function KioskLayout() {
                     <Home className="w-3 h-3 sm:w-4 sm:h-4" />
                   </div>
                 </div>
-                <div>
-                  <h1 className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tighter leading-none group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    SPS <span className="text-blue-600 dark:text-blue-400">Corner</span>
-                  </h1>
-                  <p className="text-[6px] sm:text-[8px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Pusat Belanja Sariroti</p>
-                </div>
               </div>
             </div>
 
@@ -166,10 +160,10 @@ export default function KioskLayout() {
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={() => navigate('/kiosk/history')}
-                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
+                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 overflow-hidden"
                     title="Riwayat Pesanan"
                   >
-                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                   {user && (
                     <button
@@ -177,14 +171,14 @@ export default function KioskLayout() {
                       className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
                       title="Profil & Keamanan"
                     >
-                      <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <User className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   )}
                   <button
                     onClick={() => navigate('/kiosk/cart')}
                     className="relative clay-icon-amber h-7 w-7 sm:h-8 sm:w-auto sm:px-3 group tour-cart-button"
                   >
-                    <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-1.5 group-hover:scale-110 transition-transform" />
+                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-1.5" />
                     <span className="hidden sm:inline text-[10px] font-bold">Keranjang</span>
                     {totalItems > 0 && (
                         <div

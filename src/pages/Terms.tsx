@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
-import Logo from '../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
+import Logo from '../components/ui/logo-utama.png';
 
 export default function Terms() {
   const navigate = useNavigate();

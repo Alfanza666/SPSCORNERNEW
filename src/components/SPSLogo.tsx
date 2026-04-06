@@ -1,4 +1,7 @@
 import React from 'react';
+import LogoIcon from './ui/logo-icon.png';
+import LogoUtama from './ui/logo-utama.png';
+import LogoLandscape from './ui/logo-landscape.png';
 
 interface SPSLogoProps {
   className?: string;
@@ -10,33 +13,19 @@ export default function SPSLogo({ className = "h-12", variant = 'wide', showText
   // Map legacy variants to new ones
   const effectiveVariant = variant === 'horizontal' ? 'wide' : variant === 'vertical' ? 'stack' : variant;
 
+  let src = LogoUtama;
   if (effectiveVariant === 'icon') {
-    return (
-      <img 
-        src="/logos/sps-logo-icon.png" 
-        alt="SPS Corner Icon" 
-        className={`${className} object-contain`}
-        referrerPolicy="no-referrer"
-      />
-    );
+    src = LogoIcon;
+  } else if (effectiveVariant === 'wide') {
+    src = LogoLandscape;
+  } else if (effectiveVariant === 'stack') {
+    src = LogoUtama;
   }
 
-  if (effectiveVariant === 'stack') {
-    return (
-      <img 
-        src="/logos/sps-logo-stack.png" 
-        alt="SPS Corner Stacked Logo" 
-        className={`${className} object-contain`}
-        referrerPolicy="no-referrer"
-      />
-    );
-  }
-
-  // Default to wide/horizontal
   return (
     <img 
-      src="/logos/sps-logo-wide.png" 
-      alt="SPS Corner Wide Logo" 
+      src={src} 
+      alt="SPS Corner Logo" 
       className={`${className} object-contain`}
       referrerPolicy="no-referrer"
     />

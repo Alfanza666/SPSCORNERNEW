@@ -85,6 +85,13 @@ app.use(express.json({ limit: '50mb' }));
     ? 'https://my.ipaymu.com/api/v2/payment' 
     : 'https://sandbox.ipaymu.com/api/v2/payment';
 
+  console.log('💳 IPaymu Config:', {
+    va: IPAYMU_VA ? 'Set' : 'Not Set',
+    apiKey: IPAYMU_API_KEY ? 'Set' : 'Not Set',
+    production: process.env.IPAYMU_PRODUCTION === 'true',
+    url: IPAYMU_URL
+  });
+
   // Helper to process digital items via Digiflazz
   const processDigitalItems = async (transactionId: string, transactionItems: any[]) => {
     const digitalItems = transactionItems.filter((item: any) => item.metadata?.is_digital);
@@ -837,6 +844,56 @@ app.use(express.json({ limit: '50mb' }));
     }
   });
 
+  app.post("/api/payment/ipaymu/direct", async (req, res) => {
+    try {
+      const { transaction_id, amount, buyer_name, buyer_email, buyer_phone, payment_method, payment_channel } = req.body;
+
+      if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+        throw new Error("IPaymu credentials not configured");
+      }
+
+      const body = {
+        name: buyer_name || 'Customer',
+        email: buyer_email || 'customer@example.com',
+        phone: buyer_phone || '08123456789',
+        amount: Number(amount),
+        notifyUrl: `${process.env.APP_URL}/api/payment/ipaymu/callback`,
+        referenceId: transaction_id,
+        paymentMethod: payment_method || 'qris',
+        paymentChannel: payment_channel || 'qris', 
+      };
+
+      const bodyHash = crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex').toLowerCase();
+      const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
+      const stringToSign = `${IPAYMU_VA}:${bodyHash}:POST:${timestamp}`;
+      const signature = crypto.createHmac('sha256', IPAYMU_API_KEY).update(stringToSign).digest('hex');
+
+      const directUrl = IPAYMU_URL.replace('/payment', '/payment/direct');
+      
+      const response = await axios.post(directUrl, body, {
+        headers: {
+          'Content-Type': 'application/json',
+          'va': IPAYMU_VA,
+          'signature': signature,
+          'timestamp': timestamp
+        }
+      });
+
+      if (response.data && response.data.Status === 200) {
+        res.json({ 
+          success: true, 
+          data: response.data.Data
+        });
+      } else {
+        console.error('IPaymu Direct Error Response:', response.data);
+        throw new Error(response.data.Message || "Failed to create IPaymu direct payment");
+      }
+    } catch (error: any) {
+      console.error('IPaymu Direct Error:', error.response?.data || error.message);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/payment/ipaymu/create", async (req, res) => {
     try {
       const { transaction_id, amount, buyer_name, buyer_email, buyer_phone, items } = req.body;
@@ -860,9 +917,9 @@ app.use(express.json({ limit: '50mb' }));
       };
 
       const bodyHash = crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex').toLowerCase();
-      const stringToSign = `POST:${IPAYMU_VA}:${bodyHash}:${IPAYMU_API_KEY}`;
-      const signature = crypto.createHmac('sha256', IPAYMU_API_KEY).update(stringToSign).digest('hex');
       const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
+      const stringToSign = `${IPAYMU_VA}:${bodyHash}:POST:${timestamp}`;
+      const signature = crypto.createHmac('sha256', IPAYMU_API_KEY).update(stringToSign).digest('hex');
 
       const response = await axios.post(IPAYMU_URL, body, {
         headers: {

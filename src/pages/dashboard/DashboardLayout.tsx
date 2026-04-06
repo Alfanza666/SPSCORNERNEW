@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
-import Logo from '../../components/ui/logo.png';
+import Logo from '../../components/ui/logo-landscape.png';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 
 function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
@@ -67,7 +67,7 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick }: NavItemProps) => 
           : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white'
       }`}
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 overflow-hidden ${
         isActive ? 'clay-icon-blue' : 'bg-white dark:bg-zinc-800 clay-icon group-hover:scale-110'
       }`}>
         <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white'}`} />
@@ -221,7 +221,7 @@ export default function DashboardLayout() {
           <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate('/')}>
             <div className="relative">
               <motion.img 
-                whileHover={{ scale: 1.1, rotate: 5 }}
+                whileHover={{ scale: 1.05, rotate: 2 }}
                 src={Logo} 
                 alt="SPS Corner Logo" 
                 className="h-16 w-auto object-contain drop-shadow-md" 
@@ -233,12 +233,6 @@ export default function DashboardLayout() {
               <div className="hidden clay-icon-amber w-12 h-12">
                 <ShieldCheck className="w-8 h-8" />
               </div>
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight leading-none">
-                SPS <span className="text-blue-600 dark:text-blue-400">Corner</span>
-              </h1>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-[0.2em] mt-1">Dashboard</p>
             </div>
           </div>
         </div>
@@ -273,8 +267,8 @@ export default function DashboardLayout() {
 
         <div className="p-8 border-t border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[2rem] border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
-            <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl">
-              {user.name.charAt(0)}
+            <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl flex items-center justify-center overflow-hidden">
+              <UserIcon className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-black text-zinc-900 dark:text-white truncate">
@@ -288,8 +282,8 @@ export default function DashboardLayout() {
             className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-black text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
             onClick={handleSignOut}
           >
-            <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
-              <LogOut className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+              <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
             </div>
             Keluar Akun
           </button>
@@ -323,7 +317,6 @@ export default function DashboardLayout() {
                   <div className="hidden w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center text-white">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
-                  <span className="font-black text-xl text-zinc-900 dark:text-white">SPS Corner</span>
                 </div>
                 <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
                   <X className="w-6 h-6" />
@@ -336,7 +329,7 @@ export default function DashboardLayout() {
               </div>
               <div className="p-6 border-t border-zinc-100 dark:border-zinc-800">
                 <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                  v2.1.0-blue-mobile
+                  v4.0.0
                 </div>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all"
@@ -439,8 +432,8 @@ export default function DashboardLayout() {
                   <p className="text-sm font-black text-zinc-900 dark:text-white leading-none mb-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{user.name}</p>
                   <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">{user.role}</p>
                 </div>
-                <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl group-hover:scale-105 transition-transform">
-                  {user.name.charAt(0)}
+                <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
+                  <UserIcon className="w-6 h-6 text-white" />
                 </div>
               </button>
 
@@ -465,8 +458,8 @@ export default function DashboardLayout() {
                         }}
                         className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-blue-600 dark:hover:text-blue-400 transition-all group"
                       >
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
-                          <KeyRound className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+                          <KeyRound className="w-5 h-5 opacity-70 group-hover:opacity-100" />
                         </div>
                         Ganti Password
                       </button>
@@ -475,8 +468,8 @@ export default function DashboardLayout() {
                         onClick={handleSignOut}
                         className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
                       >
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
-                          <LogOut className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+                          <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
                         </div>
                         Keluar Akun
                       </button>
