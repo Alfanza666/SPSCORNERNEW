@@ -92,6 +92,171 @@ app.use(express.json({ limit: '50mb' }));
     url: IPAYMU_URL
   });
 
+// ===== IPAYMU CLIENT INITIALIZATION =====
+import { IpaymuClient } from './ipaymu/client';
+
+const ipaymuClient = new IpaymuClient(IPAYMU_VA, IPAYMU_API_KEY);
+
+console.log('✅ Ipaymu Client Ready:', {
+  va: IPAYMU_VA ? '✓ Configured' : '✗ Missing',
+  apiKey: IPAYMU_API_KEY ? '✓ Configured' : '✗ Missing',
+});
+
+// ===== IPAYMU PAYMENT ROUTES =====
+
+/**
+ * POST /api/payment/ipaymu
+ * Create redirect payment (user goes to Ipaymu page)
+ */
+app.post('/api/payment/ipaymu', async (req, res) => {
+  try {
+    const { buyer_name, buyer_email, buyer_phone, amount, items, reference_id } = req.body;
+
+    if (!buyer_name || !buyer_email || !buyer_phone || !amount || !reference_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+      return res.status(500).json({ success: false, error: 'Ipaymu not configured' });
+    }
+
+    const paymentData = {
+      name: buyer_name,
+      email: buyer_email,
+      phone: buyer_phone,
+      amount: Number(amount),
+      referenceId: reference_id,
+      notifyUrl: `${process.env.APP_URL}/api/payment/ipaymu/callback`,
+      returnUrl: `${process.env.APP_URL}/payment/success?ref=${reference_id}`,
+      cancelUrl: `${process.env.APP_URL}/payment/cancel?ref=${reference_id}`,
+    };
+
+    if (items?.length > 0) {
+      paymentData.product = items.map((i: any) => i.name);
+      paymentData.qty = items.map((i: any) => i.quantity);
+      paymentData.price = items.map((i: any) => i.price);
+    }
+
+    const response = await ipaymuClient.createPayment(paymentData);
+
+    await supabase.from('transactions').insert({
+      id: reference_id,
+      buyer_name,
+      buyer_email,
+      buyer_phone,
+      total_amount: amount,
+      status: 'pending',
+      payment_method: 'ipaymu',
+      metadata: { session_id: response.Data?.SessionId },
+    }).catch(e => console.warn('DB insert (duplicate):', e.code));
+
+    res.json({ success: true, payment_url: response.Data?.Url, session_id: response.Data?.SessionId });
+  } catch (error: any) {
+    console.error('❌ Payment Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/payment/ipaymu/direct
+ * Create direct payment (QRIS, Bank Transfer, etc)
+ */
+app.post('/api/payment/ipaymu/direct', async (req, res) => {
+  try {
+    const {
+      buyer_name,
+      buyer_email,
+      buyer_phone,
+      amount,
+      reference_id,
+      payment_method = 'qris',
+      payment_channel = 'qris',
+    } = req.body;
+
+    if (!buyer_name || !buyer_email || !buyer_phone || !amount || !reference_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+      return res.status(500).json({ success: false, error: 'Ipaymu not configured' });
+    }
+
+    const directPaymentData = {
+      name: buyer_name,
+      email: buyer_email,
+      phone: buyer_phone,
+      amount: Number(amount),
+      referenceId: reference_id,
+      paymentMethod: payment_method,
+      paymentChannel: payment_channel,
+      notifyUrl: `${process.env.APP_URL}/api/payment/ipaymu/callback`,
+    };
+
+    const response = await ipaymuClient.createDirectPayment(directPaymentData);
+
+    res.json({ success: true, data: response.Data, qr_code: response.Data?.QrCode });
+  } catch (error: any) {
+    console.error('❌ Direct Payment Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/payment/ipaymu/callback
+ * Webhook callback dari Ipaymu
+ */
+app.post('/api/payment/ipaymu/callback', async (req, res) => {
+  try {
+    const { status, reference_id, transaction_id } = req.body;
+    console.log('🔔 Ipaymu Callback:', { status, reference_id });
+
+    const txStatus = status === 'berhasil' ? 'success' : status === 'gagal' ? 'failed' : 'processing';
+
+    const { data: transaction } = await supabase
+      .from('transactions')
+      .select('*, transaction_items(*)')
+      .eq('id', reference_id)
+      .single();
+
+    if (transaction) {
+      await supabase
+        .from('transactions')
+        .update({
+          status: txStatus,
+          metadata: {
+            ...(transaction.metadata || {}),
+            ipaymu_trx_id: transaction_id,
+            paid_at: txStatus === 'success' ? new Date().toISOString() : null,
+          },
+        })
+        .eq('id', reference_id);
+
+      if (txStatus === 'success') {
+        await processDigitalItems(reference_id, transaction.transaction_items);
+        await triggerSarirotiEmail(reference_id, transaction.buyer_name, transaction.total_amount);
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('❌ Callback Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/payment/ipaymu/status/:reference_id
+ * Check payment status
+ */
+app.get('/api/payment/ipaymu/status/:reference_id', async (req, res) => {
+  try {
+    const status = await ipaymuClient.getTransactionStatus(req.params.reference_id);
+    res.json({ success: true, data: status });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
   // Helper to process digital items via Digiflazz
   const processDigitalItems = async (transactionId: string, transactionItems: any[]) => {
     const digitalItems = transactionItems.filter((item: any) => item.metadata?.is_digital);
