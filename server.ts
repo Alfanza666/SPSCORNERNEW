@@ -139,16 +139,30 @@ app.post('/api/payment/ipaymu', async (req, res) => {
 
     const response = await ipaymuClient.createPayment(paymentData);
 
-    await supabase.from('transactions').insert({
-      id: reference_id,
-      buyer_name,
-      buyer_email,
-      buyer_phone,
-      total_amount: amount,
-      status: 'pending',
-      payment_method: 'ipaymu',
-      metadata: { session_id: response.Data?.SessionId },
-    }).catch(e => console.warn('DB insert (duplicate):', e.code));
+    const { data: insertData, error: insertError } = await supabase
+  .from('transactions')
+  .insert({
+    id: reference_id,
+    buyer_name,
+    buyer_email,
+    buyer_phone,
+    total_amount: amount,
+    status: 'pending',
+    payment_method: 'ipaymu',
+    metadata: { session_id: response.Data?.SessionId },
+  });
+
+if (insertError) {
+  console.error('❌ Supabase Insert Error:', {
+    code: insertError.code,
+    message: insertError.message,
+    details: insertError.details,
+    hint: insertError.hint,
+  });
+  throw insertError;
+}
+
+console.log('✅ Transaction inserted:', insertData);
 
     res.json({ success: true, payment_url: response.Data?.Url, session_id: response.Data?.SessionId });
   } catch (error: any) {
