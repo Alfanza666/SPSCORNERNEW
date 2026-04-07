@@ -1,0 +1,6 @@
+v4.0.1 - Menghapus file aset mati (.gif, .mp4) dan file duplikat yang tidak terpakai untuk optimasi ukuran build.
+v4.0.2 - Memperbarui versi UI dan memberikan panduan Webhook iPaymu.
+v4.0.3 - Memperbaiki error "Digiflazz Price Error: {" dengan menambahkan validasi kredensial dan format log error yang benar.
+v4.0.4 - Menyelaraskan versi UI di halaman Home dan Dashboard menjadi v4.0.4.
+v4.0.5 - Mengimplementasikan sistem notifikasi dinamis (Real-time) di Dashboard untuk Admin dan Seller.
+v4.0.6 - Memperbaiki UI/UX di mode mobile: memperbaiki posisi logo di sidebar, menambahkan tombol Kiosk di sidebar mobile, dan mengoptimalkan tata letak tombol header di dashboard Admin & Seller agar responsif.

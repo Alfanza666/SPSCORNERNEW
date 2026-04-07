@@ -11,7 +11,7 @@ var body            = {
     "name":"Putu",
     "phone":"08123456789",
     "email": "putu@gmail.com",
-    "amount": 10000,
+    "amount": "10000",
     "comments":"Payment to XYZ Store",
     "notifyUrl":"https://your-website.com/callback-url", // your callback url
     "referenceId":"1234", // your reference id or transaction id
@@ -19,7 +19,8 @@ var body            = {
     "paymentChannel":"bca",
 } 
 // generate signature
-var bodyEncrypt     = CryptoJS.SHA256(JSON.stringify(body)).toString(CryptoJS.enc.Hex).toLowerCase();
+var jsonBody        = JSON.stringify(body);
+var bodyEncrypt     = CryptoJS.SHA256(jsonBody).toString(CryptoJS.enc.Hex).toLowerCase();
 var timestamp       = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
 var stringtosign    = va + ":" + bodyEncrypt + ":POST:" + timestamp;
 var signature       = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA256(stringtosign, apikey));
@@ -35,7 +36,7 @@ fetch(
             signature: signature,
             timestamp: timestamp
         },
-        body: JSON.stringify(body)
+        body: jsonBody
     }
 )
 .then((response) => response.json())

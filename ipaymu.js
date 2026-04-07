@@ -24,7 +24,8 @@ var body            = {
     "buyerEmail":"buyer@mail.com", // optional
 } 
 // generate signature
-var bodyEncrypt     = CryptoJS.SHA256(JSON.stringify(body)).toString(CryptoJS.enc.Hex).toLowerCase();
+var jsonBody        = JSON.stringify(body);
+var bodyEncrypt     = CryptoJS.SHA256(jsonBody).toString(CryptoJS.enc.Hex).toLowerCase();
 var timestamp       = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
 var stringtosign    = va + ":" + bodyEncrypt + ":POST:" + timestamp;
 var signature       = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA256(stringtosign, apikey));
@@ -39,7 +40,7 @@ fetch(
             signature: signature,
             timestamp: timestamp
         },
-        body: JSON.stringify(body)
+        body: jsonBody
     }
 )
 .then((response) => response.json())
