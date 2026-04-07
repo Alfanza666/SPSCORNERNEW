@@ -135,9 +135,9 @@ export default function SellerDashboard() {
   return (
     <div className="space-y-10">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-6">
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-zinc-900 dark:text-white tracking-tight mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-zinc-900 dark:text-white tracking-tight mb-2">
             Dashboard Penjual
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 flex items-center gap-2 font-medium text-sm md:text-base">
@@ -145,20 +145,22 @@ export default function SellerDashboard() {
             Hari ini, {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button 
             onClick={() => navigate('/dashboard/seller/products')}
-            className="flex-1 md:flex-none btn-clay-secondary h-12 px-5 flex items-center justify-center gap-2 tour-seller-add-product"
+            className="flex-1 sm:flex-none btn-clay-secondary h-10 sm:h-12 px-3 sm:px-5 flex items-center justify-center gap-2 tour-seller-add-product text-xs sm:text-sm"
           >
             <Plus className="w-4 h-4" />
-            Tambah Produk
+            <span className="hidden sm:inline">Tambah Produk</span>
+            <span className="sm:hidden">Tambah</span>
           </button>
           <button 
             onClick={() => navigate('/dashboard/seller/withdrawals')}
-            className="flex-1 md:flex-none btn-clay-primary h-12 px-5 flex items-center justify-center gap-2 tour-seller-withdraw"
+            className="flex-1 sm:flex-none btn-clay-primary h-10 sm:h-12 px-3 sm:px-5 flex items-center justify-center gap-2 tour-seller-withdraw text-xs sm:text-sm"
           >
             <Wallet className="w-4 h-4" />
-            Tarik Saldo
+            <span className="hidden sm:inline">Tarik Saldo</span>
+            <span className="sm:hidden">Tarik</span>
           </button>
         </div>
       </div>

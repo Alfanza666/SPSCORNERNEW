@@ -454,7 +454,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 sm:space-y-10">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight mb-2">
             Overview Dashboard
@@ -464,27 +464,30 @@ export default function AdminDashboard() {
             Hari ini, {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button 
             onClick={handleTestEmail}
-            className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all h-10 px-4 sm:h-11 sm:px-5 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-sm"
+            className="flex-1 sm:flex-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all h-10 px-3 sm:px-5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold shadow-sm"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            Test Email Sariroti
+            <span className="hidden sm:inline">Test Email Sariroti</span>
+            <span className="sm:hidden">Test Email</span>
           </button>
           <button 
             onClick={fetchDashboardData}
-            className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-all h-10 px-4 sm:h-11 sm:px-5 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-sm dark:shadow-none"
+            className="flex-1 sm:flex-none bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-all h-10 px-3 sm:px-5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold shadow-sm dark:shadow-none"
           >
             <Activity className="w-4 h-4" />
-            Refresh Data
+            <span className="hidden sm:inline">Refresh Data</span>
+            <span className="sm:hidden">Refresh</span>
           </button>
           <button 
             onClick={exportToCSV} 
-            className="bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white transition-all h-10 px-4 sm:h-11 sm:px-5 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-sm shadow-blue-600/20 dark:shadow-none"
+            className="flex-1 sm:flex-none bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white transition-all h-10 px-3 sm:px-5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold shadow-sm shadow-blue-600/20 dark:shadow-none"
           >
             <Download className="w-4 h-4" />
-            Export Laporan
+            <span className="hidden sm:inline">Export Laporan</span>
+            <span className="sm:hidden">Export</span>
           </button>
         </div>
       </div>
