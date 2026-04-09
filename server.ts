@@ -220,8 +220,8 @@ app.use(express.urlencoded({ extended: true }));
     const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
 
     if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-      console.log('⚠️ GMAIL_USER or GMAIL_APP_PASSWORD not set. Mocking email send:', { to, subject });
-      return { success: true, mock: true };
+      console.error('⚠️ GMAIL_USER or GMAIL_APP_PASSWORD not set.');
+      return { success: false, error: 'GMAIL_USER atau GMAIL_APP_PASSWORD belum diatur di Environment Variables.' };
     }
 
     try {
@@ -333,7 +333,7 @@ app.use(express.urlencoded({ extended: true }));
     }
   };
   
-  const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+  const CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 
   // Background fetcher to keep cache warm
   const updateDigiflazzCache = async () => {
@@ -343,9 +343,15 @@ app.use(express.urlencoded({ extended: true }));
     }
 
     try {
-      console.log('Running background Digiflazz price update...');
       const types = ['prepaid', 'postpaid'];
       for (const type of types) {
+        // Check if we already have a fresh cache
+        if (priceCache[type] && (Date.now() - priceCache[type].timestamp < CACHE_TTL)) {
+          console.log(`ℹ️ Skipping background update for ${type} prices: Cache is still fresh.`);
+          continue;
+        }
+
+        console.log(`Fetching ${type} price list from Digiflazz...`);
         const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").digest('hex');
         
         const payload = {
@@ -354,7 +360,6 @@ app.use(express.urlencoded({ extended: true }));
           sign: sign
         };
 
-        console.log(`Fetching ${type} price list from Digiflazz...`);
         const response = await axios.post('https://api.digiflazz.com/v1/price-list', payload, getDigiflazzAxiosConfig());
 
         if (response.data?.data && Array.isArray(response.data.data)) {
@@ -365,7 +370,11 @@ app.use(express.urlencoded({ extended: true }));
           saveCacheToFile();
           console.log(`✅ Successfully updated ${type} price cache in background.`);
         } else if (response.data?.data?.rc) {
-          console.error(`❌ Digiflazz ${type} update returned error code ${response.data.data.rc}: ${response.data.data.message}`);
+          if (response.data.data.rc === '83') {
+            console.warn(`⚠️ Digiflazz ${type} rate limit reached (Code 83). Will retry later. Existing cache retained.`);
+          } else {
+            console.error(`❌ Digiflazz ${type} update returned error code ${response.data.data.rc}: ${response.data.data.message}`);
+          }
         } else {
           console.warn(`⚠️ Digiflazz ${type} update returned unexpected format:`, JSON.stringify(response.data).substring(0, 200));
         }
@@ -789,11 +798,18 @@ app.use(express.urlencoded({ extended: true }));
         }
       });
 
+      let userFriendlyError = typeof errorData === 'string' ? errorData : (errorData.message || error.message || 'Failed to fetch balance');
+      
+      // Digiflazz often returns "Signature Anda salah" if the IP is not whitelisted, even if the signature is correct.
+      if (userFriendlyError.toLowerCase().includes('signature') || statusCode === 403 || statusCode === 401) {
+        userFriendlyError = 'Akses Ditolak: Pastikan IP Address server (Cloud Run) sudah di-whitelist di Digiflazz ATAU gunakan FIXIE_URL yang valid. (Error asli: ' + userFriendlyError + ')';
+      }
+
       res.status(statusCode).json({ 
         success: false, 
-        error: typeof errorData === 'string' ? errorData : (errorData.message || error.message || 'Failed to fetch balance'),
+        error: userFriendlyError,
         details: errorData,
-        tip: 'If you get "Signature Anda salah", double check your DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY. Ensure no extra spaces or quotes.'
+        tip: 'Digiflazz mewajibkan Whitelist IP. Jika deploy ke Cloud Run, IP akan berubah-ubah. Anda WAJIB menggunakan proxy statis (FIXIE_URL).'
       });
     }
   });
@@ -1424,7 +1440,7 @@ app.use(express.urlencoded({ extended: true }));
         res.status(500).json({ 
           error: 'Failed to send test email', 
           details: result.error,
-          tip: 'Pastikan GMAIL_USER dan GMAIL_APP_PASSWORD sudah benar di Vercel.'
+          tip: 'Pastikan GMAIL_USER dan GMAIL_APP_PASSWORD sudah benar di Environment Variables.'
         });
       }
     } catch (error: any) {
