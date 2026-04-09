@@ -1,4 +1,4 @@
-import { IpaymuSignature } from './signature';
+import { IpaymuSignature } from './signature.js';
 import axios from 'axios';
 
 export interface RedirectPaymentData {
