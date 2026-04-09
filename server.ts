@@ -5,6 +5,7 @@ import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import path from "path";
 import crypto from "crypto";
+import fs from "fs";
 import CryptoJS from 'crypto-js';
 import nodemailer from "nodemailer";
 import { IpaymuClient } from './src/services/ipaymu/client.js';
@@ -31,6 +32,7 @@ app.use(express.json({
     req.rawBody = buf.toString();
   }
 }));
+app.use(express.urlencoded({ extended: true }));
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
@@ -64,8 +66,8 @@ app.use(express.json({
   });
 
   // Digiflazz API Config
-  const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || '').trim();
-  const DIGIFLAZZ_API_KEY = (process.env.DIGIFLAZZ_API_KEY || '').trim();
+  const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || '').replace(/['"]/g, '').trim();
+  const DIGIFLAZZ_API_KEY = (process.env.DIGIFLAZZ_API_KEY || '').replace(/['"]/g, '').trim();
   
   const isDefaultDigiflazz = !DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY;
 
@@ -75,7 +77,7 @@ app.use(express.json({
     isDefault: isDefaultDigiflazz
   });
 
-  const FIXIE_URL = process.env.FIXIE_URL; // e.g. http://fixie:password@velodrome.usefixie.com:80
+  const FIXIE_URL = process.env.FIXIE_URL && !process.env.FIXIE_URL.includes('YOUR_FIXIE_PROXY_URL') ? process.env.FIXIE_URL : null;
 
   // Helper to get Axios config with proxy if available
   const getDigiflazzAxiosConfig = () => {
@@ -97,7 +99,7 @@ app.use(express.json({
     console.warn('⚠️ IPAYMU_VA or IPAYMU_API_KEY not configured');
   }
 
-  const ipaymuClient = new IpaymuClient(IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_PRODUCTION);
+  const ipaymuClient = new IpaymuClient(IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_PRODUCTION, getDigiflazzAxiosConfig());
 
   console.log('💳 Ipaymu Config:', {
     va: IPAYMU_VA ? '✓ Set' : '✗ Not Set',
@@ -230,7 +232,10 @@ app.use(express.json({
         auth: {
           user: GMAIL_USER,
           pass: GMAIL_APP_PASSWORD
-        }
+        },
+        connectionTimeout: 5000, // 5 seconds timeout
+        greetingTimeout: 5000,
+        socketTimeout: 5000
       });
 
       const info = await transporter.sendMail({
@@ -244,7 +249,7 @@ app.use(express.json({
       return { success: true, data: info };
     } catch (error: any) {
       console.error('❌ Error sending email via Gmail:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message || 'Unknown email error' };
     }
   };
 
@@ -300,15 +305,35 @@ app.use(express.json({
     }
   };
 
-  // Simple in-memory cache for Digiflazz prices
-  const priceCache: {
+  // Simple file-based cache for Digiflazz prices to survive server restarts
+  const CACHE_FILE = path.join(process.cwd(), 'digiflazz_cache.json');
+  let priceCache: {
     [key: string]: {
       data: any;
       timestamp: number;
     }
   } = {};
+
+  // Load cache from file on startup
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      const fileContent = fs.readFileSync(CACHE_FILE, 'utf-8');
+      priceCache = JSON.parse(fileContent);
+      console.log('✅ Loaded Digiflazz price cache from file.');
+    }
+  } catch (err) {
+    console.error('Failed to load Digiflazz cache from file:', err);
+  }
+
+  const saveCacheToFile = () => {
+    try {
+      fs.writeFileSync(CACHE_FILE, JSON.stringify(priceCache), 'utf-8');
+    } catch (err) {
+      console.error('Failed to save Digiflazz cache to file:', err);
+    }
+  };
   
-  const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+  const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 
   // Background fetcher to keep cache warm
   const updateDigiflazzCache = async () => {
@@ -337,6 +362,7 @@ app.use(express.json({
             data: response.data.data,
             timestamp: Date.now()
           };
+          saveCacheToFile();
           console.log(`✅ Successfully updated ${type} price cache in background.`);
         } else if (response.data?.data?.rc) {
           console.error(`❌ Digiflazz ${type} update returned error code ${response.data.data.rc}: ${response.data.data.message}`);
@@ -365,39 +391,6 @@ app.use(express.json({
     setInterval(updateDigiflazzCache, CACHE_TTL);
   }
 
-  // Helper function to generate mock products when rate limited
-  const generateMockProducts = (category: string, type: string) => {
-    const brands = category.toLowerCase().includes('pulsa') ? ['Telkomsel', 'Indosat', 'XL', 'Tri'] : 
-                   category.toLowerCase().includes('data') ? ['Telkomsel', 'Indosat', 'XL'] :
-                   category.toLowerCase().includes('e-money') ? ['GoPay', 'OVO', 'Dana', 'ShopeePay'] :
-                   category.toLowerCase().includes('games') ? ['Free Fire', 'Mobile Legends', 'PUBG'] :
-                   category.toLowerCase().includes('pln') ? ['PLN'] : [category];
-                   
-    const products = [];
-    for (const brand of brands) {
-      for (const amount of [10000, 20000, 50000, 100000]) {
-        products.push({
-          product_name: `${brand} ${amount.toLocaleString('id-ID')}`,
-          category: category,
-          brand: brand,
-          type: type,
-          seller_name: 'Mock Seller',
-          price: amount,
-          buyer_sku_code: `MOCK_${brand.toUpperCase().replace(/\s/g, '')}_${amount}`,
-          buyer_product_status: true,
-          seller_product_status: true,
-          unlimited_stock: true,
-          stock: 100,
-          multi: true,
-          start_cut_off: '00:00',
-          end_cut_off: '00:00',
-          desc: 'Mock product (Digiflazz rate limit reached)'
-        });
-      }
-    }
-    return products;
-  };
-
   // 1. Get Real-time Prices from Digiflazz
   app.post("/api/digital/prices", async (req, res) => {
     try {
@@ -405,9 +398,8 @@ app.use(express.json({
       const cacheKey = `${type}`;
 
       if (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY) {
-        console.log(`Digiflazz credentials not configured. Serving MOCK data for ${category || type}`);
-        const mockData = generateMockProducts(category || 'Umum', type);
-        return res.json({ success: true, data: mockData, mock: true });
+        console.log(`Digiflazz credentials not configured. Returning empty data for ${category || type}`);
+        return res.json({ success: true, data: [], mock: true });
       }
 
       // Check cache first
@@ -435,6 +427,7 @@ app.use(express.json({
           data: data.data,
           timestamp: Date.now()
         };
+        saveCacheToFile();
 
         // Filter by category if provided
         let filtered = data.data;
@@ -457,10 +450,9 @@ app.use(express.json({
             }
             return res.json({ success: true, data: filtered, cached: true, stale: true });
           } else {
-            // Provide mock data if no cache is available to prevent blocking development
-            console.log(`Rate limited and no cache available. Serving MOCK data for ${category || type}`);
-            const mockData = generateMockProducts(category || 'Umum', type);
-            return res.json({ success: true, data: mockData, mock: true });
+            // Return empty data if rate limited and no cache
+            console.log(`Rate limited and no cache available. Returning empty data for ${category || type}`);
+            return res.json({ success: true, data: [], mock: true });
           }
         }
 
@@ -480,10 +472,9 @@ app.use(express.json({
             }
             return res.json({ success: true, data: filtered, cached: true, stale: true });
           } else {
-            // Provide mock data if no cache is available to prevent blocking development
-            console.log(`Rate limited and no cache available. Serving MOCK data for ${category || type}`);
-            const mockData = generateMockProducts(category || 'Umum', type);
-            return res.json({ success: true, data: mockData, mock: true });
+            // Return empty data if rate limited and no cache
+            console.log(`Rate limited and no cache available. Returning empty data for ${category || type}`);
+            return res.json({ success: true, data: [], mock: true });
           }
         }
 
@@ -540,6 +531,45 @@ app.use(express.json({
       const errorMessage = typeof errorData === 'string' ? errorData : (errorData.message || JSON.stringify(errorData));
       
       console.error('Digiflazz PLN Inquiry Connection Error:', errorMessage);
+      res.status(500).json({ success: false, error: errorMessage });
+    }
+  });
+
+  app.post("/api/digital/inquiry-pasca", async (req, res) => {
+    try {
+      const { customer_no, buyer_sku_code } = req.body;
+      if (!customer_no || !buyer_sku_code) {
+        return res.status(400).json({ success: false, error: 'Nomor pelanggan dan SKU harus diisi' });
+      }
+
+      const ref_id = `inq_${buyer_sku_code}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
+
+      console.log('Digiflazz Pasca Inquiry Request:', { customer_no, buyer_sku_code, ref_id });
+
+      const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+        commands: 'inq-pasca',
+        username: DIGIFLAZZ_USERNAME,
+        buyer_sku_code: buyer_sku_code,
+        customer_no: customer_no,
+        ref_id: ref_id,
+        sign: sign
+      }, getDigiflazzAxiosConfig());
+
+      const data = response.data.data;
+      
+      if (data && data.rc === '00') {
+        res.json({ success: true, data: data });
+      } else {
+        const errorMsg = data?.message || 'Gagal melakukan inquiry tagihan';
+        console.error('Digiflazz Pasca Inquiry Business Error:', data);
+        res.json({ success: false, error: errorMsg });
+      }
+    } catch (error: any) {
+      const errorData = error.response?.data?.data || error.response?.data || error.message;
+      const errorMessage = typeof errorData === 'string' ? errorData : (errorData.message || JSON.stringify(errorData));
+      
+      console.error('Digiflazz Pasca Inquiry Connection Error:', errorMessage);
       res.status(500).json({ success: false, error: errorMessage });
     }
   });
@@ -726,7 +756,17 @@ app.use(express.json({
         sign: sign
       }, getDigiflazzAxiosConfig());
 
-      if (response.data.data && response.data.data.rc && response.data.data.rc !== '00') {
+      if (!response.data || !response.data.data) {
+        console.error('❌ Digiflazz Cek Saldo Invalid Response:', response.data);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Invalid response from Digiflazz',
+          details: response.data
+        });
+      }
+
+      if (response.data.data.rc && response.data.data.rc !== '00') {
+        console.error('❌ Digiflazz Cek Saldo RC Error:', response.data.data);
         return res.status(400).json({ 
           success: false, 
           error: response.data.data.message || 'Digiflazz error',
@@ -737,12 +777,23 @@ app.use(express.json({
       res.json({ success: true, data: response.data.data });
     } catch (error: any) {
       const errorData = error.response?.data || error.message;
-      console.error('Digiflazz Cek Saldo Error:', JSON.stringify(errorData, null, 2));
-      res.status(500).json({ 
+      const statusCode = error.response?.status || 500;
+      
+      console.error(`❌ Digiflazz Cek Saldo Error [${statusCode}]:`, {
+        message: error.message,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
+
+      res.status(statusCode).json({ 
         success: false, 
-        error: typeof errorData === 'string' ? errorData : (errorData.message || 'Failed to fetch balance'),
+        error: typeof errorData === 'string' ? errorData : (errorData.message || error.message || 'Failed to fetch balance'),
         details: errorData,
-        tip: 'If you get "Signature Anda salah", double check your DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY in environment variables. Ensure you are using the correct key (Production vs Development).'
+        tip: 'If you get "Signature Anda salah", double check your DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY. Ensure no extra spaces or quotes.'
       });
     }
   });
@@ -750,7 +801,7 @@ app.use(express.json({
   // 2. Place Order to Digiflazz
   app.post("/api/digital/order", async (req, res) => {
     try {
-      const { sku, customer_no, ref_id, is_postpaid } = req.body;
+      const { sku, customer_no, ref_id, is_postpaid } = req.body || {};
       const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
 
       const payload: any = {
@@ -957,7 +1008,7 @@ app.use(express.json({
         });
       }
 
-      const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const appUrl = process.env.APP_URL || 'https://spscorner.store';
 
       const paymentData: any = {
         product: [],
@@ -1016,7 +1067,7 @@ app.use(express.json({
         buyer_phone,
         payment_method = 'qris',
         payment_channel = 'qris',
-      } = req.body;
+      } = req.body || {};
 
       if (!buyer_name || !buyer_email || !buyer_phone || !amount || !transaction_id) {
         return res.status(400).json({
@@ -1032,7 +1083,7 @@ app.use(express.json({
         });
       }
 
-      const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const appUrl = process.env.APP_URL || 'https://spscorner.store';
 
       let method = (payment_method || 'qris').toLowerCase();
       let channel = (payment_channel || 'qris').toLowerCase();
@@ -1078,7 +1129,7 @@ app.use(express.json({
    */
   app.post('/api/payment/ipaymu/callback', async (req, res) => {
     try {
-      const { status, reference_id, trx_id, sid, transaction_id } = req.body;
+      const { status, reference_id, trx_id, sid, transaction_id } = req.body || {};
 
       console.log('🔔 Ipaymu Callback Received:', {
         status,
@@ -1196,24 +1247,24 @@ app.use(express.json({
       const { buyer_name, buyer_id, total_amount, items, payment_method, status, receipt_image } = req.body;
 
       // 1. Create transaction record
-      const txId = crypto.randomUUID();
-      const txData: any = {
-        id: txId,
+      const txDataToInsert: any = {
         buyer_name,
         total_amount,
         status: status || 'pending'
       };
-      if (buyer_id) txData.buyer_id = buyer_id;
-      if (payment_method) txData.payment_method = payment_method;
-      if (receipt_image) txData.receipt_image = receipt_image;
+      if (buyer_id) txDataToInsert.buyer_id = buyer_id;
+      if (payment_method) txDataToInsert.payment_method = payment_method;
+      if (receipt_image) txDataToInsert.receipt_image = receipt_image;
 
-      const { error: txError } = await supabase
+      const { data: txDataResult, error: txError } = await supabase
         .from('transactions')
-        .insert(txData);
+        .insert(txDataToInsert)
+        .select()
+        .single();
 
       if (txError) throw txError;
 
-      const tx = { ...txData };
+      const tx = txDataResult;
 
       // 2. Create transaction items
       const txItems = items.map((item: any) => ({
@@ -1241,7 +1292,7 @@ app.use(express.json({
       if (itemsError) throw itemsError;
 
       // Process digital items via Digiflazz if status is paid or success
-      if (txData.status === 'paid' || txData.status === 'success') {
+      if (tx.status === 'paid' || tx.status === 'success') {
         const digitalItems = txItems.filter((item: any) => item.metadata?.is_digital);
         
         for (let i = 0; i < digitalItems.length; i++) {
@@ -1286,7 +1337,7 @@ app.use(express.json({
       }
 
       // 3. Trigger Sariroti Email if status is paid or success
-      if (txData.status === 'paid' || txData.status === 'success') {
+      if (tx.status === 'paid' || tx.status === 'success') {
         await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
       }
 
