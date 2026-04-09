@@ -80,7 +80,11 @@ export default function AdminWithdrawals() {
         }
       }
 
-      fetchWithdrawals();
+      // Update local state optimistically instead of refetching everything
+      setWithdrawals(prev => prev.map(w => 
+        w.id === id ? { ...w, status: newStatus } : w
+      ));
+      
       toast.success(`Status berhasil diubah menjadi ${newStatus}`);
     } catch (error) {
       console.error('Error updating withdrawal status:', error);

@@ -77,7 +77,22 @@ export default function Checkout() {
         body: JSON.stringify(txData)
       });
 
-      if (!createRes.ok) throw new Error('Failed to create transaction');
+      if (!createRes.ok) {
+        let errorMessage = 'Failed to create transaction';
+        try {
+          const text = await createRes.text();
+          try {
+            const errorData = JSON.parse(text);
+            errorMessage = errorData?.error || errorMessage;
+          } catch (e) {
+            console.error('Non-JSON error response from create:', text);
+            errorMessage = `Server error (${createRes.status}): ${text.slice(0, 100)}`;
+          }
+        } catch (e) {
+          console.error('Failed to read error response:', e);
+        }
+        throw new Error(errorMessage);
+      }
       const { transaction: tx } = await createRes.json();
       setTransactionId(tx.id);
 
@@ -97,8 +112,20 @@ export default function Checkout() {
       });
 
       if (!ipaymuRes.ok) {
-        const errorData = await ipaymuRes.json();
-        throw new Error(errorData?.error || 'Failed to create IPaymu direct payment');
+        let errorMessage = 'Failed to create IPaymu direct payment';
+        try {
+          const text = await ipaymuRes.text();
+          try {
+            const errorData = JSON.parse(text);
+            errorMessage = errorData?.error || errorMessage;
+          } catch (e) {
+            console.error('Non-JSON error response from ipaymu direct:', text);
+            errorMessage = `Server error (${ipaymuRes.status}): ${text.slice(0, 100)}`;
+          }
+        } catch (e) {
+          console.error('Failed to read error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
       const { data } = await ipaymuRes.json();
@@ -156,8 +183,20 @@ export default function Checkout() {
       });
 
       if (!createRes.ok) {
-        const errorData = await createRes.json();
-        throw new Error(errorData?.error || 'Failed to create transaction');
+        let errorMessage = 'Failed to create transaction';
+        try {
+          const text = await createRes.text();
+          try {
+            const errorData = JSON.parse(text);
+            errorMessage = errorData?.error || errorMessage;
+          } catch (e) {
+            console.error('Non-JSON error response from create:', text);
+            errorMessage = `Server error (${createRes.status}): ${text.slice(0, 100)}`;
+          }
+        } catch (e) {
+          console.error('Failed to read error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
       const { transaction: tx } = await createRes.json();
@@ -182,8 +221,20 @@ export default function Checkout() {
       });
 
       if (!ipaymuRes.ok) {
-        const errorData = await ipaymuRes.json();
-        throw new Error(errorData?.error || 'Failed to create IPaymu payment');
+        let errorMessage = 'Failed to create IPaymu payment';
+        try {
+          const text = await ipaymuRes.text();
+          try {
+            const errorData = JSON.parse(text);
+            errorMessage = errorData?.error || errorMessage;
+          } catch (e) {
+            console.error('Non-JSON error response from ipaymu:', text);
+            errorMessage = `Server error (${ipaymuRes.status}): ${text.slice(0, 100)}`;
+          }
+        } catch (e) {
+          console.error('Failed to read error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
       const { payment_url } = await ipaymuRes.json();
@@ -226,7 +277,7 @@ export default function Checkout() {
 
         {paymentStep === 'summary' ? (
           <>
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden mb-6">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden mb-6 tour-checkout-methods">
               <div className="bg-zinc-900 dark:bg-zinc-950 text-white p-6 text-center relative overflow-hidden">
                 <div className="absolute inset-0 opacity-20 pointer-events-none">
                   <div className="absolute top-0 left-0 w-full h-full" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
@@ -349,7 +400,7 @@ export default function Checkout() {
                 </h2>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-left">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-left tour-payment-instructions">
                 <h4 className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">Instruksi:</h4>
                 <ol className="text-xs text-blue-600 dark:text-blue-300 space-y-1.5 list-decimal pl-4 font-medium">
                   {directPaymentData?.QrImage ? (

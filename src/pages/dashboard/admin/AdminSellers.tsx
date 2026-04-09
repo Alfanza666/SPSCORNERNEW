@@ -139,7 +139,11 @@ export default function AdminSellers() {
         .eq('id', id);
         
       if (error) throw error;
-      fetchSellers();
+      
+      // Update local state optimistically
+      setSellers(prev => prev.map(s => 
+        s.id === id ? { ...s, is_active: !currentStatus } : s
+      ));
     } catch (error) {
       console.error('Error updating seller status:', error);
       toast.error('Gagal mengubah status penjual');

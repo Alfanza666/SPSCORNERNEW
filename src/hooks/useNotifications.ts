@@ -27,20 +27,34 @@ export function useNotifications() {
 
       try {
         if (user.role === 'admin') {
-          // 1. Pending Transactions (status = 'paid')
+          // 1. Recent Transactions
           const { data: txData } = await supabase
             .from('transactions')
-            .select('id, created_at, buyer_name')
-            .eq('status', 'paid')
-            .order('created_at', { ascending: false });
+            .select('id, created_at, buyer_name, status')
+            .in('status', ['paid', 'completed', 'cancelled'])
+            .order('created_at', { ascending: false })
+            .limit(20);
 
           if (txData) {
             txData.forEach(tx => {
+              let title = '';
+              let message = '';
+              if (tx.status === 'paid') {
+                title = 'Pesanan Perlu Diproses';
+                message = `Pembayaran dari ${tx.buyer_name || 'Pelanggan'} telah diterima.`;
+              } else if (tx.status === 'completed') {
+                title = 'Pesanan Selesai';
+                message = `Pesanan dari ${tx.buyer_name || 'Pelanggan'} telah selesai.`;
+              } else if (tx.status === 'cancelled') {
+                title = 'Pesanan Dibatalkan';
+                message = `Pesanan dari ${tx.buyer_name || 'Pelanggan'} telah dibatalkan.`;
+              }
+              
               notifs.push({
-                id: `tx-${tx.id}`,
+                id: `tx-${tx.id}-${tx.status}`,
                 type: 'transaction',
-                title: 'Pesanan Perlu Diproses',
-                message: `Pembayaran dari ${tx.buyer_name || 'Pelanggan'} telah diterima. Segera proses pesanan ini.`,
+                title,
+                message,
                 time: new Date(tx.created_at).toISOString(),
                 path: '/dashboard/admin/transactions',
                 isRead: false
@@ -48,21 +62,31 @@ export function useNotifications() {
             });
           }
 
-          // 2. Pending Withdrawals
+          // 2. Recent Withdrawals
           const { data: wdData } = await supabase
             .from('withdrawals')
-            .select('id, created_at, seller_id, profiles(name)')
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false });
+            .select('id, created_at, seller_id, status, profiles(name)')
+            .order('created_at', { ascending: false })
+            .limit(10);
 
           if (wdData) {
             wdData.forEach(wd => {
               const sellerName = Array.isArray(wd.profiles) ? wd.profiles[0]?.name : (wd.profiles as any)?.name;
+              let title = '';
+              let message = '';
+              if (wd.status === 'pending') {
+                title = 'Permintaan Penarikan';
+                message = `Penjual ${sellerName || 'Unknown'} mengajukan penarikan saldo.`;
+              } else {
+                title = `Penarikan ${wd.status === 'rejected' ? 'Ditolak' : 'Disetujui'}`;
+                message = `Penarikan dari ${sellerName || 'Unknown'} telah ${wd.status === 'rejected' ? 'ditolak' : 'disetujui'}.`;
+              }
+
               notifs.push({
-                id: `wd-${wd.id}`,
+                id: `wd-${wd.id}-${wd.status}`,
                 type: 'withdrawal',
-                title: 'Permintaan Penarikan',
-                message: `Penjual ${sellerName || 'Unknown'} mengajukan penarikan saldo.`,
+                title,
+                message,
                 time: new Date(wd.created_at).toISOString(),
                 path: '/dashboard/admin/withdrawals',
                 isRead: false
@@ -70,24 +94,38 @@ export function useNotifications() {
             });
           }
         } else if (user.role === 'seller') {
-          // 1. Transactions containing their products (status = 'paid')
+          // 1. Transactions containing their products
           const { data: txItems } = await supabase
             .from('transaction_items')
             .select('id, created_at, transactions!inner(id, status, buyer_name)')
             .eq('seller_id', user.id)
-            .eq('transactions.status', 'paid')
-            .order('created_at', { ascending: false });
+            .in('transactions.status', ['paid', 'completed', 'cancelled'])
+            .order('created_at', { ascending: false })
+            .limit(20);
 
           if (txItems) {
             const uniqueTxs = new Map();
             txItems.forEach(item => {
               const tx = Array.isArray(item.transactions) ? item.transactions[0] : item.transactions;
-              if (tx && !uniqueTxs.has(tx.id)) {
-                uniqueTxs.set(tx.id, {
-                  id: `tx-${tx.id}`,
+              if (tx && !uniqueTxs.has(`${tx.id}-${tx.status}`)) {
+                let title = '';
+                let message = '';
+                if (tx.status === 'paid') {
+                  title = 'Pesanan Baru';
+                  message = `Ada pesanan baru dari ${tx.buyer_name || 'Pelanggan'} yang mengandung produk Anda.`;
+                } else if (tx.status === 'completed') {
+                  title = 'Pesanan Selesai';
+                  message = `Pesanan dari ${tx.buyer_name || 'Pelanggan'} telah selesai.`;
+                } else if (tx.status === 'cancelled') {
+                  title = 'Pesanan Dibatalkan';
+                  message = `Pesanan dari ${tx.buyer_name || 'Pelanggan'} telah dibatalkan.`;
+                }
+
+                uniqueTxs.set(`${tx.id}-${tx.status}`, {
+                  id: `tx-${tx.id}-${tx.status}`,
                   type: 'transaction',
-                  title: 'Pesanan Baru',
-                  message: `Ada pesanan baru dari ${tx.buyer_name || 'Pelanggan'} yang mengandung produk Anda.`,
+                  title,
+                  message,
                   time: new Date(item.created_at).toISOString(),
                   path: '/dashboard/seller/products',
                   isRead: false
@@ -102,20 +140,29 @@ export function useNotifications() {
             .from('withdrawals')
             .select('id, created_at, status, amount')
             .eq('seller_id', user.id)
-            .in('status', ['approved', 'rejected', 'paid'])
             .order('created_at', { ascending: false })
-            .limit(5);
+            .limit(10);
 
           if (wdData) {
             wdData.forEach(wd => {
+              let title = '';
+              let message = '';
+              if (wd.status === 'pending') {
+                title = 'Penarikan Diproses';
+                message = `Penarikan saldo sebesar Rp ${wd.amount.toLocaleString('id-ID')} sedang diproses.`;
+              } else {
+                title = `Penarikan ${wd.status === 'rejected' ? 'Ditolak' : 'Disetujui'}`;
+                message = `Penarikan saldo sebesar Rp ${wd.amount.toLocaleString('id-ID')} telah ${wd.status === 'rejected' ? 'ditolak' : 'disetujui/dibayar'}.`;
+              }
+
               notifs.push({
-                id: `wd-${wd.id}`,
+                id: `wd-${wd.id}-${wd.status}`,
                 type: 'withdrawal',
-                title: `Penarikan ${wd.status === 'rejected' ? 'Ditolak' : 'Disetujui'}`,
-                message: `Penarikan saldo sebesar Rp ${wd.amount.toLocaleString('id-ID')} telah ${wd.status === 'rejected' ? 'ditolak' : 'disetujui/dibayar'}.`,
+                title,
+                message,
                 time: new Date(wd.created_at).toISOString(),
                 path: '/dashboard/seller/withdrawals',
-                isRead: true // Mark historical as read
+                isRead: false
               });
             });
           }
@@ -124,8 +171,17 @@ export function useNotifications() {
         // Sort all by time descending
         notifs.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
         
-        setNotifications(notifs);
-        setUnreadCount(notifs.filter(n => !n.isRead).length);
+        // Apply read status from localStorage
+        const readNotifs = JSON.parse(localStorage.getItem(`read_notifs_${user.id}`) || '[]');
+        const readNotifsSet = new Set(readNotifs);
+        
+        const finalNotifs = notifs.map(n => ({
+          ...n,
+          isRead: n.isRead || readNotifsSet.has(n.id)
+        }));
+        
+        setNotifications(finalNotifs);
+        setUnreadCount(finalNotifs.filter(n => !n.isRead).length);
       } catch (error) {
         console.error('Error fetching notifications:', error);
       } finally {
@@ -136,11 +192,12 @@ export function useNotifications() {
     fetchNotifications();
 
     // Set up realtime subscriptions
-    const txSub = supabase.channel('public:transactions')
+    const channelName = `notifs-${user.id}-${Date.now()}`;
+    const txSub = supabase.channel(`${channelName}-tx`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, fetchNotifications)
       .subscribe();
       
-    const wdSub = supabase.channel('public:withdrawals')
+    const wdSub = supabase.channel(`${channelName}-wd`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'withdrawals' }, fetchNotifications)
       .subscribe();
 
@@ -151,6 +208,9 @@ export function useNotifications() {
   }, [user]);
 
   const markAllAsRead = () => {
+    if (!user) return;
+    const readIds = notifications.map(n => n.id);
+    localStorage.setItem(`read_notifs_${user.id}`, JSON.stringify(readIds));
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     setUnreadCount(0);
   };

@@ -148,9 +148,13 @@ export default function AdminDashboard() {
       let digiflazzBalance = 0;
       try {
         const response = await fetch('/api/digital/cek-saldo');
-        const data = await response.json();
-        if (data.success) {
-          digiflazzBalance = data.data.deposit || 0;
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            digiflazzBalance = data.data.deposit || 0;
+          }
+        } else {
+          console.error('Failed to fetch Digiflazz balance, status:', response.status);
         }
       } catch (err) {
         console.error('Error fetching Digiflazz balance:', err);
@@ -289,7 +293,18 @@ export default function AdminDashboard() {
       }
 
       toast.success('Transaksi berhasil disetujui!');
-      fetchDashboardData();
+      
+      // Update local state optimistically
+      setPendingTransactions(prev => prev.filter(tx => tx.id !== txId));
+      const approvedTx = pendingTransactions.find(tx => tx.id === txId);
+      if (approvedTx) {
+        setRecentTransactions(prev => [{...approvedTx, status: 'success'}, ...prev].slice(0, 5));
+      }
+      setStats(prev => ({
+        ...prev,
+        totalTransactions: prev.totalTransactions + 1,
+        totalSales: prev.totalSales + (approvedTx?.total_amount || 0)
+      }));
     } catch (error: any) {
       console.error('Error approving transaction:', error);
       toast.error(error.message);
@@ -305,7 +320,13 @@ export default function AdminDashboard() {
 
       if (error) throw error;
       toast.success('Transaksi ditolak');
-      fetchDashboardData();
+      
+      // Update local state optimistically
+      setPendingTransactions(prev => prev.filter(tx => tx.id !== txId));
+      setStats(prev => ({
+        ...prev,
+        failedTransactions: prev.failedTransactions + 1
+      }));
     } catch (error: any) {
       console.error('Error rejecting transaction:', error);
       toast.error('Gagal menolak transaksi');

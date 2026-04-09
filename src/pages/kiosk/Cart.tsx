@@ -231,7 +231,7 @@ export default function Cart() {
               Ringkasan
             </h2>
             
-            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
+            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 tour-buyer-name">
               <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">
                 <span>Total Item</span>
                 <span className="text-zinc-900 dark:text-white font-black">

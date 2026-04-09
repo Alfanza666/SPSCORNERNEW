@@ -1,4 +1,5 @@
 import { IpaymuSignature } from './signature';
+import axios from 'axios';
 
 export interface RedirectPaymentData {
   product?: string[];
@@ -41,13 +42,15 @@ export class IpaymuClient {
   private va: string;
   private apiKey: string;
   private baseUrl: string;
+  private axiosConfig: any;
 
-  constructor(va: string, apiKey: string, production: boolean = false) {
+  constructor(va: string, apiKey: string, production: boolean = false, axiosConfig: any = {}) {
     this.va = va.trim();
     this.apiKey = apiKey.trim();
     this.baseUrl = production
       ? 'https://my.ipaymu.com/api/v2'
       : 'https://sandbox.ipaymu.com/api/v2';
+    this.axiosConfig = axiosConfig;
       
     const logMsg = `\n=== IPAYMU CLIENT INITIALIZED ===\nMode: ${production ? 'PRODUCTION' : 'SANDBOX'}\nBase URL: ${this.baseUrl}\nVA: ${this.va}\nAPI Key Length: ${this.apiKey.length}\nRaw IPAYMU_PRODUCTION env: ${process.env.IPAYMU_PRODUCTION}\n=================================\n`;
     console.log(logMsg);
@@ -67,19 +70,18 @@ export class IpaymuClient {
 
     try {
       console.log('📤 Sending payment request to Ipaymu...');
-      const response = await fetch(`${this.baseUrl}/payment`, {
-        method: 'POST',
+      const response = await axios.post(`${this.baseUrl}/payment`, JSON.parse(jsonBody), {
+        ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'va': this.va,
           'signature': signature,
           'timestamp': timestamp,
-        },
-        body: jsonBody,
+        }
       });
 
-      const responseData = await response.json();
+      const responseData = response.data;
 
       if (responseData.Status === 200) {
         console.log('✅ Payment request successful');
@@ -88,8 +90,8 @@ export class IpaymuClient {
         throw new Error(responseData.Message || 'Payment creation failed');
       }
     } catch (error: any) {
-      console.error('❌ Payment Error:', error);
-      throw new Error(`Payment Error: ${error.message}`);
+      console.error('❌ Payment Error:', error.response?.data || error.message);
+      throw new Error(`Payment Error: ${error.response?.data?.Message || error.message}`);
     }
   }
 
@@ -107,19 +109,18 @@ export class IpaymuClient {
 
     try {
       console.log('📤 Sending direct payment request...');
-      const response = await fetch(`${this.baseUrl}/payment/direct`, {
-        method: 'POST',
+      const response = await axios.post(`${this.baseUrl}/payment/direct`, JSON.parse(jsonBody), {
+        ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'va': this.va,
           'signature': signature,
           'timestamp': timestamp,
-        },
-        body: jsonBody,
+        }
       });
 
-      const responseData = await response.json();
+      const responseData = response.data;
 
       if (responseData.Status === 200) {
         console.log('✅ Direct payment request successful');
@@ -128,8 +129,8 @@ export class IpaymuClient {
         throw new Error(responseData.Message || 'Direct payment failed');
       }
     } catch (error: any) {
-      console.error('❌ Direct Payment Error:', error);
-      throw new Error(`Direct Payment Error: ${error.message}`);
+      console.error('❌ Direct Payment Error:', error.response?.data || error.message);
+      throw new Error(`Direct Payment Error: ${error.response?.data?.Message || error.message}`);
     }
   }
 
@@ -146,22 +147,21 @@ export class IpaymuClient {
     );
 
     try {
-      const response = await fetch(`${this.baseUrl}/transaction/details`, {
-        method: 'POST',
+      const response = await axios.post(`${this.baseUrl}/transaction/details`, JSON.parse(jsonBody), {
+        ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'va': this.va,
           'signature': signature,
           'timestamp': timestamp,
-        },
-        body: jsonBody,
+        }
       });
 
-      const responseData = await response.json();
+      const responseData = response.data;
       return responseData;
     } catch (error: any) {
-      throw new Error(`Status Check Error: ${error.message}`);
+      throw new Error(`Status Check Error: ${error.response?.data?.Message || error.message}`);
     }
   }
 
@@ -170,11 +170,11 @@ export class IpaymuClient {
    */
   async getPaymentMethods(): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/payment-methods`);
-      const responseData = await response.json();
+      const response = await axios.get(`${this.baseUrl}/payment-methods`, this.axiosConfig);
+      const responseData = response.data;
       return responseData;
     } catch (error: any) {
-      throw new Error(`Payment Methods Error: ${error.message}`);
+      throw new Error(`Payment Methods Error: ${error.response?.data?.Message || error.message}`);
     }
   }
 }

@@ -4,6 +4,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { Toaster } from 'react-hot-toast';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
+import Tutorial from './components/Tutorial';
 
 // Lazy load components
 const Home = React.lazy(() => import('./pages/Home'));
@@ -21,6 +22,7 @@ const Profile = React.lazy(() => import('./pages/kiosk/Profile'));
 const DigitalProducts = React.lazy(() => import('./pages/kiosk/DigitalProducts'));
 const Terms = React.lazy(() => import('./pages/Terms'));
 const Contact = React.lazy(() => import('./pages/Contact'));
+const HelpCenter = React.lazy(() => import('./pages/HelpCenter'));
 
 const DashboardLayout = React.lazy(() => import('./pages/dashboard/DashboardLayout'));
 const AdminDashboard = React.lazy(() => import('./pages/dashboard/admin/AdminDashboard'));
@@ -130,6 +132,7 @@ export default function App() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <BrowserRouter>
+        <Tutorial />
         <Toaster 
           toastOptions={{
             className: 'text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-3',
@@ -147,6 +150,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/help" element={<HelpCenter />} />
             
             {/* Kiosk Routes */}
             <Route path="/kiosk" element={<KioskLayout />}>

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Home, LogOut, User, Check, Clock } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Home, LogOut, User, Check, Clock, HelpCircle } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
@@ -159,8 +159,15 @@ export default function KioskLayout() {
               {isCatalog && (
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <button
+                    onClick={() => window.dispatchEvent(new Event('start-tutorial'))}
+                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
+                    title="Bantuan / Tutorial"
+                  >
+                    <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                  <button
                     onClick={() => navigate('/kiosk/history')}
-                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 overflow-hidden"
+                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 overflow-hidden tour-kiosk-history"
                     title="Riwayat Pesanan"
                   >
                     <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -176,7 +183,7 @@ export default function KioskLayout() {
                   )}
                   <button
                     onClick={() => navigate('/kiosk/cart')}
-                    className="relative clay-icon-amber h-7 w-7 sm:h-8 sm:w-auto sm:px-3 group tour-cart-button"
+                    className="relative clay-icon-amber h-7 w-7 sm:h-8 sm:w-auto sm:px-3 group tour-kiosk-cart"
                   >
                     <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-1.5" />
                     <span className="hidden sm:inline text-[10px] font-bold">Keranjang</span>

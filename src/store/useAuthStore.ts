@@ -21,7 +21,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: true,
-  setUser: (user) => set({ user }),
+  setUser: (user) => set({ user, isLoading: false }),
   fetchProfile: async (userId) => {
     try {
       set({ isLoading: true });

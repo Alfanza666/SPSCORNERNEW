@@ -22,6 +22,8 @@ import {
   ExternalLink
 } from 'lucide-react';
 
+import { Link } from 'react-router-dom';
+
 const FAQ_ITEMS = [
   {
     question: "Bagaimana cara melakukan pembayaran?",
@@ -208,6 +210,16 @@ export default function Profile() {
             </div>
 
             <div className="mt-5 pt-5 sm:mt-6 sm:pt-6 border-t border-zinc-50 dark:border-zinc-800 space-y-2 sm:space-y-3">
+              <Link 
+                to="/help"
+                className="w-full flex items-center justify-between p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg sm:rounded-xl text-purple-700 dark:text-purple-400 transition-all group shadow-inner border border-purple-100/50 dark:border-purple-800"
+              >
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="font-bold text-[10px] sm:text-xs">Pusat Bantuan & Tutorial</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
               <button className="w-full flex items-center justify-between p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg sm:rounded-xl text-blue-700 dark:text-blue-400 transition-all group shadow-inner border border-blue-100/50 dark:border-blue-800">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />

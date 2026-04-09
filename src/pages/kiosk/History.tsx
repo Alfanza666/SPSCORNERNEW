@@ -241,7 +241,7 @@ Sistem SPS Corner`);
           </button>
         </motion.div>
       ) : (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-4 sm:space-y-6 tour-kiosk-history-list">
           <AnimatePresence mode="popLayout">
             {filteredTransactions.map((tx) => (
               <motion.div
