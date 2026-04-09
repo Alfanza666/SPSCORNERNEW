@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import path from "path";
+import os from "os";
 import crypto from "crypto";
 import fs from "fs";
 import CryptoJS from 'crypto-js';
@@ -298,15 +299,20 @@ app.use(express.urlencoded({ extended: true }));
         </div>
       `;
 
-      await sendSarirotiEmailInternal(targetEmail, `Pesanan Sariroti Baru - ${buyerName}`, emailHtml);
-      console.log(`✅ Sariroti email triggered for transaction ${transactionId}`);
+      const result = await sendSarirotiEmailInternal(targetEmail, `Pesanan Sariroti Baru - ${buyerName}`, emailHtml);
+      if (result.success) {
+        console.log(`✅ Sariroti email triggered for transaction ${transactionId}`);
+      } else {
+        console.error(`❌ Failed to send Sariroti email for transaction ${transactionId}:`, result.error);
+      }
     } catch (err) {
       console.error('❌ Error triggering Sariroti email:', err);
     }
   };
 
   // Simple file-based cache for Digiflazz prices to survive server restarts
-  const CACHE_FILE = path.join(process.cwd(), 'digiflazz_cache.json');
+  // Use os.tmpdir() to support read-only filesystems like Cloud Run and Vercel
+  const CACHE_FILE = path.join(os.tmpdir(), 'digiflazz_cache.json');
   let priceCache: {
     [key: string]: {
       data: any;
