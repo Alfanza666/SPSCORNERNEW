@@ -7,10 +7,8 @@ import path from "path";
 import os from "os";
 import crypto from "crypto";
 import fs from "fs";
-import CryptoJS from 'crypto-js';
 import nodemailer from "nodemailer";
 import { IpaymuClient } from './src/services/ipaymu/client.js';
-import { IpaymuSignature } from './src/services/ipaymu/signature.js';
 import type { RedirectPaymentData, DirectPaymentData } from './src/services/ipaymu/client.js';
 
 dotenv.config();
@@ -84,8 +82,12 @@ app.use(express.urlencoded({ extended: true }));
   const getDigiflazzAxiosConfig = () => {
     const config: any = {};
     if (FIXIE_URL) {
-      config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
-      config.proxy = false;
+      try {
+        config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
+        config.proxy = false;
+      } catch (error) {
+        console.error('❌ Invalid FIXIE_URL provided. Proxy will not be used.', error);
+      }
     }
     return config;
   };
