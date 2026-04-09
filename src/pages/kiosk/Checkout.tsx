@@ -14,8 +14,10 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [paymentStep, setPaymentStep] = useState<'summary' | 'ipaymu_direct'>('summary');
+  const [paymentStep, setPaymentStep] = useState<'summary' | 'ipaymu_direct' | 'manual_qris'>('summary');
   const [directPaymentData, setDirectPaymentData] = useState<any>(null);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [verifyingReceipt, setVerifyingReceipt] = useState(false);
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
@@ -142,6 +144,101 @@ export default function Checkout() {
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManualQris = async () => {
+    if (!buyerName) return;
+    setLoading(true);
+
+    try {
+      // 1. Create transaction record via backend API
+      const txData: any = {
+        buyer_name: buyerName,
+        buyer_id: user?.id || null,
+        total_amount: getTotal(),
+        items: items.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity,
+          price_at_time: item.price,
+          metadata: item.metadata
+        }))
+      };
+
+      const txRes = await fetch('/api/payment/transactions/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(txData)
+      });
+
+      if (!txRes.ok) {
+        const errorData = await txRes.json();
+        throw new Error(errorData.error || 'Failed to create transaction');
+      }
+
+      const { transaction } = await txRes.json();
+      setTransactionId(transaction.id);
+      setPaymentStep('manual_qris');
+
+      // 2. Confirm reservations
+      for (const resId of reservations) {
+        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
+      }
+
+    } catch (error: any) {
+      console.error('Manual QRIS error:', error);
+      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReceiptImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const verifyReceipt = async () => {
+    if (!receiptImage || !transactionId) return;
+    setVerifyingReceipt(true);
+
+    try {
+      const response = await fetch('/api/payment/manual/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transaction_id: transactionId,
+          receipt_image: receiptImage,
+          expected_amount: getTotal()
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Gagal memverifikasi bukti pembayaran');
+      }
+
+      if (data.success) {
+        toast.success('Pembayaran berhasil diverifikasi!');
+        clearCart();
+        setReservations([]);
+        sessionStorage.removeItem('buyerName');
+        navigate('/kiosk/success');
+      } else {
+        toast.error(data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai');
+      }
+    } catch (error: any) {
+      console.error('Verify receipt error:', error);
+      toast.error(error.message || 'Terjadi kesalahan saat memverifikasi bukti pembayaran');
+    } finally {
+      setVerifyingReceipt(false);
     }
   };
 
@@ -340,6 +437,21 @@ export default function Checkout() {
                       <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Transfer via Livin' Mandiri</p>
                     </div>
                   </button>
+
+                  {/* Manual QRIS Option */}
+                  <button
+                    onClick={handleManualQris}
+                    disabled={loading}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group"
+                  >
+                    <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                      <QrCode className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Manual)</p>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Upload Bukti Bayar</p>
+                    </div>
+                  </button>
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
@@ -368,6 +480,84 @@ export default function Checkout() {
               Kembali ke Keranjang
             </button>
           </>
+        ) : paymentStep === 'manual_qris' ? (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
+              <div className="max-w-[280px] mx-auto mb-6">
+                <img src="/qris.png" alt="QRIS Manual" className="w-full aspect-square object-contain rounded-xl shadow-md" />
+              </div>
+              
+              <div className="space-y-2 mb-8">
+                <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Total Bayar</p>
+                <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">
+                  {formatRupiah(getTotal())}
+                </h2>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-left mb-6">
+                <h4 className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">Instruksi:</h4>
+                <ol className="text-xs text-blue-600 dark:text-blue-300 space-y-1.5 list-decimal pl-4 font-medium">
+                  <li>Scan kode QR di atas menggunakan aplikasi pembayaran Anda</li>
+                  <li>Masukkan nominal <strong>{formatRupiah(getTotal())}</strong></li>
+                  <li>Selesaikan pembayaran</li>
+                  <li>Screenshot bukti pembayaran dan upload di bawah ini</li>
+                </ol>
+              </div>
+
+              <div className="space-y-4">
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="receipt-upload"
+                  />
+                  <label
+                    htmlFor="receipt-upload"
+                    className="btn-clay-secondary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white cursor-pointer"
+                  >
+                    {receiptImage ? 'Ganti Bukti Pembayaran' : 'Upload Bukti Pembayaran'}
+                  </label>
+                </div>
+
+                {receiptImage && (
+                  <div className="mt-4">
+                    <img src={receiptImage} alt="Bukti Pembayaran" className="max-h-48 mx-auto rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <button
+                onClick={verifyReceipt}
+                disabled={!receiptImage || verifyingReceipt}
+                className="btn-clay-primary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifyingReceipt ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Memverifikasi...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    Verifikasi Pembayaran
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setPaymentStep('summary')}
+                disabled={verifyingReceipt}
+                className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
+              >
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
+                Ganti Metode Pembayaran
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">

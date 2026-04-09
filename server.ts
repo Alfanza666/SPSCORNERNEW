@@ -22,6 +22,11 @@ const supabaseServiceKey = typeof envKey === 'string' && envKey.trim() !== '' ? 
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+import { GoogleGenAI } from '@google/genai';
+
+// Initialize Gemini API
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
 const app = express();
 
 // Increase payload limit for base64 images and save raw body for webhook signature verification
@@ -1074,6 +1079,94 @@ app.use(express.urlencoded({ extended: true }));
         success: false,
         error: error.message,
       });
+    }
+  });
+
+  /**
+   * Manual Payment Verification
+   * POST /api/payment/manual/verify
+   */
+  app.post('/api/payment/manual/verify', async (req, res) => {
+    try {
+      const { transaction_id, receipt_image, expected_amount } = req.body;
+
+      if (!transaction_id || !receipt_image) {
+        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      }
+
+      // Use Gemini Vision to verify the receipt
+      const base64Data = receipt_image.replace(/^data:image\/\w+;base64,/, "");
+      
+      const prompt = `
+        Tolong verifikasi bukti transfer ini.
+        Nominal yang diharapkan adalah: Rp ${expected_amount}
+        
+        Apakah bukti transfer ini valid dan nominalnya sesuai dengan yang diharapkan?
+        Jawab dengan format JSON:
+        {
+          "isValid": boolean,
+          "amountFound": number,
+          "reason": "Alasan singkat mengapa valid/tidak valid"
+        }
+      `;
+
+      const geminiResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  data: base64Data,
+                  mimeType: receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || 'image/jpeg'
+                }
+              }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: 'application/json',
+        }
+      });
+
+      const resultText = geminiResponse.text();
+      if (!resultText) {
+        throw new Error('Gagal mendapatkan respons dari AI');
+      }
+
+      const verificationResult = JSON.parse(resultText);
+
+      if (!verificationResult.isValid) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Bukti transfer tidak valid: ${verificationResult.reason}` 
+        });
+      }
+      
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({
+          status: 'paid',
+          payment_method: 'manual_qris',
+          payment_details: {
+            receipt_uploaded: true,
+            verified_at: new Date().toISOString()
+          }
+        })
+        .eq('id', transaction_id);
+
+      if (updateError) throw updateError;
+
+      // Process digital items if any
+      await processDigitalItems(transaction_id);
+
+      res.json({ success: true, message: 'Payment verified successfully' });
+
+    } catch (error: any) {
+      console.error('❌ Manual Verification Error:', error);
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 
