@@ -40,7 +40,8 @@ export default function AdminDashboard() {
     activeSellers: 0,
     totalFees: 0,
     pendingWithdrawals: 0,
-    digiflazzBalance: 0
+    digiflazzBalance: 0,
+    digiflazzError: null as string | null
   });
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
@@ -146,17 +147,23 @@ export default function AdminDashboard() {
 
       // Fetch Digiflazz Balance
       let digiflazzBalance = 0;
+      let digiflazzError = null;
       try {
         const response = await fetch('/api/digital/cek-saldo');
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
             digiflazzBalance = data.data.deposit || 0;
+          } else {
+            digiflazzError = data.error || 'Gagal mengambil saldo';
           }
         } else {
+          const errData = await response.json().catch(() => ({}));
+          digiflazzError = errData.error || `HTTP Error: ${response.status}`;
           console.error('Failed to fetch Digiflazz balance, status:', response.status);
         }
-      } catch (err) {
+      } catch (err: any) {
+        digiflazzError = err.message || 'Network error';
         console.error('Error fetching Digiflazz balance:', err);
       }
 
@@ -168,7 +175,8 @@ export default function AdminDashboard() {
         activeSellers: activeSellerCount || 0,
         totalFees,
         pendingWithdrawals: pendingWithdrawalsCount || 0,
-        digiflazzBalance
+        digiflazzBalance,
+        digiflazzError
       });
 
       const { data: recentTx } = await supabase
@@ -449,7 +457,7 @@ export default function AdminDashboard() {
 
   const maxSales = Math.max(...salesData.map(d => d.sales), 1);
 
-  const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
+  const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }: any) => (
     <motion.div 
       whileHover={{ y: -4, scale: 1.02 }}
       className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-6 flex flex-col gap-4 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md dark:shadow-none transition-all"
@@ -468,6 +476,9 @@ export default function AdminDashboard() {
       <div>
         <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">{title}</p>
         <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate">{value}</h3>
+        {subtitle && (
+          <p className="text-xs text-red-500 mt-2 whitespace-normal break-words">{subtitle}</p>
+        )}
       </div>
     </motion.div>
   );
@@ -563,9 +574,10 @@ export default function AdminDashboard() {
         />
         <StatCard 
           title="Saldo Digiflazz" 
-          value={formatRupiah(stats.digiflazzBalance)} 
+          value={stats.digiflazzError ? 'Error' : formatRupiah(stats.digiflazzBalance)} 
           icon={Wallet} 
-          color="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+          color={stats.digiflazzError ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"}
+          subtitle={stats.digiflazzError}
         />
         <StatCard 
           title="Penjual Aktif" 
