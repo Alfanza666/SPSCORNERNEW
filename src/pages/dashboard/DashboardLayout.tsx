@@ -187,6 +187,13 @@ export default function DashboardLayout() {
               onClick={() => { navigate("/dashboard/admin/withdrawals"); setIsSidebarOpen(false); }}
             />
           </div>
+          <NavItem 
+            to="/dashboard/admin/settings" 
+            icon={Settings} 
+            label="Pengaturan Konten" 
+            isActive={location.pathname === "/dashboard/admin/settings"}
+            onClick={() => { navigate("/dashboard/admin/settings"); setIsSidebarOpen(false); }}
+          />
           <div className="my-4 border-t border-zinc-200 dark:border-zinc-800"></div>
           <NavItem 
             to="/help" 
