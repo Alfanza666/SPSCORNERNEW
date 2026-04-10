@@ -8,6 +8,8 @@ import SPSLogo from '../../components/SPSLogo';
 export default function Register() {
   const [nik, setNik] = useState('');
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -22,6 +24,18 @@ export default function Register() {
     const cleanNik = nik.trim().replace(/[\s-.]/g, '');
     if (cleanNik.length < 3) {
       setError('NIK tidak valid');
+      setLoading(false);
+      return;
+    }
+
+    if (!email || !email.includes('@')) {
+      setError('Email tidak valid');
+      setLoading(false);
+      return;
+    }
+
+    if (!phone || phone.length < 10) {
+      setError('Nomor handphone tidak valid');
       setLoading(false);
       return;
     }
@@ -42,15 +56,14 @@ export default function Register() {
         return;
       }
 
-      const email = `${cleanNik}@sps.local`;
-      
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
             nik: cleanNik,
             name: name.trim(),
+            phone: phone.trim(),
             role: 'buyer'
           }
         }
@@ -170,6 +183,34 @@ export default function Register() {
                   placeholder="Sesuai KTP"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  required
+                  className="input-clay"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-zinc-500 mb-1.5 sm:mb-2 ml-1 uppercase tracking-widest">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="Alamat Email Aktif"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="input-clay"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] sm:text-xs font-bold text-zinc-500 mb-1.5 sm:mb-2 ml-1 uppercase tracking-widest">
+                  Nomor Handphone
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Contoh: 08123456789"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   required
                   className="input-clay"
                 />
