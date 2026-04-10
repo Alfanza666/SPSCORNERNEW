@@ -1131,7 +1131,7 @@ app.use(express.urlencoded({ extended: true }));
         }
       });
 
-      const resultText = geminiResponse.text();
+      const resultText = geminiResponse.text;
       if (!resultText) {
         throw new Error('Gagal mendapatkan respons dari AI');
       }
