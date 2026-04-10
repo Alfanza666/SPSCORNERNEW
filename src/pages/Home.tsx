@@ -116,9 +116,13 @@ export default function Home() {
           </div>
           
           <div className="text-zinc-400 dark:text-zinc-500 font-medium text-center transition-colors flex flex-col items-center gap-4">
-            <div className="flex items-center justify-center gap-6 text-xs sm:text-sm">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm">
               <Link to="/terms" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Syarat & Ketentuan</Link>
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700 hidden sm:block"></span>
+              <Link to="/refund" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Kebijakan Pengembalian</Link>
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700 hidden sm:block"></span>
+              <Link to="/faq" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">FAQ</Link>
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-700 hidden sm:block"></span>
               <Link to="/contact" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Hubungi Kami</Link>
             </div>
             

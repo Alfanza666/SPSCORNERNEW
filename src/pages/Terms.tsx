@@ -1,11 +1,43 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
+import { supabase } from '../lib/supabase';
 import Logo from '../components/ui/logo-utama.png';
 
 export default function Terms() {
   const navigate = useNavigate();
+  const [contactInfo, setContactInfo] = useState({
+    phone: '0818222604',
+    email: 'Harmonis.bjm@sariroti.com',
+    address: 'Bizpark Commercial Estate Blok C2 No.6. Jl. Gubernur Soebardjo, Kec. Gambut, Kabupaten Banjar, Kalimantan Selatan, Kode Pos 70652, Indonesia.'
+  });
+
+  useEffect(() => {
+    const fetchContact = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'contact_info_content')
+          .single();
+
+        if (error) throw error;
+        if (data && data.value) {
+          const parsed = JSON.parse(data.value);
+          setContactInfo({
+            phone: parsed.phone || contactInfo.phone,
+            email: parsed.email || contactInfo.email,
+            address: parsed.address ? parsed.address.replace(/\n/g, ' ') : contactInfo.address
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching contact info:', error);
+      }
+    };
+
+    fetchContact();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex flex-col font-sans transition-colors duration-300">
@@ -72,7 +104,7 @@ export default function Terms() {
             <ul>
               <li>Semua harga yang tercantum sudah termasuk pajak yang berlaku kecuali dinyatakan lain.</li>
               <li>Pembayaran harus diselesaikan dalam batas waktu yang ditentukan setelah kode QRIS dibuat.</li>
-              <li>Transaksi yang telah berhasil dibayar tidak dapat dibatalkan atau di-refund kecuali ada kesalahan dari pihak penjual atau kegagalan sistem pada pengiriman produk digital.</li>
+              <li>Transaksi yang telah berhasil dibayar tidak dapat dibatalkan atau di-refund kecuali ada kesalahan dari pihak penjual atau kegagalan sistem pada pengiriman produk digital, sesuai dengan <a href="/refund" className="text-blue-600 hover:underline">Kebijakan Pengembalian Dana</a> kami.</li>
             </ul>
 
             <h2>5. Pengambilan & Pengiriman Barang</h2>
@@ -85,7 +117,15 @@ export default function Terms() {
               SPS Corner tidak bertanggung jawab atas kerugian tidak langsung, insidental, khusus, atau konsekuensial yang timbul dari penggunaan platform ini. Kami berusaha memastikan semua informasi produk akurat, namun tidak menjamin ketersediaan produk secara real-time setiap saat.
             </p>
 
-            <h2>7. Perubahan Syarat & Ketentuan</h2>
+            <h2>7. Informasi Kontak & Alamat</h2>
+            <p>
+              Jika Anda memiliki pertanyaan terkait Syarat & Ketentuan ini, Anda dapat menghubungi kami melalui:<br />
+              <strong>Telepon / WhatsApp:</strong> {contactInfo.phone}<br />
+              <strong>Email:</strong> {contactInfo.email}<br />
+              <strong>Alamat Lengkap:</strong> {contactInfo.address}
+            </p>
+
+            <h2>8. Perubahan Syarat & Ketentuan</h2>
             <p>
               Kami berhak untuk mengubah Syarat & Ketentuan ini kapan saja. Perubahan akan berlaku segera setelah dipublikasikan di halaman ini. Pengguna disarankan untuk memeriksa halaman ini secara berkala.
             </p>

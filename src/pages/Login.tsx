@@ -112,7 +112,7 @@ export default function Login() {
                 </label>
                 <input
                   type="text"
-                  placeholder="Masukkan NIK Anda"
+                  placeholder="Masukkan NIK atau Email"
                   value={nik}
                   onChange={(e) => setNik(e.target.value)}
                   required

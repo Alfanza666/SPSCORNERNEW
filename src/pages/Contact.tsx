@@ -1,11 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, Mail, Phone, MapPin, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
+import { supabase } from '../lib/supabase';
 import Logo from '../components/ui/logo-utama.png';
 
 export default function Contact() {
   const navigate = useNavigate();
+  const [contactInfo, setContactInfo] = useState({
+    phone: '0818222604',
+    email: 'Harmonis.bjm@sariroti.com',
+    address: 'Bizpark Commercial Estate Blok C2 No.6.\nJl. Gubernur Soebardjo, Kec. Gambut, Kabupaten Banjar\nKalimantan Selatan, Kode Pos 70652\nIndonesia'
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchContact = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'contact_info_content')
+          .single();
+
+        if (error) throw error;
+        if (data && data.value) {
+          setContactInfo(JSON.parse(data.value));
+        }
+      } catch (error) {
+        console.error('Error fetching contact info:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContact();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex flex-col font-sans transition-colors duration-300">
@@ -63,7 +93,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-black text-zinc-900 dark:text-white mb-1">Telepon / WhatsApp</h3>
-                  <p className="text-zinc-600 dark:text-zinc-400 font-medium">0818222604</p>
+                  <p className="text-zinc-600 dark:text-zinc-400 font-medium">{contactInfo.phone}</p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">Senin - Jumat, 08:00 - 17:00 WIB</p>
                 </div>
               </div>
@@ -74,7 +104,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-black text-zinc-900 dark:text-white mb-1">Email</h3>
-                  <p className="text-zinc-600 dark:text-zinc-400 font-medium">Harmonis.bjm@sariroti.com</p>
+                  <p className="text-zinc-600 dark:text-zinc-400 font-medium">{contactInfo.email}</p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">Kami akan membalas dalam 1x24 jam</p>
                 </div>
               </div>
@@ -86,11 +116,9 @@ export default function Contact() {
                   <MapPin className="w-6 h-6 text-zinc-600 dark:text-zinc-400" />
                 </div>
                 <div>
-                  <h3 className="font-black text-zinc-900 dark:text-white mb-1">Alamat Kantor</h3>
-                  <p className="text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed">
-                    Bizpark Commercial Estate Blok C2 No.6.<br />
-                    Jl. Gubernur Soebardjo, Gambut<br />
-                    Kalimantan Selatan
+                  <h3 className="font-black text-zinc-900 dark:text-white mb-1">Alamat Lengkap</h3>
+                  <p className="text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed whitespace-pre-line">
+                    {contactInfo.address}
                   </p>
                 </div>
               </div>
