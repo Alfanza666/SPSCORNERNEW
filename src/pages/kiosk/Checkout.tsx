@@ -18,6 +18,7 @@ export default function Checkout() {
   const [directPaymentData, setDirectPaymentData] = useState<any>(null);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [verifyingReceipt, setVerifyingReceipt] = useState(false);
+  const [qrisUrl, setQrisUrl] = useState<string>('/qris.png');
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
@@ -26,6 +27,25 @@ export default function Checkout() {
       navigate('/kiosk');
       return;
     }
+    
+    // Fetch dynamic QRIS URL
+    const fetchQrisUrl = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'qris_image_url')
+          .single();
+          
+        if (data && data.value) {
+          setQrisUrl(data.value);
+        }
+      } catch (err) {
+        console.error('Failed to fetch QRIS URL:', err);
+      }
+    };
+    
+    fetchQrisUrl();
   }, [items, buyerName, navigate]);
 
   const handleBack = async () => {
@@ -524,7 +544,7 @@ export default function Checkout() {
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
               <div className="max-w-[280px] mx-auto mb-6">
-                <img src="/qris.png" alt="QRIS Manual" className="w-full aspect-square object-contain rounded-xl shadow-md" />
+                <img src={qrisUrl} alt="QRIS Manual" className="w-full aspect-square object-contain rounded-xl shadow-md" />
               </div>
               
               <div className="space-y-2 mb-8">
