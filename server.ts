@@ -1049,8 +1049,8 @@ app.use(express.urlencoded({ extended: true }));
         notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
         referenceId: String(transaction_id),
         buyerName: buyer_name || 'Customer',
-        buyerPhone: buyer_phone || '08123456789',
-        buyerEmail: buyer_email || 'customer@example.com',
+        buyerPhone: buyer_phone || ('08' + Math.floor(1000000000 + Math.random() * 9000000000).toString().substring(0, 10)),
+        buyerEmail: buyer_email || `buyer${Date.now()}@spscorner.store`,
       };
 
       // Add items if provided
@@ -1212,8 +1212,8 @@ app.use(express.urlencoded({ extended: true }));
 
       const directPaymentData: DirectPaymentData = {
         name: buyer_name || 'Customer',
-        phone: buyer_phone || '08123456789',
-        email: buyer_email || 'customer@example.com',
+        phone: buyer_phone || ('08' + Math.floor(1000000000 + Math.random() * 9000000000).toString().substring(0, 10)),
+        email: buyer_email || `buyer${Date.now()}@spscorner.store`,
         amount: Math.round(Number(amount)).toString(),
         comments: `Payment for transaction ${transaction_id}`,
         notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,

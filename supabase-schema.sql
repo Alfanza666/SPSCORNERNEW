@@ -382,6 +382,18 @@ returns boolean language sql security definer as $$
   );
 $$;
 
+-- 8. Notifications Table
+create table if not exists public.notifications (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  type text not null check (type in ('transaction', 'withdrawal', 'system')),
+  title text not null,
+  message text not null,
+  path text,
+  is_read boolean not null default false,
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+
 -- Enable RLS safely (no-op if already enabled)
 alter table public.profiles enable row level security;
 alter table public.products enable row level security;
@@ -391,6 +403,7 @@ alter table public.transaction_items enable row level security;
 alter table public.failed_transactions enable row level security;
 alter table public.settings enable row level security;
 alter table public.withdrawals enable row level security;
+alter table public.notifications enable row level security;
 
 -- POLICIES
 -- Profiles: Users can read all profiles, but only update their own
@@ -545,6 +558,18 @@ begin
   if not exists (select 1 from pg_policies where schemaname='public' and tablename='withdrawals' and policyname='withdrawals_admin_all') then
     create policy withdrawals_admin_all on public.withdrawals for all using (public.is_admin());
   end if;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='notifications' and policyname='notifications_select_own') then
+    create policy notifications_select_own on public.notifications for select using ((select auth.uid()) = user_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='notifications' and policyname='notifications_update_own') then
+    create policy notifications_update_own on public.notifications for update using ((select auth.uid()) = user_id);
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='notifications' and policyname='notifications_insert_all') then
+    create policy notifications_insert_all on public.notifications for insert with check (true);
+  end if;
 end;
 $$;
 
@@ -554,7 +579,129 @@ create index if not exists idx_products_seller_id on public.products(seller_id);
 create index if not exists idx_withdrawals_seller_id on public.withdrawals(seller_id);
 create index if not exists idx_transaction_items_seller_id on public.transaction_items(seller_id);
 create index if not exists idx_stock_reservations_product_id on public.stock_reservations(product_id);
+create index if not exists idx_notifications_user_id on public.notifications(user_id);
 create index if not exists idx_stock_reservations_expires_at on public.stock_reservations(expires_at);
+
+-- Notification Triggers
+
+-- 1. Transaction Status Updates
+create or replace function public.handle_transaction_notification()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  v_admin_id uuid;
+  v_seller_record record;
+begin
+  -- Only trigger on status change
+  if (tg_op = 'UPDATE' and old.status = new.status) then
+    return new;
+  end if;
+
+  -- Get an admin user (just pick the first one for simplicity, or notify all admins)
+  -- For now, we'll notify all admins
+  if new.status in ('paid', 'completed', 'cancelled') then
+    for v_admin_id in (select id from public.profiles where role = 'admin') loop
+      insert into public.notifications (user_id, type, title, message, path)
+      values (
+        v_admin_id,
+        'transaction',
+        case new.status
+          when 'paid' then 'Pesanan Perlu Diproses'
+          when 'completed' then 'Pesanan Selesai'
+          when 'cancelled' then 'Pesanan Dibatalkan'
+        end,
+        case new.status
+          when 'paid' then 'Pembayaran dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah diterima.'
+          when 'completed' then 'Pesanan dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah selesai.'
+          when 'cancelled' then 'Pesanan dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah dibatalkan.'
+        end,
+        '/dashboard/admin/transactions'
+      );
+    end loop;
+
+    -- Also notify sellers involved in this transaction
+    for v_seller_record in (select distinct seller_id from public.transaction_items where transaction_id = new.id and seller_id is not null) loop
+      insert into public.notifications (user_id, type, title, message, path)
+      values (
+        v_seller_record.seller_id,
+        'transaction',
+        case new.status
+          when 'paid' then 'Pesanan Baru'
+          when 'completed' then 'Pesanan Selesai'
+          when 'cancelled' then 'Pesanan Dibatalkan'
+        end,
+        case new.status
+          when 'paid' then 'Ada pesanan baru dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' yang mengandung produk Anda.'
+          when 'completed' then 'Pesanan dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah selesai.'
+          when 'cancelled' then 'Pesanan dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah dibatalkan.'
+        end,
+        '/dashboard/seller/products'
+      );
+    end loop;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_transaction_status_change on public.transactions;
+create trigger on_transaction_status_change
+  after insert or update on public.transactions
+  for each row execute function public.handle_transaction_notification();
+
+-- 2. Withdrawal Updates
+create or replace function public.handle_withdrawal_notification()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  v_admin_id uuid;
+  v_seller_name text;
+begin
+  -- If new withdrawal (pending)
+  if (tg_op = 'INSERT' and new.status = 'pending') then
+    select name into v_seller_name from public.profiles where id = new.seller_id;
+    
+    -- Notify admins
+    for v_admin_id in (select id from public.profiles where role = 'admin') loop
+      insert into public.notifications (user_id, type, title, message, path)
+      values (
+        v_admin_id,
+        'withdrawal',
+        'Permintaan Penarikan',
+        'Penjual ' || coalesce(v_seller_name, 'Unknown') || ' mengajukan penarikan saldo.',
+        '/dashboard/admin/withdrawals'
+      );
+    end loop;
+  end if;
+
+  -- If withdrawal status changed (approved/rejected)
+  if (tg_op = 'UPDATE' and old.status = 'pending' and new.status in ('approved', 'rejected', 'paid')) then
+    -- Notify the seller
+    insert into public.notifications (user_id, type, title, message, path)
+    values (
+      new.seller_id,
+      'withdrawal',
+      case new.status
+        when 'rejected' then 'Penarikan Ditolak'
+        else 'Penarikan Disetujui'
+      end,
+      'Penarikan saldo sebesar Rp ' || new.amount || ' telah ' || case new.status when 'rejected' then 'ditolak' else 'disetujui/dibayar' end || '.',
+      '/dashboard/seller/withdrawals'
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_withdrawal_status_change on public.withdrawals;
+create trigger on_withdrawal_status_change
+  after insert or update on public.withdrawals
+  for each row execute function public.handle_withdrawal_notification();
 
 -- Create Storage Bucket for Products
 insert into storage.buckets (id, name, public)
