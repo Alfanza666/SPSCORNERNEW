@@ -162,22 +162,47 @@ export default function Checkout() {
         buyer_id: user?.id || null,
         total_amount: getTotal(),
         items: items.map(item => ({
-          product_id: item.id,
+          id: item.id,
+          name: item.name,
+          price: item.price,
           quantity: item.quantity,
-          price_at_time: item.price,
+          is_digital: item.is_digital,
+          sku: item.sku,
+          target_number: item.target_number,
+          seller_id: item.seller_id,
           metadata: item.metadata
         }))
       };
 
-      const txRes = await fetch('/api/payment/transactions/create', {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const txRes = await fetch('/api/transactions/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(txData)
       });
 
       if (!txRes.ok) {
-        const errorData = await txRes.json();
-        throw new Error(errorData.error || 'Failed to create transaction');
+        let errorMessage = 'Failed to create transaction';
+        try {
+          const text = await txRes.text();
+          try {
+            const errorData = JSON.parse(text);
+            errorMessage = errorData?.error || errorMessage;
+          } catch (e) {
+            console.error('Non-JSON error response from create:', text);
+            errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`;
+          }
+        } catch (e) {
+          console.error('Failed to read error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
       const { transaction } = await txRes.json();
@@ -401,84 +426,54 @@ export default function Checkout() {
                 </h3>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* QRIS Option */}
+                  {/* QRIS Option (Disabled for Maintenance) */}
                   <button
-                    onClick={() => {
-                      if (!user) {
-                        toast.error('Silakan login untuk menggunakan metode pembayaran ini');
-                        navigate('/login');
-                        return;
-                      }
-                      handleDirectPayment('qris', 'linkaja');
-                    }}
-                    disabled={loading}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
+                    disabled={true}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 opacity-60 cursor-not-allowed text-left group relative overflow-hidden"
                   >
-                    {!user && (
-                      <div className="absolute top-2 right-2">
-                        <span className="bg-amber-100 text-amber-700 text-[8px] font-bold px-2 py-1 rounded-full">Login Required</span>
-                      </div>
-                    )}
-                    <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                      <QrCode className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                    <div className="absolute top-2 right-2">
+                      <span className="bg-amber-100 text-amber-700 text-[8px] font-bold px-2 py-1 rounded-full">Maintenance</span>
+                    </div>
+                    <div className="w-12 h-12 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center">
+                      <QrCode className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
                     </div>
                     <div>
-                      <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Otomatis)</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Gopay, OVO, Dana, LinkAja</p>
+                      <p className="font-black text-zinc-500 dark:text-zinc-400 text-sm tracking-tight">QRIS (Otomatis)</p>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">Gopay, OVO, Dana, LinkAja</p>
                     </div>
                   </button>
 
-                  {/* VA BCA Option */}
+                  {/* VA BCA Option (Disabled for Maintenance) */}
                   <button
-                    onClick={() => {
-                      if (!user) {
-                        toast.error('Silakan login untuk menggunakan metode pembayaran ini');
-                        navigate('/login');
-                        return;
-                      }
-                      handleDirectPayment('va', 'bca');
-                    }}
-                    disabled={loading}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
+                    disabled={true}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 opacity-60 cursor-not-allowed text-left group relative overflow-hidden"
                   >
-                    {!user && (
-                      <div className="absolute top-2 right-2">
-                        <span className="bg-amber-100 text-amber-700 text-[8px] font-bold px-2 py-1 rounded-full">Login Required</span>
-                      </div>
-                    )}
-                    <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                      <CreditCard className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                    <div className="absolute top-2 right-2">
+                      <span className="bg-amber-100 text-amber-700 text-[8px] font-bold px-2 py-1 rounded-full">Maintenance</span>
+                    </div>
+                    <div className="w-12 h-12 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center">
+                      <CreditCard className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
                     </div>
                     <div>
-                      <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">Virtual Account BCA</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Transfer via M-Banking BCA</p>
+                      <p className="font-black text-zinc-500 dark:text-zinc-400 text-sm tracking-tight">Virtual Account BCA</p>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">Transfer via M-Banking BCA</p>
                     </div>
                   </button>
 
-                  {/* VA Mandiri Option */}
+                  {/* VA Mandiri Option (Disabled for Maintenance) */}
                   <button
-                    onClick={() => {
-                      if (!user) {
-                        toast.error('Silakan login untuk menggunakan metode pembayaran ini');
-                        navigate('/login');
-                        return;
-                      }
-                      handleDirectPayment('va', 'mandiri');
-                    }}
-                    disabled={loading}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
+                    disabled={true}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 opacity-60 cursor-not-allowed text-left group relative overflow-hidden"
                   >
-                    {!user && (
-                      <div className="absolute top-2 right-2">
-                        <span className="bg-amber-100 text-amber-700 text-[8px] font-bold px-2 py-1 rounded-full">Login Required</span>
-                      </div>
-                    )}
-                    <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                      <CreditCard className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                    <div className="absolute top-2 right-2">
+                      <span className="bg-amber-100 text-amber-700 text-[8px] font-bold px-2 py-1 rounded-full">Maintenance</span>
+                    </div>
+                    <div className="w-12 h-12 rounded-lg bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center">
+                      <CreditCard className="w-6 h-6 text-zinc-400 dark:text-zinc-500" />
                     </div>
                     <div>
-                      <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">Virtual Account Mandiri</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Transfer via Livin' Mandiri</p>
+                      <p className="font-black text-zinc-500 dark:text-zinc-400 text-sm tracking-tight">Virtual Account Mandiri</p>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">Transfer via Livin' Mandiri</p>
                     </div>
                   </button>
 
@@ -503,14 +498,13 @@ export default function Checkout() {
                 <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
                   <div className="relative">
                     <button
-                      onClick={handlePayment}
-                      disabled={loading}
-                      className="btn-clay-secondary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white"
+                      disabled={true}
+                      className="btn-clay-secondary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-500 opacity-60 cursor-not-allowed"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
-                        <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <div className="w-8 h-8 rounded-lg bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center shadow-inner">
+                        <ShieldCheck className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
                       </div>
-                      Metode Lainnya (Redirect iPaymu)
+                      Metode Lainnya (Sedang Maintenance)
                     </button>
                   </div>
                 </div>
