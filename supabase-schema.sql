@@ -152,15 +152,17 @@ create table if not exists public.transactions (
   total_amount numeric not null check (total_amount >= 0),
   status text not null default 'pending' check (status in ('pending','success','failed','paid')),
   payment_method text,
+  payment_details jsonb,
   receipt_image text,
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
--- Ensure buyer_id and payment_method exist in transactions
+-- Ensure buyer_id, payment_method, and payment_details exist in transactions
 do $$
 begin
   alter table public.transactions add column if not exists buyer_id uuid references public.profiles(id) on delete set null;
   alter table public.transactions add column if not exists payment_method text;
+  alter table public.transactions add column if not exists payment_details jsonb;
 exception when duplicate_column then
   -- nothing
 end;

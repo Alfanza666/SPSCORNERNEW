@@ -811,10 +811,19 @@ app.use(express.urlencoded({ extended: true }));
         }
       });
 
-      let userFriendlyError = typeof errorData === 'string' ? errorData : (errorData.message || error.message || 'Failed to fetch balance');
+      let userFriendlyError = 'Failed to fetch balance';
+      if (typeof errorData === 'string') {
+        userFriendlyError = errorData;
+      } else if (errorData?.data?.message) {
+        userFriendlyError = errorData.data.message;
+      } else if (errorData?.message) {
+        userFriendlyError = errorData.message;
+      } else if (error.message) {
+        userFriendlyError = error.message;
+      }
       
       // Digiflazz often returns "Signature Anda salah" if the IP is not whitelisted, even if the signature is correct.
-      if (userFriendlyError.toLowerCase().includes('signature') || statusCode === 403 || statusCode === 401) {
+      if (userFriendlyError.toLowerCase().includes('signature') || statusCode === 403 || statusCode === 401 || statusCode === 400) {
         userFriendlyError = 'Akses Ditolak: Pastikan IP Address server (Cloud Run) sudah di-whitelist di Digiflazz ATAU gunakan FIXIE_URL yang valid. (Error asli: ' + userFriendlyError + ')';
       }
 
@@ -1159,8 +1168,17 @@ app.use(express.urlencoded({ extended: true }));
 
       if (updateError) throw updateError;
 
-      // Process digital items if any
-      await processDigitalItems(transaction_id);
+      // Fetch transaction items for processing
+      const { data: txData, error: txFetchError } = await supabase
+        .from('transactions')
+        .select('*, transaction_items(*)')
+        .eq('id', transaction_id)
+        .single();
+
+      if (!txFetchError && txData && txData.transaction_items) {
+        // Process digital items if any
+        await processDigitalItems(transaction_id, txData.transaction_items);
+      }
 
       res.json({ success: true, message: 'Payment verified successfully' });
 
