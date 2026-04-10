@@ -23,6 +23,8 @@ const DigitalProducts = React.lazy(() => import('./pages/kiosk/DigitalProducts')
 const Terms = React.lazy(() => import('./pages/Terms'));
 const Contact = React.lazy(() => import('./pages/Contact'));
 const HelpCenter = React.lazy(() => import('./pages/HelpCenter'));
+const FAQ = React.lazy(() => import('./pages/FAQ'));
+const RefundPolicy = React.lazy(() => import('./pages/RefundPolicy'));
 
 const DashboardLayout = React.lazy(() => import('./pages/dashboard/DashboardLayout'));
 const AdminDashboard = React.lazy(() => import('./pages/dashboard/admin/AdminDashboard'));
@@ -31,6 +33,7 @@ const AdminCategories = React.lazy(() => import('./pages/dashboard/admin/AdminCa
 const AdminProducts = React.lazy(() => import('./pages/dashboard/admin/AdminProducts'));
 const AdminTransactions = React.lazy(() => import('./pages/dashboard/admin/AdminTransactions'));
 const AdminWithdrawals = React.lazy(() => import('./pages/dashboard/admin/AdminWithdrawals'));
+const AdminSettings = React.lazy(() => import('./pages/dashboard/admin/AdminSettings'));
 
 const SellerDashboard = React.lazy(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = React.lazy(() => import('./pages/dashboard/seller/SellerProducts'));
@@ -151,6 +154,8 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/help" element={<HelpCenter />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/refund" element={<RefundPolicy />} />
             
             {/* Kiosk Routes */}
             <Route path="/kiosk" element={<KioskLayout />}>
@@ -172,6 +177,7 @@ export default function App() {
               <Route path="admin/products" element={<AdminProducts />} />
               <Route path="admin/transactions" element={<AdminTransactions />} />
               <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
+              <Route path="admin/settings" element={<AdminSettings />} />
               
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/products" element={<SellerProducts />} />
