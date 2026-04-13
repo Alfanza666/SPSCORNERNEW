@@ -120,13 +120,16 @@ export default function Checkout() {
       setTransactionId(tx.id);
 
       // 2. Create IPaymu Direct Payment
-      // Generate a more realistic dummy phone and email to bypass iPaymu's strict fraud filter
-      const dummyPhone = '0812' + Math.floor(10000000 + Math.random() * 90000000).toString();
+      // Use real user phone if available, otherwise generate a realistic dummy phone
+      const realPhone = user?.phone?.replace(/[^0-9]/g, '');
+      const dummyPhone = realPhone && realPhone.length >= 10 
+        ? realPhone 
+        : ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString());
       
       // Clean up buyerName (remove numbers, special chars, ensure min length)
-      let cleanName = buyerName.replace(/[^a-zA-Z\s]/g, '').trim();
+      let cleanName = (user?.name || buyerName).replace(/[^a-zA-Z\s]/g, '').trim();
       if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
-          cleanName = 'Pelanggan SPS Corner';
+          cleanName = user?.name || 'Pelanggan SPS Corner';
       }
       // Ensure name is at least 3 chars for iPaymu
       if (cleanName.length < 3) cleanName = "Pelanggan";
@@ -359,13 +362,16 @@ export default function Checkout() {
       const { transaction: tx } = await createRes.json();
       setTransactionId(tx.id);
 
-      // Generate a more realistic dummy phone and email to bypass iPaymu's strict fraud filter
-      const dummyPhone = '0812' + Math.floor(10000000 + Math.random() * 90000000).toString();
+      // Use real user phone if available, otherwise generate a realistic dummy phone
+      const realPhone = user?.phone?.replace(/[^0-9]/g, '');
+      const dummyPhone = realPhone && realPhone.length >= 10 
+        ? realPhone 
+        : ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString());
       
       // Clean up buyerName (remove numbers, special chars, ensure min length)
-      let cleanName = buyerName.replace(/[^a-zA-Z\s]/g, '').trim();
+      let cleanName = (user?.name || buyerName).replace(/[^a-zA-Z\s]/g, '').trim();
       if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
-          cleanName = 'Pelanggan SPS Corner';
+          cleanName = user?.name || 'Pelanggan SPS Corner';
       }
       // Ensure name is at least 3 chars for iPaymu
       if (cleanName.length < 3) cleanName = "Pelanggan";

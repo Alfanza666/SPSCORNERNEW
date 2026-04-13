@@ -7,6 +7,7 @@ export interface UserProfile {
   name: string;
   email?: string;
   nik?: string;
+  phone?: string;
   balance: number;
 }
 
