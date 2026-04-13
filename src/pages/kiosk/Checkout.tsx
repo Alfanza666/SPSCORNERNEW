@@ -120,9 +120,15 @@ export default function Checkout() {
       setTransactionId(tx.id);
 
       // 2. Create IPaymu Direct Payment
-      // Generate a random valid-looking phone number to bypass iPaymu's strict fraud filter for guests
-      const dummyPhone = '08' + Math.floor(1000000000 + Math.random() * 9000000000).toString().substring(0, 10);
-      const dummyEmail = `${buyerName.replace(/\s+/g, '').toLowerCase() || 'buyer'}@spscorner.store`;
+      // Generate a more realistic dummy phone and email to bypass iPaymu's strict fraud filter
+      const dummyPhone = '0812' + Math.floor(10000000 + Math.random() * 90000000).toString();
+      
+      // Clean up buyerName (remove numbers, special chars, ensure min length)
+      let cleanName = buyerName.replace(/[^a-zA-Z\s]/g, '').trim();
+      if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
+          cleanName = 'Pelanggan SPS Corner';
+      }
+      const dummyEmail = `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`;
 
       const ipaymuRes = await fetch('/api/payment/ipaymu/direct', {
         method: 'POST',
@@ -130,7 +136,7 @@ export default function Checkout() {
         body: JSON.stringify({
           transaction_id: tx.id,
           amount: getTotal(),
-          buyer_name: buyerName,
+          buyer_name: cleanName,
           buyer_email: user?.email || dummyEmail,
           buyer_phone: dummyPhone,
           payment_method: method,
@@ -351,9 +357,15 @@ export default function Checkout() {
       const { transaction: tx } = await createRes.json();
       setTransactionId(tx.id);
 
-      // Generate a random valid-looking phone number to bypass iPaymu's strict fraud filter for guests
-      const dummyPhone = '08' + Math.floor(1000000000 + Math.random() * 9000000000).toString().substring(0, 10);
-      const dummyEmail = `${buyerName.replace(/\s+/g, '').toLowerCase() || 'buyer'}@spscorner.store`;
+      // Generate a more realistic dummy phone and email to bypass iPaymu's strict fraud filter
+      const dummyPhone = '0812' + Math.floor(10000000 + Math.random() * 90000000).toString();
+      
+      // Clean up buyerName (remove numbers, special chars, ensure min length)
+      let cleanName = buyerName.replace(/[^a-zA-Z\s]/g, '').trim();
+      if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
+          cleanName = 'Pelanggan SPS Corner';
+      }
+      const dummyEmail = `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`;
 
       // 2. Create IPaymu Payment
       const ipaymuRes = await fetch('/api/payment/ipaymu/create', {
@@ -362,7 +374,7 @@ export default function Checkout() {
         body: JSON.stringify({
           transaction_id: tx.id,
           amount: getTotal(),
-          buyer_name: buyerName,
+          buyer_name: cleanName,
           buyer_email: user?.email || dummyEmail,
           buyer_phone: dummyPhone,
           items: items.map(item => ({
