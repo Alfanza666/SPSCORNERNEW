@@ -1207,6 +1207,12 @@ app.use(express.urlencoded({ extended: true }));
 
       const appUrl = process.env.APP_URL || 'https://spscorner.store';
 
+      // Clean up buyerName (remove numbers, special chars, ensure min length)
+      let cleanName = (buyer_name || 'Customer').replace(/[^a-zA-Z\s]/g, '').trim();
+      if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
+          cleanName = 'Pelanggan SPS Corner';
+      }
+
       const paymentData: any = {
         product: [],
         qty: [],
@@ -1216,9 +1222,9 @@ app.use(express.urlencoded({ extended: true }));
         cancelUrl: `${appUrl}/kiosk/cart?id=${transaction_id}`,
         notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
         referenceId: String(transaction_id),
-        buyerName: buyer_name || 'Customer',
-        buyerPhone: buyer_phone || ('08' + Math.floor(1000000000 + Math.random() * 9000000000).toString().substring(0, 10)),
-        buyerEmail: buyer_email || `buyer${Date.now()}@spscorner.store`,
+        buyerName: cleanName,
+        buyerPhone: buyer_phone || ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString()),
+        buyerEmail: buyer_email || `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`,
       };
 
       // Add items if provided
@@ -1436,10 +1442,16 @@ app.use(express.urlencoded({ extended: true }));
         channel = 'mpm';
       }
 
+      // Clean up buyerName (remove numbers, special chars, ensure min length)
+      let cleanName = (buyer_name || 'Customer').replace(/[^a-zA-Z\s]/g, '').trim();
+      if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
+          cleanName = 'Pelanggan SPS Corner';
+      }
+
       const directPaymentData: DirectPaymentData = {
-        name: buyer_name || 'Customer',
-        phone: buyer_phone || ('08' + Math.floor(1000000000 + Math.random() * 9000000000).toString().substring(0, 10)),
-        email: buyer_email || `buyer${Date.now()}@spscorner.store`,
+        name: cleanName,
+        phone: buyer_phone || ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString()),
+        email: buyer_email || `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`,
         amount: Math.round(Number(amount)).toString(),
         comments: `Payment for transaction ${transaction_id}`,
         notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
