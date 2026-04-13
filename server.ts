@@ -1212,6 +1212,8 @@ app.use(express.urlencoded({ extended: true }));
       if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
           cleanName = 'Pelanggan SPS Corner';
       }
+      // Ensure name is at least 3 chars for iPaymu
+      if (cleanName.length < 3) cleanName = "Pelanggan";
 
       const paymentData: any = {
         product: [],
@@ -1447,6 +1449,8 @@ app.use(express.urlencoded({ extended: true }));
       if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
           cleanName = 'Pelanggan SPS Corner';
       }
+      // Ensure name is at least 3 chars for iPaymu
+      if (cleanName.length < 3) cleanName = "Pelanggan";
 
       const directPaymentData: DirectPaymentData = {
         name: cleanName,
@@ -1527,8 +1531,8 @@ app.use(express.urlencoded({ extended: true }));
         .from('transactions')
         .update({
           status: txStatus,
-          metadata: {
-            ...(transaction.metadata || {}),
+          payment_details: {
+            ...(transaction.payment_details || {}),
             ipaymu_trx_id: trx_id || transaction_id,
             ipaymu_sid: sid,
             ipaymu_status: status,
