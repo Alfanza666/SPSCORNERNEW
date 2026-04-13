@@ -21,7 +21,8 @@ import {
   Tag,
   ChevronRight,
   AlertCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  RotateCcw
 } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, ProductSkeleton } from '../../../components/ui/Skeleton';
 
@@ -32,6 +33,12 @@ export default function SellerProducts() {
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [restockingProduct, setRestockingProduct] = useState<any | null>(null);
+  const [returningProduct, setReturningProduct] = useState<any | null>(null);
+  const [restockQuantity, setRestockQuantity] = useState('');
+  const [restockNotes, setRestockNotes] = useState('');
+  const [returnQuantity, setReturnQuantity] = useState('');
+  const [returnReason, setReturnReason] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [importingCSV, setImportingCSV] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -217,7 +224,6 @@ export default function SellerProducts() {
           name: editingProduct.name,
           description: editingProduct.description,
           price: Number(editingProduct.price),
-          stock: Number(editingProduct.stock),
           category: editingProduct.category,
           image_url: editingProduct.image_url
         })
@@ -230,6 +236,75 @@ export default function SellerProducts() {
     } catch (error: any) {
       console.error('Error updating product:', error);
       toast.error(`Gagal memperbarui produk: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestRestock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restockingProduct || !user?.id) return;
+
+    const quantity = Number(restockQuantity);
+    if (quantity <= 0) {
+      toast.error('Jumlah restock harus lebih dari 0');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('stock_requests').insert({
+        product_id: restockingProduct.id,
+        seller_id: user.id,
+        requested_quantity: quantity,
+        notes: restockNotes,
+        status: 'pending'
+      });
+
+      if (error) throw error;
+
+      toast.success('Permintaan restock berhasil dikirim ke Admin');
+      setRestockingProduct(null);
+      setRestockQuantity('');
+      setRestockNotes('');
+    } catch (error: any) {
+      console.error('Error requesting restock:', error);
+      toast.error(`Gagal mengirim permintaan restock: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRequestReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!returningProduct || !user?.id) return;
+
+    const quantity = Number(returnQuantity);
+    if (quantity <= 0 || quantity > returningProduct.stock) {
+      toast.error(`Jumlah retur harus antara 1 dan ${returningProduct.stock}`);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('product_returns').insert({
+        product_id: returningProduct.id,
+        seller_id: user.id,
+        quantity: quantity,
+        reason: returnReason,
+        status: 'pending',
+        initiated_by: user.id
+      });
+
+      if (error) throw error;
+
+      toast.success('Permintaan retur berhasil dikirim ke Admin');
+      setReturningProduct(null);
+      setReturnQuantity('');
+      setReturnReason('');
+    } catch (error: any) {
+      console.error('Error requesting return:', error);
+      toast.error(`Gagal mengirim permintaan retur: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -543,13 +618,13 @@ export default function SellerProducts() {
                           </select>
                         </div>
                         <div className="space-y-2">
-                          <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Stok</label>
+                          <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Stok (Hanya Admin)</label>
                           <input 
-                            required 
+                            disabled
                             type="number"
                             value={editingProduct.stock}
-                            onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value})}
-                            className="input-clay"
+                            className="input-clay opacity-50 cursor-not-allowed"
+                            title="Stok hanya bisa diubah melalui Request Restock"
                           />
                         </div>
                       </div>
@@ -691,6 +766,13 @@ export default function SellerProducts() {
                   <td className="p-6 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
+                        onClick={() => setReturningProduct(product)}
+                        className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 transition-all"
+                        title="Request Retur"
+                      >
+                        <RotateCcw className="w-5 h-5" />
+                      </button>
+                      <button 
                         onClick={() => handleToggleActive(product.id, product.is_active)}
                         className={`w-10 h-10 clay-icon bg-white dark:bg-zinc-800 transition-all ${
                           product.is_active 
@@ -700,6 +782,13 @@ export default function SellerProducts() {
                         title={product.is_active ? "Tandai Tidak Tersedia" : "Tandai Tersedia"}
                       >
                         {product.is_active ? <PowerOff className="w-5 h-5" /> : <Power className="w-5 h-5" />}
+                      </button>
+                      <button 
+                        onClick={() => setRestockingProduct(product)}
+                        className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                        title="Request Restock"
+                      >
+                        <Package className="w-5 h-5" />
                       </button>
                       <button 
                         onClick={() => setEditingProduct(product)}
@@ -764,10 +853,23 @@ export default function SellerProducts() {
                 </span>
                 <div className="flex items-center gap-2">
                   <button 
+                    onClick={() => setReturningProduct(product)}
+                    className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-amber-600 dark:hover:text-amber-400 transition-all"
+                    title="Request Retur"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                  <button 
                     onClick={() => handleToggleActive(product.id, product.is_active)}
                     className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500"
                   >
                     {product.is_active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                  </button>
+                  <button 
+                    onClick={() => setRestockingProduct(product)}
+                    className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500"
+                  >
+                    <Package className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => setEditingProduct(product)}
@@ -796,6 +898,134 @@ export default function SellerProducts() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {/* Request Return Modal */}
+        {returningProduct && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 md:p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Request Retur</h2>
+                  <button onClick={() => setReturningProduct(null)} className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <div className="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-white">{returningProduct.name}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Stok saat ini: {returningProduct.stock}</p>
+                </div>
+
+                <form onSubmit={handleRequestReturn} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Jumlah Retur</label>
+                    <input 
+                      required 
+                      type="number"
+                      min="1"
+                      max={returningProduct.stock}
+                      value={returnQuantity}
+                      onChange={(e) => setReturnQuantity(e.target.value)}
+                      className="input-clay"
+                      placeholder="Masukkan jumlah..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Alasan Retur</label>
+                    <textarea 
+                      required
+                      value={returnReason}
+                      onChange={(e) => setReturnReason(e.target.value)}
+                      className="input-clay min-h-[80px]"
+                      placeholder="Contoh: Roti sudah basi / kadaluarsa..."
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button type="button" onClick={() => setReturningProduct(null)} className="btn-clay-secondary px-6">Batal</button>
+                    <button type="submit" disabled={loading} className="btn-clay-primary px-6">
+                      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Kirim Request'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {/* Request Restock Modal */}
+        {restockingProduct && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 md:p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Request Restock</h2>
+                  <button onClick={() => setRestockingProduct(null)} className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <div className="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-white">{restockingProduct.name}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Stok saat ini: {restockingProduct.stock}</p>
+                </div>
+
+                <form onSubmit={handleRequestRestock} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Jumlah Restock</label>
+                    <input 
+                      required 
+                      type="number"
+                      min="1"
+                      value={restockQuantity}
+                      onChange={(e) => setRestockQuantity(e.target.value)}
+                      className="input-clay"
+                      placeholder="Masukkan jumlah..."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest ml-1">Catatan (Opsional)</label>
+                    <textarea 
+                      value={restockNotes}
+                      onChange={(e) => setRestockNotes(e.target.value)}
+                      className="input-clay min-h-[80px]"
+                      placeholder="Tambahkan catatan untuk admin..."
+                    />
+                  </div>
+                  
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button type="button" onClick={() => setRestockingProduct(null)} className="btn-clay-secondary px-6">Batal</button>
+                    <button type="submit" disabled={loading} className="btn-clay-primary px-6">
+                      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Kirim Request'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -84,7 +84,7 @@ export default function Success() {
 
   const handleEmailSalesAdmin = () => {
     if (!transaction) return;
-    const sarirotiItems = transaction.transaction_items.filter((item: any) => item.products.category?.toLowerCase() === 'sariroti' || item.products.name.toLowerCase().includes('sariroti'));
+    const sarirotiItems = transaction.transaction_items.filter((item: any) => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti'));
     
     if (sarirotiItems.length === 0) return;
 
@@ -98,7 +98,7 @@ Tanggal: ${new Date(transaction.created_at).toLocaleDateString('id-ID', { day: '
 Nama Pemesan: ${user?.name || 'Karyawan'}
 
 Detail Pesanan:
-${sarirotiItems.map((item: any) => `- ${item.products.name} (Qty: ${item.quantity})`).join('\n')}
+${sarirotiItems.map((item: any) => `- ${item.products?.name || item.metadata?.product_name || 'Produk Koperasi'} (Qty: ${item.quantity})`).join('\n')}
 
 Mohon diproses untuk pengambilan besok.
 
@@ -110,7 +110,7 @@ Sistem SPS Corner`);
 
   const handlePrintNota = () => {
     if (!transaction) return;
-    const sarirotiItems = transaction.transaction_items.filter((item: any) => item.products.category?.toLowerCase() === 'sariroti' || item.products.name.toLowerCase().includes('sariroti'));
+    const sarirotiItems = transaction.transaction_items.filter((item: any) => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti'));
     
     if (sarirotiItems.length === 0) return;
 
@@ -162,7 +162,7 @@ Sistem SPS Corner`);
             <tbody>
               ${sarirotiItems.map((item: any) => `
                 <tr>
-                  <td>${item.products.name}</td>
+                  <td>${item.products?.name || item.metadata?.product_name || 'Produk Koperasi'}</td>
                   <td class="qty">${item.quantity}</td>
                 </tr>
               `).join('')}
@@ -183,7 +183,7 @@ Sistem SPS Corner`);
     printWindow.document.close();
   };
 
-  const hasSariroti = transaction?.transaction_items?.some((item: any) => item.products.category?.toLowerCase() === 'sariroti' || item.products.name.toLowerCase().includes('sariroti'));
+  const hasSariroti = transaction?.transaction_items?.some((item: any) => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti'));
   const digitalItems = transaction?.transaction_items?.filter((item: any) => item.metadata?.is_digital);
 
   return (

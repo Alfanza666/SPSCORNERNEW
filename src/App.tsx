@@ -34,10 +34,13 @@ const AdminProducts = React.lazy(() => import('./pages/dashboard/admin/AdminProd
 const AdminTransactions = React.lazy(() => import('./pages/dashboard/admin/AdminTransactions'));
 const AdminWithdrawals = React.lazy(() => import('./pages/dashboard/admin/AdminWithdrawals'));
 const AdminSettings = React.lazy(() => import('./pages/dashboard/admin/AdminSettings'));
+const AdminStockRequests = React.lazy(() => import('./pages/dashboard/admin/AdminStockRequests'));
+const AdminReturns = React.lazy(() => import('./pages/dashboard/admin/AdminReturns'));
 
 const SellerDashboard = React.lazy(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = React.lazy(() => import('./pages/dashboard/seller/SellerProducts'));
 const SellerWithdrawals = React.lazy(() => import('./pages/dashboard/seller/SellerWithdrawals'));
+const SellerTransactions = React.lazy(() => import('./pages/dashboard/seller/SellerTransactions'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -177,11 +180,14 @@ export default function App() {
               <Route path="admin/products" element={<AdminProducts />} />
               <Route path="admin/transactions" element={<AdminTransactions />} />
               <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
+              <Route path="admin/stock-requests" element={<AdminStockRequests />} />
+              <Route path="admin/returns" element={<AdminReturns />} />
               <Route path="admin/settings" element={<AdminSettings />} />
               
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/products" element={<SellerProducts />} />
               <Route path="seller/withdrawals" element={<SellerWithdrawals />} />
+              <Route path="seller/transactions" element={<SellerTransactions />} />
             </Route>
           </Routes>
         </Suspense>

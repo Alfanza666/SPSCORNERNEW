@@ -80,6 +80,43 @@ export default function AdminTransactions() {
     }
   };
 
+  const handleConfirmSariroti = async () => {
+    if (!selectedTx) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch('/api/admin/transactions/confirm-sariroti', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ transaction_id: selectedTx.id }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Gagal mengkonfirmasi pesanan');
+
+      toast.success('Pesanan Sariroti berhasil dikonfirmasi dan nota telah dikirim ke pembeli.');
+      
+      // Update local state
+      setSelectedTx({
+        ...selectedTx,
+        metadata: {
+          ...(selectedTx.metadata || {}),
+          sariroti_confirmed: true
+        }
+      });
+      fetchTransactions();
+    } catch (error: any) {
+      console.error('Error confirming Sariroti order:', error);
+      toast.error(error.message);
+    }
+  };
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
@@ -501,7 +538,14 @@ export default function AdminTransactions() {
                     <Receipt className="w-5 h-5 md:w-6 md:h-6" />
                   </div>
                   <div>
-                    <h2 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Detail Transaksi</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Detail Transaksi</h2>
+                      {selectedTx.metadata?.sariroti_confirmed && (
+                        <span className="clay-badge bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 text-[10px]">
+                          Sariroti Dikonfirmasi
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] md:text-xs text-zinc-400 dark:text-zinc-500 font-mono tracking-wider truncate max-w-[150px] md:max-w-none">{selectedTx.id}</p>
                   </div>
                 </div>
@@ -642,7 +686,15 @@ export default function AdminTransactions() {
                 </div>
               </div>
 
-              <div className="p-6 md:p-8 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 flex justify-end">
+              <div className="p-6 md:p-8 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 flex justify-end gap-3">
+                {activeTab === 'success' && txItems.some(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti')) && !selectedTx.metadata?.sariroti_confirmed && (
+                  <button 
+                    onClick={handleConfirmSariroti}
+                    className="btn-clay-primary h-10 md:h-12 px-8 md:px-10 w-full md:w-auto bg-blue-600 dark:bg-blue-500 text-white"
+                  >
+                    Konfirmasi Pesanan Sariroti
+                  </button>
+                )}
                 <button 
                   onClick={() => setSelectedTx(null)} 
                   className="btn-clay-secondary h-10 md:h-12 px-8 md:px-10 w-full md:w-auto"

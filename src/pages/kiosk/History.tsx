@@ -13,6 +13,8 @@ interface TransactionItem {
   quantity: number;
   price: number;
   subtotal: number;
+  status?: string;
+  metadata?: any;
   products: {
     name: string;
     image_url: string;
@@ -73,7 +75,7 @@ export default function History() {
   };
 
   const handlePrintNota = (tx: Transaction) => {
-    const sarirotiItems = tx.transaction_items.filter(item => item.products.category?.toLowerCase() === 'sariroti' || item.products.name.toLowerCase().includes('sariroti'));
+    const sarirotiItems = tx.transaction_items.filter(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti'));
     
     if (sarirotiItems.length === 0) {
       toast.error('Tidak ada produk Sariroti dalam pesanan ini.');
@@ -128,7 +130,7 @@ export default function History() {
             <tbody>
               ${sarirotiItems.map(item => `
                 <tr>
-                  <td>${item.products.name}</td>
+                  <td>${item.products?.name || item.metadata?.product_name || 'Produk Koperasi'}</td>
                   <td class="qty">${item.quantity}</td>
                 </tr>
               `).join('')}
@@ -150,7 +152,7 @@ export default function History() {
   };
 
   const handleEmailSalesAdmin = (tx: Transaction) => {
-    const sarirotiItems = tx.transaction_items.filter(item => item.products.category?.toLowerCase() === 'sariroti' || item.products.name.toLowerCase().includes('sariroti'));
+    const sarirotiItems = tx.transaction_items.filter(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti'));
     
     if (sarirotiItems.length === 0) {
       toast.error('Tidak ada produk Sariroti dalam pesanan ini.');
@@ -167,7 +169,7 @@ Tanggal: ${new Date(tx.created_at).toLocaleDateString('id-ID', { day: 'numeric',
 Nama Pemesan: ${user?.name || 'Karyawan'}
 
 Detail Pesanan:
-${sarirotiItems.map(item => `- ${item.products.name} (Qty: ${item.quantity})`).join('\n')}
+${sarirotiItems.map(item => `- ${item.products?.name || item.metadata?.product_name || 'Produk Koperasi'} (Qty: ${item.quantity})`).join('\n')}
 
 Mohon diproses untuk pengambilan besok.
 
@@ -179,7 +181,7 @@ Sistem SPS Corner`);
 
   const filteredTransactions = transactions.filter(tx => 
     tx.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tx.transaction_items.some(item => item.products.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    tx.transaction_items.some(item => (item.products?.name || item.metadata?.product_name || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (!user) {
@@ -315,7 +317,7 @@ Sistem SPS Corner`);
                               )}
                             </div>
                             <p className="text-[8px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium mt-0.5">
-                              {item.quantity} x {formatRupiah(item.price_at_time)}
+                              {item.quantity} x {formatRupiah(item.price)}
                             </p>
                             {item.metadata?.is_digital && (
                               <div className="flex flex-col gap-0.5 mt-1">
@@ -331,7 +333,7 @@ Sistem SPS Corner`);
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-base tracking-tighter">{formatRupiah(item.price_at_time * item.quantity)}</p>
+                            <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-base tracking-tighter">{formatRupiah(item.price * item.quantity)}</p>
                           </div>
                         </div>
                       );
@@ -347,7 +349,7 @@ Sistem SPS Corner`);
                     </div>
                     
                     <div className="flex items-center gap-4">
-                      {tx.status === 'success' && tx.transaction_items.some(item => item.products.category?.toLowerCase() === 'sariroti' || item.products.name.toLowerCase().includes('sariroti')) && (
+                      {tx.status === 'success' && tx.transaction_items.some(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti')) && (
                         <>
                           <button 
                             onClick={() => handleEmailSalesAdmin(tx)}

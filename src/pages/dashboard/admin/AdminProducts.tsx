@@ -174,12 +174,26 @@ export default function AdminProducts() {
         
       const existingNames = new Set((existingProducts || []).map(p => p.name.toLowerCase().trim()));
 
+      // Find Sariroti Seller Profile
+      const { data: sarirotiSeller } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'seller')
+        .ilike('name', '%sariroti%')
+        .single();
+
+      if (!sarirotiSeller) {
+        toast.error('Akun Seller Sariroti belum ditemukan. Silakan buat akun dengan nama mengandung "Sariroti" terlebih dahulu.');
+        setLoading(false);
+        return;
+      }
+
       const productsToInsert = sarirotiProducts
         .filter(p => !existingNames.has(p.name.toLowerCase().trim()))
         .map(p => {
           const discountedPrice = p.price * 0.75; // 25% discount
           return {
-            seller_id: user?.id,
+            seller_id: sarirotiSeller.id,
             name: p.name,
             description: `Produk Sariroti - ${p.name}`,
             price: discountedPrice,

@@ -354,9 +354,9 @@ export default function AdminDashboard() {
       }
 
       // Prompt user for target email, defaulting to the admin email
-      const targetEmail = prompt('Masukkan email tujuan untuk test (default: email Admin Sariroti):', 'Sales.Adm.bjm@sariroti.com');
+      const targetEmail = prompt('Masukkan email tujuan untuk test (kosongkan untuk menggunakan email di Pengaturan):', '');
       
-      if (!targetEmail) return;
+      if (targetEmail === null) return; // User cancelled the prompt
 
       const response = await fetch('/api/admin/test-email', {
         method: 'POST',

@@ -20,7 +20,9 @@ import {
   KeyRound,
   Settings,
   Tag,
-  Info
+  Info,
+  ShoppingCart,
+  RotateCcw
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -187,6 +189,24 @@ export default function DashboardLayout() {
               onClick={() => { navigate("/dashboard/admin/withdrawals"); setIsSidebarOpen(false); }}
             />
           </div>
+          <div className="tour-admin-sidebar-stock-requests">
+            <NavItem 
+              to="/dashboard/admin/stock-requests" 
+              icon={Package} 
+              label="Req. Restock" 
+              isActive={location.pathname === "/dashboard/admin/stock-requests"}
+              onClick={() => { navigate("/dashboard/admin/stock-requests"); setIsSidebarOpen(false); }}
+            />
+          </div>
+          <div className="tour-admin-sidebar-returns">
+            <NavItem 
+              to="/dashboard/admin/returns" 
+              icon={RotateCcw} 
+              label="Req. Retur" 
+              isActive={location.pathname === "/dashboard/admin/returns"}
+              onClick={() => { navigate("/dashboard/admin/returns"); setIsSidebarOpen(false); }}
+            />
+          </div>
           <NavItem 
             to="/dashboard/admin/settings" 
             icon={Settings} 
@@ -223,6 +243,15 @@ export default function DashboardLayout() {
               label="Produk Saya" 
               isActive={location.pathname === "/dashboard/seller/products"}
               onClick={() => { navigate("/dashboard/seller/products"); setIsSidebarOpen(false); }}
+            />
+          </div>
+          <div className="tour-seller-sidebar-transactions">
+            <NavItem 
+              to="/dashboard/seller/transactions" 
+              icon={ShoppingCart} 
+              label="Pesanan Masuk" 
+              isActive={location.pathname === "/dashboard/seller/transactions"}
+              onClick={() => { navigate("/dashboard/seller/transactions"); setIsSidebarOpen(false); }}
             />
           </div>
           <div className="tour-seller-sidebar-withdrawals">
