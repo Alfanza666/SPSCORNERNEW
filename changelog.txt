@@ -1,1 +1,3 @@
+v4.0.3 - Memperbaiki error schema cache pada transaksi dan mengaktifkan kembali semua metode pembayaran iPaymu.
+v4.0.2 - Memperbaiki bug notifikasi email Sariroti/Koperasi dan tampilan riwayat pesanan.
 v4.0.1 - Memperbaiki alur pembelian produk digital (Pulsa, PLN, Game, E-Money, Pascabayar), menambahkan tutorial Kantin & Koperasi, dan memperbaiki sistem notifikasi agar real-time dan faktual.

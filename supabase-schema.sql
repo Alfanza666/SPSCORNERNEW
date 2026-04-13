@@ -131,16 +131,25 @@ returns void language plpgsql security definer as $$
 declare
   v_product_id uuid;
   v_quantity integer;
+  v_seller_id uuid;
+  v_old_stock integer;
 begin
   select product_id, quantity into v_product_id, v_quantity
   from public.stock_reservations
   where id = p_reservation_id;
 
   if found then
+    select seller_id, stock into v_seller_id, v_old_stock
+    from public.products
+    where id = v_product_id;
+
     update public.products
     set stock = stock - v_quantity
     where id = v_product_id;
-    
+
+    insert into public.stock_adjustments (product_id, user_id, previous_stock, new_stock, adjustment_type, notes)
+    values (v_product_id, v_seller_id, v_old_stock, v_old_stock - v_quantity, 'sale', 'Stock deducted from sale');
+
     delete from public.stock_reservations where id = p_reservation_id;
   end if;
 end;
@@ -157,12 +166,14 @@ create table if not exists public.transactions (
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
--- Ensure buyer_id, payment_method, and payment_details exist in transactions
+-- Ensure buyer_id, payment_method, payment_details, receipt_image, and metadata exist in transactions
 do $$
 begin
   alter table public.transactions add column if not exists buyer_id uuid references public.profiles(id) on delete set null;
   alter table public.transactions add column if not exists payment_method text;
   alter table public.transactions add column if not exists payment_details jsonb;
+  alter table public.transactions add column if not exists receipt_image text;
+  alter table public.transactions add column if not exists metadata jsonb;
 exception when duplicate_column then
   -- nothing
 end;
@@ -729,5 +740,104 @@ begin
     create policy "Users can delete their own uploads" on storage.objects for delete using ( bucket_id = 'products' and auth.uid() = owner );
   end if;
 end;
+$$;
+
+create table if not exists public.stock_adjustments (
+  id uuid primary key default uuid_generate_v4(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  previous_stock integer not null,
+  new_stock integer not null,
+  adjustment_type text not null check (adjustment_type in ('manual_update', 'restock', 'correction', 'sale')),
+  notes text,
+  created_at timestamptz not null default timezone('utc'::text, now())
+);
+
+alter table public.stock_adjustments enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='stock_adjustments' and policyname='stock_adjustments_select_admin') then
+    create policy stock_adjustments_select_admin on public.stock_adjustments for select using (public.is_admin());
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='stock_adjustments' and policyname='stock_adjustments_select_seller') then
+    create policy stock_adjustments_select_seller on public.stock_adjustments for select using (
+      exists (select 1 from public.products where id = stock_adjustments.product_id and seller_id = auth.uid())
+    );
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='stock_adjustments' and policyname='stock_adjustments_insert') then
+    create policy stock_adjustments_insert on public.stock_adjustments for insert with check (
+      public.is_admin() or 
+      exists (select 1 from public.products where id = product_id and seller_id = auth.uid())
+    );
+  end if;
+end
+$$;
+
+-- Stock Requests
+create table if not exists public.stock_requests (
+  id uuid primary key default uuid_generate_v4(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  seller_id uuid not null references public.profiles(id) on delete cascade,
+  requested_quantity integer not null check (requested_quantity > 0),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  admin_id uuid references public.profiles(id) on delete set null,
+  notes text,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  updated_at timestamptz not null default timezone('utc'::text, now())
+);
+
+alter table public.stock_requests enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='stock_requests' and policyname='stock_requests_select_admin') then
+    create policy stock_requests_select_admin on public.stock_requests for select using (public.is_admin());
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='stock_requests' and policyname='stock_requests_select_seller') then
+    create policy stock_requests_select_seller on public.stock_requests for select using (seller_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='stock_requests' and policyname='stock_requests_insert_seller') then
+    create policy stock_requests_insert_seller on public.stock_requests for insert with check (seller_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='stock_requests' and policyname='stock_requests_update_admin') then
+    create policy stock_requests_update_admin on public.stock_requests for update using (public.is_admin());
+  end if;
+end
+$$;
+
+-- Returns (Retur)
+create table if not exists public.product_returns (
+  id uuid primary key default uuid_generate_v4(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  seller_id uuid not null references public.profiles(id) on delete cascade,
+  quantity integer not null check (quantity > 0),
+  reason text not null,
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'completed')),
+  initiated_by uuid not null references public.profiles(id) on delete cascade,
+  admin_id uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default timezone('utc'::text, now()),
+  updated_at timestamptz not null default timezone('utc'::text, now())
+);
+
+alter table public.product_returns enable row level security;
+
+do $$
+begin
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='product_returns' and policyname='product_returns_select_admin') then
+    create policy product_returns_select_admin on public.product_returns for select using (public.is_admin());
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='product_returns' and policyname='product_returns_select_seller') then
+    create policy product_returns_select_seller on public.product_returns for select using (seller_id = auth.uid());
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='product_returns' and policyname='product_returns_insert') then
+    create policy product_returns_insert on public.product_returns for insert with check (
+      public.is_admin() or seller_id = auth.uid()
+    );
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='product_returns' and policyname='product_returns_update_admin') then
+    create policy product_returns_update_admin on public.product_returns for update using (public.is_admin());
+  end if;
+end
 $$;
 

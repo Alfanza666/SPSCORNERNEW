@@ -266,15 +266,15 @@ app.use(express.urlencoded({ extended: true }));
     try {
       const { data: items, error } = await supabase
         .from('transaction_items')
-        .select('*')
+        .select('*, products(name, category)')
         .eq('transaction_id', transactionId);
 
       if (error) throw error;
 
       // Filter only Sariroti items
       const sarirotiItems = items.filter((item: any) => {
-        const name = (item.name || '').toLowerCase();
-        const category = (item.category || '').toLowerCase();
+        const name = (item.products?.name || item.metadata?.product_name || '').toLowerCase();
+        const category = (item.products?.category || item.metadata?.category || '').toLowerCase();
         return name.includes('sariroti') || name.includes('roti') || name.includes('koperasi') ||
                category.includes('sariroti') || category.includes('roti') || category.includes('koperasi');
       });
@@ -285,11 +285,29 @@ app.use(express.urlencoded({ extended: true }));
       }
 
       const sarirotiSubtotal = sarirotiItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-      const itemsHtml = sarirotiItems.map((item: any) => 
-        `<li>${item.name} x ${item.quantity} - Rp ${item.price.toLocaleString('id-ID')}</li>`
-      ).join('');
+      const itemsHtml = sarirotiItems.map((item: any) => {
+        const name = item.products?.name || item.metadata?.product_name || 'Produk Koperasi';
+        return `<li>${name} x ${item.quantity} - Rp ${item.price.toLocaleString('id-ID')}</li>`;
+      }).join('');
 
-      const targetEmail = process.env.SARIROTI_ADMIN_EMAIL || 'Sales.Adm.bjm@sariroti.com';
+      let targetEmail = process.env.SARIROTI_ADMIN_EMAIL || 'Sales.Adm.bjm@sariroti.com';
+      
+      try {
+        const { data: settingsData } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'contact_info_content')
+          .single();
+          
+        if (settingsData && settingsData.value) {
+          const contactInfo = typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value;
+          if (contactInfo.email) {
+            targetEmail = contactInfo.email;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch contact info from settings, using default email', e);
+      }
 
       const emailHtml = `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
@@ -302,7 +320,12 @@ app.use(express.urlencoded({ extended: true }));
             <ul>${itemsHtml}</ul>
             <p><strong>Subtotal Sariroti:</strong> Rp ${sarirotiSubtotal.toLocaleString('id-ID')}</p>
           </div>
-          <p>Mohon segera diproses. Terima kasih.</p>
+          <p>Mohon segera login ke web SPS Corner dengan akun Sales Admin untuk melakukan <strong>Konfirmasi Pembelian</strong>.</p>
+          <p>Setelah dikonfirmasi, sistem akan otomatis mengirimkan nota pengambilan ke email pembeli, dan Anda dapat melanjutkan pemesanan ke bagian produksi.</p>
+          <div style="margin-top: 20px;">
+            <a href="https://ais-dev-qbrtkec5bx36eatq6f6j3l-388061590885.asia-southeast1.run.app/dashboard/admin" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login ke Dashboard Admin</a>
+          </div>
+          <p style="margin-top: 30px; font-size: 12px; color: #666;">Terima kasih,<br>Sistem SPS Corner</p>
         </div>
       `;
 
@@ -314,6 +337,74 @@ app.use(express.urlencoded({ extended: true }));
       }
     } catch (err) {
       console.error('❌ Error triggering Sariroti email:', err);
+    }
+  };
+
+  const sendBuyerReceiptEmail = async (transactionId: string, buyerEmail: string, buyerName: string, items: any[], totalAmount: number) => {
+    try {
+      const sarirotiItems = items.filter((item: any) => {
+        const name = (item.products?.name || item.metadata?.product_name || '').toLowerCase();
+        const category = (item.products?.category || item.metadata?.category || '').toLowerCase();
+        return name.includes('sariroti') || name.includes('roti') || name.includes('koperasi') ||
+               category.includes('sariroti') || category.includes('roti') || category.includes('koperasi');
+      });
+
+      if (sarirotiItems.length === 0) return;
+
+      const itemsHtml = sarirotiItems.map((item: any) => {
+        const name = item.products?.name || item.metadata?.product_name || 'Produk Koperasi';
+        return `
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd;">${name}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+          </tr>
+        `;
+      }).join('');
+
+      const emailHtml = `
+        <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #0056b3; margin-bottom: 5px;">KOPERASI KARYAWAN</h2>
+            <h4 style="color: #666; margin-top: 0;">SPS CORNER</h4>
+            <h3 style="border-bottom: 2px dashed #ccc; padding-bottom: 10px;">NOTA PENGAMBILAN - SARIROTI</h3>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 5px 0;"><strong>ID Pesanan:</strong> #${transactionId.slice(0, 8)}</p>
+            <p style="margin: 5px 0;"><strong>Nama Pemesan:</strong> ${buyerName}</p>
+            <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: #28a745; font-weight: bold;">Telah Dikonfirmasi</span></p>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #f1f1f1;">
+                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Produk</th>
+                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+
+          <div style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; border: 1px solid #ffeeba; margin-top: 20px; font-size: 14px;">
+            <p style="margin: 0;"><strong>PENTING:</strong> Gunakan nota ini untuk pengambilan roti di bagian Distribusi dan sebagai bukti pembelian pada saat pemeriksaan security.</p>
+          </div>
+          
+          <p style="text-align: center; margin-top: 30px; font-size: 12px; color: #999;">
+            Terima kasih telah berbelanja di SPS Corner.
+          </p>
+        </div>
+      `;
+
+      const result = await sendSarirotiEmailInternal(buyerEmail, `Nota Pengambilan Sariroti - #${transactionId.slice(0, 8)}`, emailHtml);
+      if (result.success) {
+        console.log(`✅ Buyer receipt email sent to ${buyerEmail} for transaction ${transactionId}`);
+      } else {
+        console.error(`❌ Failed to send buyer receipt email for transaction ${transactionId}:`, result.error);
+      }
+    } catch (err) {
+      console.error('❌ Error sending buyer receipt email:', err);
     }
   };
 
@@ -941,6 +1032,74 @@ app.use(express.urlencoded({ extended: true }));
     }
   });
 
+  // Admin: Confirm Sariroti Order
+  app.post('/api/admin/transactions/confirm-sariroti', async (req, res) => {
+    try {
+      const { transaction_id } = req.body;
+      if (!transaction_id) return res.status(400).json({ error: 'Transaction ID is required' });
+
+      // 1. Verify admin status
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+      const token = authHeader.split(' ')[1];
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Admin only' });
+
+      // 2. Get transaction details
+      const { data: transaction, error: txError } = await supabase
+        .from('transactions')
+        .select('*, transaction_items(*, products(*))')
+        .eq('id', transaction_id)
+        .single();
+
+      if (txError || !transaction) return res.status(404).json({ error: 'Transaction not found' });
+
+      // 3. Update transaction metadata to mark as confirmed
+      const newMetadata = {
+        ...(transaction.metadata || {}),
+        sariroti_confirmed: true,
+        sariroti_confirmed_at: new Date().toISOString(),
+        sariroti_confirmed_by: user.id
+      };
+
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({ metadata: newMetadata })
+        .eq('id', transaction_id);
+
+      if (updateError) throw updateError;
+
+      // 4. Get buyer email
+      let buyerEmail = null;
+      if (transaction.buyer_id) {
+        const { data: buyerAuth } = await supabase.auth.admin.getUserById(transaction.buyer_id);
+        buyerEmail = buyerAuth?.user?.email;
+      } else if (transaction.payment_details?.buyer_email) {
+        buyerEmail = transaction.payment_details.buyer_email;
+      }
+
+      // 5. Send email to buyer
+      if (buyerEmail) {
+        await sendBuyerReceiptEmail(transaction_id, buyerEmail, transaction.buyer_name, transaction.transaction_items, transaction.total_amount);
+      } else {
+        console.log(`ℹ️ No buyer email found for transaction ${transaction_id}. Skipping buyer receipt email.`);
+      }
+
+      res.json({ success: true, message: 'Pesanan Sariroti berhasil dikonfirmasi' });
+    } catch (error: any) {
+      console.error('Error confirming Sariroti order:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+  });
+
   // 3. Digiflazz Webhook (Callback)
   app.post("/api/digital/callback", async (req: any, res) => {
     try {
@@ -1106,6 +1265,30 @@ app.use(express.urlencoded({ extended: true }));
       // Use Gemini Vision to verify the receipt
       const base64Data = receipt_image.replace(/^data:image\/\w+;base64,/, "");
       
+      // Upload receipt to Supabase Storage
+      const buffer = Buffer.from(base64Data, 'base64');
+      const mimeType = receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
+      const fileExt = mimeType.split('/')[1] || 'jpg';
+      const fileName = `receipts/${transaction_id}_${Date.now()}.${fileExt}`;
+      
+      let receiptUrl = receipt_image; // Fallback to base64 if upload fails
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from('products')
+          .upload(fileName, buffer, { contentType: mimeType });
+          
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('products')
+            .getPublicUrl(fileName);
+          receiptUrl = publicUrl;
+        } else {
+          console.error('Failed to upload receipt image:', uploadError);
+        }
+      } catch (uploadErr) {
+        console.error('Exception uploading receipt image:', uploadErr);
+      }
+
       const prompt = `
         Tolong verifikasi bukti transfer ini.
         Nominal yang diharapkan adalah: Rp ${expected_amount}
@@ -1147,7 +1330,30 @@ app.use(express.urlencoded({ extended: true }));
 
       const verificationResult = JSON.parse(resultText);
 
+      // Fetch existing transaction to preserve payment_details (like buyer_email)
+      const { data: existingTx } = await supabase
+        .from('transactions')
+        .select('payment_details')
+        .eq('id', transaction_id)
+        .single();
+      const existingPaymentDetails = existingTx?.payment_details || {};
+
       if (!verificationResult.isValid) {
+        // Save the failed attempt
+        await supabase
+          .from('transactions')
+          .update({
+            receipt_image: receiptUrl,
+            payment_details: {
+              ...existingPaymentDetails,
+              receipt_uploaded: true,
+              verification_failed: true,
+              reason: verificationResult.reason,
+              attempted_at: new Date().toISOString()
+            }
+          })
+          .eq('id', transaction_id);
+
         return res.status(400).json({ 
           success: false, 
           error: `Bukti transfer tidak valid: ${verificationResult.reason}` 
@@ -1159,7 +1365,9 @@ app.use(express.urlencoded({ extended: true }));
         .update({
           status: 'paid',
           payment_method: 'manual_qris',
+          receipt_image: receiptUrl,
           payment_details: {
+            ...existingPaymentDetails,
             receipt_uploaded: true,
             verified_at: new Date().toISOString()
           }
@@ -1379,7 +1587,7 @@ app.use(express.urlencoded({ extended: true }));
 
   app.post("/api/transactions/create", async (req, res) => {
     try {
-      const { buyer_name, buyer_id, total_amount, items, payment_method, status, receipt_image } = req.body;
+      const { buyer_name, buyer_id, buyer_email, total_amount, items, payment_method, status, receipt_image } = req.body;
 
       // 1. Create transaction record
       const txDataToInsert: any = {
@@ -1390,6 +1598,7 @@ app.use(express.urlencoded({ extended: true }));
       if (buyer_id) txDataToInsert.buyer_id = buyer_id;
       if (payment_method) txDataToInsert.payment_method = payment_method;
       if (receipt_image) txDataToInsert.receipt_image = receipt_image;
+      if (buyer_email) txDataToInsert.payment_details = { buyer_email };
 
       const { data: txDataResult, error: txError } = await supabase
         .from('transactions')
@@ -1536,7 +1745,26 @@ app.use(express.urlencoded({ extended: true }));
 
       if (profile?.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Admin only' });
 
-      const targetEmail = to || 'Sales.Adm.bjm@sariroti.com';
+      let targetEmail = to || process.env.SARIROTI_ADMIN_EMAIL || 'Sales.Adm.bjm@sariroti.com';
+      
+      if (!to) {
+        try {
+          const { data: settingsData } = await supabase
+            .from('settings')
+            .select('value')
+            .eq('key', 'contact_info_content')
+            .single();
+            
+          if (settingsData && settingsData.value) {
+            const contactInfo = typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value;
+            if (contactInfo.email) {
+              targetEmail = contactInfo.email;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch contact info from settings for test email', e);
+        }
+      }
       const emailHtml = `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
           <h2 style="color: #0056b3;">Test Email Sariroti</h2>
