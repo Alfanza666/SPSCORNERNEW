@@ -128,6 +128,8 @@ export default function Checkout() {
       if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
           cleanName = 'Pelanggan SPS Corner';
       }
+      // Ensure name is at least 3 chars for iPaymu
+      if (cleanName.length < 3) cleanName = "Pelanggan";
       const dummyEmail = `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`;
 
       const ipaymuRes = await fetch('/api/payment/ipaymu/direct', {
@@ -365,6 +367,8 @@ export default function Checkout() {
       if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
           cleanName = 'Pelanggan SPS Corner';
       }
+      // Ensure name is at least 3 chars for iPaymu
+      if (cleanName.length < 3) cleanName = "Pelanggan";
       const dummyEmail = `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`;
 
       // 2. Create IPaymu Payment
