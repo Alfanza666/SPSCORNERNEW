@@ -9,6 +9,7 @@ create table if not exists public.profiles (
   role text not null,
   name text not null,
   nik text unique,
+  phone text,
   balance numeric not null default 0,
   total_sales numeric not null default 0,
   total_withdrawn numeric not null default 0,
@@ -320,6 +321,7 @@ declare
   user_name text;
   user_role text;
   user_nik text;
+  user_phone text;
 begin
   -- Check if this is the very first user in the profiles table
   select not exists(select 1 from public.profiles limit 1) into is_first_user;
@@ -344,19 +346,22 @@ begin
   end if;
 
   user_nik := nullif(trim(new.raw_user_meta_data ->> 'nik'), '');
+  user_phone := nullif(trim(new.raw_user_meta_data ->> 'phone'), '');
 
-  insert into public.profiles (id, role, name, nik)
+  insert into public.profiles (id, role, name, nik, phone)
   values (
     new.id,
     user_role,
     user_name,
-    user_nik
+    user_nik,
+    user_phone
   )
   on conflict (id) do update 
   set 
     role = excluded.role,
     name = excluded.name,
-    nik = excluded.nik;
+    nik = excluded.nik,
+    phone = excluded.phone;
 
   return new;
 exception

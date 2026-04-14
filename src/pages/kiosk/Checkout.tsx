@@ -13,6 +13,7 @@ export default function Checkout() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [paymentStep, setPaymentStep] = useState<'summary' | 'ipaymu_direct' | 'manual_qris'>('summary');
   const [directPaymentData, setDirectPaymentData] = useState<any>(null);
@@ -65,6 +66,7 @@ export default function Checkout() {
   const handleDirectPayment = async (method: string, channel: string) => {
     if (!buyerName) return;
     setLoading(true);
+    setLoadingMessage('Menyiapkan pesanan...');
 
     try {
       // 1. Create transaction record via backend API
@@ -118,6 +120,7 @@ export default function Checkout() {
       }
       const { transaction: tx } = await createRes.json();
       setTransactionId(tx.id);
+      setLoadingMessage('Menghubungkan ke gerbang pembayaran iPaymu...');
 
       // 2. Create IPaymu Direct Payment
       // Use real user phone if available, otherwise generate a realistic dummy phone
@@ -714,6 +717,23 @@ export default function Checkout() {
           </div>
         )}
       </motion.div>
+
+      {loading && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="clay-card p-8 max-w-sm w-full text-center space-y-6 animate-in fade-in zoom-in duration-300">
+            <div className="relative w-20 h-20 mx-auto">
+              <div className="absolute inset-0 border-4 border-blue-100 dark:border-blue-900/30 rounded-full"></div>
+              <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Memproses Pembayaran</h3>
+              <p className="text-zinc-500 dark:text-zinc-400 font-bold text-sm leading-relaxed">
+                {loadingMessage || 'Mohon tunggu sebentar, kami sedang memproses permintaan Anda...'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -541,7 +541,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Configuration Alert */}
-      {stats.digiflazzBalance === 0 && (
+      {(stats.digiflazzBalance === 0 && !stats.digiflazzError) || (stats.digiflazzError && stats.digiflazzError.includes('credentials not configured')) ? (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
             <CircleAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -549,12 +549,12 @@ export default function AdminDashboard() {
           <div>
             <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200 mb-1">Peringatan Konfigurasi</h4>
             <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-              Saldo Digiflazz terbaca Rp 0 atau gagal terhubung. Pastikan <strong>DIGIFLAZZ_USERNAME</strong> dan <strong>DIGIFLAZZ_API_KEY</strong> sudah diatur dengan benar di menu Settings. 
+              Saldo Digiflazz terbaca Rp 0 atau kredensial belum diatur. Pastikan <strong>DIGIFLAZZ_USERNAME</strong> dan <strong>DIGIFLAZZ_API_KEY</strong> sudah diatur dengan benar di menu Settings. 
               Jika menggunakan Resend, pastikan <strong>RESEND_API_KEY</strong> juga sudah aktif.
             </p>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">

@@ -1,3 +1,5 @@
+v4.0.7 - Memperbaiki webhook Digiflazz, mencegah transaksi fisik menjadi gagal jika produk digital gagal, dan memperbaiki tampilan error saldo Digiflazz di Admin Dashboard.
+v4.0.6 - Perbaikan integrasi Digiflazz (status pending & error handling), optimasi UI Tutorial untuk mobile, dan pembaruan status riwayat pesanan.
 v4.0.5 - Integrasi data asli pengguna (Nama, Email, Telepon) untuk transaksi iPaymu dan pembaruan skema profil.
 v4.0.4 - Memperbaiki secara tuntas error 'Suspicious buyer' iPaymu dan sinkronisasi skema database transaksi.
 v4.0.3 - Memperbaiki error schema cache pada transaksi dan mengaktifkan kembali semua metode pembayaran iPaymu.

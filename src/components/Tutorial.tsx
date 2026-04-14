@@ -300,41 +300,53 @@ export default function Tutorial() {
 
   // Calculate tooltip position
   let tooltipStyle: React.CSSProperties = {};
+  const isMobile = windowSize.width < 640;
+  
   if (!isCenter && targetRect) {
-    const padding = 16;
-    const tooltipWidth = 320;
-    const tooltipHeight = 150; // Estimated
+    const padding = 12;
+    const tooltipWidth = isMobile ? Math.min(windowSize.width - 24, 300) : 320;
+    const tooltipHeight = 160; // Estimated
     
     let top = 0;
     let left = 0;
 
-    switch (step.placement) {
-      case 'top':
+    if (isMobile) {
+      // On mobile, prefer bottom or top center to avoid horizontal overflow
+      if (targetRect.bottom + tooltipHeight + padding < windowSize.height) {
+        top = targetRect.bottom + padding;
+      } else {
         top = targetRect.top - tooltipHeight - padding;
-        left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
-        break;
-      case 'bottom':
-        top = targetRect.bottom + padding;
-        left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
-        break;
-      case 'left':
-        top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
-        left = targetRect.left - tooltipWidth - padding;
-        break;
-      case 'right':
-        top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
-        left = targetRect.right + padding;
-        break;
-      default:
-        top = targetRect.bottom + padding;
-        left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
+      }
+      left = (windowSize.width - tooltipWidth) / 2;
+    } else {
+      switch (step.placement) {
+        case 'top':
+          top = targetRect.top - tooltipHeight - padding;
+          left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
+          break;
+        case 'bottom':
+          top = targetRect.bottom + padding;
+          left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
+          break;
+        case 'left':
+          top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
+          left = targetRect.left - tooltipWidth - padding;
+          break;
+        case 'right':
+          top = targetRect.top + (targetRect.height / 2) - (tooltipHeight / 2);
+          left = targetRect.right + padding;
+          break;
+        default:
+          top = targetRect.bottom + padding;
+          left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
+      }
     }
 
     // Constrain to viewport
     if (left < padding) left = padding;
     if (left + tooltipWidth > windowSize.width - padding) left = windowSize.width - tooltipWidth - padding;
-    if (top < padding) top = targetRect.bottom + padding; // Fallback to bottom
-    if (top + tooltipHeight > windowSize.height - padding) top = targetRect.top - tooltipHeight - padding; // Fallback to top
+    if (top < padding) top = padding;
+    if (top + tooltipHeight > windowSize.height - padding) top = windowSize.height - tooltipHeight - padding;
 
     tooltipStyle = {
       position: 'fixed',
@@ -344,12 +356,13 @@ export default function Tutorial() {
       zIndex: 10001,
     };
   } else {
+    const tooltipWidth = isMobile ? Math.min(windowSize.width - 24, 300) : 320;
     tooltipStyle = {
       position: 'fixed',
       top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
-      width: '320px',
+      width: `${tooltipWidth}px`,
       zIndex: 10001,
     };
   }

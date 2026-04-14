@@ -258,9 +258,11 @@ Sistem SPS Corner`);
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
                     <div className="flex items-center gap-2.5 sm:gap-3">
                       <div className={`w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center shadow-md ${
-                        tx.status === 'success' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
+                        tx.status === 'success' || tx.status === 'paid' ? 'bg-blue-500 text-white' : 
+                        tx.status === 'processing' || tx.status === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
                       }`}>
-                        {tx.status === 'success' ? <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" /> : <XCircle className="w-5 h-5 sm:w-6 sm:h-6" />}
+                        {tx.status === 'success' || tx.status === 'paid' ? <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6" /> : 
+                         tx.status === 'processing' || tx.status === 'pending' ? <Clock className="w-5 h-5 sm:w-6 sm:h-6" /> : <XCircle className="w-5 h-5 sm:w-6 sm:h-6" />}
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1">
@@ -342,8 +344,15 @@ Sistem SPS Corner`);
 
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-zinc-100 dark:border-zinc-800 border-dashed flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                     <div className="flex items-center gap-2 sm:gap-3">
-                      <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-widest ${tx.status === 'success' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 shadow-inner' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 shadow-inner'}`}>
-                        {tx.status === 'success' ? 'Selesai' : 'Gagal'}
+                      <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-widest shadow-inner ${
+                        tx.status === 'success' || tx.status === 'paid' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' : 
+                        tx.status === 'processing' || tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' : 
+                        'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+                      }`}>
+                        {tx.status === 'success' ? 'Selesai' : 
+                         tx.status === 'paid' ? 'Dibayar' : 
+                         tx.status === 'processing' ? 'Proses' : 
+                         tx.status === 'pending' ? 'Menunggu Pembayaran' : 'Gagal'}
                       </div>
                       <span className="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Metode: QRIS</span>
                     </div>

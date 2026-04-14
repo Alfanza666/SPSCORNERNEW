@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, TransactionSkeleton } from '../../../components/ui/Skeleton';
+import toast from 'react-hot-toast';
 
 export default function AdminTransactions() {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -411,8 +412,17 @@ export default function AdminTransactions() {
                     </td>
                     <td className="p-4 lg:p-6">
                       {activeTab === 'success' ? (
-                        <span className="clay-badge bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
-                          <CheckCircle2 className="w-3 h-3 mr-1.5" /> Berhasil
+                        <span className={`clay-badge ${
+                          tx.status === 'success' || tx.status === 'paid' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' :
+                          tx.status === 'processing' || tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' :
+                          'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+                        }`}>
+                          {tx.status === 'success' || tx.status === 'paid' ? <CheckCircle2 className="w-3 h-3 mr-1.5" /> : 
+                           tx.status === 'processing' || tx.status === 'pending' ? <Clock className="w-3 h-3 mr-1.5" /> : <XCircle className="w-3 h-3 mr-1.5" />}
+                          {tx.status === 'success' ? 'Selesai' : 
+                           tx.status === 'paid' ? 'Dibayar' : 
+                           tx.status === 'processing' ? 'Proses' : 
+                           tx.status === 'pending' ? 'Menunggu' : 'Gagal'}
                         </span>
                       ) : (
                         <div className="flex flex-col gap-1">
@@ -464,8 +474,15 @@ export default function AdminTransactions() {
                     </span>
                   </div>
                   {activeTab === 'success' ? (
-                    <span className="clay-badge bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
-                      Berhasil
+                    <span className={`clay-badge ${
+                      tx.status === 'success' || tx.status === 'paid' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' :
+                      tx.status === 'processing' || tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' :
+                      'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+                    }`}>
+                      {tx.status === 'success' ? 'Selesai' : 
+                       tx.status === 'paid' ? 'Dibayar' : 
+                       tx.status === 'processing' ? 'Proses' : 
+                       tx.status === 'pending' ? 'Menunggu' : 'Gagal'}
                     </span>
                   ) : (
                     <span className="clay-badge bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
