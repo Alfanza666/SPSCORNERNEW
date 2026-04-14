@@ -1122,6 +1122,7 @@ app.use(express.urlencoded({ extended: true }));
       const hubSignature = req.header('X-Hub-Signature');
       const digiflazzEvent = req.header('X-Digiflazz-Event');
       const webhookSecret = process.env.DIGIFLAZZ_WEBHOOK_SECRET;
+      const webhookId = process.env.DIGIFLAZZ_WEBHOOK_ID; // Optional: If user provides Webhook ID instead of Secret
 
       console.log(`🔔 Digiflazz Webhook Received (Event: ${digiflazzEvent}):`, JSON.stringify(callbackData, null, 2));
 
@@ -1138,10 +1139,13 @@ app.use(express.urlencoded({ extended: true }));
       const { ref_id, status, sn } = callbackData.data;
 
       // Validate Signature from Digiflazz
-      if (webhookSecret && hubSignature) {
+      // Digiflazz uses HMAC SHA1 with the Secret key. If user provided Webhook ID, we'll try that too as a fallback.
+      const secretToUse = webhookSecret || webhookId;
+      
+      if (secretToUse && hubSignature) {
         // Use rawBody for accurate HMAC generation
         const bodyString = req.rawBody || JSON.stringify(req.body);
-        const expectedHubSignature = 'sha1=' + crypto.createHmac('sha1', webhookSecret).update(bodyString).digest('hex');
+        const expectedHubSignature = 'sha1=' + crypto.createHmac('sha1', secretToUse).update(bodyString).digest('hex');
         
         if (hubSignature !== expectedHubSignature) {
           console.error('❌ Invalid X-Hub-Signature. Expected:', expectedHubSignature, 'Got:', hubSignature);

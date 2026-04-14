@@ -1,4 +1,6 @@
-v4.0.7 - Memperbaiki webhook Digiflazz, mencegah transaksi fisik menjadi gagal jika produk digital gagal, dan memperbaiki tampilan error saldo Digiflazz di Admin Dashboard.
+v4.0.9 - Memperbarui logika Webhook Digiflazz untuk mendukung Webhook ID sebagai Secret.
+v4.0.8 - Memperbaiki layout komponen Tutorial agar sepenuhnya adaptif dan responsif di perangkat mobile (mencegah overflow ke kanan).
+v4.0.7 - Memperbaiki webhook Digiflazz, mencegah transaksi fisik menjadi gagal jika produk digital gagal, memperbaiki tampilan error saldo Digiflazz di Admin Dashboard, dan menyembunyikan instruksi login di halaman awal bagi pengguna yang sudah masuk.
 v4.0.6 - Perbaikan integrasi Digiflazz (status pending & error handling), optimasi UI Tutorial untuk mobile, dan pembaruan status riwayat pesanan.
 v4.0.5 - Integrasi data asli pengguna (Nama, Email, Telepon) untuk transaksi iPaymu dan pembaruan skema profil.
 v4.0.4 - Memperbaiki secara tuntas error 'Suspicious buyer' iPaymu dan sinkronisasi skema database transaksi.

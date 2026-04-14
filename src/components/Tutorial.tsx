@@ -303,22 +303,35 @@ export default function Tutorial() {
   const isMobile = windowSize.width < 640;
   
   if (!isCenter && targetRect) {
-    const padding = 12;
-    const tooltipWidth = isMobile ? Math.min(windowSize.width - 24, 300) : 320;
+    const padding = 16;
     const tooltipHeight = 160; // Estimated
     
-    let top = 0;
-    let left = 0;
-
     if (isMobile) {
+      let top = 0;
       // On mobile, prefer bottom or top center to avoid horizontal overflow
       if (targetRect.bottom + tooltipHeight + padding < windowSize.height) {
         top = targetRect.bottom + padding;
       } else {
         top = targetRect.top - tooltipHeight - padding;
       }
-      left = (windowSize.width - tooltipWidth) / 2;
+      
+      // Constrain top to viewport
+      if (top < padding) top = padding;
+      if (top + tooltipHeight > windowSize.height - padding) top = windowSize.height - tooltipHeight - padding;
+
+      tooltipStyle = {
+        position: 'fixed',
+        top: `${top}px`,
+        left: `${padding}px`,
+        right: `${padding}px`,
+        width: `calc(100% - ${padding * 2}px)`,
+        zIndex: 10001,
+      };
     } else {
+      const tooltipWidth = 320;
+      let top = 0;
+      let left = 0;
+
       switch (step.placement) {
         case 'top':
           top = targetRect.top - tooltipHeight - padding;
@@ -340,31 +353,42 @@ export default function Tutorial() {
           top = targetRect.bottom + padding;
           left = targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2);
       }
+
+      // Constrain to viewport
+      if (left < padding) left = padding;
+      if (left + tooltipWidth > windowSize.width - padding) left = windowSize.width - tooltipWidth - padding;
+      if (top < padding) top = padding;
+      if (top + tooltipHeight > windowSize.height - padding) top = windowSize.height - tooltipHeight - padding;
+
+      tooltipStyle = {
+        position: 'fixed',
+        top: `${top}px`,
+        left: `${left}px`,
+        width: `${tooltipWidth}px`,
+        zIndex: 10001,
+      };
     }
-
-    // Constrain to viewport
-    if (left < padding) left = padding;
-    if (left + tooltipWidth > windowSize.width - padding) left = windowSize.width - tooltipWidth - padding;
-    if (top < padding) top = padding;
-    if (top + tooltipHeight > windowSize.height - padding) top = windowSize.height - tooltipHeight - padding;
-
-    tooltipStyle = {
-      position: 'fixed',
-      top: `${top}px`,
-      left: `${left}px`,
-      width: `${tooltipWidth}px`,
-      zIndex: 10001,
-    };
   } else {
-    const tooltipWidth = isMobile ? Math.min(windowSize.width - 24, 300) : 320;
-    tooltipStyle = {
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: `${tooltipWidth}px`,
-      zIndex: 10001,
-    };
+    if (isMobile) {
+      tooltipStyle = {
+        position: 'fixed',
+        top: '50%',
+        left: '16px',
+        right: '16px',
+        transform: 'translateY(-50%)',
+        width: 'calc(100% - 32px)',
+        zIndex: 10001,
+      };
+    } else {
+      tooltipStyle = {
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '320px',
+        zIndex: 10001,
+      };
+    }
   }
 
   return (
@@ -376,7 +400,7 @@ export default function Tutorial() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-[10000] pointer-events-auto"
+            className="fixed inset-0 bg-black/50 z-[10000] pointer-events-auto overflow-hidden"
             onClick={handleClose}
           >
             {/* Spotlight Hole */}

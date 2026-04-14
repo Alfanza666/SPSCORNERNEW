@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Store, UserCircle, ArrowRight, ShieldCheck, ShoppingCart, Sparkles } from 'lucide-react';
+import { Store, UserCircle, ArrowRight, ShieldCheck, ShoppingCart, Sparkles, LayoutDashboard } from 'lucide-react';
 import { motion } from 'motion/react';
 import Logo from '../components/ui/logo-utama.png';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function Home() {
+  const { user } = useAuthStore();
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-[#050505] flex flex-col items-center justify-center p-4 sm:p-8 overflow-hidden relative transition-colors duration-500 font-sans">
       {/* Decorative Background Elements */}
@@ -46,7 +49,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto px-4">
+        <div className={`grid grid-cols-1 ${(!user || user.role !== 'buyer') ? 'md:grid-cols-2 max-w-4xl' : 'max-w-xl'} mx-auto px-4 gap-4 sm:gap-6`}>
           <motion.div
             whileHover={{ scale: 1.02, y: -4 }}
             whileTap={{ scale: 0.98 }}
@@ -72,30 +75,34 @@ export default function Home() {
             </Link>
           </motion.div>
 
-          <motion.div
-            whileHover={{ scale: 1.02, y: -4 }}
-            whileTap={{ scale: 0.98 }}
-            className="h-full"
-          >
-            <Link to="/login" className="group block h-full">
-              <div className="bg-white dark:bg-zinc-900/40 rounded-3xl h-full p-6 sm:p-8 text-left transition-all duration-500 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-amber-500/30 dark:hover:border-amber-500/50 hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.15)] dark:hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.15)] relative overflow-hidden backdrop-blur-xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/0 group-hover:from-amber-50/50 dark:group-hover:from-amber-500/10 transition-colors duration-500 pointer-events-none" />
-                <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/10 dark:bg-amber-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-amber-50/50 dark:bg-amber-900/20 flex items-center justify-center mb-5 sm:mb-6 relative z-10 shadow-sm border border-amber-100 dark:border-amber-800/50 group-hover:scale-110 transition-transform duration-500 overflow-hidden">
-                  <UserCircle className="w-8 h-8 sm:w-10 sm:h-10 text-amber-500 dark:text-amber-400" />
+          {(!user || user.role !== 'buyer') && (
+            <motion.div
+              whileHover={{ scale: 1.02, y: -4 }}
+              whileTap={{ scale: 0.98 }}
+              className="h-full"
+            >
+              <Link to={user ? (user.role === 'admin' ? '/dashboard/admin' : '/dashboard/seller') : '/login'} className="group block h-full">
+                <div className="bg-white dark:bg-zinc-900/40 rounded-3xl h-full p-6 sm:p-8 text-left transition-all duration-500 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-amber-500/30 dark:hover:border-amber-500/50 hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.15)] dark:hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.15)] relative overflow-hidden backdrop-blur-xl">
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/0 group-hover:from-amber-50/50 dark:group-hover:from-amber-500/10 transition-colors duration-500 pointer-events-none" />
+                  <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/10 dark:bg-amber-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-amber-50/50 dark:bg-amber-900/20 flex items-center justify-center mb-5 sm:mb-6 relative z-10 shadow-sm border border-amber-100 dark:border-amber-800/50 group-hover:scale-110 transition-transform duration-500 overflow-hidden">
+                    {user ? <LayoutDashboard className="w-8 h-8 sm:w-10 sm:h-10 text-amber-500 dark:text-amber-400" /> : <UserCircle className="w-8 h-8 sm:w-10 sm:h-10 text-amber-500 dark:text-amber-400" />}
+                  </div>
+                  
+                  <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2 tracking-tight transition-colors relative z-10">
+                    {user ? 'Dashboard' : 'Masuk Akun'}
+                    <ArrowRight className="w-5 h-5 text-amber-500 dark:text-amber-400 group-hover:translate-x-2 transition-transform duration-300" />
+                  </h3>
+                  <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base leading-relaxed font-medium transition-colors relative z-10">
+                    {user 
+                      ? 'Kelola sistem, produk, dan pantau transaksi Anda melalui dashboard.' 
+                      : 'Akses dashboard untuk mengelola produk, melihat riwayat transaksi, atau melakukan penarikan saldo.'}
+                  </p>
                 </div>
-                
-                <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2 tracking-tight transition-colors relative z-10">
-                  Masuk Akun
-                  <ArrowRight className="w-5 h-5 text-amber-500 dark:text-amber-400 group-hover:translate-x-2 transition-transform duration-300" />
-                </h3>
-                <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base leading-relaxed font-medium transition-colors relative z-10">
-                  Akses dashboard untuk mengelola produk, melihat riwayat transaksi, atau melakukan penarikan saldo.
-                </p>
-              </div>
-            </Link>
-          </motion.div>
+              </Link>
+            </motion.div>
+          )}
         </div>
 
         <motion.div 
