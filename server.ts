@@ -179,20 +179,39 @@ app.use(express.urlencoded({ extended: true }));
             const digiData = digiResponse.data;
             console.log('Digiflazz Order Response:', JSON.stringify(digiData, null, 2));
 
+            const responseData = digiData.data || {};
+            const rc = responseData.rc;
+            const message = responseData.message || 'No message from Digiflazz';
+            const sn = responseData.sn || '';
+
+            // Map Digiflazz RC to item status
+            let itemStatus = 'processing';
+            if (rc === '00') {
+              itemStatus = 'delivered';
+            } else if (rc === '03') {
+              itemStatus = 'processing'; // Still pending at Digiflazz
+            } else {
+              itemStatus = 'failed';
+              allDigitalSuccess = false;
+              console.error(`❌ Digiflazz Order Failed (RC ${rc}): ${message}`);
+            }
+
             await supabase
               .from('transaction_items')
               .update({
+                status: itemStatus,
                 metadata: {
                   ...item.metadata,
-                  digiflazz_response: digiData.data
+                  digiflazz_response: responseData,
+                  digiflazz_rc: rc,
+                  digiflazz_message: message,
+                  sn: sn,
+                  last_update: new Date().toISOString(),
+                  ref_id: refId
                 }
               })
               .eq('id', item.id);
 
-            if (digiData.data && digiData.data.rc && digiData.data.rc !== '00' && digiData.data.rc !== '03') {
-              allDigitalSuccess = false;
-              console.error(`❌ Digiflazz Order Failed (RC ${digiData.data.rc}): ${digiData.data.message}`);
-            }
           } catch (digiErr: any) {
             allDigitalSuccess = false;
             const errorDetail = digiErr.response?.data || digiErr.message;
@@ -201,9 +220,12 @@ app.use(express.urlencoded({ extended: true }));
             await supabase
               .from('transaction_items')
               .update({
+                status: 'failed',
                 metadata: {
                   ...item.metadata,
-                  digiflazz_error: errorDetail
+                  digiflazz_error: errorDetail,
+                  last_update: new Date().toISOString(),
+                  ref_id: refId
                 }
               })
               .eq('id', item.id);
@@ -212,13 +234,6 @@ app.use(express.urlencoded({ extended: true }));
       }
     }
 
-    if (digitalItems.length > 0 && !allDigitalSuccess) {
-      await supabase
-        .from('transactions')
-        .update({ status: 'failed' })
-        .eq('id', transactionId);
-    }
-    
     return allDigitalSuccess;
   };
 
@@ -1147,20 +1162,52 @@ app.use(express.urlencoded({ extended: true }));
 
       // Update transaction status in Supabase
       if (ref_id) {
-        const { error } = await supabase
+        // First try to find by metadata->>ref_id
+        const { data: itemsByRef, error: fetchError } = await supabase
           .from('transaction_items')
-          .update({ 
-            status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
-            metadata: { 
-              ...callbackData.data, // Store full callback data for reference
-              sn: sn,
-              last_update: new Date().toISOString()
-            }
-          })
-          .eq('transaction_id', ref_id)
-          .contains('metadata', { is_digital: true });
+          .select('id, metadata')
+          .contains('metadata', { ref_id: ref_id });
 
-        if (error) console.error('Error updating transaction item from Digiflazz callback:', error);
+        if (itemsByRef && itemsByRef.length > 0) {
+          for (const item of itemsByRef) {
+            await supabase
+              .from('transaction_items')
+              .update({ 
+                status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
+                metadata: { 
+                  ...item.metadata,
+                  ...callbackData.data, // Store full callback data for reference
+                  sn: sn,
+                  last_update: new Date().toISOString()
+                }
+              })
+              .eq('id', item.id);
+          }
+        } else {
+          // Fallback to transaction_id for backward compatibility
+          const { data: itemsByTx, error: txFetchError } = await supabase
+            .from('transaction_items')
+            .select('id, metadata')
+            .eq('transaction_id', ref_id)
+            .contains('metadata', { is_digital: true });
+
+          if (itemsByTx && itemsByTx.length > 0) {
+            for (const item of itemsByTx) {
+              await supabase
+                .from('transaction_items')
+                .update({ 
+                  status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
+                  metadata: { 
+                    ...item.metadata,
+                    ...callbackData.data,
+                    sn: sn,
+                    last_update: new Date().toISOString()
+                  }
+                })
+                .eq('id', item.id);
+            }
+          }
+        }
       }
 
       res.status(200).json({ success: true });
@@ -1645,54 +1692,17 @@ app.use(express.urlencoded({ extended: true }));
         } : null
       }));
 
-      const { error: itemsError } = await supabase
+      const { data: insertedItems, error: itemsError } = await supabase
         .from('transaction_items')
-        .insert(txItems);
+        .insert(txItems)
+        .select();
 
       if (itemsError) throw itemsError;
 
       // Process digital items via Digiflazz if status is paid or success
       if (tx.status === 'paid' || tx.status === 'success') {
-        const digitalItems = txItems.filter((item: any) => item.metadata?.is_digital);
-        
-        for (let i = 0; i < digitalItems.length; i++) {
-          const item = digitalItems[i];
-          const sku = item.metadata?.sku;
-          const target = item.metadata?.target_number;
-          const isPostpaid = item.metadata?.is_postpaid;
-          const quantity = item.quantity || 1;
-          
-          if (sku && target) {
-            for (let j = 0; j < quantity; j++) {
-              const refId = (digitalItems.length === 1 && quantity === 1) 
-                ? tx.id 
-                : `${tx.id.substring(0, 30)}-${i}-${j}`;
-              
-              console.log(`Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${refId}`);
-              
-              const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).digest('hex');
-              
-              const payload: any = {
-                username: DIGIFLAZZ_USERNAME,
-                buyer_sku_code: sku,
-                customer_no: target,
-                ref_id: refId,
-                sign: sign,
-                testing: process.env.DIGIFLAZZ_TESTING === 'true'
-              };
-
-              if (isPostpaid) {
-                payload.commands = 'pay-pasca';
-              }
-
-              try {
-                const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', payload, getDigiflazzAxiosConfig());
-                console.log('Digiflazz Order Response:', digiResponse.data);
-              } catch (digiErr: any) {
-                console.error('Digiflazz Order Error:', digiErr.response?.data ? JSON.stringify(digiErr.response.data) : digiErr.message);
-              }
-            }
-          }
+        if (insertedItems && insertedItems.length > 0) {
+          await processDigitalItems(tx.id, insertedItems);
         }
       }
 
