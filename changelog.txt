@@ -1,3 +1,8 @@
+v4.0.14 - Memperbaiki bug di mana email notifikasi Sariroti ke admin sales tidak terkirim pada metode pembayaran manual (QRIS Manual).
+v4.0.13 - Memperbaiki masalah gambar logo produk digital yang crash/rusak dengan menggunakan API Clearbit Logo dan menambahkan fallback otomatis jika gambar gagal dimuat.
+v4.0.12 - Memperbarui pemetaan logo produk digital secara komprehensif (menambahkan puluhan logo baru untuk E-Wallet, Game, dan Utilitas) serta memberikan instruksi konfigurasi SMTP Email untuk notifikasi admin sales.
+v4.0.11 - Memperbaiki tampilan logo produk digital (menambahkan logo E-Wallet dan Game), menyembunyikan produk "Cek Nama" dari daftar katalog, memperbaiki tombol "Lihat Detail" di Riwayat Pesanan agar mengarah ke halaman sukses, dan memperbaiki error saat memuat saldo Digiflazz di Admin Dashboard.
+v4.0.10 - Memperbaiki bug produk digital (Pulsa/Data) yang hilang saat nomor HP dimasukkan (penyesuaian pemetaan provider "THREE" dan pengamanan filter kategori/brand).
 v4.0.9 - Memperbarui logika Webhook Digiflazz untuk mendukung Webhook ID sebagai Secret.
 v4.0.8 - Memperbaiki layout komponen Tutorial agar sepenuhnya adaptif dan responsif di perangkat mobile (mencegah overflow ke kanan).
 v4.0.7 - Memperbaiki webhook Digiflazz, mencegah transaksi fisik menjadi gagal jika produk digital gagal, memperbaiki tampilan error saldo Digiflazz di Admin Dashboard, dan menyembunyikan instruksi login di halaman awal bagi pengguna yang sudah masuk.

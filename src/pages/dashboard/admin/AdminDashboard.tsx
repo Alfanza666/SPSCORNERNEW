@@ -158,8 +158,7 @@ export default function AdminDashboard() {
             digiflazzError = data.error || 'Gagal mengambil saldo';
           }
         } else {
-          const errData = await response.json().catch(() => ({}));
-          digiflazzError = errData.error || `HTTP Error: ${response.status}`;
+          digiflazzError = `HTTP Error: ${response.status}`;
           console.error('Failed to fetch Digiflazz balance, status:', response.status);
         }
       } catch (err: any) {

@@ -149,6 +149,7 @@ export default function Cart() {
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
                       referrerPolicy="no-referrer"
                       loading="lazy"
+                      onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=random&color=fff&rounded=true` }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-zinc-200 dark:text-zinc-700">

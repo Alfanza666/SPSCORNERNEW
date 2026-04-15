@@ -298,7 +298,14 @@ Sistem SPS Corner`);
                         <div key={item.id} className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg sm:rounded-xl border border-zinc-50 dark:border-zinc-800 shadow-inner">
                           <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white dark:bg-zinc-800 rounded-md sm:rounded-lg overflow-hidden shadow-sm border border-zinc-100 dark:border-zinc-700 shrink-0">
                             {imageUrl ? (
-                              <img src={imageUrl} alt={productName} className="w-full h-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                              <img 
+                                src={imageUrl} 
+                                alt={productName} 
+                                className="w-full h-full object-cover" 
+                                referrerPolicy="no-referrer" 
+                                loading="lazy"
+                                onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(productName)}&background=random&color=fff&rounded=true` }}
+                              />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-zinc-200 dark:text-zinc-700">
                                 <Package className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -375,7 +382,7 @@ Sistem SPS Corner`);
                         </>
                       )}
                       <button 
-                        onClick={() => {/* View Details Modal or Page */}}
+                        onClick={() => navigate(`/kiosk/success?tx=${tx.id}`)}
                         className="text-blue-600 dark:text-blue-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest"
                       >
                         Lihat Detail <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />

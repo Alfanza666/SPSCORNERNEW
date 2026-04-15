@@ -534,7 +534,7 @@ app.use(express.urlencoded({ extended: true }));
       if (priceCache[cacheKey] && (Date.now() - priceCache[cacheKey].timestamp < CACHE_TTL)) {
         let filtered = priceCache[cacheKey].data;
         if (category) {
-          filtered = filtered.filter((p: any) => p.category.toLowerCase().includes(category.toLowerCase()));
+          filtered = filtered.filter((p: any) => p.category && p.category.toLowerCase().includes(category.toLowerCase()));
         }
         return res.json({ success: true, data: filtered, cached: true });
       }
@@ -560,7 +560,7 @@ app.use(express.urlencoded({ extended: true }));
         // Filter by category if provided
         let filtered = data.data;
         if (category) {
-          filtered = data.data.filter((p: any) => p.category.toLowerCase().includes(category.toLowerCase()));
+          filtered = data.data.filter((p: any) => p.category && p.category.toLowerCase().includes(category.toLowerCase()));
         }
         return res.json({ success: true, data: filtered });
       } else if (data.data && data.data.rc) {
@@ -574,7 +574,7 @@ app.use(express.urlencoded({ extended: true }));
             console.log(`Rate limited, serving STALE ${type} prices from cache`);
             let filtered = priceCache[cacheKey].data;
             if (category) {
-              filtered = filtered.filter((p: any) => p.category.toLowerCase().includes(category.toLowerCase()));
+              filtered = filtered.filter((p: any) => p.category && p.category.toLowerCase().includes(category.toLowerCase()));
             }
             return res.json({ success: true, data: filtered, cached: true, stale: true });
           } else {
@@ -596,7 +596,7 @@ app.use(express.urlencoded({ extended: true }));
             console.log(`Rate limited, serving STALE ${type} prices from cache`);
             let filtered = priceCache[cacheKey].data;
             if (category) {
-              filtered = filtered.filter((p: any) => p.category.toLowerCase().includes(category.toLowerCase()));
+              filtered = filtered.filter((p: any) => p.category && p.category.toLowerCase().includes(category.toLowerCase()));
             }
             return res.json({ success: true, data: filtered, cached: true, stale: true });
           } else {
@@ -619,7 +619,7 @@ app.use(express.urlencoded({ extended: true }));
         console.log(`Network error, serving STALE ${cacheKey} prices from cache`);
         let filtered = priceCache[cacheKey].data;
         if (req.body.category) {
-          filtered = filtered.filter((p: any) => p.category.toLowerCase().includes(req.body.category.toLowerCase()));
+          filtered = filtered.filter((p: any) => p.category && p.category.toLowerCase().includes(req.body.category.toLowerCase()));
         }
         return res.json({ success: true, data: filtered, cached: true, stale: true });
       }
@@ -1445,6 +1445,8 @@ app.use(express.urlencoded({ extended: true }));
       if (!txFetchError && txData && txData.transaction_items) {
         // Process digital items if any
         await processDigitalItems(transaction_id, txData.transaction_items);
+        // Trigger Sariroti Email
+        await triggerSarirotiEmail(transaction_id, txData.buyer_name, txData.total_amount);
       }
 
       res.json({ success: true, message: 'Payment verified successfully' });

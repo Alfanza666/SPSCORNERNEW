@@ -38,36 +38,65 @@ const getProviderFromNumber = (number: string): string => {
   if (['0817', '0818', '0819', '0859', '0877', '0878'].includes(prefix)) return 'XL';
   if (['0831', '0832', '0833', '0838'].includes(prefix)) return 'AXIS';
   if (['0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'].includes(prefix)) return 'SMARTFREN';
-  if (['0895', '0896', '0897', '0898', '0899'].includes(prefix)) return 'TRI';
+  if (['0895', '0896', '0897', '0898', '0899'].includes(prefix)) return 'THREE'; // Digiflazz uses THREE
   return '';
 };
 
 const getProductLogo = (brand: string, category: string) => {
-  const b = brand.toLowerCase();
-  if (b.includes('telkomsel')) return 'https://upload.wikimedia.org/wikipedia/commons/b/bc/Telkomsel_2021_icon.svg';
-  if (b.includes('indosat')) return 'https://upload.wikimedia.org/wikipedia/commons/9/9d/Logo_Indosat_Ooredoo_Hutchison.svg';
-  if (b.includes('xl')) return 'https://upload.wikimedia.org/wikipedia/commons/9/9a/XL_Axiata_logo_2016.svg';
-  if (b.includes('axis')) return 'https://upload.wikimedia.org/wikipedia/commons/8/83/Axis_logo_2015.svg';
-  if (b.includes('smartfren')) return 'https://upload.wikimedia.org/wikipedia/commons/1/14/Smartfren_Logo.svg';
-  if (b.includes('tri') || b.includes('three')) return 'https://upload.wikimedia.org/wikipedia/commons/4/40/Tiga_logo.svg';
-  if (b.includes('pln')) return 'https://upload.wikimedia.org/wikipedia/commons/9/97/Logo_PLN.png';
-  if (b.includes('gopay')) return 'https://upload.wikimedia.org/wikipedia/commons/8/86/Gopay_logo.svg';
-  if (b.includes('ovo')) return 'https://upload.wikimedia.org/wikipedia/commons/e/eb/Logo_ovo_purple.svg';
-  if (b.includes('dana')) return 'https://upload.wikimedia.org/wikipedia/commons/7/72/Logo_dana_blue.svg';
-  if (b.includes('shopee')) return 'https://upload.wikimedia.org/wikipedia/commons/f/fe/ShopeePay_Logo.png';
-  if (b.includes('linkaja')) return 'https://upload.wikimedia.org/wikipedia/commons/8/85/LinkAja.svg';
+  const b = (brand || '').toLowerCase();
   
-  if (b.includes('mobile legends')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/2/21/Mobile_Legends_Bang_Bang_logo.png/220px-Mobile_Legends_Bang_Bang_logo.png';
-  if (b.includes('free fire')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/3/30/Free_Fire_logo.svg/220px-Free_Fire_logo.svg.png';
-  if (b.includes('pubg')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/4/44/PlayerUnknown%27s_Battlegrounds_logo.svg/300px-PlayerUnknown%27s_Battlegrounds_logo.svg.png';
-  if (b.includes('genshin')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/5/5d/Genshin_Impact_logo.svg/300px-Genshin_Impact_logo.svg.png';
-  if (b.includes('valorant')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Valorant_logo_-_pink_color_version.svg/250px-Valorant_logo_-_pink_color_version.svg.png';
+  // Pulsa & Data
+  if (b.includes('telkomsel')) return 'https://logo.clearbit.com/telkomsel.com';
+  if (b.includes('indosat')) return 'https://logo.clearbit.com/indosatooredoo.com';
+  if (b.includes('xl')) return 'https://logo.clearbit.com/xl.co.id';
+  if (b.includes('axis')) return 'https://logo.clearbit.com/axis.co.id';
+  if (b.includes('smartfren')) return 'https://logo.clearbit.com/smartfren.com';
+  if (b.includes('tri') || b.includes('three')) return 'https://logo.clearbit.com/tri.co.id';
+  if (b.includes('by.u') || b.includes('byu')) return 'https://logo.clearbit.com/byu.id';
   
+  // PLN & Utilities
+  if (b.includes('pln') || b.includes('listrik')) return 'https://logo.clearbit.com/pln.co.id';
+  if (b.includes('pdam') || b.includes('air')) return 'https://logo.clearbit.com/pdamtirtanadi.co.id';
+  if (b.includes('bpjs')) return 'https://logo.clearbit.com/bpjs-kesehatan.go.id';
+  if (b.includes('indihome') || b.includes('telkom')) return 'https://logo.clearbit.com/indihome.co.id';
+  
+  // E-Wallet & E-Money
+  if (b.includes('gopay') || b.includes('go-pay') || b.includes('gojek')) return 'https://logo.clearbit.com/gopay.co.id';
+  if (b.includes('ovo')) return 'https://logo.clearbit.com/ovo.id';
+  if (b.includes('dana')) return 'https://logo.clearbit.com/dana.id';
+  if (b.includes('shopee')) return 'https://logo.clearbit.com/shopee.co.id';
+  if (b.includes('linkaja')) return 'https://logo.clearbit.com/linkaja.id';
+  if (b.includes('isaku') || b.includes('i.saku')) return 'https://logo.clearbit.com/klikindomaret.com';
+  if (b.includes('brizzi')) return 'https://logo.clearbit.com/bri.co.id';
+  if (b.includes('tapcash')) return 'https://logo.clearbit.com/bni.co.id';
+  if (b.includes('flazz')) return 'https://logo.clearbit.com/bca.co.id';
+  if (b.includes('emoney') || b.includes('e-money') || b.includes('mandiri')) return 'https://logo.clearbit.com/bankmandiri.co.id';
+  if (b.includes('grab')) return 'https://logo.clearbit.com/grab.com';
+  if (b.includes('maxim')) return 'https://logo.clearbit.com/taximaxim.com';
+  
+  // Games & Entertainment
+  if (b.includes('mobile legends')) return 'https://logo.clearbit.com/mobilelegends.com';
+  if (b.includes('free fire')) return 'https://logo.clearbit.com/ff.garena.com';
+  if (b.includes('pubg')) return 'https://logo.clearbit.com/pubgmobile.com';
+  if (b.includes('genshin')) return 'https://logo.clearbit.com/genshin.hoyoverse.com';
+  if (b.includes('valorant')) return 'https://logo.clearbit.com/playvalorant.com';
+  if (b.includes('point blank')) return 'https://logo.clearbit.com/pointblank.id';
+  if (b.includes('call of duty') || b.includes('codm')) return 'https://logo.clearbit.com/callofduty.com';
+  if (b.includes('arena of valor') || b.includes('aov')) return 'https://logo.clearbit.com/aov.garena.co.id';
+  if (b.includes('steam')) return 'https://logo.clearbit.com/steampowered.com';
+  if (b.includes('garena')) return 'https://logo.clearbit.com/garena.com';
+  if (b.includes('google play')) return 'https://logo.clearbit.com/play.google.com';
+  if (b.includes('spotify')) return 'https://logo.clearbit.com/spotify.com';
+  if (b.includes('netflix')) return 'https://logo.clearbit.com/netflix.com';
+  if (b.includes('vidio')) return 'https://logo.clearbit.com/vidio.com';
+  
+  // Fallbacks based on category
   if (category === 'Pulsa' || category === 'Data') return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=400';
   if (category === 'Games') return 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&q=80&w=400';
-  if (category === 'PLN') return 'https://upload.wikimedia.org/wikipedia/commons/9/97/Logo_PLN.png';
+  if (category === 'PLN') return 'https://logo.clearbit.com/pln.co.id';
+  if (category === 'E-Money') return 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&q=80&w=400';
   
-  return 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&q=80&w=400';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(brand || category || 'Produk')}&background=random&color=fff&rounded=true`;
 };
 
 const getGameInputFields = (brand: string) => {
@@ -295,7 +324,14 @@ export default function DigitalProducts() {
       if (targetNumber.length >= 4) {
         const provider = getProviderFromNumber(targetNumber);
         if (provider) {
-          filtered = products.filter(p => p.brand.toUpperCase().includes(provider));
+          filtered = products.filter(p => {
+            if (!p.brand) return false;
+            const brandUpper = p.brand.toUpperCase();
+            if (provider === 'THREE') {
+              return brandUpper.includes('THREE') || brandUpper.includes('TRI');
+            }
+            return brandUpper.includes(provider);
+          });
         } else {
           filtered = []; // Don't show products if provider is unknown
         }
@@ -310,6 +346,16 @@ export default function DigitalProducts() {
       }
     }
 
+    // Filter out "Cek Nama" or Inquiry products
+    filtered = filtered.filter(p => {
+      const name = (p.product_name || '').toLowerCase();
+      const sku = (p.buyer_sku_code || '').toUpperCase();
+      // Exclude products that are just for checking names
+      if (name.includes('cek nama') || name.includes('cek ') || name.startsWith('cek')) return false;
+      if (sku.startsWith('CEK')) return false;
+      return true;
+    });
+
     if (searchQuery) {
       filtered = filtered.filter(p => 
         p.product_name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -320,7 +366,15 @@ export default function DigitalProducts() {
   }, [products, selectedCategory, targetNumber, selectedBrand, searchQuery]);
 
   const uniqueBrands = useMemo(() => {
-    return Array.from(new Set(products.map(p => p.brand as string))).sort() as string[];
+    // Filter out brands that only have "Cek" products
+    const validProducts = products.filter(p => {
+      const name = (p.product_name || '').toLowerCase();
+      const sku = (p.buyer_sku_code || '').toUpperCase();
+      if (name.includes('cek nama') || name.includes('cek ') || name.startsWith('cek')) return false;
+      if (sku.startsWith('CEK')) return false;
+      return true;
+    });
+    return Array.from(new Set(validProducts.map(p => p.brand as string))).sort() as string[];
   }, [products]);
 
   const renderInputSection = () => {
@@ -416,7 +470,13 @@ export default function DigitalProducts() {
                     className="bg-slate-50 dark:bg-zinc-800/50 p-4 rounded-2xl border-2 border-transparent hover:border-blue-500 transition-all text-center"
                   >
                     <div className="w-16 h-16 mx-auto mb-3 bg-white dark:bg-zinc-800 rounded-xl flex items-center justify-center p-2">
-                      <img src={getProductLogo(brand, selectedCategory.name)} alt={brand} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      <img 
+                        src={getProductLogo(brand, selectedCategory.name)} 
+                        alt={brand} 
+                        className="w-full h-full object-contain" 
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(brand)}&background=random&color=fff&rounded=true` }}
+                      />
                     </div>
                     <h3 className="font-bold text-slate-900 dark:text-white text-xs">{brand}</h3>
                   </button>
@@ -430,7 +490,13 @@ export default function DigitalProducts() {
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-4 mb-6">
-            <img src={getProductLogo(selectedBrand, selectedCategory.name)} alt={selectedBrand} className="w-12 h-12 object-contain rounded-lg" referrerPolicy="no-referrer" />
+            <img 
+              src={getProductLogo(selectedBrand, selectedCategory.name)} 
+              alt={selectedBrand} 
+              className="w-12 h-12 object-contain rounded-lg" 
+              referrerPolicy="no-referrer"
+              onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedBrand)}&background=random&color=fff&rounded=true` }}
+            />
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedBrand}</h2>
             <button onClick={() => setSelectedBrand(null)} className="ml-auto text-sm text-blue-600 hover:underline">Ubah</button>
           </div>
