@@ -1,3 +1,8 @@
+v4.0.19 - Memperbaiki masalah 'Incomplete Digiflazz metadata' saat mengecek status pesanan digital lama dengan menambahkan metode pencarian parameter `ref_id`, `sku`, dan `customerNo` yang lebih komprehensif pada versi data yang lawas.
+v4.0.18 - Menambahkan tombol "Cek Status" untuk periksa paksa token pesanan PPOB yang nyangkut, menambahkan tombol "Batalkan Pesanan" untuk menghapus tagihan lama, dan mengubah format "Cetak Nota" agar dapat mencetak semua barang (termasuk PLN/Digital) beserta harganya.
+v4.0.17 - Memperbarui halaman Transaksi Admin agar riwayat transaksi dapat dipisahkan dan difilter per penjual dengan lebih mudah. Menambahkan dropdown filter penjual di sebelah kolom pencarian dan memodifikasi tabel untuk menampilkan subtotal spesifik milik penjual yang dipilih.
+v4.0.16 - Memperbaiki error "Clock is not defined" di halaman Transaksi Admin (menambahkan import ikon Clock yang hilang).
+v4.0.15 - Memperbaiki bug target email notifikasi Sariroti yang tertimpa oleh email kontak umum, memperbarui tautan verifikasi di email agar mengarah langsung ke halaman transaksi admin, dan menambahkan fitur "Detail & Revisi Saldo" di menu Manajemen Penjual untuk melacak dan menyesuaikan saldo penjual secara manual.
 v4.0.14 - Memperbaiki bug di mana email notifikasi Sariroti ke admin sales tidak terkirim pada metode pembayaran manual (QRIS Manual).
 v4.0.13 - Memperbaiki masalah gambar logo produk digital yang crash/rusak dengan menggunakan API Clearbit Logo dan menambahkan fallback otomatis jika gambar gagal dimuat.
 v4.0.12 - Memperbarui pemetaan logo produk digital secara komprehensif (menambahkan puluhan logo baru untuk E-Wallet, Game, dan Utilitas) serta memberikan instruksi konfigurasi SMTP Email untuk notifikasi admin sales.

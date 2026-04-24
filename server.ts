@@ -307,22 +307,7 @@ app.use(express.urlencoded({ extended: true }));
 
       let targetEmail = process.env.SARIROTI_ADMIN_EMAIL || 'Sales.Adm.bjm@sariroti.com';
       
-      try {
-        const { data: settingsData } = await supabase
-          .from('settings')
-          .select('value')
-          .eq('key', 'contact_info_content')
-          .single();
-          
-        if (settingsData && settingsData.value) {
-          const contactInfo = typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value;
-          if (contactInfo.email) {
-            targetEmail = contactInfo.email;
-          }
-        }
-      } catch (e) {
-        console.error('Failed to fetch contact info from settings, using default email', e);
-      }
+      const appUrl = process.env.APP_URL || 'https://spscorner.store';
 
       const emailHtml = `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
@@ -338,7 +323,7 @@ app.use(express.urlencoded({ extended: true }));
           <p>Mohon segera login ke web SPS Corner dengan akun Sales Admin untuk melakukan <strong>Konfirmasi Pembelian</strong>.</p>
           <p>Setelah dikonfirmasi, sistem akan otomatis mengirimkan nota pengambilan ke email pembeli, dan Anda dapat melanjutkan pemesanan ke bagian produksi.</p>
           <div style="margin-top: 20px;">
-            <a href="https://ais-dev-qbrtkec5bx36eatq6f6j3l-388061590885.asia-southeast1.run.app/dashboard/admin" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Login ke Dashboard Admin</a>
+            <a href="${appUrl}/dashboard/admin/transactions" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verifikasi Pesanan Sariroti</a>
           </div>
           <p style="margin-top: 30px; font-size: 12px; color: #666;">Terima kasih,<br>Sistem SPS Corner</p>
         </div>
@@ -855,6 +840,94 @@ app.use(express.urlencoded({ extended: true }));
       
       console.error('Digiflazz Deposit Error:', errorMessage);
       res.status(500).json({ success: false, error: errorMessage });
+    }
+  });
+
+  app.post("/api/digital/check-status", async (req, res) => {
+    try {
+      const { transaction_item_id } = req.body;
+      
+      if (!transaction_item_id) {
+        return res.status(400).json({ success: false, error: 'Missing transaction_item_id' });
+      }
+
+      // Fetch the transaction item
+      const { data: item, error: fetchError } = await supabase
+        .from('transaction_items')
+        .select('*')
+        .eq('id', transaction_item_id)
+        .single();
+
+      if (fetchError || !item) {
+        return res.status(404).json({ success: false, error: 'Item not found' });
+      }
+
+      // Robust fallback for refId, sku, and customerNo
+      const refId = item.metadata?.ref_id || item.metadata?.digiflazz_response?.ref_id || item.transaction_id;
+      const sku = item.metadata?.sku || item.metadata?.digiflazz_response?.buyer_sku_code;
+      const customerNo = item.metadata?.target_number || item.metadata?.digiflazz_request?.customer_no || item.metadata?.digiflazz_response?.customer_no;
+
+      if (!refId || !sku || !customerNo) {
+        console.error('Incomplete metadata for checking status:', JSON.stringify(item.metadata, null, 2));
+        return res.status(400).json({ success: false, error: 'Data produk digital tidak lengkap untuk mengecek status (hubungi admin sales)' });
+      }
+
+      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).digest('hex');
+      
+      const payload: any = {
+        username: DIGIFLAZZ_USERNAME,
+        buyer_sku_code: sku,
+        customer_no: customerNo,
+        ref_id: refId,
+        sign: sign
+      };
+
+      if (item.metadata?.is_postpaid) {
+        payload.commands = 'pay-pasca';
+      }
+
+      const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', payload, getDigiflazzAxiosConfig());
+      const digiData = digiResponse.data;
+
+      const responseData = digiData.data || {};
+      const rc = responseData.rc;
+      const message = responseData.message || 'No message from Digiflazz';
+      const sn = responseData.sn || '';
+
+      // Map Digiflazz RC to item status
+      let itemStatus = 'processing';
+      if (rc === '00') {
+        itemStatus = 'delivered';
+      } else if (rc === '03') {
+        itemStatus = 'processing';
+      } else {
+        itemStatus = 'failed';
+      }
+
+      // Update the database
+      const { error: updateError } = await supabase
+        .from('transaction_items')
+        .update({
+          status: itemStatus,
+          metadata: {
+            ...item.metadata,
+            digiflazz_response: responseData,
+            digiflazz_rc: rc,
+            digiflazz_message: message,
+            sn: sn || item.metadata?.sn, // preserve old SN if new SN is empty (though Digiflazz replaces it correctly)
+            last_check: new Date().toISOString()
+          }
+        })
+        .eq('id', transaction_item_id);
+
+      if (updateError) {
+        console.error('Error updating item based on manual check:', updateError);
+      }
+
+      res.json({ success: true, itemStatus, sn, message });
+    } catch (error: any) {
+      console.error('Check Status Error:', error);
+      res.status(500).json({ success: false, error: error.message });
     }
   });
 
@@ -1754,6 +1827,38 @@ app.use(express.urlencoded({ extended: true }));
     } catch (error: any) {
       console.error('Pay transaction error:', error);
       res.status(500).json({ error: error.message || 'Failed to update transaction' });
+    }
+  });
+
+  // Cancel pending transaction
+  app.post("/api/transactions/cancel", async (req, res) => {
+    try {
+      const { transaction_id } = req.body;
+      const { data: tx, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transaction_id)
+        .single();
+        
+      if (fetchError || !tx) {
+        return res.status(404).json({ error: 'Transaction not found' });
+      }
+
+      if (tx.status !== 'pending' && tx.status !== 'failed') {
+        return res.status(400).json({ error: 'Hanya pesanan pending yang dapat dibatalkan.' });
+      }
+
+      const { error: deleteError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', transaction_id);
+
+      if (deleteError) throw deleteError;
+
+      res.json({ success: true, message: 'Pesanan berhasil dibatalkan.' });
+    } catch (error: any) {
+      console.error('Cancel Order Error:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 
