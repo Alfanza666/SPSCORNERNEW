@@ -28,10 +28,55 @@ export default function AdminSellers() {
   const [isAdding, setIsAdding] = useState(false);
   const [newSeller, setNewSeller] = useState({ nik: '', password: '', name: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Revision State
+  const [selectedSellerForRevision, setSelectedSellerForRevision] = useState<any | null>(null);
+  const [revisionAmount, setRevisionAmount] = useState<string>('');
+  const [revisionType, setRevisionType] = useState<'add' | 'subtract'>('add');
+  const [isRevising, setIsRevising] = useState(false);
 
   useEffect(() => {
     fetchSellers();
   }, []);
+
+  const handleReviseBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSellerForRevision || !revisionAmount) return;
+    
+    setIsRevising(true);
+    try {
+      const amount = Number(revisionAmount);
+      if (isNaN(amount) || amount <= 0) {
+        toast.error('Jumlah revisi tidak valid');
+        return;
+      }
+
+      const currentBalance = selectedSellerForRevision.balance || 0;
+      const newBalance = revisionType === 'add' ? currentBalance + amount : currentBalance - amount;
+
+      if (newBalance < 0) {
+        toast.error('Saldo tidak boleh menjadi negatif');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ balance: newBalance })
+        .eq('id', selectedSellerForRevision.id);
+
+      if (error) throw error;
+
+      toast.success('Saldo berhasil direvisi');
+      setSelectedSellerForRevision(null);
+      setRevisionAmount('');
+      fetchSellers();
+    } catch (error: any) {
+      console.error('Error revising balance:', error);
+      toast.error(`Gagal merevisi saldo: ${error.message}`);
+    } finally {
+      setIsRevising(false);
+    }
+  };
 
   const fetchSellers = async () => {
     try {
@@ -331,6 +376,13 @@ export default function AdminSellers() {
                   <td className="p-6 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
+                        onClick={() => setSelectedSellerForRevision(seller)}
+                        className="p-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-all"
+                        title="Detail & Revisi Saldo"
+                      >
+                        <ShieldCheck className="w-5 h-5" />
+                      </button>
+                      <button 
                         onClick={() => handleToggleActive(seller.id, seller.is_active)}
                         className={`p-3 rounded-xl transition-all ${
                           seller.is_active 
@@ -386,6 +438,12 @@ export default function AdminSellers() {
               </div>
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button 
+                  onClick={() => setSelectedSellerForRevision(seller)}
+                  className="px-3 py-1.5 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-all font-bold text-[10px]"
+                >
+                  Revisi
+                </button>
+                <button 
                   onClick={() => handleToggleActive(seller.id, seller.is_active)}
                   className={`flex-1 py-1.5 rounded-lg font-bold text-[10px] transition-all ${
                     seller.is_active 
@@ -415,6 +473,91 @@ export default function AdminSellers() {
           </div>
         )}
       </div>
+
+      {/* Revision Modal */}
+      <AnimatePresence>
+        {selectedSellerForRevision && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-zinc-200 dark:border-zinc-800"
+            >
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+                <h3 className="text-lg font-black text-zinc-900 dark:text-white">Detail & Revisi Saldo</h3>
+                <button onClick={() => setSelectedSellerForRevision(null)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-100 dark:border-zinc-800">
+                  <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Penjual</p>
+                  <p className="font-black text-zinc-900 dark:text-white">{selectedSellerForRevision.name}</p>
+                  <p className="text-xs text-zinc-500 mt-1">ID: {selectedSellerForRevision.id}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800/30">
+                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">Saldo Saat Ini</p>
+                    <p className="font-black text-blue-700 dark:text-blue-300 text-lg">{formatRupiah(selectedSellerForRevision.balance || 0)}</p>
+                  </div>
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-100 dark:border-zinc-800">
+                    <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Total Penjualan</p>
+                    <p className="font-black text-zinc-900 dark:text-white text-lg">{formatRupiah(selectedSellerForRevision.total_sales || 0)}</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleReviseBalance} className="space-y-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                  <h4 className="font-bold text-zinc-900 dark:text-white">Form Revisi Saldo</h4>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRevisionType('add')}
+                      className={`flex-1 py-2 rounded-lg font-bold text-sm border transition-all ${
+                        revisionType === 'add' 
+                          ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300' 
+                          : 'bg-white border-zinc-200 text-zinc-500 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400'
+                      }`}
+                    >
+                      + Tambah Saldo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRevisionType('subtract')}
+                      className={`flex-1 py-2 rounded-lg font-bold text-sm border transition-all ${
+                        revisionType === 'subtract' 
+                          ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300' 
+                          : 'bg-white border-zinc-200 text-zinc-500 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400'
+                      }`}
+                    >
+                      - Kurangi Saldo
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Jumlah (Rp)</label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      value={revisionAmount}
+                      onChange={(e) => setRevisionAmount(e.target.value)}
+                      placeholder="Masukkan jumlah..."
+                      className="input-clay w-full"
+                    />
+                  </div>
+                  <div className="pt-2 flex justify-end gap-3">
+                    <button type="button" onClick={() => setSelectedSellerForRevision(null)} className="btn-clay-secondary px-6">Batal</button>
+                    <button type="submit" disabled={isRevising} className="btn-clay-primary px-6">
+                      {isRevising ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Revisi'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

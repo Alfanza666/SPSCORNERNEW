@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { formatRupiah, exportCSV } from '../../../lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink, Clock } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, TransactionSkeleton } from '../../../components/ui/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -25,6 +25,7 @@ export default function AdminTransactions() {
     sellerId: ''
   });
   const [sellerTxIds, setSellerTxIds] = useState<Set<string>>(new Set());
+  const [sellerSubtotals, setSellerSubtotals] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchTransactions();
@@ -36,6 +37,7 @@ export default function AdminTransactions() {
       fetchSellerTransactionIds(filters.sellerId);
     } else {
       setSellerTxIds(new Set());
+      setSellerSubtotals({});
     }
   }, [filters.sellerId]);
 
@@ -47,11 +49,18 @@ export default function AdminTransactions() {
   const fetchSellerTransactionIds = async (sellerId: string) => {
     const { data } = await supabase
       .from('transaction_items')
-      .select('transaction_id')
+      .select('transaction_id, price, quantity')
       .eq('seller_id', sellerId);
     
     if (data) {
-      setSellerTxIds(new Set(data.map(item => item.transaction_id)));
+      const ids = new Set<string>();
+      const subtotals: Record<string, number> = {};
+      data.forEach(item => {
+        ids.add(item.transaction_id);
+        subtotals[item.transaction_id] = (subtotals[item.transaction_id] || 0) + (item.price * item.quantity);
+      });
+      setSellerTxIds(ids);
+      setSellerSubtotals(subtotals);
     }
   };
 
@@ -284,23 +293,35 @@ export default function AdminTransactions() {
           </button>
         </div>
 
-        <div className="flex flex-1 items-center gap-4 w-full md:w-auto">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Cari pembeli atau ID..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input-clay pl-12 h-12"
-            />
+        <div className="flex flex-1 flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+          <div className="flex w-full md:w-auto gap-4 flex-1">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-600 dark:group-focus-within:text-blue-400 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Cari pembeli atau ID..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input-clay pl-12 h-12 w-full"
+              />
+            </div>
+            <select 
+              value={filters.sellerId}
+              onChange={(e) => setFilters({...filters, sellerId: e.target.value})}
+              className="input-clay h-12 appearance-none hidden md:block w-48 shrink-0"
+            >
+              <option value="">Semua Penjual</option>
+              {sellers.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
           </div>
           <button 
             onClick={() => setShowFilters(!showFilters)}
-            className={`btn-clay-secondary h-12 px-6 flex items-center gap-2 transition-colors shrink-0 ${showFilters ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white' : ''}`}
+            className={`btn-clay-secondary h-12 px-6 flex items-center justify-center gap-2 transition-colors shrink-0 w-full md:w-auto ${showFilters ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white' : ''}`}
           >
             <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">{showFilters ? 'Tutup Filter' : 'Filter Lanjut'}</span>
+            <span className="inline">{showFilters ? 'Tutup Filter' : 'Filter Lanjut'}</span>
           </button>
         </div>
       </div>
@@ -313,14 +334,14 @@ export default function AdminTransactions() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-8 bg-zinc-50/30 dark:bg-zinc-800/30 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-8 bg-zinc-50/30 dark:bg-zinc-800/30 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Dari Tanggal</label>
                 <input 
                   type="date" 
                   value={filters.startDate}
                   onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-                  className="input-clay h-12"
+                  className="input-clay h-12 w-full"
                 />
               </div>
               <div className="space-y-2">
@@ -329,23 +350,10 @@ export default function AdminTransactions() {
                   type="date" 
                   value={filters.endDate}
                   onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-                  className="input-clay h-12"
+                  className="input-clay h-12 w-full"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Filter Penjual</label>
-                <select 
-                  value={filters.sellerId}
-                  onChange={(e) => setFilters({...filters, sellerId: e.target.value})}
-                  className="input-clay h-12 appearance-none"
-                >
-                  <option value="">Semua Penjual</option>
-                  {sellers.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="md:col-span-3 flex justify-end">
+              <div className="md:col-span-2 flex justify-end">
                 <button 
                   onClick={() => setFilters({ startDate: '', endDate: '', sellerId: '' })}
                   className="text-xs font-black text-red-500 dark:text-red-400 uppercase tracking-widest hover:text-red-600 dark:hover:text-red-300 transition-colors"
@@ -406,9 +414,14 @@ export default function AdminTransactions() {
                       </div>
                     </td>
                     <td className="p-4 lg:p-6">
-                      <p className={`text-sm lg:text-base font-black tracking-tight ${activeTab === 'success' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
-                        {formatRupiah(activeTab === 'success' ? tx.total_amount : tx.attempted_amount)}
-                      </p>
+                      <div className="flex flex-col">
+                        <p className={`text-sm lg:text-base font-black tracking-tight ${activeTab === 'success' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
+                          {formatRupiah(filters.sellerId && activeTab === 'success' ? sellerSubtotals[tx.id] : (activeTab === 'success' ? tx.total_amount : tx.attempted_amount))}
+                        </p>
+                        {filters.sellerId && activeTab === 'success' && (
+                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Total Pesanan: {formatRupiah(tx.total_amount)}</p>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 lg:p-6">
                       {activeTab === 'success' ? (
@@ -502,8 +515,11 @@ export default function AdminTransactions() {
                   <div className="text-right">
                     <p className="text-[8px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Total</p>
                     <p className={`font-black text-sm ${activeTab === 'success' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
-                      {formatRupiah(activeTab === 'success' ? tx.total_amount : tx.attempted_amount)}
+                      {formatRupiah(filters.sellerId && activeTab === 'success' ? sellerSubtotals[tx.id] : (activeTab === 'success' ? tx.total_amount : tx.attempted_amount))}
                     </p>
+                    {filters.sellerId && activeTab === 'success' && (
+                      <p className="text-[8px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Total Pesanan: {formatRupiah(tx.total_amount)}</p>
+                    )}
                   </div>
                 </div>
 
@@ -637,7 +653,7 @@ export default function AdminTransactions() {
                                   {txItems.map((item) => (
                                     <tr key={item.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors">
                                       <td className="px-4 md:px-6 py-4 text-zinc-900 dark:text-white font-bold">
-                                        {item.products?.name || 'Produk Terhapus'}
+                                        {item.products?.name || item.metadata?.product_name || 'Produk Terhapus'}
                                         {item.metadata?.is_digital && (
                                           <span className="ml-2 text-[8px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded uppercase tracking-tighter">Digital</span>
                                         )}
@@ -646,15 +662,15 @@ export default function AdminTransactions() {
                                       <td className="px-4 md:px-6 py-4 text-center text-zinc-500 dark:text-zinc-400 font-black">{item.quantity}</td>
                                       <td className="px-4 md:px-6 py-4 text-center">
                                         <span className={`clay-badge text-[8px] ${
-                                          item.status === 'delivered' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' :
-                                          item.status === 'failed' ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400' :
-                                          item.status === 'processing' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 animate-pulse' :
+                                          item.metadata?.status === 'delivered' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' :
+                                          item.metadata?.status === 'failed' ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400' :
+                                          item.metadata?.status === 'processing' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 animate-pulse' :
                                           'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
                                         }`}>
-                                          {item.status === 'delivered' ? 'Sukses' : 
-                                           item.status === 'failed' ? 'Gagal' : 
-                                           item.status === 'processing' ? 'Proses' : 
-                                           item.status || 'Pending'}
+                                          {item.metadata?.status === 'delivered' ? 'Sukses' : 
+                                           item.metadata?.status === 'failed' ? 'Gagal' : 
+                                           item.metadata?.status === 'processing' ? 'Proses' : 
+                                           item.metadata?.status || 'Pending'}
                                         </span>
                                       </td>
                                       <td className="px-4 md:px-6 py-4 text-right text-zinc-900 dark:text-white font-black">{formatRupiah(item.subtotal)}</td>

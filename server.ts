@@ -43,6 +43,12 @@ app.use(express.urlencoded({ extended: true }));
     res.json({ status: "ok" });
   });
 
+  app.get("/api/debug-schema", async (req, res) => {
+    const { data, error } = await supabase.rpc('get_schema_info'); // Wait, we can just select from information_schema
+    const { data: cols } = await supabase.from('transaction_items').select('*').limit(1);
+    res.json({ error: null, cols: cols ? Object.keys(cols[0] || {}) : [] });
+  });
+
   // Debug endpoint to check outbound IP
   app.get("/api/debug/ip", async (req, res) => {
     try {
@@ -130,6 +136,8 @@ app.use(express.urlencoded({ extended: true }));
           .update({
             metadata: {
               ...item.metadata,
+              status: 'failed',
+              digiflazz_message: 'Digiflazz credentials not configured',
               digiflazz_error: 'Digiflazz credentials not configured'
             }
           })
@@ -199,9 +207,9 @@ app.use(express.urlencoded({ extended: true }));
             await supabase
               .from('transaction_items')
               .update({
-                status: itemStatus,
                 metadata: {
                   ...item.metadata,
+                  status: itemStatus,
                   digiflazz_response: responseData,
                   digiflazz_rc: rc,
                   digiflazz_message: message,
@@ -220,9 +228,9 @@ app.use(express.urlencoded({ extended: true }));
             await supabase
               .from('transaction_items')
               .update({
-                status: 'failed',
                 metadata: {
                   ...item.metadata,
+                  status: 'failed',
                   digiflazz_error: errorDetail,
                   last_update: new Date().toISOString(),
                   ref_id: refId
@@ -908,9 +916,9 @@ app.use(express.urlencoded({ extended: true }));
       const { error: updateError } = await supabase
         .from('transaction_items')
         .update({
-          status: itemStatus,
           metadata: {
             ...item.metadata,
+            status: itemStatus,
             digiflazz_response: responseData,
             digiflazz_rc: rc,
             digiflazz_message: message,
@@ -1250,9 +1258,9 @@ app.use(express.urlencoded({ extended: true }));
             await supabase
               .from('transaction_items')
               .update({ 
-                status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
                 metadata: { 
                   ...item.metadata,
+                  status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
                   ...callbackData.data, // Store full callback data for reference
                   sn: sn,
                   last_update: new Date().toISOString()
@@ -1273,9 +1281,9 @@ app.use(express.urlencoded({ extended: true }));
               await supabase
                 .from('transaction_items')
                 .update({ 
-                  status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
                   metadata: { 
                     ...item.metadata,
+                    status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
                     ...callbackData.data,
                     sn: sn,
                     last_update: new Date().toISOString()
@@ -1762,6 +1770,7 @@ app.use(express.urlencoded({ extended: true }));
         seller_id: item.is_digital ? null : item.seller_id,
         metadata: item.is_digital ? {
           is_digital: true,
+          status: 'processing',
           target_number: item.target_number,
           product_name: item.name,
           sku: item.sku,

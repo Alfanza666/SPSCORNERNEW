@@ -19,35 +19,50 @@ export default function Success() {
   const transactionId = location.state?.transactionId || queryParams.get('id');
 
   useEffect(() => {
+    let pollTimeout: number | undefined;
+
+    const fetchTransaction = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('transactions')
+          .select(`
+            *,
+            transaction_items (
+              *,
+              products (
+                name,
+                category
+              )
+            )
+          `)
+          .eq('id', transactionId)
+          .single();
+        
+        if (!error && data) {
+          setTransaction(data);
+
+          const processingItems = data.transaction_items?.filter(
+            (item: any) => item.metadata?.is_digital && item.metadata?.status === 'processing'
+          );
+
+          if (processingItems && processingItems.length > 0) {
+            // Ping DB every 3s waiting for Webhook to resolve it
+            pollTimeout = setTimeout(fetchTransaction, 3000) as any;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching transaction:', error);
+      }
+    };
+
     if (transactionId) {
       fetchTransaction();
     }
-  }, [transactionId]);
 
-  const fetchTransaction = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          transaction_items (
-            *,
-            products (
-              name,
-              category
-            )
-          )
-        `)
-        .eq('id', transactionId)
-        .single();
-      
-      if (!error && data) {
-        setTransaction(data);
-      }
-    } catch (error) {
-      console.error('Error fetching transaction:', error);
-    }
-  };
+    return () => {
+      if (pollTimeout) clearTimeout(pollTimeout);
+    };
+  }, [transactionId]);
 
   useEffect(() => {
     const duration = 4 * 1000;
@@ -68,15 +83,27 @@ export default function Success() {
       confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
     }, 250);
 
-    const timer = setTimeout(() => {
-      navigate('/kiosk');
-    }, 15000);
-
     return () => {
-      clearTimeout(timer);
       clearInterval(interval);
     };
-  }, [navigate]);
+  }, []);
+
+  useEffect(() => {
+    const hasProcessingDigital = transaction?.transaction_items?.some(
+      (item: any) => item.metadata?.is_digital && item.metadata?.status === 'processing'
+    );
+
+    let timer: any;
+    if (!hasProcessingDigital) {
+      timer = setTimeout(() => {
+        navigate('/kiosk');
+      }, 15000); // Only auto-redirect after 15s if everything is processed
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [navigate, transaction]);
 
   const handlePrint = () => {
     window.print();
@@ -266,29 +293,62 @@ Sistem SPS Corner`);
 
         {digitalItems && digitalItems.length > 0 && (
           <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-zinc-100 dark:border-zinc-800 border-dashed text-left">
-            <p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-3 text-center">Produk Digital Berhasil Dikirim</p>
+            <p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-3 text-center">Status Produk Digital</p>
             <div className="space-y-3">
               {digitalItems.map((item: any, idx: number) => {
                 const productName = item.products?.name || item.metadata?.product_name || 'Produk Digital';
+                const isProcessing = item.metadata?.status === 'processing';
+                const isFailed = item.metadata?.status === 'failed';
+                
                 return (
-                  <div key={idx} className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
+                  <div key={idx} className={`p-3 rounded-xl border ${
+                    isProcessing ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/30' :
+                    isFailed ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30' :
+                    'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/30'
+                  }`}>
                     <div className="flex justify-between items-start mb-2">
-                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-tighter">{productName}</span>
-                      <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-500">{item.metadata.target_number}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-tighter ${
+                        isProcessing ? 'text-amber-700 dark:text-amber-400' :
+                        isFailed ? 'text-red-700 dark:text-red-400' :
+                        'text-emerald-700 dark:text-emerald-400'
+                      }`}>{productName}</span>
+                      <span className={`text-[10px] font-mono ${
+                        isProcessing ? 'text-amber-600 dark:text-amber-500' :
+                        isFailed ? 'text-red-600 dark:text-red-500' :
+                        'text-emerald-600 dark:text-emerald-500'
+                      }`}>{item.metadata.target_number}</span>
                     </div>
-                    {productName.toLowerCase().includes('pln') && (
-                      <div className="bg-white dark:bg-zinc-900 p-2 rounded-lg border border-emerald-200 dark:border-emerald-800 text-center">
-                        <p className="text-[8px] text-zinc-400 uppercase font-bold mb-1">Token PLN</p>
-                        <p className="text-sm font-mono font-black text-zinc-900 dark:text-white tracking-widest">
-                          {Math.floor(Math.random() * 10000)}-{Math.floor(Math.random() * 10000)}-{Math.floor(Math.random() * 10000)}-{Math.floor(Math.random() * 10000)}
-                        </p>
+
+                    {isProcessing ? (
+                      <div className="flex items-center justify-center py-2 gap-2 text-amber-600 dark:text-amber-400">
+                        <Clock className="w-4 h-4 animate-spin" />
+                        <span className="text-[10px] font-bold tracking-widest uppercase animate-pulse">Sedang Diproses...</span>
                       </div>
+                    ) : isFailed ? (
+                      <div className="text-center py-2">
+                        <p className="text-[10px] text-red-600 font-medium">{item.metadata?.digiflazz_message || item.metadata?.digiflazz_error || 'Transaksi gagal diproses sistem.'}</p>
+                      </div>
+                    ) : (
+                      <>
+                        {(item.metadata?.sn || item.metadata?.digiflazz_response?.sn || item.metadata?.data?.sn) && (
+                          <div className="bg-white dark:bg-zinc-900 p-2 rounded-lg border border-emerald-200 dark:border-emerald-800 text-center">
+                            <p className="text-[8px] text-zinc-400 uppercase font-bold mb-1">SN / Token / Ref</p>
+                            <p className="text-sm font-mono font-black text-zinc-900 dark:text-white tracking-widest break-all">
+                              {item.metadata?.sn || item.metadata?.digiflazz_response?.sn || item.metadata?.data?.sn}
+                            </p>
+                          </div>
+                        )}
+                        <p className="text-[8px] text-emerald-600/70 dark:text-emerald-400/70 mt-2 text-center italic">Status: Berhasil / Sukses</p>
+                      </>
                     )}
-                    <p className="text-[8px] text-emerald-600/70 dark:text-emerald-400/70 mt-2 text-center italic">Status: Berhasil / Sukses</p>
                   </div>
                 );
               })}
             </div>
+            
+            {digitalItems.some((i: any) => i.status === 'processing') && (
+              <p className="text-[10px] text-zinc-500 text-center mt-4">Pesanan diproses otomatis. Mohon tunggu sebentar di layer ini, token/SN akan muncul otomatis. Atau kembali kapan saja jika ingin melihat Riwayat Pesanan nanti.</p>
+            )}
           </div>
         )}
 

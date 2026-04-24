@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCircle, ArrowLeft, Search } from 'lucide-react';
+import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCircle, ArrowLeft, Search, X, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 
@@ -35,6 +35,7 @@ export default function History() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTxDetail, setSelectedTxDetail] = useState<Transaction | null>(null);
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
@@ -45,6 +46,57 @@ export default function History() {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    let pollTimer: any;
+    const hasProcessing = transactions.some(tx => 
+      tx.transaction_items.some(item => item.metadata?.is_digital && (item.metadata?.status === 'processing' || item.metadata?.status === 'pending'))
+    );
+
+    if (hasProcessing) {
+      pollTimer = setTimeout(() => {
+        fetchHistorySilently();
+      }, 5000);
+    }
+
+    return () => {
+      if (pollTimer) clearTimeout(pollTimer);
+    };
+  }, [transactions]);
+
+  const fetchHistorySilently = async () => {
+    try {
+      // Refresh DB data only, rely on webhook or manual check for Digiflazz updates to save API quota
+      const { data, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          transaction_items (
+            *,
+            products (
+              name,
+              image_url,
+              category
+            )
+          )
+        `)
+        .eq('buyer_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setTransactions(data);
+        
+        // Also update the selected modal detail so it live-updates if user is viewing it
+        // USING functional update to prevent stale closures
+        setSelectedTxDetail(prev => {
+          if (!prev) return null;
+          return data.find(t => t.id === prev.id) || prev;
+        });
+      }
+    } catch (error) {
+      console.error('Error polling history:', error);
+    }
+  };
 
   const fetchHistory = async () => {
     try {
@@ -74,14 +126,31 @@ export default function History() {
     }
   };
 
-  const handlePrintNota = (tx: Transaction) => {
-    const sarirotiItems = tx.transaction_items.filter(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti'));
-    
-    if (sarirotiItems.length === 0) {
-      toast.error('Tidak ada produk Sariroti dalam pesanan ini.');
-      return;
+  const handleCheckStatus = async (item: any) => {
+    try {
+      toast.loading('Memeriksa status pesanan API...', { id: 'check-status' });
+      const res = await fetch('/api/digital/check-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_item_id: item.id })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        if (data.itemStatus === 'delivered') toast.success('Pesanan berhasil!', { id: 'check-status' });
+        else if (data.itemStatus === 'failed') toast.error('Pesanan gagal: ' + (data.message || 'Error'), { id: 'check-status' });
+        else toast.success('Pesanan masih diproses (pending).', { id: 'check-status' });
+        
+        fetchHistorySilently();
+      } else {
+        toast.error('Gagal: ' + (data.error || 'Server error'), { id: 'check-status' });
+      }
+    } catch (e: any) {
+      toast.error('Error: ' + e.message, { id: 'check-status' });
     }
+  };
 
+  const handlePrintNota = (tx: Transaction) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       toast.error('Mohon izinkan pop-up untuk mencetak nota.');
@@ -91,7 +160,7 @@ export default function History() {
     const html = `
       <html>
         <head>
-          <title>Delivery Note - Sariroti</title>
+          <title>Nota Pembelian - SPS Corner</title>
           <style>
             body { font-family: 'Courier New', Courier, monospace; padding: 20px; max-width: 400px; margin: 0 auto; color: #000; }
             .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 15px; }
@@ -99,10 +168,12 @@ export default function History() {
             .sub-logo { font-size: 14px; margin-bottom: 10px; }
             .info { font-size: 12px; margin-bottom: 15px; }
             .info div { margin-bottom: 3px; }
-            table { w-full; border-collapse: collapse; font-size: 12px; width: 100%; }
+            table { border-collapse: collapse; font-size: 12px; width: 100%; }
             th { border-bottom: 1px solid #000; text-align: left; padding: 5px 0; }
             td { padding: 5px 0; }
             .qty { text-align: center; }
+            .price { text-align: right; }
+            .total-row { font-weight: bold; border-top: 1px dashed #000; }
             .footer { text-align: center; margin-top: 20px; border-top: 2px dashed #000; padding-top: 10px; font-size: 12px; }
             @media print {
               body { padding: 0; margin: 0; }
@@ -113,7 +184,7 @@ export default function History() {
           <div class="header">
             <div class="logo">KOPERASI KARYAWAN</div>
             <div class="sub-logo">SPS CORNER</div>
-            <div>DELIVERY NOTE - SARIROTI</div>
+            <div>NOTA PEMBELIAN</div>
           </div>
           <div class="info">
             <div><strong>ID Pesanan:</strong> #${tx.id.slice(0, 8)}</div>
@@ -125,20 +196,29 @@ export default function History() {
               <tr>
                 <th>Produk</th>
                 <th class="qty">Qty</th>
+                <th class="price">Subtotal</th>
               </tr>
             </thead>
             <tbody>
-              ${sarirotiItems.map(item => `
+              ${tx.transaction_items.map(item => `
                 <tr>
-                  <td>${item.products?.name || item.metadata?.product_name || 'Produk Koperasi'}</td>
+                  <td>
+                    ${item.products?.name || item.metadata?.product_name || 'Produk Koperasi'}
+                    ${item.metadata?.is_digital ? `<br><small>Tujuan: ${item.metadata?.target_number}</small><br><small>SN: ${item.metadata?.sn || '-'}</small>` : ''}
+                  </td>
                   <td class="qty">${item.quantity}</td>
+                  <td class="price">${formatRupiah(item.price * item.quantity)}</td>
                 </tr>
               `).join('')}
+              <tr class="total-row">
+                <td colspan="2" style="padding-top: 10px;">TOTAL</td>
+                <td class="price" style="padding-top: 10px;">${formatRupiah(tx.total_amount)}</td>
+              </tr>
             </tbody>
           </table>
           <div class="footer">
-            <p>Nota ini merupakan bukti sah untuk pengambilan produk Sariroti di bagian Distribusi.</p>
-            <p>Terima Kasih</p>
+            <p>Terima Kasih atas Kunjungan Anda</p>
+            <p>Simpan nota ini sebagai bukti transaksi yang sah</p>
           </div>
           <script>
             window.onload = function() { window.print(); window.close(); }
@@ -177,6 +257,26 @@ Terima kasih,
 Sistem SPS Corner`);
 
     window.location.href = `mailto:Sales.Admin.bjm@sariroti.com?subject=${subject}&body=${body}`;
+  };
+
+  const handleCancelOrder = async (txId: string) => {
+    if (!window.confirm('Yakin ingin membatalkan pesanan ini?')) return;
+    try {
+      setLoading(true);
+      const res = await fetch('/api/transactions/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction_id: txId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      toast.success(data.message);
+      fetchHistory();
+    } catch (error: any) {
+      toast.error('Gagal membatalkan pesanan: ' + error.message);
+      setLoading(false);
+    }
   };
 
   const filteredTransactions = transactions.filter(tx => 
@@ -289,66 +389,6 @@ Sistem SPS Corner`);
                     </div>
                   </div>
 
-                  <div className="space-y-2 sm:space-y-3">
-                    {tx.transaction_items.map((item) => {
-                      const productName = item.products?.name || item.metadata?.product_name || 'Produk Terhapus';
-                      const imageUrl = item.products?.image_url;
-                      
-                      return (
-                        <div key={item.id} className="flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg sm:rounded-xl border border-zinc-50 dark:border-zinc-800 shadow-inner">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white dark:bg-zinc-800 rounded-md sm:rounded-lg overflow-hidden shadow-sm border border-zinc-100 dark:border-zinc-700 shrink-0">
-                            {imageUrl ? (
-                              <img 
-                                src={imageUrl} 
-                                alt={productName} 
-                                className="w-full h-full object-cover" 
-                                referrerPolicy="no-referrer" 
-                                loading="lazy"
-                                onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(productName)}&background=random&color=fff&rounded=true` }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-zinc-200 dark:text-zinc-700">
-                                <Package className="w-5 h-5 sm:w-6 sm:h-6" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-zinc-900 dark:text-white text-xs sm:text-sm truncate tracking-tight">{productName}</h4>
-                              {item.metadata?.is_digital && (
-                                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-widest ${
-                                  item.status === 'delivered' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                                  item.status === 'failed' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                }`}>
-                                  {item.status === 'delivered' ? 'Sukses' : item.status === 'failed' ? 'Gagal' : 'Proses'}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[8px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium mt-0.5">
-                              {item.quantity} x {formatRupiah(item.price)}
-                            </p>
-                            {item.metadata?.is_digital && (
-                              <div className="flex flex-col gap-0.5 mt-1">
-                                <p className="text-[8px] font-mono text-emerald-600 dark:text-emerald-400">
-                                  Tujuan: {item.metadata.target_number}
-                                </p>
-                                {item.metadata.sn && (
-                                  <p className="text-[8px] font-mono text-zinc-500 dark:text-zinc-400">
-                                    SN: {item.metadata.sn}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-base tracking-tighter">{formatRupiah(item.price * item.quantity)}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-zinc-100 dark:border-zinc-800 border-dashed flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
                     <div className="flex items-center gap-2 sm:gap-3">
                       <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-widest shadow-inner ${
@@ -361,28 +401,20 @@ Sistem SPS Corner`);
                          tx.status === 'processing' ? 'Proses' : 
                          tx.status === 'pending' ? 'Menunggu Pembayaran' : 'Gagal'}
                       </div>
-                      <span className="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Metode: QRIS</span>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Metode: {tx.payment_method?.toUpperCase() || 'QRIS'}</span>
                     </div>
                     
                     <div className="flex items-center gap-4">
-                      {tx.status === 'success' && tx.transaction_items.some(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti')) && (
-                        <>
-                          <button 
-                            onClick={() => handleEmailSalesAdmin(tx)}
-                            className="text-blue-600 dark:text-blue-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800"
-                          >
-                            Email Sales
-                          </button>
-                          <button 
-                            onClick={() => handlePrintNota(tx)}
-                            className="text-amber-600 dark:text-amber-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest bg-amber-50 dark:bg-amber-900/30 px-3 py-1.5 rounded-full border border-amber-100 dark:border-amber-800"
-                          >
-                            Cetak Nota
-                          </button>
-                        </>
+                      {tx.status === 'pending' && (
+                        <button 
+                          onClick={() => handleCancelOrder(tx.id)}
+                          className="text-red-600 dark:text-red-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest bg-red-50 dark:bg-red-900/30 px-3 py-1.5 rounded-full border border-red-100 dark:border-red-800"
+                        >
+                          Batalkan Pesanan
+                        </button>
                       )}
                       <button 
-                        onClick={() => navigate(`/kiosk/success?tx=${tx.id}`)}
+                        onClick={() => setSelectedTxDetail(tx)}
                         className="text-blue-600 dark:text-blue-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest"
                       >
                         Lihat Detail <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -405,6 +437,156 @@ Sistem SPS Corner`);
           Kembali Belanja
         </button>
       </div>
+
+      {/* Detail Modal */}
+      <AnimatePresence>
+        {selectedTxDetail && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm"
+            onClick={() => setSelectedTxDetail(null)}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="px-6 py-5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
+                <h3 className="font-black text-lg sm:text-xl tracking-tight text-zinc-900 dark:text-white">
+                  Detail Transaksi
+                </h3>
+                <button 
+                  onClick={() => setSelectedTxDetail(null)}
+                  className="p-2 bg-zinc-200 dark:bg-zinc-800 rounded-full hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors text-zinc-600 dark:text-zinc-400"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">ID Pesanan</p>
+                    <p className="font-mono text-sm font-bold text-zinc-900 dark:text-white bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded inline-block">
+                      #{selectedTxDetail.id}
+                    </p>
+                  </div>
+                  <div className="sm:text-right">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Waktu Pembayaran</p>
+                    <p className="text-sm font-bold text-zinc-900 dark:text-white">
+                      {new Date(selectedTxDetail.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2 border-b border-zinc-100 dark:border-zinc-800 pb-2">Item Pembelian</h4>
+                  {selectedTxDetail.transaction_items.map((item) => {
+                    const productName = item.products?.name || item.metadata?.product_name || 'Produk';
+                    const itemSn = item.metadata?.sn || item.metadata?.digiflazz_response?.sn || item.metadata?.data?.sn;
+                    
+                    return (
+                      <div key={item.id} className="p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-bold text-sm text-zinc-900 dark:text-white">{productName}</p>
+                            <p className="text-[10px] text-zinc-500 font-medium">{item.quantity} x {formatRupiah(item.price)}</p>
+                          </div>
+                          <p className="font-black text-sm text-zinc-900 dark:text-white">{formatRupiah(item.price * item.quantity)}</p>
+                        </div>
+                        
+                        {item.metadata?.is_digital && (
+                          <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700/50">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest">Target No</span>
+                              <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-300">{item.metadata.target_number}</span>
+                            </div>
+                            
+                            {item.metadata?.status === 'processing' ? (
+                              <div className="flex flex-col items-center gap-2 mt-2">
+                                <div className="flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-900/20 p-2 rounded text-amber-600 dark:text-amber-400 w-full">
+                                  <Clock className="w-4 h-4 animate-spin" />
+                                  <span className="text-[10px] font-bold uppercase tracking-widest animate-pulse">Sedang Proses Operator...</span>
+                                </div>
+                                <button 
+                                  onClick={() => handleCheckStatus(item)}
+                                  className="text-[10px] uppercase tracking-widest font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-3 py-1.5 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800/60 transition-colors"
+                                >
+                                  Cek Paksa
+                                </button>
+                              </div>
+                            ) : item.metadata?.status === 'failed' ? (
+                              <div className="text-center bg-red-50 dark:bg-red-900/20 p-2 rounded text-red-600 dark:text-red-400">
+                                <p className="text-[10px] font-bold uppercase tracking-widest">{item.metadata?.digiflazz_message || 'Transaksi Gagal'}</p>
+                              </div>
+                            ) : itemSn ? (
+                              <div className="bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 p-3 rounded-lg text-center mt-2 group relative overflow-hidden">
+                                <div className="absolute inset-0 bg-emerald-50 dark:bg-emerald-900/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mb-1 relative z-10">SN / TOKEN / REFERENSI</p>
+                                <p className="font-mono text-sm font-black text-zinc-900 dark:text-white tracking-widest break-all relative z-10 selection:bg-emerald-200 dark:selection:bg-emerald-900">
+                                  {itemSn}
+                                </p>
+                              </div>
+                            ) : ['delivered', 'success', 'paid'].includes(item.metadata?.status || '') ? (
+                               <p className="text-xs font-bold text-center text-emerald-600 dark:text-emerald-500 uppercase tracking-widest mt-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">Transaksi Sukses</p>
+                            ) : ['failed', 'cancelled'].includes(selectedTxDetail?.status || '') ? (
+                               <p className="text-xs font-bold text-center text-red-600 dark:text-red-500 uppercase tracking-widest mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">Status: Gagal / Dibatalkan</p>
+                            ) : (
+                              <div className="mt-2 text-center">
+                                <p className="text-xs text-zinc-500 italic mb-2">Menunggu respons SN...</p>
+                                <button 
+                                  onClick={() => handleCheckStatus(item)}
+                                  className="text-[10px] uppercase tracking-widest font-bold bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 py-1.5 rounded-full hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors"
+                                >
+                                  Cek Status Manual
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-between items-center p-4 bg-zinc-100 dark:bg-zinc-800/80 rounded-xl">
+                  <p className="font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest text-xs">Total Pembayaran</p>
+                  <p className="font-black text-blue-600 dark:text-blue-400 text-xl tracking-tighter">{formatRupiah(selectedTxDetail.total_amount)}</p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex justify-end gap-3">
+                {selectedTxDetail.status === 'success' || selectedTxDetail.status === 'paid' ? (
+                  <>
+                    {selectedTxDetail.transaction_items.some(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti')) && (
+                      <button 
+                        onClick={() => handleEmailSalesAdmin(selectedTxDetail)}
+                        className="px-4 py-2 font-bold text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-xl hover:bg-blue-200 transition-colors uppercase tracking-widest flex items-center gap-2"
+                      >
+                        Email Sales
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => handlePrintNota(selectedTxDetail)}
+                      className="px-4 py-2 font-black text-xs bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors uppercase tracking-widest flex items-center gap-2 shadow-lg"
+                    >
+                      <Download className="w-4 h-4" />
+                      Cetak Nota
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
