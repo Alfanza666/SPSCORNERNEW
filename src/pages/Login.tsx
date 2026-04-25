@@ -56,52 +56,49 @@ export default function Login() {
       if (error) throw error;
 
       if (data.user) {
-        // Query hanya kolom yang pasti ada di tabel profiles
+        // Query hanya kolom inti yang pasti ada
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('id, role, name, nik, phone, balance, is_active')
+          .select('id, role, name, balance, is_active')
           .eq('id', data.user.id)
           .single();
 
-        // Jika ada error query, coba dengan kolom minimal sebagai fallback
+        // Fallback: jika kolom is_active belum ada, coba tanpanya
         let resolvedProfile = profile;
         if (profileError || !profile) {
           const { data: basicProfile, error: basicError } = await supabase
             .from('profiles')
-            .select('id, role, name, nik, phone')
+            .select('id, role, name, balance')
             .eq('id', data.user.id)
             .single();
 
           if (basicError || !basicProfile) {
-            // Tampilkan error asli untuk memudahkan debugging
             throw new Error(
-              `Profil tidak ditemukan. Pastikan akun Anda terdaftar di sistem. (${basicError?.message || profileError?.message || 'unknown'})`
+              `Profil tidak ditemukan. (${basicError?.message || profileError?.message || 'unknown'})`
             );
           }
           resolvedProfile = basicProfile;
         }
 
-        // Cek is_active hanya jika column ada (optional field)
-        if (resolvedProfile.is_active === false) {
+        // Cek is_active (aman jika field tidak ada → undefined → tidak block)
+        if (resolvedProfile!.is_active === false) {
           await supabase.auth.signOut();
           throw new Error('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
         }
 
         // Set store langsung agar DashboardLayout tidak redirect balik
         useAuthStore.getState().setUser({
-          id: resolvedProfile.id,
-          role: resolvedProfile.role,
-          name: resolvedProfile.name,
-          nik: resolvedProfile.nik,
-          phone: resolvedProfile.phone,
-          balance: resolvedProfile.balance ?? 0,
+          id: resolvedProfile!.id,
+          role: resolvedProfile!.role,
+          name: resolvedProfile!.name,
+          balance: resolvedProfile!.balance ?? 0,
           email: data.user.email,
         });
 
         // Navigate setelah store diisi
-        if (resolvedProfile.role === 'admin') {
+        if (resolvedProfile!.role === 'admin') {
           navigate('/dashboard/admin');
-        } else if (resolvedProfile.role === 'seller') {
+        } else if (resolvedProfile!.role === 'seller') {
           navigate('/dashboard/seller');
         } else {
           navigate('/kiosk');

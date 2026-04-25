@@ -32,15 +32,21 @@ export default function AdminTransactions() {
   // Auto-open transaction detail if ?id= param is present (from notification deep-link)
   useEffect(() => {
     const idFromUrl = searchParams.get('id');
-    if (idFromUrl && transactions.length > 0) {
+    if (idFromUrl && (transactions.length > 0 || failedTransactions.length > 0)) {
       const tx = transactions.find(t => t.id === idFromUrl);
+      const failedTx = failedTransactions.find(t => t.id === idFromUrl);
+      
       if (tx) {
-        openDetails(tx);
-        // Clean the URL param so reloads don't re-open the modal
+        if (activeTab !== 'success') setActiveTab('success');
+        openDetails(tx, true);
+        setSearchParams({}, { replace: true });
+      } else if (failedTx) {
+        if (activeTab !== 'failed') setActiveTab('failed');
+        openDetails(failedTx, false);
         setSearchParams({}, { replace: true });
       }
     }
-  }, [searchParams, transactions]);
+  }, [searchParams, transactions, failedTransactions]);
 
   useEffect(() => {
     fetchTransactions();
@@ -96,14 +102,15 @@ export default function AdminTransactions() {
     }
   };
 
-  const openDetails = async (tx: any) => {
+  const openDetails = async (tx: any, isSuccessTab: boolean = activeTab === 'success') => {
     setSelectedTx(tx);
-    if (activeTab === 'success') {
+    if (isSuccessTab) {
       await fetchTransactionItems(tx.id);
     } else {
       setTxItems([]);
     }
   };
+
 
   const handleConfirmSariroti = async () => {
     if (!selectedTx) return;

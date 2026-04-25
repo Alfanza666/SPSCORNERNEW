@@ -489,13 +489,13 @@ export default function DashboardLayout() {
                       )}
                     </div>
                     <div className="max-h-[32rem] overflow-y-auto custom-scrollbar">
-                      {notifications.length === 0 ? (
+                      {notifications.filter(n => !n.isRead).length === 0 ? (
                         <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
                           <Bell className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                          <p className="text-sm font-medium">Belum ada notifikasi</p>
+                          <p className="text-sm font-medium">Belum ada notifikasi baru</p>
                         </div>
                       ) : (
-                      notifications.map((notif) => (
+                      notifications.filter(n => !n.isRead).map((notif) => (
                           <div 
                             key={notif.id}
                             className={`p-6 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors border-b border-zinc-50 dark:border-zinc-800 cursor-pointer group ${!notif.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}

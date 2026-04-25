@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
@@ -10,6 +11,9 @@ export default function SellerTransactions() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const highlightId = searchParams.get('id');
 
   useEffect(() => {
     if (user) {
@@ -44,10 +48,17 @@ export default function SellerTransactions() {
     }
   };
 
-  const filteredItems = items.filter(item => 
-    item.transactions?.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredItems = items.filter(item => {
+    // Jika ada ID dari notifikasi, TAMPILKAN HANYA transaksi tersebut
+    if (highlightId) {
+      return item.transaction_id === highlightId;
+    }
+    // Jika tidak ada, gunakan pencarian biasa
+    return (
+      item.transactions?.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   return (
     <div className="space-y-6">
