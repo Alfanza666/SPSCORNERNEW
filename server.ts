@@ -283,6 +283,49 @@ app.use(express.urlencoded({ extended: true }));
     }
   };
 
+  // Helper to update seller balances (92% for seller, 8% platform fee)
+  const updateSellerBalances = async (items: any[]) => {
+    try {
+      if (!items || items.length === 0) return;
+
+      const sellerTotals: Record<string, { total: number }> = {};
+      
+      for (const item of items) {
+        if (item.seller_id) {
+          const itemTotal = (item.price || 0) * (item.quantity || 1);
+          if (!sellerTotals[item.seller_id]) {
+            sellerTotals[item.seller_id] = { total: 0 };
+          }
+          sellerTotals[item.seller_id].total += itemTotal;
+        }
+      }
+
+      for (const [sellerId, data] of Object.entries(sellerTotals)) {
+        const sellerShare = Math.round(data.total * 0.92);
+
+        // Fetch current balance & sales
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('balance, total_sales')
+          .eq('id', sellerId)
+          .single();
+
+        if (profile) {
+          await supabase
+            .from('profiles')
+            .update({
+              balance: (profile.balance || 0) + sellerShare,
+              total_sales: (profile.total_sales || 0) + data.total
+            })
+            .eq('id', sellerId);
+        }
+      }
+      console.log('✅ Seller balances updated successfully');
+    } catch (error) {
+      console.error('❌ Error updating seller balances:', error);
+    }
+  };
+
   // Helper to trigger Sariroti email based on transaction
   const triggerSarirotiEmail = async (transactionId: string, buyerName: string, totalAmount: number) => {
     try {
