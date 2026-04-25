@@ -23,6 +23,20 @@ export default function Checkout() {
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
+  const saveGuestTransaction = (txId: string) => {
+    if (!user) {
+      try {
+        const history = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
+        if (!history.includes(txId)) {
+          history.push(txId);
+          localStorage.setItem('guest_transactions', JSON.stringify(history));
+        }
+      } catch (e) {
+        console.error('Failed to save guest transaction', e);
+      }
+    }
+  };
+
   useEffect(() => {
     if (items.length === 0 || !buyerName) {
       navigate('/kiosk');
@@ -120,6 +134,7 @@ export default function Checkout() {
       }
       const { transaction: tx } = await createRes.json();
       setTransactionId(tx.id);
+      saveGuestTransaction(tx.id);
       setLoadingMessage('Menghubungkan ke gerbang pembayaran iPaymu...');
 
       // 2. Create IPaymu Direct Payment
@@ -243,6 +258,7 @@ export default function Checkout() {
 
       const { transaction } = await txRes.json();
       setTransactionId(transaction.id);
+      saveGuestTransaction(transaction.id);
       setPaymentStep('manual_qris');
 
       // 2. Confirm reservations
@@ -364,6 +380,7 @@ export default function Checkout() {
 
       const { transaction: tx } = await createRes.json();
       setTransactionId(tx.id);
+      saveGuestTransaction(tx.id);
 
       // Use real user phone if available, otherwise generate a realistic dummy phone
       const realPhone = user?.phone?.replace(/[^0-9]/g, '');

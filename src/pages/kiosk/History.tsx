@@ -40,11 +40,7 @@ export default function History() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
-      fetchHistory();
-    } else {
-      setLoading(false);
-    }
+    fetchHistory();
   }, [user]);
 
   useEffect(() => {
@@ -66,8 +62,7 @@ export default function History() {
 
   const fetchHistorySilently = async () => {
     try {
-      // Refresh DB data only, rely on webhook or manual check for Digiflazz updates to save API quota
-      const { data, error } = await supabase
+      let query = supabase
         .from('transactions')
         .select(`
           *,
@@ -80,8 +75,24 @@ export default function History() {
             )
           )
         `)
-        .eq('buyer_id', user?.id)
         .order('created_at', { ascending: false });
+
+      if (user) {
+        query = query.eq('buyer_id', user.id);
+      } else {
+        try {
+          const guestTxIds = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
+          if (guestTxIds.length > 0) {
+            query = query.in('id', guestTxIds);
+          } else {
+            return; // No guest history
+          }
+        } catch {
+          return;
+        }
+      }
+
+      const { data, error } = await query;
 
       if (!error && data) {
         setTransactions(data);
@@ -101,7 +112,7 @@ export default function History() {
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('transactions')
         .select(`
           *,
@@ -114,8 +125,26 @@ export default function History() {
             )
           )
         `)
-        .eq('buyer_id', user?.id)
         .order('created_at', { ascending: false });
+
+      if (user) {
+        query = query.eq('buyer_id', user.id);
+      } else {
+        try {
+          const guestTxIds = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
+          if (guestTxIds.length > 0) {
+            query = query.in('id', guestTxIds);
+          } else {
+            setTransactions([]);
+            return; // No guest history
+          }
+        } catch {
+          setTransactions([]);
+          return;
+        }
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       if (data) setTransactions(data);
@@ -284,22 +313,7 @@ Sistem SPS Corner`);
     tx.transaction_items.some(item => (item.products?.name || item.metadata?.product_name || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  if (!user) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 sm:px-6">
-        <div className="clay-card p-8 sm:p-12 max-w-md w-full">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-zinc-100 dark:bg-zinc-800/50 rounded-2xl sm:rounded-[32px] flex items-center justify-center mx-auto mb-6 sm:mb-8 shadow-[inset_4px_4px_8px_rgba(0,0,0,0.05)] dark:shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]">
-            <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-zinc-300 dark:text-zinc-600" />
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white mb-3 sm:mb-4">Belum Masuk</h2>
-          <p className="text-zinc-500 dark:text-zinc-400 mb-8 sm:mb-10 font-bold text-sm sm:text-base">Silakan masuk untuk melihat riwayat pembelian Anda.</p>
-          <button onClick={() => navigate('/login')} className="btn-clay-primary w-full py-3 sm:py-4 text-base sm:text-lg">
-            Masuk Sekarang
-          </button>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 sm:space-y-8 px-4 sm:px-6 pb-10 sm:pb-12">
