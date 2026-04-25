@@ -1769,7 +1769,7 @@ app.use(express.urlencoded({ extended: true }));
           ? 'paid'
           : status === 'gagal'
             ? 'failed'
-            : 'processing';
+            : 'pending';
 
       // Get transaction
       const { data: transaction, error: fetchError } = await supabase

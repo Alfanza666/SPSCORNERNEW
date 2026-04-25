@@ -661,9 +661,13 @@ export default function Checkout() {
         ) : (
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
-              {directPaymentData?.QrImage ? (
+              {directPaymentData?.QrImage || directPaymentData?.QrTemplate ? (
                 <div className="max-w-[280px] mx-auto mb-6">
-                  <img src={directPaymentData.QrImage} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
+                  <img src={directPaymentData.QrImage || directPaymentData.QrTemplate} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
+                </div>
+              ) : directPaymentData?.QrString ? (
+                <div className="max-w-[280px] mx-auto mb-6">
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(directPaymentData.QrString)}`} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
                 </div>
               ) : directPaymentData?.VaNumber ? (
                 <div className="mb-8 p-8 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
@@ -693,7 +697,7 @@ export default function Checkout() {
               <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-left tour-payment-instructions">
                 <h4 className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">Instruksi:</h4>
                 <ol className="text-xs text-blue-600 dark:text-blue-300 space-y-1.5 list-decimal pl-4 font-medium">
-                  {directPaymentData?.QrImage ? (
+                  {directPaymentData?.QrImage || directPaymentData?.QrTemplate || directPaymentData?.QrString ? (
                     <>
                       <li>Buka aplikasi pembayaran Anda (Gopay, OVO, Dana, M-Banking, dll)</li>
                       <li>Scan kode QR di atas</li>
@@ -715,7 +719,11 @@ export default function Checkout() {
 
             <div className="space-y-4">
               <button
-                onClick={() => navigate('/kiosk/history')}
+                onClick={() => {
+                  clearCart();
+                  sessionStorage.removeItem('buyerName');
+                  navigate('/kiosk/success', { state: { transactionId } });
+                }}
                 className="btn-clay-primary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3"
               >
                 <CheckCircle2 className="w-5 h-5" />
