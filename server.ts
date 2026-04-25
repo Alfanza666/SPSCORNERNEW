@@ -1670,7 +1670,7 @@ app.use(express.urlencoded({ extended: true }));
         name: cleanName,
         phone: buyer_phone || ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString()),
         email: buyer_email || `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`,
-        amount: Math.round(Number(amount)).toString(),
+        amount: Math.round(Number(amount)),
         comments: `Payment for transaction ${transaction_id}`,
         notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
         referenceId: String(transaction_id),
