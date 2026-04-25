@@ -25,17 +25,16 @@ export default function AuthCallback() {
       redirected = true;
 
       try {
-        // Coba ambil profil yang sudah ada
+        // Query hanya kolom inti yang pasti ada
         let { data: profile, error } = await supabase
           .from('profiles')
-          .select('id, role, name, nik, phone, balance, is_active')
+          .select('id, role, name, balance, is_active')
           .eq('id', userId)
           .single();
 
         // Jika profil belum ada (user Google baru pertama kali login)
         // → auto-buat profil dengan data dari Google OAuth metadata
         if (error?.code === 'PGRST116' || !profile) {
-          // Ambil metadata dari Google (full_name, name, avatar, dll)
           const { data: { user: authUser } } = await supabase.auth.getUser();
           const metadata = authUser?.user_metadata || {};
           const displayName =
@@ -44,7 +43,6 @@ export default function AuthCallback() {
             userEmail?.split('@')[0] ||
             'Pengguna Baru';
 
-          // Buat profil baru dengan role default 'buyer'
           const { data: newProfile, error: createError } = await supabase
             .from('profiles')
             .upsert({
@@ -54,15 +52,12 @@ export default function AuthCallback() {
               balance: 0,
               is_active: true,
             }, { onConflict: 'id' })
-            .select('id, role, name, nik, phone, balance, is_active')
+            .select('id, role, name, balance, is_active')
             .single();
 
           if (createError || !newProfile) {
-            throw new Error(
-              `Gagal membuat profil otomatis. (${createError?.message || 'unknown'})`
-            );
+            throw new Error(`Gagal membuat profil otomatis. (${createError?.message || 'unknown'})`);
           }
-
           profile = newProfile;
         } else if (error) {
           throw new Error(`Error memuat profil: ${error.message}`);
