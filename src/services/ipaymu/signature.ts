@@ -33,12 +33,10 @@ export class IpaymuSignature {
     // 3. Generate timestamp format YYYYMMDDHHmmss
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
 
-    // 4. String to sign: VA:BODY_HASH:METHOD:TIMESTAMP
-    // CORRECT per iPaymu official sample (ipaymu_direct_payment.js line 25):
-    //   var stringtosign = va + ":" + bodyEncrypt + ":POST:" + timestamp;
-    const stringtosign = `${va}:${bodyEncrypt}:${method}:${timestamp}`;
+    // 4. String to sign: METHOD:VA:BODY_HASH:APIKEY
+    const stringtosign = `${method}:${va}:${bodyEncrypt}:${apiKey}`;
 
-    // 5. Generate HMAC-SHA256 signature using API_KEY as the HMAC key (lowercase)
+    // 5. Generate HMAC-SHA256 signature using API_KEY as the HMAC key
     const signature = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA256(stringtosign, apiKey)).toLowerCase();
 
     return { signature, timestamp, jsonBody };
