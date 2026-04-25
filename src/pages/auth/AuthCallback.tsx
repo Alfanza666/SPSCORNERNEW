@@ -25,15 +25,50 @@ export default function AuthCallback() {
       redirected = true;
 
       try {
-        const { data: profile, error } = await supabase
+        // Coba ambil profil yang sudah ada
+        let { data: profile, error } = await supabase
           .from('profiles')
           .select('id, role, name, nik, phone, balance, is_active')
           .eq('id', userId)
           .single();
 
-        if (error || !profile) throw new Error('Profil tidak ditemukan. Hubungi admin.');
+        // Jika profil belum ada (user Google baru pertama kali login)
+        // → auto-buat profil dengan data dari Google OAuth metadata
+        if (error?.code === 'PGRST116' || !profile) {
+          // Ambil metadata dari Google (full_name, name, avatar, dll)
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          const metadata = authUser?.user_metadata || {};
+          const displayName =
+            metadata.full_name ||
+            metadata.name ||
+            userEmail?.split('@')[0] ||
+            'Pengguna Baru';
 
-        if (profile.is_active === false) {
+          // Buat profil baru dengan role default 'buyer'
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: userId,
+              role: 'buyer',
+              name: displayName,
+              balance: 0,
+              is_active: true,
+            }, { onConflict: 'id' })
+            .select('id, role, name, nik, phone, balance, is_active')
+            .single();
+
+          if (createError || !newProfile) {
+            throw new Error(
+              `Gagal membuat profil otomatis. (${createError?.message || 'unknown'})`
+            );
+          }
+
+          profile = newProfile;
+        } else if (error) {
+          throw new Error(`Error memuat profil: ${error.message}`);
+        }
+
+        if (profile!.is_active === false) {
           await supabase.auth.signOut();
           setErrorMsg('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
           setStatus('error');
@@ -42,24 +77,24 @@ export default function AuthCallback() {
 
         // Set store langsung agar DashboardLayout tidak redirect balik ke login
         useAuthStore.getState().setUser({
-          id: profile.id,
-          role: profile.role,
-          name: profile.name,
-          nik: profile.nik,
-          phone: profile.phone,
-          balance: profile.balance ?? 0,
+          id: profile!.id,
+          role: profile!.role,
+          name: profile!.name,
+          nik: profile!.nik,
+          phone: profile!.phone,
+          balance: profile!.balance ?? 0,
           email: userEmail,
         });
 
-        if (profile.role === 'admin') {
+        if (profile!.role === 'admin') {
           navigate('/dashboard/admin', { replace: true });
-        } else if (profile.role === 'seller') {
+        } else if (profile!.role === 'seller') {
           navigate('/dashboard/seller', { replace: true });
         } else {
           navigate('/kiosk', { replace: true });
         }
       } catch (err: any) {
-        setErrorMsg(err.message || 'Terjadi kesalahan saat proses login Google.');
+        setErrorMsg(err.message || 'Terjadi kesalahan saat proses login.');
         setStatus('error');
       }
     };
