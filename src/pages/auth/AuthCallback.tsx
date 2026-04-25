@@ -6,81 +6,93 @@ import { motion } from 'motion/react';
 import SPSLogo from '../../components/SPSLogo';
 
 /**
- * AuthCallback — Halaman handler setelah OAuth redirect (Google, dsb.)
+ * AuthCallback — Handler setelah OAuth redirect (Google, dsb.)
  * 
- * Flow:
- * 1. Google redirect → Supabase callback → redirect ke /auth/callback
- * 2. Halaman ini mendeteksi session dari URL (hash/code)
- * 3. Fetch profile & redirect ke dashboard yang sesuai berdasarkan role
+ * Menggunakan onAuthStateChange sebagai primary + getSession sebagai fallback.
+ * Setelah session terdeteksi: fetch profile → set store → navigate by role.
  */
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const { fetchProfile } = useAuthStore();
   const [status, setStatus] = useState<'loading' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    let mounted = true;
+    let redirected = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
 
-    const handleCallback = async () => {
+    const handleUserRedirect = async (userId: string, userEmail?: string) => {
+      if (redirected) return;
+      redirected = true;
+
       try {
-        // Supabase auto-detects session from URL hash or PKCE code
-        // exchangeCodeForSession handles both cases
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('id, role, name, nik, phone, balance, is_active')
+          .eq('id', userId)
+          .single();
 
-        if (error) throw error;
+        if (error || !profile) throw new Error('Profil tidak ditemukan. Hubungi admin.');
 
-        if (!session?.user) {
-          // Might need to exchange the code — wait briefly for Supabase to process URL
-          await new Promise(res => setTimeout(res, 1500));
-          const { data: { session: retrySession }, error: retryError } = await supabase.auth.getSession();
-          if (retryError) throw retryError;
-          if (!retrySession?.user) {
-            throw new Error('Sesi tidak ditemukan. Silakan coba login kembali.');
-          }
-          return handleUserRedirect(retrySession.user.id);
-        }
-
-        if (mounted) await handleUserRedirect(session.user.id);
-      } catch (err: any) {
-        if (mounted) {
-          setErrorMsg(err.message || 'Terjadi kesalahan saat proses login Google.');
+        if (profile.is_active === false) {
+          await supabase.auth.signOut();
+          setErrorMsg('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
           setStatus('error');
+          return;
         }
+
+        // Set store langsung agar DashboardLayout tidak redirect balik ke login
+        useAuthStore.getState().setUser({
+          id: profile.id,
+          role: profile.role,
+          name: profile.name,
+          nik: profile.nik,
+          phone: profile.phone,
+          balance: profile.balance ?? 0,
+          email: userEmail,
+        });
+
+        if (profile.role === 'admin') {
+          navigate('/dashboard/admin', { replace: true });
+        } else if (profile.role === 'seller') {
+          navigate('/dashboard/seller', { replace: true });
+        } else {
+          navigate('/kiosk', { replace: true });
+        }
+      } catch (err: any) {
+        setErrorMsg(err.message || 'Terjadi kesalahan saat proses login Google.');
+        setStatus('error');
       }
     };
 
-    const handleUserRedirect = async (userId: string) => {
-      // Fetch profile for auth store
-      await fetchProfile(userId);
-
-      // Get role & is_active from profiles
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role, is_active')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-
-      if (profile?.is_active === false) {
-        await supabase.auth.signOut();
-        throw new Error('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
+    // Primary: onAuthStateChange — paling reliable untuk OAuth callback
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        clearTimeout(timeoutId);
+        handleUserRedirect(session.user.id, session.user.email);
       }
+    });
 
-      // Redirect based on role
-      if (profile?.role === 'admin') {
-        navigate('/dashboard/admin', { replace: true });
-      } else if (profile?.role === 'seller') {
-        navigate('/dashboard/seller', { replace: true });
-      } else {
-        navigate('/kiosk', { replace: true });
+    // Fallback: getSession untuk kasus hash fragment sudah diproses sebelum listener terpasang
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!redirected && session?.user) {
+        clearTimeout(timeoutId);
+        handleUserRedirect(session.user.id, session.user.email);
       }
+    });
+
+    // Timeout 12 detik — jika tidak ada session yang terdeteksi, tampilkan error
+    timeoutId = setTimeout(() => {
+      if (!redirected) {
+        setErrorMsg('Sesi tidak ditemukan. Silakan coba login kembali.');
+        setStatus('error');
+      }
+    }, 12000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeoutId);
     };
-
-    handleCallback();
-    return () => { mounted = false; };
-  }, [navigate, fetchProfile]);
+  }, [navigate]);
 
   if (status === 'error') {
     return (
@@ -116,7 +128,6 @@ export default function AuthCallback() {
         className="flex flex-col items-center gap-6"
       >
         <SPSLogo variant="stack" className="h-16" />
-        
         <div className="flex flex-col items-center gap-3">
           <div className="relative w-12 h-12">
             <div className="absolute inset-0 border-4 border-blue-100 rounded-full" />

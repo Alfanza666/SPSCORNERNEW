@@ -52,29 +52,41 @@ export default function Login() {
       }
       const email = cleanNik.includes('@') ? cleanNik : `${cleanNik}@sps.local`;
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       if (data.user) {
-        await fetchProfile(data.user.id);
-        const { data: profile } = await supabase
+        // Satu query gabungan — ambil semua field yang dibutuhkan sekaligus
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role, is_active')
+          .select('id, role, name, nik, phone, balance, is_active')
           .eq('id', data.user.id)
           .single();
 
-        if (profile && profile.is_active === false) {
+        if (profileError || !profile) {
+          throw new Error('Gagal memuat profil. Hubungi admin.');
+        }
+
+        if (profile.is_active === false) {
           await supabase.auth.signOut();
           throw new Error('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
         }
 
-        if (profile?.role === 'admin') {
+        // Set store langsung agar DashboardLayout tidak redirect balik
+        useAuthStore.getState().setUser({
+          id: profile.id,
+          role: profile.role,
+          name: profile.name,
+          nik: profile.nik,
+          phone: profile.phone,
+          balance: profile.balance ?? 0,
+          email: data.user.email,
+        });
+
+        // Navigate setelah store diisi
+        if (profile.role === 'admin') {
           navigate('/dashboard/admin');
-        } else if (profile?.role === 'seller') {
+        } else if (profile.role === 'seller') {
           navigate('/dashboard/seller');
         } else {
           navigate('/kiosk');
