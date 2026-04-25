@@ -42,7 +42,7 @@ export default function Checkout() {
       navigate('/kiosk');
       return;
     }
-    
+
     // Fetch dynamic QRIS URL
     const fetchQrisUrl = async () => {
       try {
@@ -51,7 +51,7 @@ export default function Checkout() {
           .select('value')
           .eq('key', 'qris_image_url')
           .single();
-          
+
         if (data && data.value) {
           setQrisUrl(data.value);
         }
@@ -59,7 +59,7 @@ export default function Checkout() {
         console.error('Failed to fetch QRIS URL:', err);
       }
     };
-    
+
     fetchQrisUrl();
   }, [items, buyerName, navigate]);
 
@@ -101,7 +101,7 @@ export default function Checkout() {
           metadata: item.metadata
         }))
       };
-      
+
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -140,14 +140,14 @@ export default function Checkout() {
       // 2. Create IPaymu Direct Payment
       // Use real user phone if available, otherwise generate a realistic dummy phone
       const realPhone = user?.phone?.replace(/[^0-9]/g, '');
-      const dummyPhone = realPhone && realPhone.length >= 10 
-        ? realPhone 
+      const dummyPhone = realPhone && realPhone.length >= 10
+        ? realPhone
         : ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString());
-      
+
       // Clean up buyerName (remove numbers, special chars, ensure min length)
       let cleanName = (user?.name || buyerName).replace(/[^a-zA-Z\s]/g, '').trim();
       if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
-          cleanName = user?.name || 'Pelanggan SPS Corner';
+        cleanName = user?.name || 'Pelanggan SPS Corner';
       }
       // Ensure name is at least 3 chars for iPaymu
       if (cleanName.length < 3) cleanName = "Pelanggan";
@@ -346,7 +346,7 @@ export default function Checkout() {
           metadata: item.metadata
         }))
       };
-      
+
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -384,14 +384,14 @@ export default function Checkout() {
 
       // Use real user phone if available, otherwise generate a realistic dummy phone
       const realPhone = user?.phone?.replace(/[^0-9]/g, '');
-      const dummyPhone = realPhone && realPhone.length >= 10 
-        ? realPhone 
+      const dummyPhone = realPhone && realPhone.length >= 10
+        ? realPhone
         : ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString());
-      
+
       // Clean up buyerName (remove numbers, special chars, ensure min length)
       let cleanName = (user?.name || buyerName).replace(/[^a-zA-Z\s]/g, '').trim();
       if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
-          cleanName = user?.name || 'Pelanggan SPS Corner';
+        cleanName = user?.name || 'Pelanggan SPS Corner';
       }
       // Ensure name is at least 3 chars for iPaymu
       if (cleanName.length < 3) cleanName = "Pelanggan";
@@ -464,8 +464,8 @@ export default function Checkout() {
             {paymentStep === 'summary' ? 'Selesaikan Pembayaran' : 'Selesaikan Pembayaran Anda'}
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed px-4 font-medium">
-            {paymentStep === 'summary' 
-              ? 'Pilih metode pembayaran yang Anda inginkan untuk menyelesaikan pesanan.' 
+            {paymentStep === 'summary'
+              ? 'Pilih metode pembayaran yang Anda inginkan untuk menyelesaikan pesanan.'
               : 'Gunakan detail di bawah ini untuk menyelesaikan pembayaran Anda.'}
           </p>
         </div>
@@ -477,19 +477,19 @@ export default function Checkout() {
                 <div className="absolute inset-0 opacity-20 pointer-events-none">
                   <div className="absolute top-0 left-0 w-full h-full" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
                 </div>
-                
+
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1 relative z-10">Total Tagihan</p>
                 <h2 className="text-3xl sm:text-4xl font-black tracking-tighter relative z-10 text-white drop-shadow-md">
                   {formatRupiah(getTotal())}
                 </h2>
               </div>
-              
+
               <div className="p-6 sm:p-8">
                 <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                   <CreditCard className="w-4 h-4" />
-                   Pilih Metode Pembayaran
+                  <CreditCard className="w-4 h-4" />
+                  Pilih Metode Pembayaran
                 </h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* QRIS Option */}
                   <button
@@ -586,7 +586,7 @@ export default function Checkout() {
               <div className="max-w-[280px] mx-auto mb-6">
                 <img src={qrisUrl} alt="QRIS Manual" className="w-full aspect-square object-contain rounded-xl shadow-md" />
               </div>
-              
+
               <div className="space-y-2 mb-8">
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Total Bayar</p>
                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">
@@ -661,37 +661,75 @@ export default function Checkout() {
         ) : (
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
-              {directPaymentData?.QrString ? (
-                <div className="max-w-[280px] mx-auto mb-6">
-                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(directPaymentData.QrString)}`} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
-                  {directPaymentData.QrTemplate && (
-                    <a href={directPaymentData.QrTemplate} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline mt-2 block font-bold uppercase tracking-widest">
-                      Buka QRIS di Tab Baru
-                    </a>
-                  )}
-                </div>
-              ) : directPaymentData?.QrImage ? (
-                <div className="max-w-[280px] mx-auto mb-6">
-                  <img src={directPaymentData.QrImage} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
-                </div>
-              ) : directPaymentData?.VaNumber ? (
-                <div className="mb-8 p-8 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
-                  <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-2">Nomor Virtual Account</p>
-                  <h2 className="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400 tracking-widest mb-4">
-                    {directPaymentData.VaNumber}
-                  </h2>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(directPaymentData.VaNumber);
-                      toast.success('Nomor VA berhasil disalin');
-                    }}
-                    className="text-[10px] font-bold text-zinc-500 hover:text-blue-600 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto"
-                  >
-                    Salin Nomor VA
-                  </button>
+              {/* DEBUG INFO - REMOVE LATER */}
+              {process.env.NODE_ENV === 'development' || true ? (
+                <div className="text-left text-[8px] bg-zinc-950 text-green-400 p-2 overflow-x-auto mb-4 rounded">
+                  <pre>{JSON.stringify(directPaymentData, null, 2)}</pre>
                 </div>
               ) : null}
-              
+
+              {(() => {
+                const qrString = directPaymentData?.QrString || (directPaymentData?.PaymentNo?.startsWith('00') ? directPaymentData.PaymentNo : null);
+                const vaNumber = directPaymentData?.VaNumber || (!directPaymentData?.PaymentNo?.startsWith('00') ? directPaymentData?.PaymentNo : null);
+                const qrImage = directPaymentData?.QrImage;
+                const qrTemplate = directPaymentData?.QrTemplate;
+
+                if (qrString) {
+                  return (
+                    <div className="max-w-[280px] mx-auto mb-6">
+                      <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrString)}`} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
+                      {qrTemplate && (
+                        <a href={qrTemplate} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline mt-2 block font-bold uppercase tracking-widest">
+                          Buka QRIS di Tab Baru
+                        </a>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (qrImage) {
+                  return (
+                    <div className="max-w-[280px] mx-auto mb-6">
+                      <img src={qrImage} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
+                    </div>
+                  );
+                }
+
+                if (vaNumber) {
+                  return (
+                    <div className="mb-8 p-8 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                      <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-2">Nomor Virtual Account</p>
+                      <h2 className="text-3xl sm:text-4xl font-black text-blue-600 dark:text-blue-400 tracking-widest mb-4">
+                        {vaNumber}
+                      </h2>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(vaNumber);
+                          toast.success('Nomor VA berhasil disalin');
+                        }}
+                        className="text-[10px] font-bold text-zinc-500 hover:text-blue-600 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto"
+                      >
+                        Salin Nomor VA
+                      </button>
+                    </div>
+                  );
+                }
+                
+                if (qrTemplate) {
+                  return (
+                    <div className="max-w-[280px] mx-auto mb-6 text-center">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 font-medium">Sistem iPaymu mengharuskan Anda membuka halaman khusus untuk melihat QRIS ini.</p>
+                      <a href={qrTemplate} target="_blank" rel="noreferrer" className="btn-clay-primary inline-flex h-12 px-6 items-center justify-center gap-2 text-sm">
+                        <QrCode className="w-4 h-4" />
+                        Tampilkan Kode QRIS
+                      </a>
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
+
               <div className="space-y-2 mb-8">
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Total Bayar</p>
                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">
@@ -702,22 +740,29 @@ export default function Checkout() {
               <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-left tour-payment-instructions">
                 <h4 className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">Instruksi:</h4>
                 <ol className="text-xs text-blue-600 dark:text-blue-300 space-y-1.5 list-decimal pl-4 font-medium">
-                  {directPaymentData?.QrImage || directPaymentData?.QrTemplate || directPaymentData?.QrString ? (
-                    <>
-                      <li>Buka aplikasi pembayaran Anda (Gopay, OVO, Dana, M-Banking, dll)</li>
-                      <li>Scan kode QR di atas</li>
-                      <li>Pastikan nominal sesuai dengan total tagihan</li>
-                      <li>Pembayaran akan terkonfirmasi otomatis setelah berhasil</li>
-                    </>
-                  ) : (
-                    <>
-                      <li>Buka aplikasi M-Banking atau ATM Anda</li>
-                      <li>Pilih menu Transfer / Virtual Account</li>
-                      <li>Masukkan nomor VA di atas</li>
-                      <li>Pastikan nominal sesuai dengan total tagihan</li>
-                      <li>Pembayaran akan terkonfirmasi otomatis setelah berhasil</li>
-                    </>
-                  )}
+                  {(() => {
+                    const isQris = directPaymentData?.QrString || directPaymentData?.PaymentNo?.startsWith('00') || directPaymentData?.QrImage || directPaymentData?.QrTemplate;
+                    if (isQris) {
+                      return (
+                        <>
+                          <li>Buka aplikasi pembayaran Anda (Gopay, OVO, Dana, M-Banking, dll)</li>
+                          <li>Scan kode QR di atas</li>
+                          <li>Pastikan nominal sesuai dengan total tagihan</li>
+                          <li>Pembayaran akan terkonfirmasi otomatis setelah berhasil</li>
+                        </>
+                      );
+                    } else {
+                      return (
+                        <>
+                          <li>Buka aplikasi M-Banking atau ATM Anda</li>
+                          <li>Pilih menu Transfer / Virtual Account</li>
+                          <li>Masukkan nomor VA di atas</li>
+                          <li>Pastikan nominal sesuai dengan total tagihan</li>
+                          <li>Pembayaran akan terkonfirmasi otomatis setelah berhasil</li>
+                        </>
+                      );
+                    }
+                  })()}
                 </ol>
               </div>
             </div>
