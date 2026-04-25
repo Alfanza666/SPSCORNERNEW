@@ -1190,33 +1190,7 @@ app.use(express.urlencoded({ extended: true }));
       if (updateError) throw updateError;
 
       // 4. Update seller balances AND total_sales
-      const sellerUpdates: Record<string, number> = {};
-      transaction.transaction_items.forEach((item: any) => {
-        if (item.seller_id) {
-          sellerUpdates[item.seller_id] = (sellerUpdates[item.seller_id] || 0) + (item.price * item.quantity);
-        }
-      });
-
-      for (const [sellerId, amount] of Object.entries(sellerUpdates)) {
-        const { data: sellerProfile } = await supabase
-          .from('profiles')
-          .select('balance, total_sales')
-          .eq('id', sellerId)
-          .single();
-        
-        if (sellerProfile) {
-          const netAmount = amount * 0.92; // after 8% fee
-          const feeAmount = amount * 0.08;
-          await supabase
-            .from('profiles')
-            .update({ 
-              balance: (sellerProfile.balance || 0) + netAmount,
-              total_sales: (sellerProfile.total_sales || 0) + amount,
-              total_fee_paid: ((sellerProfile as any).total_fee_paid || 0) + feeAmount
-            })
-            .eq('id', sellerId);
-        }
-      }
+      await updateSellerBalances(transaction.transaction_items);
 
       // 5. Process digital items if any
       await processDigitalItems(transaction_id, transaction.transaction_items);
@@ -1576,7 +1550,7 @@ app.use(express.urlencoded({ extended: true }));
       // Fetch existing transaction to preserve payment_details (like buyer_email)
       const { data: existingTx } = await supabase
         .from('transactions')
-        .select('payment_details')
+        .select('status, payment_details')
         .eq('id', transaction_id)
         .single();
       const existingPaymentDetails = existingTx?.payment_details || {};
@@ -1627,6 +1601,10 @@ app.use(express.urlencoded({ extended: true }));
         .single();
 
       if (!txFetchError && txData && txData.transaction_items) {
+        // Update seller balances
+        if (existingTx && existingTx.status !== 'paid' && existingTx.status !== 'success') {
+          await updateSellerBalances(txData.transaction_items);
+        }
         // Process digital items if any
         await processDigitalItems(transaction_id, txData.transaction_items);
         // Trigger Sariroti Email
@@ -1780,8 +1758,9 @@ app.use(express.urlencoded({ extended: true }));
 
       if (updateError) throw updateError;
 
-      // Process if successful
-      if (txStatus === 'paid' && transaction.transaction_items) {
+      // Process if successful and ONLY IF IT WAS NOT ALREADY SUCCESSFUL
+      if (txStatus === 'paid' && transaction.status !== 'paid' && transaction.status !== 'success' && transaction.transaction_items) {
+        await updateSellerBalances(transaction.transaction_items);
         await processDigitalItems(refId, transaction.transaction_items);
         await triggerSarirotiEmail(refId, transaction.buyer_name, transaction.total_amount);
       }
