@@ -70,7 +70,7 @@ export class IpaymuClient {
 
     try {
       console.log('📤 Sending payment request to Ipaymu...');
-      const response = await axios.post(`${this.baseUrl}/payment`, JSON.parse(jsonBody), {
+      const response = await axios.post(`${this.baseUrl}/payment`, jsonBody, {
         ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',
@@ -109,7 +109,7 @@ export class IpaymuClient {
 
     try {
       console.log('📤 Sending direct payment request...');
-      const response = await axios.post(`${this.baseUrl}/payment/direct`, JSON.parse(jsonBody), {
+      const response = await axios.post(`${this.baseUrl}/payment/direct`, jsonBody, {
         ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',

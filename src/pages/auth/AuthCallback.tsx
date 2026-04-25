@@ -61,6 +61,28 @@ export default function AuthCallback() {
           profile = newProfile;
         } else if (error) {
           throw new Error(`Error memuat profil: ${error.message}`);
+        } else {
+          // Profil sudah ada. Cek apakah namanya masih menggunakan prefix email atau 'User'
+          // Jika login pakai Google, kita bisa perbarui namanya dengan nama asli.
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          const metadata = authUser?.user_metadata || {};
+          const googleName = metadata.full_name || metadata.name;
+          const emailPrefix = userEmail?.split('@')[0];
+
+          if (
+            googleName && 
+            profile.name !== googleName && 
+            (profile.name === emailPrefix || profile.name === 'User' || profile.name === 'Pengguna Baru')
+          ) {
+            const { error: updateNameError } = await supabase
+              .from('profiles')
+              .update({ name: googleName })
+              .eq('id', userId);
+              
+            if (!updateNameError) {
+              profile.name = googleName;
+            }
+          }
         }
 
         if (profile!.is_active === false) {
