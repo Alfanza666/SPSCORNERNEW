@@ -10,6 +10,7 @@ import Tutorial from './components/Tutorial';
 const Home = React.lazy(() => import('./pages/Home'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/auth/Register'));
+const AuthCallback = React.lazy(() => import('./pages/auth/AuthCallback'));
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
 const KioskLayout = React.lazy(() => import('./pages/kiosk/KioskLayout'));
 const Catalog = React.lazy(() => import('./pages/kiosk/Catalog'));
@@ -176,6 +177,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/contact" element={<Contact />} />
