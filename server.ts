@@ -106,7 +106,7 @@ app.use(express.urlencoded({ extended: true }));
   // ===== IPAYMU PAYMENT INITIALIZATION =====
   const IPAYMU_VA = (process.env.IPAYMU_VA || '').replace(/['"]/g, '').trim();
   const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || '').replace(/['"]/g, '').trim();
-  const IPAYMU_PRODUCTION = process.env.IPAYMU_PRODUCTION === 'true';
+  const IPAYMU_PRODUCTION = true;
 
   if (!IPAYMU_VA || !IPAYMU_API_KEY) {
     console.warn('⚠️ IPAYMU_VA or IPAYMU_API_KEY not configured');
