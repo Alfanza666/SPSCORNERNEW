@@ -511,7 +511,7 @@ export default function AdminDashboard() {
       </div>
       <div>
         <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">{title}</p>
-        <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate">{value}</h3>
+        <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">{value}</h3>
         {subtitle && (
           <p className="text-xs text-red-500 mt-2 whitespace-normal break-words">{subtitle}</p>
         )}
@@ -594,7 +594,7 @@ export default function AdminDashboard() {
       ) : null}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
         <div 
           className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-6 flex flex-col gap-4 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md dark:shadow-none transition-all cursor-pointer group col-span-1"
           onClick={() => setShowBreakdown(true)}
@@ -610,7 +610,7 @@ export default function AdminDashboard() {
           </div>
           <div>
             <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">Total Pendapatan</p>
-            <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate">{formatRupiah(stats.totalSales)}</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">{formatRupiah(stats.totalSales)}</h3>
             <p className="text-xs text-blue-500 dark:text-blue-400 mt-2 font-bold flex items-center gap-1 group-hover:underline">
               <ChevronRight className="w-3 h-3" /> Lihat breakdown sumber
             </p>
