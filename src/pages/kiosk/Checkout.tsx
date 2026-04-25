@@ -661,13 +661,18 @@ export default function Checkout() {
         ) : (
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
-              {directPaymentData?.QrImage || directPaymentData?.QrTemplate ? (
-                <div className="max-w-[280px] mx-auto mb-6">
-                  <img src={directPaymentData.QrImage || directPaymentData.QrTemplate} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
-                </div>
-              ) : directPaymentData?.QrString ? (
+              {directPaymentData?.QrString ? (
                 <div className="max-w-[280px] mx-auto mb-6">
                   <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(directPaymentData.QrString)}`} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
+                  {directPaymentData.QrTemplate && (
+                    <a href={directPaymentData.QrTemplate} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 hover:underline mt-2 block font-bold uppercase tracking-widest">
+                      Buka QRIS di Tab Baru
+                    </a>
+                  )}
+                </div>
+              ) : directPaymentData?.QrImage ? (
+                <div className="max-w-[280px] mx-auto mb-6">
+                  <img src={directPaymentData.QrImage} alt="QRIS" className="w-full aspect-square object-contain rounded-xl shadow-md" />
                 </div>
               ) : directPaymentData?.VaNumber ? (
                 <div className="mb-8 p-8 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
