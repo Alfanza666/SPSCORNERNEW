@@ -116,23 +116,46 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, [fetchProfile, setUser]);
 
-  // Automatic dark mode based on time
+  // Dark mode: system preference > localStorage > time-based fallback
   useEffect(() => {
-    const checkDarkMode = () => {
-      const hour = new Date().getHours();
-      // Night time is between 18:00 and 06:00
-      const isNight = hour >= 18 || hour < 6;
-      if (isNight) {
+    const applyDarkMode = () => {
+      const savedTheme = localStorage.getItem('theme');
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      if (savedTheme === 'dark' || savedTheme === 'light') {
+        // User has explicitly set a preference
+        document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+      } else if (systemPrefersDark) {
+        // Respect OS/system preference
         document.documentElement.classList.add('dark');
       } else {
-        document.documentElement.classList.remove('dark');
+        // Time-based fallback: Night = 18:00–06:00
+        const hour = new Date().getHours();
+        const isNight = hour >= 18 || hour < 6;
+        document.documentElement.classList.toggle('dark', isNight);
       }
     };
 
-    checkDarkMode();
-    // Check every minute
-    const interval = setInterval(checkDarkMode, 60000);
-    return () => clearInterval(interval);
+    applyDarkMode();
+
+    // Listen for system preference changes in real-time
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      if (!localStorage.getItem('theme')) applyDarkMode();
+    };
+    mediaQuery.addEventListener('change', handleChange);
+
+    // Check time every minute (for time-based fallback only)
+    const interval = setInterval(() => {
+      if (!localStorage.getItem('theme') && !window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        applyDarkMode();
+      }
+    }, 60000);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+      clearInterval(interval);
+    };
   }, []);
 
   return (

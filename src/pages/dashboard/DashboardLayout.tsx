@@ -86,7 +86,7 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick }: NavItemProps) => 
 
 export default function DashboardLayout() {
   const { user, isLoading, signOut } = useAuthStore();
-  const { notifications, unreadCount, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -495,11 +495,12 @@ export default function DashboardLayout() {
                           <p className="text-sm font-medium">Belum ada notifikasi</p>
                         </div>
                       ) : (
-                        notifications.map((notif) => (
+                      notifications.map((notif) => (
                           <div 
                             key={notif.id}
                             className={`p-6 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors border-b border-zinc-50 dark:border-zinc-800 cursor-pointer group ${!notif.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
                             onClick={() => {
+                              markOneAsRead(notif.id);
                               setIsNotificationDropdownOpen(false);
                               navigate(notif.path);
                             }}
@@ -514,10 +515,15 @@ export default function DashboardLayout() {
                                  notif.type === 'withdrawal' ? <CreditCard className="w-6 h-6" /> :
                                  <Info className="w-6 h-6" />}
                               </div>
-                              <div>
-                                <p className={`text-sm font-black ${!notif.isRead ? 'text-zinc-900 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'}`}>
-                                  {notif.title}
-                                </p>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className={`text-sm font-black ${!notif.isRead ? 'text-zinc-900 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                                    {notif.title}
+                                  </p>
+                                  {!notif.isRead && (
+                                    <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 mt-1.5" />
+                                  )}
+                                </div>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">{notif.message}</p>
                                 <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest mt-3">
                                   {new Date(notif.time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}

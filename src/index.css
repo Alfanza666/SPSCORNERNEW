@@ -52,17 +52,11 @@
     @apply bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm transition-all duration-300;
   }
   
-  .dark .clay-card {
-    @apply shadow-none;
-  }
 
   .clay-card-lg {
     @apply bg-white dark:bg-zinc-900 rounded-3xl sm:rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm transition-all duration-300;
   }
 
-  .dark .clay-card-lg {
-    @apply shadow-none;
-  }
 
   .clay-card:hover {
     @apply shadow-md dark:shadow-none;
@@ -93,10 +87,6 @@
     @apply px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-md hover:-translate-y-0.5;
   }
 
-  .btn-clay-primary:hover {
-    /* Handled via @apply */
-  }
-
   .btn-clay-secondary {
     @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:shadow-md hover:-translate-y-0.5;
   }
@@ -116,14 +106,6 @@
 
   .dark .input-clay {
     @apply shadow-none;
-  }
-
-  .input-clay:focus {
-    /* Handled via @apply */
-  }
-
-  .dark .input-clay:focus {
-    /* Handled via @apply */
   }
 
   /* Clean Icons */

@@ -89,9 +89,26 @@ export function useNotifications() {
       if (error) throw error;
     } catch (error) {
       console.error('Error marking notifications as read:', error);
-      // Revert on error (optional, but good practice)
     }
   };
 
-  return { notifications, unreadCount, isLoading, markAllAsRead };
+  const markOneAsRead = async (notificationId: string) => {
+    if (!user) return;
+
+    // Optimistic update
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    try {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead };
 }

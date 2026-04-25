@@ -289,12 +289,12 @@ app.use(express.urlencoded({ extended: true }));
     try {
       const { data: items, error } = await supabase
         .from('transaction_items')
-        .select('*, products(name, category)')
+        .select('*, products(name, category, price)')
         .eq('transaction_id', transactionId);
 
       if (error) throw error;
 
-      // Filter only Sariroti items
+      // Filter only Sariroti/Koperasi items
       const sarirotiItems = items.filter((item: any) => {
         const name = (item.products?.name || item.metadata?.product_name || '').toLowerCase();
         const category = (item.products?.category || item.metadata?.category || '').toLowerCase();
@@ -308,36 +308,133 @@ app.use(express.urlencoded({ extended: true }));
       }
 
       const sarirotiSubtotal = sarirotiItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-      const itemsHtml = sarirotiItems.map((item: any) => {
+      const orderDate = new Date().toLocaleString('id-ID', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
+        hour: '2-digit', minute: '2-digit' 
+      });
+
+      const itemRows = sarirotiItems.map((item: any) => {
         const name = item.products?.name || item.metadata?.product_name || 'Produk Koperasi';
-        return `<li>${name} x ${item.quantity} - Rp ${item.price.toLocaleString('id-ID')}</li>`;
+        const qty = item.quantity || 1;
+        const price = item.price || 0;
+        const subtotal = price * qty;
+        return `
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 12px 16px; color: #111827; font-weight: 500;">${name}</td>
+            <td style="padding: 12px 16px; text-align: center; color: #374151; font-weight: 600;">${qty}</td>
+            <td style="padding: 12px 16px; text-align: right; color: #374151;">Rp ${price.toLocaleString('id-ID')}</td>
+            <td style="padding: 12px 16px; text-align: right; color: #1d4ed8; font-weight: 700;">Rp ${subtotal.toLocaleString('id-ID')}</td>
+          </tr>`;
       }).join('');
 
       let targetEmail = process.env.SARIROTI_ADMIN_EMAIL || 'Sales.Adm.bjm@sariroti.com';
-      
       const appUrl = process.env.APP_URL || 'https://spscorner.store';
+      const txShortId = transactionId.slice(0, 8).toUpperCase();
 
-      const emailHtml = `
-        <div style="font-family: sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #0056b3;">Pesanan Baru Sariroti</h2>
-          <p>Halo Admin Sariroti,</p>
-          <p>Ada pesanan baru dari <strong>${buyerName}</strong> dengan detail sebagai berikut:</p>
-          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>ID Transaksi:</strong> ${transactionId}</p>
-            <p><strong>Item Sariroti:</strong></p>
-            <ul>${itemsHtml}</ul>
-            <p><strong>Subtotal Sariroti:</strong> Rp ${sarirotiSubtotal.toLocaleString('id-ID')}</p>
-          </div>
-          <p>Mohon segera login ke web SPS Corner dengan akun Sales Admin untuk melakukan <strong>Konfirmasi Pembelian</strong>.</p>
-          <p>Setelah dikonfirmasi, sistem akan otomatis mengirimkan nota pengambilan ke email pembeli, dan Anda dapat melanjutkan pemesanan ke bagian produksi.</p>
-          <div style="margin-top: 20px;">
-            <a href="${appUrl}/dashboard/admin/transactions" style="background-color: #0056b3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Verifikasi Pesanan Sariroti</a>
-          </div>
-          <p style="margin-top: 30px; font-size: 12px; color: #666;">Terima kasih,<br>Sistem SPS Corner</p>
-        </div>
-      `;
+      const emailHtml = `<!DOCTYPE html>
+<html lang="id">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Pesanan Roti Baru - SPS Corner</title></head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <div style="max-width: 620px; margin: 32px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+    
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%); padding: 32px 40px; text-align: center;">
+      <div style="display: inline-block; background: rgba(255,255,255,0.15); border-radius: 50px; padding: 6px 20px; margin-bottom: 16px;">
+        <span style="color: #bfdbfe; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Notifikasi Pesanan Baru</span>
+      </div>
+      <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Pesanan Roti Koperasi</h1>
+      <p style="margin: 8px 0 0; color: #bfdbfe; font-size: 14px;">SPS Corner — Koperasi Karyawan</p>
+    </div>
 
-      const result = await sendSarirotiEmailInternal(targetEmail, `Pesanan Sariroti Baru - ${buyerName}`, emailHtml);
+    <!-- Alert Banner -->
+    <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 16px 40px; display: flex; align-items: center; gap: 12px;">
+      <div style="background: #3b82f6; border-radius: 50%; width: 8px; height: 8px; flex-shrink: 0;"></div>
+      <p style="margin: 0; color: #1e40af; font-size: 13px; font-weight: 600;">Ada pesanan baru yang membutuhkan konfirmasi dari Anda sebagai Admin Sales Sariroti.</p>
+    </div>
+
+    <!-- Body -->
+    <div style="padding: 32px 40px;">
+      
+      <!-- Buyer Info -->
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+        <h2 style="margin: 0 0 16px; font-size: 13px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px;">Informasi Pemesan</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 13px; width: 40%;">Nama Pemesan</td>
+            <td style="padding: 6px 0; color: #111827; font-size: 13px; font-weight: 700;">: ${buyerName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">ID Transaksi</td>
+            <td style="padding: 6px 0; color: #1d4ed8; font-size: 13px; font-weight: 700; font-family: monospace;">: #${txShortId}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Tanggal &amp; Waktu</td>
+            <td style="padding: 6px 0; color: #111827; font-size: 13px; font-weight: 600;">: ${orderDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 13px;">Status Pembayaran</td>
+            <td style="padding: 6px 0;">
+              <span style="background: #dcfce7; color: #16a34a; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">: Telah Dibayar</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Order Items -->
+      <h2 style="margin: 0 0 12px; font-size: 13px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px;">Daftar Item Roti yang Dipesan</h2>
+      <div style="border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f3f4f6;">
+              <th style="padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 1px;">Nama Produk</th>
+              <th style="padding: 12px 16px; text-align: center; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Qty</th>
+              <th style="padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Harga</th>
+              <th style="padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase;">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows}
+          </tbody>
+          <tfoot>
+            <tr style="background: #eff6ff; border-top: 2px solid #bfdbfe;">
+              <td colspan="3" style="padding: 14px 16px; font-size: 14px; font-weight: 700; color: #1e40af; text-align: right;">Total Pesanan Roti:</td>
+              <td style="padding: 14px 16px; font-size: 16px; font-weight: 800; color: #1d4ed8; text-align: right;">Rp ${sarirotiSubtotal.toLocaleString('id-ID')}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Instructions -->
+      <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; margin-bottom: 28px;">
+        <h3 style="margin: 0 0 10px; font-size: 13px; font-weight: 700; color: #92400e;">📋 Langkah Selanjutnya untuk Admin Sales</h3>
+        <ol style="margin: 0; padding-left: 20px; color: #78350f; font-size: 13px; line-height: 1.8;">
+          <li>Login ke dashboard SPS Corner menggunakan akun Admin.</li>
+          <li>Buka menu <strong>Riwayat Transaksi</strong> dan cari ID Transaksi: <strong>#${txShortId}</strong>.</li>
+          <li>Klik <strong>Konfirmasi Pesanan Sariroti</strong> untuk menandai pesanan sebagai dikonfirmasi.</li>
+          <li>Sistem akan otomatis mengirim <strong>nota pengambilan</strong> ke email pembeli.</li>
+          <li>Lanjutkan proses pemesanan ke bagian produksi/distribusi sesuai prosedur.</li>
+        </ol>
+      </div>
+
+      <!-- CTA Button -->
+      <div style="text-align: center; margin-bottom: 8px;">
+        <a href="${appUrl}/dashboard/admin/transactions" 
+           style="display: inline-block; background: linear-gradient(135deg, #1e40af, #1d4ed8); color: #ffffff; padding: 14px 36px; border-radius: 10px; font-size: 14px; font-weight: 700; text-decoration: none; letter-spacing: 0.3px; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4);">
+          🔗 Buka Dashboard &amp; Konfirmasi Pesanan
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 24px 40px; text-align: center;">
+      <p style="margin: 0 0 6px; font-size: 12px; color: #9ca3af;">Email ini dikirim secara otomatis oleh sistem SPS Corner</p>
+      <p style="margin: 0; font-size: 12px; color: #9ca3af;">Koperasi Karyawan SPS — Banjarmasin | <a href="${appUrl}" style="color: #3b82f6; text-decoration: none;">spscorner.store</a></p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const result = await sendSarirotiEmailInternal(targetEmail, `[SPS Corner] Pesanan Roti Baru #${txShortId} dari ${buyerName}`, emailHtml);
       if (result.success) {
         console.log(`✅ Sariroti email triggered for transaction ${transactionId}`);
       } else {
@@ -1092,7 +1189,7 @@ app.use(express.urlencoded({ extended: true }));
 
       if (updateError) throw updateError;
 
-      // 4. Update seller balances
+      // 4. Update seller balances AND total_sales
       const sellerUpdates: Record<string, number> = {};
       transaction.transaction_items.forEach((item: any) => {
         if (item.seller_id) {
@@ -1103,14 +1200,20 @@ app.use(express.urlencoded({ extended: true }));
       for (const [sellerId, amount] of Object.entries(sellerUpdates)) {
         const { data: sellerProfile } = await supabase
           .from('profiles')
-          .select('balance')
+          .select('balance, total_sales')
           .eq('id', sellerId)
           .single();
         
         if (sellerProfile) {
+          const netAmount = amount * 0.92; // after 8% fee
+          const feeAmount = amount * 0.08;
           await supabase
             .from('profiles')
-            .update({ balance: (sellerProfile.balance || 0) + amount })
+            .update({ 
+              balance: (sellerProfile.balance || 0) + netAmount,
+              total_sales: (sellerProfile.total_sales || 0) + amount,
+              total_fee_paid: ((sellerProfile as any).total_fee_paid || 0) + feeAmount
+            })
             .eq('id', sellerId);
         }
       }

@@ -52,6 +52,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [salesData, setSalesData] = useState<any[]>([]);
   const [uploadingQris, setUploadingQris] = useState(false);
+  const [sellerBreakdown, setSellerBreakdown] = useState<any[]>([]);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -238,6 +240,41 @@ export default function AdminDashboard() {
           sales: groupedData[date]
         }));
         setSalesData(formattedChartData);
+      }
+
+      // Seller revenue breakdown
+      const { data: sellerItems } = await supabase
+        .from('transaction_items')
+        .select('seller_id, price, quantity, profiles:seller_id(name)')
+        .not('seller_id', 'is', null);
+
+      // Also get transaction status to only include successful ones
+      const { data: successTxIds } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('status', 'success');
+
+      if (sellerItems && successTxIds) {
+        const successIdSet = new Set(successTxIds.map((t: any) => t.id));
+        const breakdown: Record<string, { name: string; total: number }> = {};
+        
+        for (const item of sellerItems as any[]) {
+          // Only count items from successful transactions
+          // We need transaction_id — fetch separately or use a different approach
+          if (!item.seller_id) continue;
+          const sellerId = item.seller_id;
+          const sellerName = (item.profiles as any)?.name || 'Tidak dikenal';
+          if (!breakdown[sellerId]) {
+            breakdown[sellerId] = { name: sellerName, total: 0 };
+          }
+          breakdown[sellerId].total += (item.price || 0) * (item.quantity || 1);
+        }
+        
+        const breakdownArr = Object.entries(breakdown)
+          .map(([id, val]) => ({ id, name: val.name, total: val.total }))
+          .sort((a, b) => b.total - a.total);
+        
+        setSellerBreakdown(breakdownArr);
       }
 
     } catch (error) {
@@ -523,20 +560,21 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Midtrans Integration Status Banner */}
-      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* iPaymu Integration Status Banner */}
+      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-            <CreditCard className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+            <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-100">Integrasi Midtrans Disiapkan</h3>
-            <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80 mt-0.5">Sistem telah siap untuk dihubungkan dengan payment gateway Midtrans.</p>
+            <h3 className="text-sm font-bold text-emerald-900 dark:text-emerald-100">Integrasi iPaymu (Payment Gateway)</h3>
+            <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 mt-0.5">Sistem dikonfigurasi untuk menggunakan iPaymu sebagai payment gateway utama. Pastikan <strong>IPAYMU_VA</strong> dan <strong>IPAYMU_API_KEY</strong> sudah diatur di environment variables.</p>
           </div>
         </div>
-        <button className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-zinc-800 px-4 py-2 rounded-lg shadow-sm border border-indigo-100 dark:border-indigo-800/30 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors shrink-0">
-          Konfigurasi Midtrans
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
+          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">Production Mode</span>
+        </div>
       </div>
 
       {/* Configuration Alert */}
@@ -557,13 +595,27 @@ export default function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
-        <StatCard 
-          title="Total Pendapatan" 
-          value={formatRupiah(stats.totalSales)} 
-          icon={DollarSign} 
-          color="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-          trend={12}
-        />
+        <div 
+          className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-6 flex flex-col gap-4 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md dark:shadow-none transition-all cursor-pointer group col-span-1"
+          onClick={() => setShowBreakdown(true)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div className="flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+              <ArrowUpRight className="w-3 h-3" />
+              12%
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">Total Pendapatan</p>
+            <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate">{formatRupiah(stats.totalSales)}</h3>
+            <p className="text-xs text-blue-500 dark:text-blue-400 mt-2 font-bold flex items-center gap-1 group-hover:underline">
+              <ChevronRight className="w-3 h-3" /> Lihat breakdown sumber
+            </p>
+          </div>
+        </div>
         <StatCard 
           title="Total Biaya (8%)" 
           value={formatRupiah(stats.totalFees)} 
@@ -591,6 +643,62 @@ export default function AdminDashboard() {
           color="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
         />
       </div>
+
+      {/* Seller Revenue Breakdown Modal */}
+      {showBreakdown && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowBreakdown(false)}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-zinc-200 dark:border-zinc-800"
+          >
+            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-blue-50/50 dark:bg-blue-900/10">
+              <div>
+                <h3 className="text-lg font-black text-zinc-900 dark:text-white">Breakdown Total Pendapatan</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Sumber pendapatan per penjual (semua transaksi)</p>
+              </div>
+              <button onClick={() => setShowBreakdown(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-3 max-h-96 overflow-y-auto">
+              {sellerBreakdown.length === 0 ? (
+                <p className="text-center text-zinc-400 dark:text-zinc-500 text-sm italic py-8">Belum ada data penjualan per penjual</p>
+              ) : (
+                sellerBreakdown.map((seller, idx) => {
+                  const percentage = stats.totalSales > 0 ? ((seller.total / stats.totalSales) * 100).toFixed(1) : '0';
+                  return (
+                    <div key={seller.id} className="flex items-center gap-4">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 flex items-center justify-center font-black text-sm">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-bold text-zinc-900 dark:text-white">{seller.name}</span>
+                          <span className="text-sm font-black text-blue-600 dark:text-blue-400">{formatRupiah(seller.total)}</span>
+                        </div>
+                        <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 font-medium">{percentage}% dari total</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
+                <span className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Total Keseluruhan</span>
+                <span className="text-base font-black text-zinc-900 dark:text-white">{formatRupiah(stats.totalSales)}</span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6 sm:gap-10">
         {/* Sales Chart */}

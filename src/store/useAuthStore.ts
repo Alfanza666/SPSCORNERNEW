@@ -33,17 +33,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, role, name, nik, phone, balance')
         .eq('id', userId)
         .single();
 
       if (error) throw error;
-      set({ user: { ...data, email } as UserProfile });
+      set({ user: { ...data, email } as UserProfile, isLoading: false });
     } catch (error) {
       console.error('Error fetching profile:', error);
-      set({ user: null });
-    } finally {
-      set({ isLoading: false });
+      set({ user: null, isLoading: false });
     }
   },
   signOut: async () => {

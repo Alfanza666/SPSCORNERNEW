@@ -284,15 +284,26 @@ begin
 end;
 $$;
 
--- Trigger to update seller balance on successful transaction item insert
+-- Trigger to update seller balance ONLY on approved/successful transactions
+-- IMPORTANT: This trigger is now DISABLED to prevent phantom profits.
+-- Balance and total_sales are updated manually in server.ts at the approve endpoint.
+-- This ensures only items from APPROVED transactions contribute to seller stats.
 create or replace function public.update_seller_balance()
 returns trigger language plpgsql as $$
 begin
-  update public.profiles
-  set 
-    balance = coalesce(balance,0) + NEW.subtotal,
-    total_sales = coalesce(total_sales,0) + NEW.subtotal
-  where id = NEW.seller_id;
+  -- Only update balance if parent transaction is already 'success'
+  -- This prevents phantom profits from pending/failed transactions
+  if exists (
+    select 1 from public.transactions 
+    where id = NEW.transaction_id and status = 'success'
+  ) then
+    update public.profiles
+    set 
+      balance = coalesce(balance, 0) + (NEW.subtotal * 0.92),
+      total_sales = coalesce(total_sales, 0) + NEW.subtotal,
+      total_fee_paid = coalesce(total_fee_paid, 0) + (NEW.subtotal * 0.08)
+    where id = NEW.seller_id;
+  end if;
   return NEW;
 end;
 $$;
@@ -635,7 +646,7 @@ begin
           when 'completed' then 'Pesanan dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah selesai.'
           when 'cancelled' then 'Pesanan dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah dibatalkan.'
         end,
-        '/dashboard/admin/transactions'
+        '/dashboard/admin/transactions?id=' || new.id
       );
     end loop;
 

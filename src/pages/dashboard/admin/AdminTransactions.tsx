@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { formatRupiah, exportCSV } from '../../../lib/utils';
 import { format } from 'date-fns';
@@ -26,6 +27,20 @@ export default function AdminTransactions() {
   });
   const [sellerTxIds, setSellerTxIds] = useState<Set<string>>(new Set());
   const [sellerSubtotals, setSellerSubtotals] = useState<Record<string, number>>({});
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-open transaction detail if ?id= param is present (from notification deep-link)
+  useEffect(() => {
+    const idFromUrl = searchParams.get('id');
+    if (idFromUrl && transactions.length > 0) {
+      const tx = transactions.find(t => t.id === idFromUrl);
+      if (tx) {
+        openDetails(tx);
+        // Clean the URL param so reloads don't re-open the modal
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, transactions]);
 
   useEffect(() => {
     fetchTransactions();
