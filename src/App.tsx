@@ -26,6 +26,7 @@ const Contact = React.lazy(() => import('./pages/Contact'));
 const HelpCenter = React.lazy(() => import('./pages/HelpCenter'));
 const FAQ = React.lazy(() => import('./pages/FAQ'));
 const RefundPolicy = React.lazy(() => import('./pages/RefundPolicy'));
+const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
 
 const DashboardLayout = React.lazy(() => import('./pages/dashboard/DashboardLayout'));
 const AdminDashboard = React.lazy(() => import('./pages/dashboard/admin/AdminDashboard'));
@@ -180,6 +181,7 @@ export default function App() {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/faq" element={<FAQ />} />

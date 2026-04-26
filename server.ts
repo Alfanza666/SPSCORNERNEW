@@ -121,6 +121,27 @@ app.use(express.urlencoded({ extended: true }));
     baseUrl: IPAYMU_PRODUCTION ? 'https://my.ipaymu.com' : 'https://sandbox.ipaymu.com',
   });
 
+  // ===== HELPER: Send Notification to User =====
+  const sendNotification = async (userId: string, payload: {
+    type: 'transaction' | 'withdrawal' | 'system';
+    title: string;
+    message: string;
+    path?: string;
+  }) => {
+    try {
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        type: payload.type,
+        title: payload.title,
+        message: payload.message,
+        path: payload.path || '/',
+        is_read: false,
+      });
+    } catch (err) {
+      console.error('Failed to send notification:', err);
+    }
+  };
+
   // Helper to process digital items via Digiflazz
   const processDigitalItems = async (transactionId: string, transactionItems: any[]) => {
     const digitalItems = transactionItems.filter((item: any) => item.metadata?.is_digital);
@@ -218,6 +239,26 @@ app.use(express.urlencoded({ extended: true }));
                 }
               })
               .eq('id', item.id);
+
+            // Send notification based on item result
+            const txForNotif = await supabase.from('transactions').select('buyer_id').eq('id', transactionId).single();
+            if (txForNotif.data?.buyer_id) {
+              if (itemStatus === 'delivered') {
+                await sendNotification(txForNotif.data.buyer_id, {
+                  type: 'transaction',
+                  title: '📦 Produk Digital Terkirim!',
+                  message: `${item.metadata?.product_name || 'Produk digital'} Anda untuk nomor ${item.metadata?.target_number} berhasil terkirim.`,
+                  path: `/kiosk/success?id=${transactionId}`
+                });
+              } else if (itemStatus === 'failed') {
+                await sendNotification(txForNotif.data.buyer_id, {
+                  type: 'transaction',
+                  title: '⚠️ Pengiriman Produk Gagal',
+                  message: `Pengiriman ${item.metadata?.product_name || 'produk digital'} gagal (RC: ${rc}). Dana akan dikembalikan.`,
+                  path: `/kiosk/success?id=${transactionId}`
+                });
+              }
+            }
 
           } catch (digiErr: any) {
             allDigitalSuccess = false;
@@ -1240,6 +1281,16 @@ app.use(express.urlencoded({ extended: true }));
       // 6. Trigger Sariroti Email if applicable
       await triggerSarirotiEmail(transaction_id, transaction.buyer_name, transaction.total_amount);
 
+      // 7. Notify buyer
+      if (transaction.buyer_id) {
+        await sendNotification(transaction.buyer_id, {
+          type: 'transaction',
+          title: '✅ Pembayaran Dikonfirmasi!',
+          message: `Pesanan Anda #${transaction_id.slice(0, 8)} telah diverifikasi oleh admin. Terima kasih!`,
+          path: `/kiosk/success?id=${transaction_id}`
+        });
+      }
+
       res.json({ success: true, message: 'Transaction approved and processed' });
     } catch (error: any) {
       console.error('Error approving transaction:', error);
@@ -1805,6 +1856,24 @@ app.use(express.urlencoded({ extended: true }));
         await updateSellerBalances(transaction.transaction_items);
         await processDigitalItems(refId, transaction.transaction_items);
         await triggerSarirotiEmail(refId, transaction.buyer_name, transaction.total_amount);
+        // Notify buyer
+        if (transaction.buyer_id) {
+          await sendNotification(transaction.buyer_id, {
+            type: 'transaction',
+            title: '✅ Pembayaran Berhasil!',
+            message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString('id-ID')} telah dikonfirmasi.`,
+            path: `/kiosk/success?id=${refId}`
+          });
+        }
+      } else if (txStatus === 'failed') {
+        if (transaction.buyer_id) {
+          await sendNotification(transaction.buyer_id, {
+            type: 'transaction',
+            title: '❌ Pembayaran Gagal',
+            message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
+            path: `/kiosk/success?id=${refId}`
+          });
+        }
       }
 
       console.log('✅ Transaction Updated:', { reference_id: refId, txStatus });
@@ -1856,6 +1925,105 @@ app.use(express.urlencoded({ extended: true }));
       res.json({ success: true, data: methods });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // Endpoint to request a password reset via NIK or Email
+  app.post('/api/auth/reset-password-request', async (req, res) => {
+    try {
+      const { nikOrEmail } = req.body;
+      if (!nikOrEmail) {
+        return res.status(400).json({ error: 'NIK atau Email wajib diisi' });
+      }
+
+      let userId = null;
+      let userName = 'Unknown';
+      let userNik = null;
+
+      // 1. Try finding by NIK in profiles
+      const { data: profileByNik } = await supabaseAdmin
+        .from('profiles')
+        .select('id, name, nik')
+        .eq('nik', nikOrEmail)
+        .single();
+
+      if (profileByNik) {
+        userId = profileByNik.id;
+        userName = profileByNik.name;
+        userNik = profileByNik.nik;
+      } else {
+        // 2. Try finding by Email in auth.users
+        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000
+        });
+        
+        if (!listError && users) {
+          const foundUser = users.find(u => u.email?.toLowerCase() === nikOrEmail.toLowerCase());
+          if (foundUser) {
+            userId = foundUser.id;
+            // Get profile details
+            const { data: profileByEmail } = await supabaseAdmin
+              .from('profiles')
+              .select('name, nik')
+              .eq('id', userId)
+              .single();
+            if (profileByEmail) {
+              userName = profileByEmail.name;
+              userNik = profileByEmail.nik;
+            }
+          }
+        }
+      }
+
+      if (!userId) {
+        return res.status(404).json({ error: 'Data tidak ditemukan. Pastikan NIK atau Email yang Anda masukkan benar.' });
+      }
+
+      // Create reset request
+      const { error: requestError } = await supabaseAdmin
+        .from('password_reset_requests')
+        .insert({
+          user_id: userId,
+          user_name: userName,
+          user_nik: userNik,
+          status: 'pending'
+        });
+
+      if (requestError) throw requestError;
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('Reset password request error:', error);
+      res.status(500).json({ error: error.message || 'Terjadi kesalahan pada server' });
+    }
+  });
+
+  app.get("/api/transactions/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { data, error } = await supabaseAdmin
+        .from('transactions')
+        .select(`
+          *,
+          transaction_items (
+            *,
+            products (
+              name,
+              category
+            )
+          )
+        `)
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        return res.status(404).json({ error: 'Transaction not found' });
+      }
+      res.json({ transaction: data });
+    } catch (error: any) {
+      console.error('Error fetching transaction:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch transaction' });
     }
   });
 

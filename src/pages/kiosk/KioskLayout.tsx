@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Home, LogOut, User, Check, Clock, HelpCircle } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
 import Logo from '../../components/ui/logo-landscape.png';
+import PhonePromptModal from '../../components/PhonePromptModal';
 
 function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -37,6 +38,16 @@ export default function KioskLayout() {
   const location = useLocation();
   const isCatalog = location.pathname === '/kiosk';
   const isSuccess = location.pathname === '/kiosk/success';
+
+  // Show phone modal if user is logged in via Google but has no phone
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  useEffect(() => {
+    if (user && isCatalog && !user.phone) {
+      // Small delay to avoid jarring the user immediately
+      const t = setTimeout(() => setShowPhoneModal(true), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [user, isCatalog]);
 
   const currentStepIndex = STEPS.findIndex(step => step.path === location.pathname);
 
@@ -277,12 +288,17 @@ export default function KioskLayout() {
         <footer className="bg-transparent py-4 mt-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
             <div className="flex items-center justify-center gap-4 mb-2 text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 font-bold">
-              <button onClick={() => navigate('/terms')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Syarat & Ketentuan</button>
+              <button onClick={() => navigate('/terms')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Syarat &amp; Ketentuan</button>
+              <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
+              <button onClick={() => navigate('/privacy')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Kebijakan Privasi</button>
               <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span>
               <button onClick={() => navigate('/contact')} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Hubungi Kami</button>
             </div>
           </div>
         </footer>
+      )}
+      {showPhoneModal && (
+        <PhonePromptModal onClose={() => setShowPhoneModal(false)} />
       )}
     </div>
   );

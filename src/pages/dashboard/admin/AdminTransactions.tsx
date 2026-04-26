@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
-import { formatRupiah, exportCSV } from '../../../lib/utils';
+import { formatRupiah, exportExcel } from '../../../lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink, Clock } from 'lucide-react';
@@ -176,39 +176,36 @@ export default function AdminTransactions() {
     }
   };
 
-  const exportToCSV = () => {
+  const exportToExcel = () => {
     const dataToExport = activeTab === 'success' ? transactions : failedTransactions;
     if (dataToExport.length === 0) return;
-    
-    let headers = [];
-    let rows = [];
+
+    let headers: string[];
+    let rows: (string | number | null)[][];
 
     if (activeTab === 'success') {
-      headers = ['ID', 'Pembeli', 'Total', 'Status', 'Tanggal'];
+      headers = ['ID Transaksi', 'Nama Pembeli', 'Email Pembeli', 'Total Bayar (Rp)', 'Metode Bayar', 'Status', 'Tanggal'];
       rows = dataToExport.map(tx => [
         tx.id,
         tx.buyer_name,
-        tx.total_amount,
+        tx.buyer_email || '-',
+        Number(tx.total_amount),
+        tx.payment_method || '-',
         tx.status,
-        format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')
+        format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm:ss')
       ]);
     } else {
-      headers = ['ID', 'Pembeli', 'Total Dicoba', 'Alasan', 'Tanggal'];
+      headers = ['ID', 'Nama Pembeli', 'Total Dicoba (Rp)', 'Alasan Gagal', 'Tanggal'];
       rows = dataToExport.map(tx => [
         tx.id,
         tx.buyer_name,
-        tx.attempted_amount,
+        Number(tx.attempted_amount),
         tx.reason,
-        format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')
+        format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm:ss')
       ]);
     }
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
-
-    exportCSV(csvContent, `laporan_transaksi_${activeTab}_${format(new Date(), 'yyyyMMdd')}.csv`);
+    exportExcel(headers, rows, `laporan_transaksi_${activeTab}_${format(new Date(), 'yyyyMMdd')}`, 'Laporan Transaksi');
   };
 
   const filteredTransactions = (activeTab === 'success' ? transactions : failedTransactions).filter(tx => {
@@ -283,11 +280,11 @@ export default function AdminTransactions() {
           </p>
         </div>
         <button 
-          onClick={exportToCSV} 
+          onClick={exportToExcel} 
           className="btn-clay-primary h-12 px-8 flex items-center gap-3"
         >
           <Download className="w-5 h-5" />
-          Export Laporan
+          Export Excel
         </button>
       </div>
 

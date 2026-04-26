@@ -245,14 +245,14 @@ export default function AdminDashboard() {
       // Seller revenue breakdown
       const { data: sellerItems } = await supabase
         .from('transaction_items')
-        .select('seller_id, price, quantity, profiles:seller_id(name)')
+        .select('transaction_id, seller_id, price, quantity, profiles:seller_id(name)')
         .not('seller_id', 'is', null);
 
       // Also get transaction status to only include successful ones
       const { data: successTxIds } = await supabase
         .from('transactions')
         .select('id')
-        .eq('status', 'success');
+        .in('status', ['success', 'paid']);
 
       if (sellerItems && successTxIds) {
         const successIdSet = new Set(successTxIds.map((t: any) => t.id));
@@ -260,7 +260,7 @@ export default function AdminDashboard() {
         
         for (const item of sellerItems as any[]) {
           // Only count items from successful transactions
-          // We need transaction_id — fetch separately or use a different approach
+          if (!successIdSet.has(item.transaction_id)) continue;
           if (!item.seller_id) continue;
           const sellerId = item.seller_id;
           const sellerName = (item.profiles as any)?.name || 'Tidak dikenal';

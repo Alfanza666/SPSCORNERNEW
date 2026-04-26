@@ -18,28 +18,19 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      // Find user by NIK
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, name, nik')
-        .eq('nik', nik)
-        .single();
+      const response = await fetch('/api/auth/reset-password-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ nikOrEmail: nik })
+      });
 
-      if (profileError || !profile) {
-        throw new Error('Data NIK tidak ditemukan. Pastikan NIK yang Anda masukkan benar.');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Gagal mengirim permintaan reset password.');
       }
-
-      // Create reset request
-      const { error: requestError } = await supabase
-        .from('password_reset_requests')
-        .insert({
-          user_id: profile.id,
-          user_name: profile.name,
-          user_nik: profile.nik,
-          status: 'pending'
-        });
-
-      if (requestError) throw requestError;
 
       setSuccess(true);
       toast.success('Permintaan reset password telah dikirim ke admin.');
@@ -95,18 +86,18 @@ export default function ForgotPassword() {
               <div className="p-3 sm:p-4 bg-blue-50 rounded-xl border border-blue-100 flex gap-2 sm:gap-3">
                 <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 shrink-0 mt-0.5" />
                 <p className="text-[8px] sm:text-[10px] text-blue-900 leading-relaxed font-bold">
-                  Masukkan NIK Anda untuk memverifikasi identitas. Admin akan mereset password Anda menjadi default (123456).
+                  Masukkan NIK atau Email terdaftar Anda untuk memverifikasi identitas. Admin akan mereset password Anda menjadi default (123456).
                 </p>
               </div>
 
               <div className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-[10px] sm:text-xs font-black text-zinc-400 mb-1.5 sm:mb-2 ml-1 uppercase tracking-widest">
-                    NIK Anda
+                    NIK / Email Anda
                   </label>
                   <input
                     type="text"
-                    placeholder="Contoh: 12345678"
+                    placeholder="Contoh: 12345678 atau budi@gmail.com"
                     value={nik}
                     onChange={(e) => setNik(e.target.value)}
                     required

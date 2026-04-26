@@ -23,25 +23,16 @@ export default function Success() {
 
     const fetchTransaction = async () => {
       try {
-        const { data, error } = await supabase
-          .from('transactions')
-          .select(`
-            *,
-            transaction_items (
-              *,
-              products (
-                name,
-                category
-              )
-            )
-          `)
-          .eq('id', transactionId)
-          .single();
+        const response = await fetch(`/api/transactions/${transactionId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch transaction');
+        }
+        const data = await response.json();
         
-        if (!error && data) {
-          setTransaction(data);
+        if (data && data.transaction) {
+          setTransaction(data.transaction);
 
-          const processingItems = data.transaction_items?.filter(
+          const processingItems = data.transaction.transaction_items?.filter(
             (item: any) => item.metadata?.is_digital && item.metadata?.status === 'processing'
           );
 
