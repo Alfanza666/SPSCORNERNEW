@@ -894,8 +894,18 @@ alter table public.stock_opnames enable row level security;
 alter table public.stock_opname_items enable row level security;
 alter table public.standby_schedules enable row level security;
 
--- Policies
-create policy stock_opnames_admin on public.stock_opnames for all using (public.is_admin());
-create policy stock_opname_items_admin on public.stock_opname_items for all using (public.is_admin());
-create policy standby_schedules_admin on public.standby_schedules for all using (public.is_admin());
-create policy standby_schedules_select on public.standby_schedules for select using (true);
+-- Policies (Safe/Idempotent)
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS stock_opnames_admin ON public.stock_opnames;
+    CREATE POLICY stock_opnames_admin ON public.stock_opnames FOR ALL USING (public.is_admin());
+
+    DROP POLICY IF EXISTS stock_opname_items_admin ON public.stock_opname_items;
+    CREATE POLICY stock_opname_items_admin ON public.stock_opname_items FOR ALL USING (public.is_admin());
+
+    DROP POLICY IF EXISTS standby_schedules_admin ON public.standby_schedules;
+    CREATE POLICY standby_schedules_admin ON public.standby_schedules FOR ALL USING (public.is_admin());
+
+    DROP POLICY IF EXISTS standby_schedules_select ON public.standby_schedules;
+    CREATE POLICY standby_schedules_select ON public.standby_schedules FOR SELECT USING (true);
+END $$;
