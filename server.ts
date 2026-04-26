@@ -1941,7 +1941,7 @@ app.use(express.urlencoded({ extended: true }));
       let userNik = null;
 
       // 1. Try finding by NIK in profiles
-      const { data: profileByNik } = await supabaseAdmin
+      const { data: profileByNik } = await supabase
         .from('profiles')
         .select('id, name, nik')
         .eq('nik', nikOrEmail)
@@ -1953,7 +1953,7 @@ app.use(express.urlencoded({ extended: true }));
         userNik = profileByNik.nik;
       } else {
         // 2. Try finding by Email in auth.users
-        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+        const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({
           page: 1,
           perPage: 1000
         });
@@ -1963,7 +1963,7 @@ app.use(express.urlencoded({ extended: true }));
           if (foundUser) {
             userId = foundUser.id;
             // Get profile details
-            const { data: profileByEmail } = await supabaseAdmin
+            const { data: profileByEmail } = await supabase
               .from('profiles')
               .select('name, nik')
               .eq('id', userId)
@@ -1981,7 +1981,7 @@ app.use(express.urlencoded({ extended: true }));
       }
 
       // Create reset request
-      const { error: requestError } = await supabaseAdmin
+      const { error: requestError } = await supabase
         .from('password_reset_requests')
         .insert({
           user_id: userId,
@@ -2002,7 +2002,7 @@ app.use(express.urlencoded({ extended: true }));
   app.get("/api/transactions/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('transactions')
         .select(`
           *,
