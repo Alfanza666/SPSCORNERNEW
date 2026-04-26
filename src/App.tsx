@@ -37,6 +37,7 @@ const AdminTransactions = React.lazy(() => import('./pages/dashboard/admin/Admin
 const AdminWithdrawals = React.lazy(() => import('./pages/dashboard/admin/AdminWithdrawals'));
 const AdminSettings = React.lazy(() => import('./pages/dashboard/admin/AdminSettings'));
 const AdminReturns = React.lazy(() => import('./pages/dashboard/admin/AdminReturns'));
+const AdminStockRequests = React.lazy(() => import('./pages/dashboard/admin/AdminStockRequests'));
 const AdminStockOpname = React.lazy(() => import('./pages/dashboard/admin/AdminStockOpname'));
 const AdminStandbySchedule = React.lazy(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
 

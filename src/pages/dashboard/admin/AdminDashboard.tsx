@@ -23,7 +23,9 @@ import {
   Upload,
   Search,
   KeyRound,
-  Wallet
+  Wallet,
+  QrCode,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';

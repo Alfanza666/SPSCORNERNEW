@@ -1,3 +1,17 @@
+v1.1.6 - [PATCH] CRITICAL Fix: Blank White Screen (Root Cause Analysis):
+  ROOT CAUSE #1 (FATAL): App.tsx - Komponen `AdminStockRequests` digunakan di Route line 211 TANPA lazy import. JavaScript berhenti total sebelum apapun di-render.
+  ROOT CAUSE #2 (FATAL): AdminDashboard.tsx - Komponen `QrCode` dan `Loader2` dipakai di JSX (dirender di halaman) tapi sudah dihapus definisinya manual dan tidak ada di import lucide-react. Crash terjadi saat render.
+  ROOT CAUSE #3 (FATAL): AdminTransactions.tsx - Komponen `Loader2` dipakai di JSX tapi tidak diimport.
+  FIX: Menambahkan semua import yang hilang ke file yang tepat (App.tsx, AdminDashboard.tsx, AdminTransactions.tsx).
+  SQL: supabase-schema.sql - Kebijakan RLS diubah menjadi idempotent (DROP IF EXISTS + CREATE) agar tidak error saat migrasi dijalankan ulang.
+
+ERROR LOG (Resolved):
+  [E001] App.tsx:211 - ReferenceError: AdminStockRequests is not defined → FIXED v1.1.6
+  [E002] AdminDashboard.tsx - ReferenceError: QrCode is not defined → FIXED v1.1.6
+  [E003] AdminDashboard.tsx - ReferenceError: Loader2 is not defined → FIXED v1.1.6
+  [E004] AdminTransactions.tsx - ReferenceError: Loader2 is not defined → FIXED v1.1.6
+  [E005] supabase-schema.sql - ERROR 42710: policy "stock_opnames_admin" already exists → FIXED v1.1.6
+
 v1.1.4 - [SECURITY] Peningkatan Audit & CCTV Correlation:
   (1) System: Implementasi Auto-Cleanup. Transaksi 'Pending' (belum dibayar) yang berusia lebih dari 5 menit otomatis dianggap 'Gagal' (Failed) untuk menghindari kebingungan saat audit kehilangan barang.
   (2) UI History & Dashboard: Upgrade format waktu ke HH:mm:ss (Presisi detik). Memudahkan admin melakukan tracking kejadian di CCTV berdasarkan timestamp transaksi yang akurat.
