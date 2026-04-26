@@ -2146,11 +2146,12 @@ app.use(express.urlencoded({ extended: true }));
 
   app.post("/api/transactions/create", async (req, res) => {
     try {
-      const { buyer_name, buyer_id, buyer_email, total_amount, items, payment_method, status, receipt_image } = req.body;
+      const { buyer_name, buyer_id, buyer_phone, buyer_email, total_amount, items, payment_method, status, receipt_image } = req.body;
 
       // 1. Create transaction record
       const txDataToInsert: any = {
         buyer_name,
+        buyer_phone,
         total_amount,
         status: status || 'pending'
       };
@@ -2197,6 +2198,23 @@ app.use(express.urlencoded({ extended: true }));
         .select();
 
       if (itemsError) throw itemsError;
+
+      // 2.5 ATOMIC STOCK DECREMENT
+      // We do this immediately to "reserve" the items. 
+      // If payment fails or time expires, they will be returned via cleanup.
+      for (const item of items) {
+        if (!item.is_digital && item.id) {
+          const { error: stockErr } = await supabase.rpc('decrement_stock', {
+            p_id: item.id,
+            p_amount: item.quantity
+          });
+          if (stockErr) {
+            // Rollback transaction (delete) if stock check fails
+            await supabase.from('transactions').delete().eq('id', tx.id);
+            throw new Error(`Stok tidak mencukupi untuk ${item.name}`);
+          }
+        }
+      }
 
       // Process digital items via Digiflazz if status is paid or success
       if (tx.status === 'paid' || tx.status === 'success') {
@@ -2308,8 +2326,24 @@ app.use(express.urlencoded({ extended: true }));
 
       if (updateError) throw updateError;
 
-      // Log to adjustments if needed, but usually pending doesn't affect stock permanently yet
-      // unless reservation is confirmed. Reservations have their own expiry.
+      // Restore stock for each item in expired transactions
+      for (const tx of expired) {
+        const { data: items } = await supabase
+          .from('transaction_items')
+          .select('product_id, quantity')
+          .eq('transaction_id', tx.id);
+        
+        if (items) {
+          for (const item of items) {
+            if (item.product_id) {
+              await supabase.rpc('increment_stock', {
+                p_id: item.product_id,
+                p_amount: item.quantity
+              });
+            }
+          }
+        }
+      }
 
       res.json({ success: true, count: expired.length });
     } catch (error: any) {

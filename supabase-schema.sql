@@ -159,6 +159,7 @@ create table if not exists public.transactions (
   id uuid primary key default uuid_generate_v4(),
   buyer_name text not null,
   buyer_id uuid references public.profiles(id) on delete set null,
+  buyer_phone text,
   total_amount numeric not null check (total_amount >= 0),
   status text not null default 'pending' check (status in ('pending','success','failed','paid')),
   payment_method text,

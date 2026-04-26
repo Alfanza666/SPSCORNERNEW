@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
-import { formatRupiah, exportExcel } from '../../../lib/utils';
-import { format } from 'date-fns';
+import { formatRupiah, exportExcel, cn } from '../../../lib/utils';
+import { format, isValid } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink, Clock, Bell, PackageCheck } from 'lucide-react';
+import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink, Clock, Bell, Package, PackageCheck } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, TransactionSkeleton } from '../../../components/ui/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -342,21 +342,23 @@ export default function AdminTransactions() {
         <div className="flex bg-zinc-100 dark:bg-zinc-800/50 p-1.5 rounded-2xl border border-zinc-200/60 dark:border-zinc-700/50 w-full md:w-auto shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
           <button
             onClick={() => setActiveTab('success')}
-            className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
+            className={cn(
+              "flex-1 md:flex-none px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
               activeTab === 'success' 
-                ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' 
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-            }`}
+                ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm" 
+                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+            )}
           >
             Sukses
           </button>
           <button
             onClick={() => setActiveTab('failed')}
-            className={`flex-1 md:flex-none px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
+            className={cn(
+              "flex-1 md:flex-none px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
               activeTab === 'failed' 
-                ? 'bg-white dark:bg-zinc-700 text-red-600 dark:text-red-400 shadow-sm' 
-                : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
-            }`}
+                ? "bg-white dark:bg-zinc-700 text-red-600 dark:text-red-400 shadow-sm" 
+                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+            )}
           >
             Gagal
           </button>
@@ -387,7 +389,10 @@ export default function AdminTransactions() {
           </div>
           <button 
             onClick={() => setShowFilters(!showFilters)}
-            className={`btn-clay-secondary h-12 px-6 flex items-center justify-center gap-2 transition-colors shrink-0 w-full md:w-auto ${showFilters ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white' : ''}`}
+            className={cn(
+              "btn-clay-secondary h-12 px-6 flex items-center justify-center gap-2 transition-colors shrink-0 w-full md:w-auto",
+              showFilters && "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white"
+            )}
           >
             <Filter className="w-4 h-4" />
             <span className="inline">{showFilters ? 'Tutup Filter' : 'Filter Lanjut'}</span>
@@ -468,7 +473,7 @@ export default function AdminTransactions() {
                         </span>
                         <span className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
                           <Calendar className="w-3.5 h-3.5" />
-                          {format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm:ss', { locale: id })}
+                          {isValid(new Date(tx.created_at)) ? format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm:ss', { locale: id }) : 'Waktu tidak valid'}
                         </span>
                       </div>
                     </td>

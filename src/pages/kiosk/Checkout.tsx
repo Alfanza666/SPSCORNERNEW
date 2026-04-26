@@ -93,6 +93,7 @@ export default function Checkout() {
       const txData: any = {
         buyer_name: buyerName,
         buyer_id: user?.id || null,
+        buyer_phone: user?.phone || guestPhone || null,
         buyer_email: user?.email || null,
         total_amount: getTotal(),
         items: items.map(item => ({
@@ -496,7 +497,7 @@ export default function Checkout() {
                   <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/30">
                     <label className="flex items-center gap-2 text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">
                       <Phone className="w-3.5 h-3.5" />
-                      Nomor HP (opsional)
+                      Nomor HP (Wajib)
                     </label>
                     <input
                       type="tel"
@@ -518,7 +519,13 @@ export default function Checkout() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* QRIS Option */}
                   <button
-                    onClick={() => handleDirectPayment('qris', 'qris')}
+                    onClick={() => {
+                      if (!user && !guestPhone) {
+                        toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                        return;
+                      }
+                      handleDirectPayment('qris', 'qris');
+                    }}
                     disabled={loading}
                     className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
                   >
@@ -533,7 +540,13 @@ export default function Checkout() {
 
                   {/* VA BCA Option */}
                   <button
-                    onClick={() => handleDirectPayment('va', 'bca')}
+                    onClick={() => {
+                      if (!user && !guestPhone) {
+                        toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                        return;
+                      }
+                      handleDirectPayment('va', 'bca');
+                    }}
                     disabled={loading}
                     className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
                   >
@@ -548,7 +561,13 @@ export default function Checkout() {
 
                   {/* VA Mandiri Option */}
                   <button
-                    onClick={() => handleDirectPayment('va', 'mandiri')}
+                    onClick={() => {
+                      if (!user && !guestPhone) {
+                        toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                        return;
+                      }
+                      handleDirectPayment('va', 'mandiri');
+                    }}
                     disabled={loading}
                     className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
                   >
@@ -564,6 +583,10 @@ export default function Checkout() {
                   {/* Manual QRIS Option */}
                   <button
                     onClick={() => {
+                      if (!user && !guestPhone) {
+                        toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                        return;
+                      }
                       handleManualQris();
                     }}
                     disabled={loading}
