@@ -359,7 +359,6 @@ export default function AdminTransactions() {
           >
             Gagal
           </button>
-          </button>
         </div>
 
         <div className="flex flex-1 flex-col md:flex-row items-center gap-4 w-full md:w-auto">
