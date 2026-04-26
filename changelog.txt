@@ -1,4 +1,35 @@
-v4.1.1 - [PATCH] Code Audit & Cleanup menyeluruh:
+v1.0.7 - [MINOR] Fitur Baru: Input HP Google OAuth, Sistem Notifikasi Pesanan, Halaman Kebijakan Privasi, Export Excel:
+  (1) PhonePromptModal: Modal baru muncul otomatis setelah login via Google jika nomor HP belum diisi. Tidak ada lagi nomor HP palsu yang di-generate sistem.
+  (2) Notifikasi Real-time: server.ts kini memanggil sendNotification() di webhook iPaymu (bayar berhasil/gagal), saat Digiflazz mengirimkan produk digital (delivered/failed), dan saat admin mengkonfirmasi pembayaran manual.
+  (3) Kebijakan Privasi: Halaman baru /privacy (PrivacyPolicy.tsx) dengan 7 seksi: data yang dikumpulkan, penggunaan data, keamanan, HP, hak pengguna, retensi, dan kontak.
+  (4) Export Excel: exportCSV diganti dengan exportExcel (SheetJS/xlsx) di utils.ts. AdminTransactions.tsx diperbarui untuk menghasilkan file .xlsx dengan header profesional, auto-column-width, dan freeze row.
+  (5) Link Kebijakan Privasi: Footer KioskLayout kini mencantumkan link ke /privacy.
+  Files diubah:
+    - src/components/PhonePromptModal.tsx (BARU)
+    - src/pages/PrivacyPolicy.tsx (BARU)
+    - src/pages/kiosk/KioskLayout.tsx
+    - src/lib/utils.ts
+    - src/pages/dashboard/admin/AdminTransactions.tsx
+    - src/App.tsx
+    - server.ts
+
+v4.2.1 - [PATCH] Fix login kembali ke halaman login setelah Google OAuth dan admin NIK login:
+  (1) Login.tsx: Menghapus race condition — fetchProfile terpisah dihapus, diganti 1 query gabungan lalu set store langsung via setUser() SEBELUM navigate. Sebelumnya fetchProfile bisa gagal (user=null) tapi navigate tetap jalan → DashboardLayout melihat user=null → redirect balik ke login.
+  (2) AuthCallback.tsx: Ditulis ulang — hapus duplikat useEffect, gunakan onAuthStateChange sebagai primary + getSession fallback + timeout 12 detik. Set store langsung via setUser() agar DashboardLayout tidak redirect balik.
+  (3) Supabase config: Tambahkan https://spscorner.store/auth/callback (tanpa www) ke Redirect URLs agar konsisten dengan window.location.origin.
+  (Files diubah: src/pages/Login.tsx, src/pages/auth/AuthCallback.tsx)
+
+  Alur: Klik "Masuk dengan Google" → redirect ke Google → Supabase callback → halaman /auth/callback → redirect ke dashboard sesuai role (admin/seller/kiosk).
+  File baru: src/pages/auth/AuthCallback.tsx (handler redirect setelah OAuth, cek role & is_active, redirect otomatis).
+  Update: src/pages/Login.tsx (tambah tombol Google dengan spinner state, divider "Atau masuk dengan NIK").
+  Update: src/App.tsx (daftarkan route /auth/callback dengan lazy import).
+  Verifikasi: Build sukses exit code 0.
+
+  Root Cause: src/lib/gemini.ts menggunakan top-level `await import()` — fitur ini merusak Vite build secara silent karena Vite memproses semua file di folder src/ termasuk yang tidak diimport oleh komponen manapun. Akibatnya seluruh aplikasi (termasuk halaman Login) tidak dapat dimuat di production.
+  Fix: Mengganti gemini.ts dengan placeholder null export yang aman — file ini memang tidak digunakan di frontend (Gemini AI diinisialisasi di server.ts saja).
+  Verifikasi: `npm run build` sukses dengan exit code 0, semua chunk terbuild tanpa error.
+  (File diubah: src/lib/gemini.ts)
+
   (1) DEAD CODE: Menghapus 37 file script/test one-off dari root project yang tidak digunakan (fetch_*.js, test_*.js, check-*.ts, create-users.*, ipaymu samples, postman files, dll).
   (2) SECURITY: Menghapus console.log di signature.ts yang mengekspos data kriptografi (VA, body hash, string-to-sign) ke log server — potensi kebocoran data sensitif.
   (3) SECURITY: Memperbaiki src/lib/gemini.ts yang menggunakan process.env (Node.js) di frontend Vite; ditambahkan guard agar tidak crash di browser.
