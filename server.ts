@@ -1295,7 +1295,7 @@ app.use(express.urlencoded({ extended: true }));
       const uniqueSellers = [...new Set(transaction.transaction_items.map((item: any) => item.seller_id))];
       for (const sellerId of uniqueSellers) {
         if (sellerId) {
-          await sendNotification(sellerId, {
+          await sendNotification(sellerId as string, {
             type: 'transaction',
             title: '💰 Pesanan Baru Masuk!',
             message: `Ada pesanan baru #${transaction_id.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
