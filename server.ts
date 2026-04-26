@@ -1952,14 +1952,13 @@ app.use(express.urlencoded({ extended: true }));
         userName = profileByNik.name;
         userNik = profileByNik.nik;
       } else {
-        // 2. Try finding by Email in auth.users
-        const { data: { users }, error: listError } = await supabase.auth.admin.listUsers({
-          page: 1,
-          perPage: 1000
-        });
-        
-        if (!listError && users) {
-          const foundUser = users.find(u => u.email?.toLowerCase() === nikOrEmail.toLowerCase());
+        // 2. Try finding by Email in auth.users (using service role key)
+        const listResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        const authUsers = listResult.data?.users ?? [];
+        const listError = listResult.error;
+
+        if (!listError && authUsers.length > 0) {
+          const foundUser = authUsers.find((u: any) => u.email?.toLowerCase() === nikOrEmail.toLowerCase());
           if (foundUser) {
             userId = foundUser.id;
             // Get profile details
