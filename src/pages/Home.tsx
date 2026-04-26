@@ -44,6 +44,7 @@ export default function Home() {
               className="h-32 sm:h-48 w-auto object-contain drop-shadow-xl dark:drop-shadow-[0_0_30px_rgba(255,255,255,0.15)] relative z-10"
             />
           </div>
+
           <p className="text-sm sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed px-4 font-medium tracking-tight transition-colors mt-6">
             Solusi cerdas untuk transaksi berbagai kebutuhan, mulai dari produk digital, produk Sariroti, hingga makanan & minuman bagi seluruh karyawan.
           </p>
@@ -135,7 +136,7 @@ export default function Home() {
 
             <div className="flex flex-col items-center gap-1 mt-2">
               <div className="px-3 py-1 rounded-full bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-300/50 dark:border-zinc-700/50 backdrop-blur-sm">
-                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v4.2.5</p>
+                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v1.1.5</p>
               </div>
               <p className="text-[10px] sm:text-xs text-zinc-500 mt-2">
                 Ide & Dikembangkan oleh <span className="font-bold text-zinc-700 dark:text-zinc-300">Alif Irfansyah</span>

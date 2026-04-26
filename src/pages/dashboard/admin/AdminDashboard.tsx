@@ -55,13 +55,6 @@ export default function AdminDashboard() {
   const [sellerBreakdown, setSellerBreakdown] = useState<any[]>([]);
   const [showBreakdown, setShowBreakdown] = useState(false);
 
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      fetchDashboardData();
-      handleAutoCleanup();
-    }
-  }, [user]);
-
   const handleAutoCleanup = async () => {
     try {
       await fetch('/api/admin/transactions/cleanup', { method: 'POST' });
@@ -69,6 +62,13 @@ export default function AdminDashboard() {
       console.error('Auto-cleanup failed', e);
     }
   };
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchDashboardData();
+      handleAutoCleanup();
+    }
+  }, [user]);
 
   const handleQrisUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -910,7 +910,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-sm">{formatRupiah(tx.total_amount)}</p>
+                        <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-sm">{formatRupiah(tx.total_amount || 0)}</p>
                         <span className="clay-badge bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">Berhasil</span>
                       </div>
                     </motion.div>

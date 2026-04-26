@@ -136,3 +136,5 @@ Riwayat Error & Fix:
 - [FIXED] Redundant curly braces pada conditional rendering di Dashboard Admin (v1.1.3).
 - [FIXED] Logo digital produk pecah/placeholder (v1.1.1).
 - [FIXED] Bug seller "Hidayatullah" memiliki profit tanpa penjualan (v4.1.0).
+v 1 . 1 . 5   -   M e m p e r b a i k i   i s u   b l a n k   s c r e e n   p a d a   d a s h b o a r d   a d m i n ,   o p t i m a s i   t a g   J S X ,   d a n   s t a b i l i t a s   a u t o - c l e a n u p .  
+ 

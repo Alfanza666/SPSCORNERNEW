@@ -50,19 +50,20 @@ export default function AdminTransactions() {
     }
   }, [searchParams, transactions, failedTransactions]);
 
-  useEffect(() => {
-    fetchTransactions();
-    fetchSellers();
-    handleAutoCleanup();
-  }, []);
-
   const handleAutoCleanup = async () => {
     try {
+      // Use absolute path for reliability
       await fetch('/api/admin/transactions/cleanup', { method: 'POST' });
     } catch (e) {
       console.error('Auto-cleanup failed', e);
     }
   };
+
+  useEffect(() => {
+    fetchTransactions();
+    fetchSellers();
+    handleAutoCleanup();
+  }, []);
 
   useEffect(() => {
     if (filters.sellerId) {
@@ -484,10 +485,10 @@ export default function AdminTransactions() {
                     <td className="p-4 lg:p-6">
                       <div className="flex flex-col">
                         <p className={`text-sm lg:text-base font-black tracking-tight ${activeTab === 'success' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
-                          {formatRupiah(filters.sellerId && activeTab === 'success' ? sellerSubtotals[tx.id] : (activeTab === 'success' ? tx.total_amount : tx.attempted_amount))}
+                          {formatRupiah(filters.sellerId && activeTab === 'success' ? (sellerSubtotals[tx.id] || 0) : (activeTab === 'success' ? tx.total_amount : tx.attempted_amount))}
                         </p>
                         {filters.sellerId && activeTab === 'success' && (
-                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Total Pesanan: {formatRupiah(tx.total_amount)}</p>
+                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Total Pesanan: {formatRupiah(tx.total_amount || 0)}</p>
                         )}
                       </div>
                     </td>
