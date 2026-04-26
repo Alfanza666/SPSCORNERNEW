@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Home, LogOut, User, Check, Clock, HelpCircle } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Home, LogOut, User, Check, Clock, HelpCircle, Bell } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
@@ -8,6 +8,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
 import Logo from '../../components/ui/logo-landscape.png';
 import PhonePromptModal from '../../components/PhonePromptModal';
+import { useNotifications } from '../../hooks/useNotifications';
 
 function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -48,6 +49,10 @@ export default function KioskLayout() {
       return () => clearTimeout(t);
     }
   }, [user, isCatalog]);
+
+  // Notification bell for logged-in buyers
+  const { unreadCount, notifications, markAllAsRead } = useNotifications();
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   const currentStepIndex = STEPS.findIndex(step => step.path === location.pathname);
 
@@ -138,7 +143,7 @@ export default function KioskLayout() {
       {/* Header */}
       {!isSuccess && (
         <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-100/50 dark:border-zinc-800 sticky top-0 z-50 shadow-sm dark:shadow-black/20 transition-colors duration-300">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-10 sm:h-12 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
               {!isCatalog && (
                 <button
@@ -184,13 +189,54 @@ export default function KioskLayout() {
                     <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                   {user && (
-                    <button
-                      onClick={() => navigate('/kiosk/profile')}
-                      className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
-                      title="Profil & Keamanan"
-                    >
-                      <User className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </button>
+                    <>
+                      {/* Notification Bell */}
+                      <div className="relative">
+                        <button
+                          onClick={() => { setShowNotifDropdown(v => !v); markAllAsRead(); }}
+                          className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 relative"
+                          title="Notifikasi"
+                        >
+                          <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                          {unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold border border-white dark:border-zinc-800">
+                              {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                          )}
+                        </button>
+                        {showNotifDropdown && (
+                          <div className="absolute right-0 top-12 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 z-[100] overflow-hidden">
+                            <div className="p-3 border-b border-zinc-100 dark:border-zinc-800">
+                              <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Notifikasi</p>
+                            </div>
+                            <div className="max-h-72 overflow-y-auto">
+                              {notifications.length === 0 ? (
+                                <p className="text-center text-zinc-400 text-xs font-medium py-6">Tidak ada notifikasi</p>
+                              ) : (
+                                notifications.slice(0, 10).map(n => (
+                                  <button
+                                    key={n.id}
+                                    onClick={() => { navigate(n.path); setShowNotifDropdown(false); }}
+                                    className={`w-full text-left p-3 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${ !n.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                                  >
+                                    <p className="text-xs font-black text-zinc-900 dark:text-white leading-snug">{n.title}</p>
+                                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2 font-medium">{n.message}</p>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {/* Profile button */}
+                      <button
+                        onClick={() => navigate('/kiosk/profile')}
+                        className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
+                        title="Profil & Keamanan"
+                      >
+                        <User className="w-4 h-4 sm:w-5 sm:h-5" />
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={() => navigate('/kiosk/cart')}

@@ -308,12 +308,13 @@ begin
 end;
 $$;
 
--- Drop trigger if exists, then create (idempotent)
+-- Drop trigger if exists, and WE DO NOT CREATE IT again to prevent double counting
 drop trigger if exists on_transaction_item_created on public.transaction_items;
-create trigger on_transaction_item_created
-  after insert on public.transaction_items
-  for each row
-  execute function public.update_seller_balance();
+-- create trigger on_transaction_item_created
+--   after insert on public.transaction_items
+--   for each row
+--   execute function public.update_seller_balance();
+
 
 -- Function to check if a NIK exists (bypasses RLS)
 create or replace function public.check_nik_exists(p_nik text)
@@ -666,7 +667,7 @@ begin
           when 'completed' then 'Pesanan dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah selesai.'
           when 'cancelled' then 'Pesanan dari ' || coalesce(new.buyer_name, 'Pelanggan') || ' telah dibatalkan.'
         end,
-        '/dashboard/seller/products'
+        '/dashboard/seller/transactions?id=' || new.id
       );
     end loop;
   end if;
@@ -857,3 +858,43 @@ begin
 end
 $$;
 
+-- Stock Opname System for Unmanned Kiosk
+create table if not exists public.stock_opnames (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references public.profiles(id) on delete set null,
+  created_at timestamp with time zone default now(),
+  notes text,
+  status text default 'completed'
+);
+
+create table if not exists public.stock_opname_items (
+  id uuid primary key default uuid_generate_v4(),
+  opname_id uuid references public.stock_opnames(id) on delete cascade,
+  product_id uuid references public.products(id) on delete cascade,
+  system_stock integer not null,
+  physical_stock integer not null,
+  variance integer not null,
+  created_at timestamp with time zone default now()
+);
+
+-- Standby Schedule for Restocking
+create table if not exists public.standby_schedules (
+  id uuid primary key default uuid_generate_v4(),
+  day_of_week integer not null, -- 0 (Sunday) to 6 (Saturday)
+  start_time time not null,
+  end_time time not null,
+  is_active boolean default true,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Enable RLS
+alter table public.stock_opnames enable row level security;
+alter table public.stock_opname_items enable row level security;
+alter table public.standby_schedules enable row level security;
+
+-- Policies
+create policy stock_opnames_admin on public.stock_opnames for all using (public.is_admin());
+create policy stock_opname_items_admin on public.stock_opname_items for all using (public.is_admin());
+create policy standby_schedules_admin on public.standby_schedules for all using (public.is_admin());
+create policy standby_schedules_select on public.standby_schedules for select using (true);

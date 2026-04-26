@@ -28,6 +28,7 @@ interface Transaction {
   total_amount: number;
   status: string;
   receipt_image: string;
+  pickup_code?: string;
   transaction_items: TransactionItem[];
 }
 
@@ -404,16 +405,16 @@ Sistem SPS Corner`);
                   </div>
 
                   <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-zinc-100 dark:border-zinc-800 border-dashed flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                       <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-widest shadow-inner ${
                         tx.status === 'success' || tx.status === 'paid' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' : 
                         tx.status === 'processing' || tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' : 
                         'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                       }`}>
                         {tx.status === 'success' ? 'Selesai' : 
-                         tx.status === 'paid' ? 'Dibayar' : 
-                         tx.status === 'processing' ? 'Proses' : 
-                         tx.status === 'pending' ? 'Menunggu Pembayaran' : 'Gagal'}
+                         tx.status === 'paid' ? 'Pesanan Terbayar' : 
+                         tx.status === 'processing' ? 'Diproses Sistem' : 
+                         tx.status === 'pending' ? 'Menunggu Pembayaran' : 'Pesanan Gagal'}
                       </div>
                       <span className="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Metode: {tx.payment_method?.toUpperCase() || 'QRIS'}</span>
                     </div>
@@ -560,6 +561,48 @@ Sistem SPS Corner`);
                                 >
                                   Cek Status Manual
                                 </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Sariroti / Bread Status */}
+                        {(item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti')) && (
+                          <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700/50">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Package className="w-3.5 h-3.5 text-blue-500" />
+                              <span className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Status Pesanan Roti</span>
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-1">
+                              <div className={`text-center p-1.5 rounded-lg border ${selectedTxDetail.metadata?.sariroti_confirmed ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800' : 'bg-zinc-50 dark:bg-zinc-800/20 border-zinc-100 dark:border-zinc-800'}`}>
+                                <div className={`w-5 h-5 mx-auto rounded-full flex items-center justify-center mb-1 ${selectedTxDetail.metadata?.sariroti_confirmed ? 'bg-blue-600 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-400'}`}>
+                                  <CheckCircle2 className="w-3 h-3" />
+                                </div>
+                                <p className={`text-[8px] font-bold uppercase tracking-tighter ${selectedTxDetail.metadata?.sariroti_confirmed ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400'}`}>Diterima</p>
+                              </div>
+
+                              <div className={`text-center p-1.5 rounded-lg border ${selectedTxDetail.metadata?.sariroti_confirmed && selectedTxDetail.metadata?.sariroti_order_status !== 'ready' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800' : (selectedTxDetail.metadata?.sariroti_order_status === 'ready' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800' : 'bg-zinc-50 dark:bg-zinc-800/20 border-zinc-100 dark:border-zinc-800')}`}>
+                                <div className={`w-5 h-5 mx-auto rounded-full flex items-center justify-center mb-1 ${selectedTxDetail.metadata?.sariroti_confirmed && selectedTxDetail.metadata?.sariroti_order_status !== 'ready' ? 'bg-amber-500 text-white animate-pulse' : (selectedTxDetail.metadata?.sariroti_order_status === 'ready' ? 'bg-blue-600 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-400')}`}>
+                                  <Clock className="w-3 h-3" />
+                                </div>
+                                <p className={`text-[8px] font-bold uppercase tracking-tighter ${selectedTxDetail.metadata?.sariroti_confirmed && selectedTxDetail.metadata?.sariroti_order_status !== 'ready' ? 'text-amber-600 dark:text-amber-400' : (selectedTxDetail.metadata?.sariroti_order_status === 'ready' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400')}`}>Produksi</p>
+                              </div>
+
+                              <div className={`text-center p-1.5 rounded-lg border ${selectedTxDetail.metadata?.sariroti_order_status === 'ready' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800' : 'bg-zinc-50 dark:bg-zinc-800/20 border-zinc-100 dark:border-zinc-800'}`}>
+                                <div className={`w-5 h-5 mx-auto rounded-full flex items-center justify-center mb-1 ${selectedTxDetail.metadata?.sariroti_order_status === 'ready' ? 'bg-emerald-600 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-400'}`}>
+                                  <ShoppingBag className="w-3 h-3" />
+                                </div>
+                                <p className={`text-[8px] font-bold uppercase tracking-tighter ${selectedTxDetail.metadata?.sariroti_order_status === 'ready' ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'}`}>Siap Ambil</p>
+                              </div>
+                            </div>
+                            
+                            {selectedTxDetail.metadata?.sariroti_order_status === 'ready' && (
+                              <div className="mt-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800 text-center">
+                                <p className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest mb-1">Pesanan Siap!</p>
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-medium leading-tight">
+                                  {selectedTxDetail.metadata?.sariroti_ready_message || 'Silakan ambil pesanan Anda di kasir. Tunjukkan nota ini kepada petugas.'}
+                                </p>
                               </div>
                             )}
                           </div>

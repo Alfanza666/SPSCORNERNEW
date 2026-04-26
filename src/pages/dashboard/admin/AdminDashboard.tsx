@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { exportCSV, formatRupiah } from '../../../lib/utils';
+import { exportExcel, formatRupiah } from '../../../lib/utils';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { 
   Users, 
@@ -58,8 +58,17 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (user?.role === 'admin') {
       fetchDashboardData();
+      handleAutoCleanup();
     }
   }, [user]);
+
+  const handleAutoCleanup = async () => {
+    try {
+      await fetch('/api/admin/transactions/cleanup', { method: 'POST' });
+    } catch (e) {
+      console.error('Auto-cleanup failed', e);
+    }
+  };
 
   const handleQrisUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -425,7 +434,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const exportToCSV = async () => {
+  const exportToExcel = async () => {
     try {
       const { data: allTx, error } = await supabase
         .from('transactions')
@@ -438,17 +447,19 @@ export default function AdminDashboard() {
         return;
       }
       
-      const headers = ['ID', 'Pembeli', 'Total', 'Status', 'Tanggal'];
-      const csvContent = [
-        headers.join(','),
-        ...allTx.map(tx => 
-          `${tx.id},"${tx.buyer_name}",${tx.total_amount},${tx.status},"${format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')}"`
-        )
-      ].join('\n');
+      const headers = ['ID Pesanan', 'Nama Pembeli', 'Total (Rp)', 'Status', 'Metode Pembayaran', 'Tanggal'];
+      const rows = allTx.map(tx => [
+        tx.id,
+        tx.buyer_name,
+        tx.total_amount,
+        tx.status === 'success' ? 'Berhasil' : tx.status === 'failed' ? 'Gagal' : 'Pending',
+        tx.payment_method?.toUpperCase() || 'QRIS',
+        format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')
+      ]);
 
-      exportCSV(csvContent, `laporan_penjualan_lengkap_${format(new Date(), 'yyyyMMdd')}.csv`);
+      exportExcel(headers, rows, `laporan_penjualan_${format(new Date(), 'yyyyMMdd')}`);
     } catch (error: any) {
-      console.error('Error exporting CSV:', error);
+      console.error('Error exporting Excel:', error);
       toast.error(`Gagal mengekspor laporan: ${error.message}`);
     }
   };
@@ -550,7 +561,7 @@ export default function AdminDashboard() {
             <span className="sm:hidden">Refresh</span>
           </button>
           <button 
-            onClick={exportToCSV} 
+            onClick={exportToExcel} 
             className="flex-1 sm:flex-none bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white transition-all h-10 px-3 sm:px-5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold shadow-sm shadow-blue-600/20 dark:shadow-none"
           >
             <Download className="w-4 h-4" />
@@ -786,7 +797,7 @@ export default function AdminDashboard() {
                           <p className="font-bold text-zinc-900 dark:text-white">{tx.buyer_name}</p>
                           <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">Total: {formatRupiah(tx.total_amount)}</p>
                           <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium">
-                            {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
+                            {format(new Date(tx.created_at), 'dd MMM, HH:mm:ss', { locale: id })}
                           </p>
                         </div>
                       </div>
@@ -849,7 +860,7 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-between sm:justify-end gap-3">
                         <div className="text-right mr-0 sm:mr-4">
                           <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-                            {format(new Date(req.created_at), 'dd MMM, HH:mm', { locale: id })}
+                            {format(new Date(req.created_at), 'dd MMM, HH:mm:ss', { locale: id })}
                           </p>
                         </div>
                         <button 
@@ -894,7 +905,7 @@ export default function AdminDashboard() {
                         <div>
                           <p className="font-bold text-zinc-900 dark:text-white text-xs sm:text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{tx.buyer_name}</p>
                           <p className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-                            {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
+                            {format(new Date(tx.created_at), 'dd MMM, HH:mm:ss', { locale: id })}
                           </p>
                         </div>
                       </div>

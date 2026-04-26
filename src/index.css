@@ -11,7 +11,7 @@
   /* Sariroti Brand Colors */
   --color-sariroti-blue: #0054a6;
   --color-sariroti-yellow: #ffcc00;
-  
+
   /* Override blue to be Sariroti Blue */
   --color-blue-50: #eef7ff;
   --color-blue-100: #d9eeff;
@@ -19,7 +19,8 @@
   --color-blue-300: #8ecbff;
   --color-blue-400: #58aeff;
   --color-blue-500: #318fff;
-  --color-blue-600: #0054a6; /* Primary */
+  --color-blue-600: #0054a6;
+  /* Primary */
   --color-blue-700: #1469c1;
   --color-blue-800: #17569c;
   --color-blue-900: #184881;
@@ -30,7 +31,8 @@
   --color-amber-100: #fff3c7;
   --color-amber-200: #ffe68a;
   --color-amber-300: #ffd34d;
-  --color-amber-400: #ffcc00; /* Primary */
+  --color-amber-400: #ffcc00;
+  /* Primary */
   --color-amber-500: #f59e0b;
   --color-amber-600: #d97706;
   --color-amber-700: #b45309;
@@ -40,18 +42,39 @@
 }
 
 @layer base {
+  html {
+    /* Prevent horizontal overflow on all mobile devices */
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    /* Slightly more tinted background for better contrast with white cards, dark mode support */
     @apply bg-[#e8ebf0] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans antialiased selection:bg-blue-100 selection:text-blue-900 dark:selection:bg-blue-900 dark:selection:text-blue-100;
+    overflow-x: hidden;
+    /* Improve tap responsiveness on iOS */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Larger touch targets on mobile */
+  button,
+  [role="button"],
+  a {
+    touch-action: manipulation;
+  }
+
+  /* Safe area support for notched phones (iPhone X+) */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
 @layer components {
+
   /* Clean White Cards - Replaces old clay style */
   .clay-card {
     @apply bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm transition-all duration-300;
   }
-  
+
 
   .clay-card-lg {
     @apply bg-white dark:bg-zinc-900 rounded-3xl sm:rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm transition-all duration-300;
@@ -81,14 +104,18 @@
   /* Clean Buttons */
   .btn-clay-primary {
     @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-md hover:-translate-y-0.5;
+    /* Ensure minimum touch target 44px on mobile */
+    min-height: 44px;
   }
 
   .btn-clay-primary-lg {
     @apply px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 dark:bg-blue-700 text-white font-bold rounded-xl sm:rounded-2xl transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm hover:bg-blue-700 dark:hover:bg-blue-600 hover:shadow-md hover:-translate-y-0.5;
+    min-height: 48px;
   }
 
   .btn-clay-secondary {
     @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 border border-zinc-200 dark:border-zinc-700 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:shadow-md hover:-translate-y-0.5;
+    min-height: 44px;
   }
 
   .dark .btn-clay-secondary {
@@ -97,11 +124,20 @@
 
   .btn-clay-danger {
     @apply px-3 py-1.5 sm:px-4 sm:py-2 bg-red-500 dark:bg-red-600 text-white font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm hover:bg-red-600 dark:hover:bg-red-500 hover:shadow-md hover:-translate-y-0.5;
+    min-height: 44px;
   }
 
   /* Clean Inputs */
   .input-clay {
     @apply w-full px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl outline-none transition-all font-medium text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500;
+    /* iOS font size fix — prevent auto-zoom on focus */
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    .input-clay {
+      font-size: 14px;
+    }
   }
 
   .dark .input-clay {
@@ -111,6 +147,9 @@
   /* Clean Icons */
   .clay-icon {
     @apply rounded-xl flex items-center justify-center transition-all duration-300 bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shadow-sm;
+    /* Minimum touch target */
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .dark .clay-icon {
@@ -129,9 +168,19 @@
   .clay-badge {
     @apply inline-flex items-center whitespace-nowrap px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider dark:bg-zinc-800 dark:text-zinc-200 border border-zinc-100 dark:border-zinc-700 shadow-sm;
   }
-  
+
   .dark .clay-badge {
     @apply shadow-none;
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }
 

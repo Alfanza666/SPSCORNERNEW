@@ -36,8 +36,9 @@ const AdminProducts = React.lazy(() => import('./pages/dashboard/admin/AdminProd
 const AdminTransactions = React.lazy(() => import('./pages/dashboard/admin/AdminTransactions'));
 const AdminWithdrawals = React.lazy(() => import('./pages/dashboard/admin/AdminWithdrawals'));
 const AdminSettings = React.lazy(() => import('./pages/dashboard/admin/AdminSettings'));
-const AdminStockRequests = React.lazy(() => import('./pages/dashboard/admin/AdminStockRequests'));
 const AdminReturns = React.lazy(() => import('./pages/dashboard/admin/AdminReturns'));
+const AdminStockOpname = React.lazy(() => import('./pages/dashboard/admin/AdminStockOpname'));
+const AdminStandbySchedule = React.lazy(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
 
 const SellerDashboard = React.lazy(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = React.lazy(() => import('./pages/dashboard/seller/SellerProducts'));
@@ -209,6 +210,8 @@ export default function App() {
               <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="admin/stock-requests" element={<AdminStockRequests />} />
               <Route path="admin/returns" element={<AdminReturns />} />
+              <Route path="admin/stock-opname" element={<AdminStockOpname />} />
+              <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
               <Route path="admin/settings" element={<AdminSettings />} />
               
               <Route path="seller" element={<SellerDashboard />} />

@@ -41,6 +41,7 @@ export default function SellerProducts() {
   const [returnReason, setReturnReason] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [importingCSV, setImportingCSV] = useState(false);
+  const [isStandbyActive, setIsStandbyActive] = useState(true); // Default true to prevent flicker
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [newProduct, setNewProduct] = useState({
@@ -150,8 +151,20 @@ export default function SellerProducts() {
     if (user?.role === 'seller') {
       fetchProducts();
       fetchCategories();
+      checkStandbyStatus();
     }
   }, [user]);
+
+  const checkStandbyStatus = async () => {
+    try {
+      const res = await fetch('/api/standby/check');
+      const data = await res.json();
+      setIsStandbyActive(data.is_standby);
+    } catch (error) {
+      console.error('Error checking standby:', error);
+      setIsStandbyActive(false); // Safety first
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -784,9 +797,19 @@ export default function SellerProducts() {
                         {product.is_active ? <PowerOff className="w-5 h-5" /> : <Power className="w-5 h-5" />}
                       </button>
                       <button 
-                        onClick={() => setRestockingProduct(product)}
-                        className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
-                        title="Request Restock"
+                        onClick={() => {
+                          if (!isStandbyActive) {
+                            toast.error('Gagal: Restock hanya bisa dilakukan saat ada Anggota Koperasi Standby sesuai jadwal.');
+                            return;
+                          }
+                          setRestockingProduct(product);
+                        }}
+                        className={`w-10 h-10 clay-icon bg-white dark:bg-zinc-800 transition-all ${
+                          isStandbyActive 
+                            ? "text-zinc-400 dark:text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400" 
+                            : "text-zinc-200 dark:text-zinc-700 cursor-not-allowed"
+                        }`}
+                        title={isStandbyActive ? "Request Restock" : "Restock Tutup (Tidak ada Standby)"}
                       >
                         <Package className="w-5 h-5" />
                       </button>

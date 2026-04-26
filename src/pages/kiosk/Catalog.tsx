@@ -224,7 +224,7 @@ export default function Catalog() {
             <p className="text-zinc-400 dark:text-zinc-500 text-[10px] sm:text-xs font-bold">Menu tidak ditemukan</p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4 lg:gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
             {filteredProducts.map((product, index) => {
               const cartItem = items.find((item) => item.id === product.id);
               const quantity = cartItem?.quantity || 0;

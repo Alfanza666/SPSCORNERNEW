@@ -1291,6 +1291,19 @@ app.use(express.urlencoded({ extended: true }));
         });
       }
 
+      // 8. Notify sellers
+      const uniqueSellers = [...new Set(transaction.transaction_items.map((item: any) => item.seller_id))];
+      for (const sellerId of uniqueSellers) {
+        if (sellerId) {
+          await sendNotification(sellerId, {
+            type: 'transaction',
+            title: '💰 Pesanan Baru Masuk!',
+            message: `Ada pesanan baru #${transaction_id.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
+            path: `/dashboard/seller/transactions?id=${transaction_id}`
+          });
+        }
+      }
+
       res.json({ success: true, message: 'Transaction approved and processed' });
     } catch (error: any) {
       console.error('Error approving transaction:', error);
@@ -1333,7 +1346,8 @@ app.use(express.urlencoded({ extended: true }));
         ...(transaction.metadata || {}),
         sariroti_confirmed: true,
         sariroti_confirmed_at: new Date().toISOString(),
-        sariroti_confirmed_by: user.id
+        sariroti_confirmed_by: user.id,
+        sariroti_order_status: 'confirmed', // Flow: confirmed → ready → picked_up
       };
 
       const { error: updateError } = await supabase
@@ -1352,17 +1366,121 @@ app.use(express.urlencoded({ extended: true }));
         buyerEmail = transaction.payment_details.buyer_email;
       }
 
-      // 5. Send email to buyer
+      // 5. Send email receipt to buyer
       if (buyerEmail) {
         await sendBuyerReceiptEmail(transaction_id, buyerEmail, transaction.buyer_name, transaction.transaction_items, transaction.total_amount);
       } else {
         console.log(`ℹ️ No buyer email found for transaction ${transaction_id}. Skipping buyer receipt email.`);
       }
 
+      // 6. Send in-app notification: order confirmed, now in production
+      if (transaction.buyer_id) {
+        await sendNotification(transaction.buyer_id, {
+          type: 'transaction',
+          title: '📋 Pesanan Roti Dikonfirmasi!',
+          message: `Pesanan roti Anda #${transaction_id.slice(0, 8)} telah dikonfirmasi dan sedang dalam proses produksi. Kami akan memberitahu Anda saat siap diambil.`,
+          path: `/kiosk/success?id=${transaction_id}`
+        });
+      }
+
       res.json({ success: true, message: 'Pesanan Sariroti berhasil dikonfirmasi' });
     } catch (error: any) {
       console.error('Error confirming Sariroti order:', error);
       res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+  });
+
+  /**
+   * Admin: Notify Buyer — Bread Order Ready for Pickup
+   * POST /api/admin/transactions/notify-ready
+   */
+  app.post('/api/admin/transactions/notify-ready', async (req, res) => {
+    try {
+      const { transaction_id, custom_message } = req.body;
+      if (!transaction_id) return res.status(400).json({ error: 'Transaction ID is required' });
+
+      // 1. Verify admin
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+      const token = authHeader.split(' ')[1];
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+      if (profile?.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Admin only' });
+
+      // 2. Get transaction
+      const { data: transaction, error: txError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transaction_id)
+        .single();
+
+      if (txError || !transaction) return res.status(404).json({ error: 'Transaction not found' });
+
+      // 3. Update metadata: sariroti_order_status → 'ready'
+      const newMetadata = {
+        ...(transaction.metadata || {}),
+        sariroti_order_status: 'ready',
+        sariroti_ready_at: new Date().toISOString(),
+        sariroti_ready_message: custom_message || null,
+      };
+
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({ metadata: newMetadata })
+        .eq('id', transaction_id);
+
+      if (updateError) throw updateError;
+
+      // 4. Send in-app notification
+      const notifMessage = custom_message
+        || `Pesanan roti Anda #${transaction_id.slice(0, 8)} sudah siap diambil! Silakan datang ke toko kami. Terima kasih! 🙏`;
+
+      if (transaction.buyer_id) {
+        await sendNotification(transaction.buyer_id, {
+          type: 'transaction',
+          title: '🍞 Pesanan Siap Diambil!',
+          message: notifMessage,
+          path: `/kiosk/success?id=${transaction_id}`
+        });
+      }
+
+      console.log(`✅ notify-ready sent: ${transaction_id}`);
+      res.json({ success: true, message: 'Notifikasi siap diambil berhasil dikirim' });
+    } catch (error: any) {
+      console.error('Error sending ready notification:', error);
+      res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+  });
+  
+  /**
+   * Get Transaction Details
+   * GET /api/transactions/:id
+   */
+  app.get('/api/transactions/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { data: transaction, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          transaction_items (
+            *,
+            products (*)
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error || !transaction) {
+        return res.status(404).json({ error: 'Transaction not found' });
+      }
+
+      res.json({ success: true, transaction });
+    } catch (error: any) {
+      console.error('Error fetching transaction:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
   });
 
@@ -2041,6 +2159,8 @@ app.use(express.urlencoded({ extended: true }));
       if (receipt_image) txDataToInsert.receipt_image = receipt_image;
       if (buyer_email) txDataToInsert.payment_details = { buyer_email };
 
+      if (buyer_email) txDataToInsert.payment_details = { buyer_email };
+
       const { data: txDataResult, error: txError } = await supabase
         .from('transactions')
         .insert(txDataToInsert)
@@ -2158,6 +2278,70 @@ app.use(express.urlencoded({ extended: true }));
       res.json({ success: true, message: 'Pesanan berhasil dibatalkan.' });
     } catch (error: any) {
       console.error('Cancel Order Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Admin: Cleanup expired transactions (> 5 mins)
+  app.post('/api/admin/transactions/cleanup', async (req, res) => {
+    try {
+      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      
+      const { data: expired, error: fetchError } = await supabase
+        .from('transactions')
+        .select('id, metadata')
+        .eq('status', 'pending')
+        .lt('created_at', fiveMinsAgo);
+
+      if (fetchError) throw fetchError;
+      if (!expired || expired.length === 0) {
+        return res.json({ success: true, count: 0 });
+      }
+
+      const { error: updateError } = await supabase
+        .from('transactions')
+        .update({ 
+          status: 'failed',
+          metadata: { cancel_reason: 'Auto-cancelled: Unpaid > 5 minutes' }
+        })
+        .in('id', expired.map(tx => tx.id));
+
+      if (updateError) throw updateError;
+
+      // Log to adjustments if needed, but usually pending doesn't affect stock permanently yet
+      // unless reservation is confirmed. Reservations have their own expiry.
+
+      res.json({ success: true, count: expired.length });
+    } catch (error: any) {
+      console.error('Cleanup Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Standby Schedule Check
+  app.get('/api/standby/check', async (req, res) => {
+    try {
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const currentTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
+
+      const { data: schedule, error } = await supabase
+        .from('standby_schedules')
+        .select('*')
+        .eq('day_of_week', dayOfWeek)
+        .eq('is_active', true)
+        .lte('start_time', currentTime)
+        .gte('end_time', currentTime);
+
+      if (error) throw error;
+
+      res.json({ 
+        is_standby: schedule && schedule.length > 0,
+        current_time: currentTime,
+        day: dayOfWeek
+      });
+    } catch (error: any) {
+      console.error('Error checking standby schedule:', error);
       res.status(500).json({ error: error.message });
     }
   });

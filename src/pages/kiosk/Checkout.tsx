@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2, Phone } from 'lucide-react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 
@@ -20,6 +20,7 @@ export default function Checkout() {
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [verifyingReceipt, setVerifyingReceipt] = useState(false);
   const [qrisUrl, setQrisUrl] = useState<string>('/qris.png');
+  const [guestPhone, setGuestPhone] = useState('');
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
@@ -61,6 +62,11 @@ export default function Checkout() {
     };
 
     fetchQrisUrl();
+
+    // Request push notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, [items, buyerName, navigate]);
 
   const handleBack = async () => {
@@ -311,7 +317,7 @@ export default function Checkout() {
         clearCart();
         setReservations([]);
         sessionStorage.removeItem('buyerName');
-        navigate('/kiosk/success');
+        navigate('/kiosk/success', { state: { transactionId } });
       } else {
         toast.error(data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai');
       }
@@ -382,11 +388,11 @@ export default function Checkout() {
       setTransactionId(tx.id);
       saveGuestTransaction(tx.id);
 
-      // Use real user phone if available, otherwise generate a realistic dummy phone
-      const realPhone = user?.phone?.replace(/[^0-9]/g, '');
-      const dummyPhone = realPhone && realPhone.length >= 10
+      // Use real user phone if available, otherwise use guest-entered phone
+      const realPhone = user?.phone?.replace(/[^0-9]/g, '') || guestPhone.replace(/[^0-9]/g, '');
+      const dummyPhone = realPhone && realPhone.length >= 9
         ? realPhone
-        : ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString());
+        : '081200000000'; // Static fallback — no random generation
 
       // Clean up buyerName (remove numbers, special chars, ensure min length)
       let cleanName = (user?.name || buyerName).replace(/[^a-zA-Z\s]/g, '').trim();
@@ -485,6 +491,25 @@ export default function Checkout() {
               </div>
 
               <div className="p-6 sm:p-8">
+                {/* Guest phone number input */}
+                {!user && (
+                  <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/30">
+                    <label className="flex items-center gap-2 text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">
+                      <Phone className="w-3.5 h-3.5" />
+                      Nomor HP (opsional)
+                    </label>
+                    <input
+                      type="tel"
+                      value={guestPhone}
+                      onChange={e => setGuestPhone(e.target.value)}
+                      placeholder="08xxxxxxxxxx — untuk notifikasi status pesanan"
+                      className="input-clay w-full text-sm"
+                    />
+                    <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-1.5 font-medium">
+                      Nomor ini digunakan untuk pemberitahuan status pesanan Anda.
+                    </p>
+                  </div>
+                )}
                 <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
                   Pilih Metode Pembayaran
@@ -661,12 +686,7 @@ export default function Checkout() {
         ) : (
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
-              {/* DEBUG INFO - REMOVE LATER */}
-              {process.env.NODE_ENV === 'development' || true ? (
-                <div className="text-left text-[8px] bg-zinc-950 text-green-400 p-2 overflow-x-auto mb-4 rounded">
-                  <pre>{JSON.stringify(directPaymentData, null, 2)}</pre>
-                </div>
-              ) : null}
+              {/* QRIS code display only */}
 
               {(() => {
                 const qrString = directPaymentData?.QrString || (directPaymentData?.PaymentNo?.startsWith('00') ? directPaymentData.PaymentNo : null);

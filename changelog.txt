@@ -1,3 +1,57 @@
+v1.1.4 - [SECURITY] Peningkatan Audit & CCTV Correlation:
+  (1) System: Implementasi Auto-Cleanup. Transaksi 'Pending' (belum dibayar) yang berusia lebih dari 5 menit otomatis dianggap 'Gagal' (Failed) untuk menghindari kebingungan saat audit kehilangan barang.
+  (2) UI History & Dashboard: Upgrade format waktu ke HH:mm:ss (Presisi detik). Memudahkan admin melakukan tracking kejadian di CCTV berdasarkan timestamp transaksi yang akurat.
+  (3) Admin Dashboard: Trigger pembersihan transaksi expired otomatis setiap kali dashboard dibuka.
+
+v1.1.3 - [MAJOR] Implementasi Sistem Kantin Tanpa Penjaga (Unmanned Kiosk):
+  (1) History.tsx & AdminTransactions.tsx: Implementasi Digital Pickup Token (Kode Pickup). Pembeli mendapatkan kode unik setelah bayar, Admin memverifikasi kode tersebut saat serah terima barang untuk mencegah "ambil 2 bayar 1".
+  (2) AdminStockOpname.tsx: Modul baru untuk Audit Fisik Stok. Memungkinkan petugas standby memverifikasi jumlah barang di rak vs data sistem dan mencatat selisih (variance) secara otomatis.
+  (3) AdminStandbySchedule.tsx: Modul pengaturan jadwal kerja Anggota Koperasi.
+  (4) SellerProducts.tsx: Integrasi jadwal standby. Tombol "Request Restock" otomatis dinonaktifkan jika tidak ada petugas koperasi yang sedang standby di lokasi.
+  (5) Audit Trail: Setiap perubahan stok (Opname, Restock, Retur) kini tercatat lengkap dengan identitas pelaku dan alasan perubahan untuk mencegah fraud internal.
+
+v1.1.2 - [PATCH] Keamanan & Validasi Kontak:
+  (1) Cart.tsx: Menambahkan input Nomor HP (WhatsApp) wajib bagi semua pembeli (termasuk anonymous) untuk memudahkan koordinasi kendala atau pengambilan produk koperasi.
+  (2) Cart.tsx: Integrasi data profil otomatis untuk pengguna login sehingga tidak perlu input ulang nama/HP.
+  (3) System: Implementasi Stock Reservation (Locking) selama 3 menit saat proses checkout untuk mencegah "Race Condition" (dua orang beli barang yang sama di waktu bersamaan).
+  (4) server.ts: Pembersihan logika sinkronisasi stock digital agar lebih akurat.
+
+v1.1.1 - [PATCH] Major Visual Upgrade for Digital Products:
+  (1) DigitalProducts.tsx: Mengganti logo operator dan e-wallet yang rusak/tidak sesuai dengan aset berkualitas tinggi (Wikipedia/Commons) yang lebih stabil.
+  (2) DigitalProducts.tsx: Integrasi 4 Hero Image premium hasil generate AI (Telco, PLN, Games, E-Wallet) pada kartu kategori untuk kesan visual yang lebih mewah.
+  (3) DigitalProducts.tsx: Implementasi efek Glassmorphism Shine dan hover modern pada kartu kategori.
+  (4) index.css: Tambah utilitas animasi `animate-shine` untuk mendukung efek visual baru.
+
+v1.1.0 - [MINOR] Optimalisasi Mobile & Upgrade Laporan (Excel):
+  (1) Catalog.tsx: Grid mobile diubah jadi 2 kolom (grid-cols-2) agar tampilan produk lebih premium, label tidak terpotong, dan touch target lebih besar.
+  (2) KioskLayout.tsx: Tinggi header ditambah (h-14) agar logo lebih lega dan dropdown notifikasi dibatasi max-width agar tidak overflow di layar kecil.
+  (3) History.tsx: Tambah tracker progress pesanan roti (Diterima -> Produksi -> Siap Ambil) di detail transaksi agar pembeli tahu status rotinya secara real-time.
+  (4) AdminDashboard.tsx: Upgrade fitur export dari CSV ke Excel (.xlsx) yang sudah tertata rapi (auto-column width) sesuai permintaan user.
+  (5) server.ts: Tambah logic notifikasi otomatis ke SELLER (Sariroti) saat ada pesanan masuk & terbayar, agar proses produksi bisa langsung dimulai.
+  (6) server.ts: Tambah endpoint GET /api/transactions/:id untuk mendukung deep-linking dari notifikasi langsung ke detail pesanan di Success page.
+  (7) Checkout.tsx: Perbaikan navigasi setelah verifikasi pembayaran manual agar tidak langsung mental ke halaman utama, tapi masuk ke halaman Success dengan data lengkap.
+
+v1.0.9 - [MINOR] Alur Pesanan Roti (Sariroti) — Full Order Lifecycle:
+  (1) server.ts: Endpoint confirm-sariroti kini set sariroti_order_status='confirmed' + kirim notifikasi in-app ke buyer ("Pesanan dikonfirmasi, sedang produksi").
+  (2) server.ts: Tambah endpoint baru POST /api/admin/transactions/notify-ready — admin bisa beritahu buyer "Pesanan siap diambil" dengan pesan custom, mengubah status ke 'ready'.
+  (3) AdminTransactions.tsx: Flow tombol bertahap di modal detail:
+      - Tahap 1: Tombol "Konfirmasi Pesanan & Kirim Nota" (muncul jika ada item roti, belum dikonfirmasi)
+      - Tahap 2: Panel amber dengan textarea pesan + tombol "Pesanan Siap Diambil — Kirim Notifikasi" (muncul setelah dikonfirmasi, sebelum status 'ready')
+      - Tahap 3: Badge hijau "Pembeli sudah diberitahu" (muncul jika status sudah 'ready')
+  Alur lengkap: Bayar → Webhook iPaymu → Admin konfirmasi → Notif "Sedang Produksi" → Admin klik Siap → Notif "Siap Diambil" → Buyer datang ke toko.
+  Files diubah:
+    - server.ts
+    - src/pages/dashboard/admin/AdminTransactions.tsx
+
+v1.0.8 - [PATCH] Fix debug box hitam, tambah notifikasi kiosk, input HP anonim, izin push notification:
+  (1) Checkout.tsx: Hapus debug JSON box hitam yang masih tampil (kondisi `|| true` dihapus permanen).
+  (2) Checkout.tsx: Tambah input nomor HP opsional untuk pembeli anonim (warna amber) agar bisa dihubungi saat pesanan siap. Mengganti dummy phone generation dengan HP yang diinput user.
+  (3) Checkout.tsx: Tambah `Notification.requestPermission()` saat halaman mount untuk meminta izin push notification dari browser.
+  (4) KioskLayout.tsx: Tambah tombol Bell notifikasi di header (hanya untuk buyer login) dengan badge merah dan dropdown list notifikasi real-time dari tabel `notifications`.
+  Files diubah:
+    - src/pages/kiosk/Checkout.tsx
+    - src/pages/kiosk/KioskLayout.tsx
+
 v1.0.7 - [MINOR] Fitur Baru: Input HP Google OAuth, Sistem Notifikasi Pesanan, Halaman Kebijakan Privasi, Export Excel:
   (1) PhonePromptModal: Modal baru muncul otomatis setelah login via Google jika nomor HP belum diisi. Tidak ada lagi nomor HP palsu yang di-generate sistem.
   (2) Notifikasi Real-time: server.ts kini memanggil sendNotification() di webhook iPaymu (bayar berhasil/gagal), saat Digiflazz mengirimkan produk digital (delivered/failed), dan saat admin mengkonfirmasi pembayaran manual.
@@ -76,3 +130,9 @@ v4.0.4 - Memperbaiki secara tuntas error 'Suspicious buyer' iPaymu dan sinkronis
 v4.0.3 - Memperbaiki error schema cache pada transaksi dan mengaktifkan kembali semua metode pembayaran iPaymu.
 v4.0.2 - Memperbaiki bug notifikasi email Sariroti/Koperasi dan tampilan riwayat pesanan.
 v4.0.1 - Memperbaiki alur pembelian produk digital (Pulsa, PLN, Game, E-Money, Pascabayar), menambahkan tutorial Kantin & Koperasi, dan memperbaiki sistem notifikasi agar real-time dan faktual.
+
+Riwayat Error & Fix:
+- [FIXED] Syntax error JSX pada modal detail transaksi admin di AdminTransactions.tsx (v1.1.3).
+- [FIXED] Redundant curly braces pada conditional rendering di Dashboard Admin (v1.1.3).
+- [FIXED] Logo digital produk pecah/placeholder (v1.1.1).
+- [FIXED] Bug seller "Hidayatullah" memiliki profit tanpa penjualan (v4.1.0).

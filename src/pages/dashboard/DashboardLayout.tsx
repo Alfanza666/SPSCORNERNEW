@@ -22,7 +22,9 @@ import {
   Tag,
   Info,
   ShoppingCart,
-  RotateCcw
+  RotateCcw,
+  Clock,
+  ClipboardList
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -207,6 +209,22 @@ export default function DashboardLayout() {
               onClick={() => { navigate("/dashboard/admin/returns"); setIsSidebarOpen(false); }}
             />
           </div>
+          <div className="my-2 border-t border-zinc-100 dark:border-zinc-800/50"></div>
+          <NavItem 
+            to="/dashboard/admin/stock-opname" 
+            icon={ClipboardList} 
+            label="Stock Opname" 
+            isActive={location.pathname === "/dashboard/admin/stock-opname"}
+            onClick={() => { navigate("/dashboard/admin/stock-opname"); setIsSidebarOpen(false); }}
+          />
+          <NavItem 
+            to="/dashboard/admin/standby-schedule" 
+            icon={Clock} 
+            label="Jadwal Standby" 
+            isActive={location.pathname === "/dashboard/admin/standby-schedule"}
+            onClick={() => { navigate("/dashboard/admin/standby-schedule"); setIsSidebarOpen(false); }}
+          />
+          <div className="my-2 border-t border-zinc-100 dark:border-zinc-800/50"></div>
           <NavItem 
             to="/dashboard/admin/settings" 
             icon={Settings} 

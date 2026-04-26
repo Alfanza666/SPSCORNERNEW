@@ -13,11 +13,13 @@ export default function Cart() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [buyerName, setBuyerName] = useState('');
+  const [buyerPhone, setBuyerPhone] = useState('');
   const [isReserving, setIsReserving] = useState(false);
 
   useEffect(() => {
     if (user) {
       setBuyerName(user.name);
+      setBuyerPhone(user.phone || '');
     }
   }, [user]);
 
@@ -75,6 +77,10 @@ export default function Cart() {
       toast.error('Mohon masukkan nama Anda');
       return;
     }
+    if (!buyerPhone.trim() || buyerPhone.length < 10) {
+      toast.error('Mohon masukkan nomor HP yang valid');
+      return;
+    }
 
     setIsReserving(true);
     try {
@@ -104,6 +110,7 @@ export default function Cart() {
 
       setReservations(newReservations);
       sessionStorage.setItem('buyerName', buyerName);
+      sessionStorage.setItem('buyerPhone', buyerPhone);
       navigate('/kiosk/checkout');
     } catch (error: any) {
       console.error('Reservation error:', error);
@@ -251,31 +258,48 @@ export default function Cart() {
               </div>
             </div>
 
-            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 tour-buyer-name">
-              <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 uppercase tracking-widest">
-                <User className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
-                Nama Pemesan
-              </label>
-              <div className="relative">
-                <input
-                  placeholder="Masukkan nama Anda"
-                  value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
-                  disabled={isReserving || !!user}
-                  className={`input-clay h-10 sm:h-12 text-xs sm:text-sm pl-3 ${user ? 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-50 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed' : ''}`}
-                />
-                {user?.nik && (
-                  <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-zinc-100/80 dark:bg-zinc-800/80 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] sm:text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest border border-white/50 dark:border-zinc-700 shadow-sm">
-                    NIK: {user.nik}
-                  </div>
-                )}
+            <div className="space-y-4 mb-4 sm:mb-6 tour-buyer-name">
+              <div>
+                <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 mb-2 uppercase tracking-widest">
+                  <User className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
+                  Nama Pemesan
+                </label>
+                <div className="relative">
+                  <input
+                    placeholder="Masukkan nama Anda"
+                    value={buyerName}
+                    onChange={(e) => setBuyerName(e.target.value)}
+                    disabled={isReserving || !!user}
+                    className={`input-clay h-10 sm:h-12 text-xs sm:text-sm pl-3 ${user ? 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-50 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed' : ''}`}
+                  />
+                  {user?.nik && (
+                    <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-zinc-100/80 dark:bg-zinc-800/80 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] sm:text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest border border-white/50 dark:border-zinc-700 shadow-sm">
+                      NIK: {user.nik}
+                    </div>
+                  )}
+                </div>
               </div>
-              {user && (
-                <p className="text-[8px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-bold italic ml-1 flex items-center gap-1">
+
+              <div>
+                <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 mb-2 uppercase tracking-widest">
+                  <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
+                  Nomor HP (WhatsApp)
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    placeholder="Contoh: 08123456789"
+                    value={buyerPhone}
+                    onChange={(e) => setBuyerPhone(e.target.value.replace(/\D/g, ''))}
+                    disabled={isReserving}
+                    className="input-clay h-10 sm:h-12 text-xs sm:text-sm pl-3"
+                  />
+                </div>
+                <p className="text-[8px] sm:text-[9px] text-zinc-400 dark:text-zinc-500 font-bold italic ml-1 mt-1.5 flex items-center gap-1">
                   <ShieldCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-500 dark:text-emerald-400" />
-                  Data terverifikasi otomatis
+                  Untuk bantuan kendala & konfirmasi pesanan
                 </p>
-              )}
+              </div>
             </div>
 
             <button
