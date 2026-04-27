@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
@@ -39,10 +39,22 @@ export default function History() {
   const [selectedTxDetail, setSelectedTxDetail] = useState<Transaction | null>(null);
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     fetchHistory();
   }, [user]);
+
+  useEffect(() => {
+    const idFromUrl = searchParams.get('id');
+    if (idFromUrl && transactions.length > 0) {
+      const tx = transactions.find(t => t.id === idFromUrl);
+      if (tx) {
+        setSelectedTxDetail(tx);
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, transactions, setSearchParams]);
 
   useEffect(() => {
     let pollTimer: any;

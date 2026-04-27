@@ -311,6 +311,11 @@ export default function AdminProducts() {
     e.preventDefault();
     if (!editingProduct) return;
 
+    if (!editingProduct.name || !editingProduct.price || editingProduct.stock === '' || editingProduct.stock === undefined || !editingProduct.category) {
+      toast.error('Mohon lengkapi semua field yang diperlukan (Nama, Harga, Stok, Kategori)');
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -592,13 +597,31 @@ export default function AdminProducts() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Stok</label>
-                          <input 
-                            required 
-                            type="number"
-                            value={editingProduct.stock}
-                            onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value})}
-                            className="input-clay"
-                          />
+                          <div className="flex bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-none transition-all focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500/50 hover:bg-white dark:hover:bg-zinc-800 h-12">
+                            <button 
+                              type="button" 
+                              onClick={() => setEditingProduct({...editingProduct, stock: Math.max(0, Number(editingProduct.stock) - 1)})}
+                              className="px-4 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                            >
+                              -
+                            </button>
+                            <input 
+                              required 
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editingProduct.stock}
+                              onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value.replace(/[^0-9]/g, '')})}
+                              className="w-full text-center bg-transparent border-x border-zinc-200 dark:border-zinc-700 outline-none focus:ring-0 font-bold text-zinc-900 dark:text-white"
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => setEditingProduct({...editingProduct, stock: Number(editingProduct.stock) + 1})}
+                              className="px-4 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -678,7 +701,7 @@ export default function AdminProducts() {
             <thead>
               <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] bg-zinc-50/50 dark:bg-zinc-800/50">
                 <th className="p-6">Produk</th>
-                <th className="p-6">Penjual</th>
+                <th className="p-6">Seller Name</th>
                 <th className="p-6">Kategori</th>
                 <th className="p-6">Harga</th>
                 <th className="p-6">Stok</th>
@@ -791,7 +814,7 @@ export default function AdminProducts() {
                   <p className="text-blue-600 dark:text-blue-400 font-black text-lg mb-2">{formatRupiah(product.price)}</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="clay-badge bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-                      {product.profiles?.name}
+                      Seller: {product.profiles?.name || 'Unknown'}
                     </span>
                     <span className={`clay-badge ${
                       product.stock > 5 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'

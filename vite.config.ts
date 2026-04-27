@@ -1,29 +1,56 @@
-import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(), 
+      tailwindcss(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'logos/sps-logo-icon.png'],
+        manifest: {
+          name: 'SPS Corner Kantin Digital',
+          short_name: 'SPS Corner',
+          description: 'Aplikasi Kiosk Kantin Digital SPS Corner',
+          theme_color: '#059669',
+          background_color: '#ffffff',
+          display: 'standalone',
+          icons: [
+            {
+              src: '/logos/sps-logo-icon.png',
+              sizes: '192x192',
+              type: 'image/png'
+            },
+            {
+              src: '/logos/sps-logo-icon.png',
+              sizes: '512x512',
+              type: 'image/png'
+            },
+            {
+              src: '/logos/sps-logo-icon.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable'
+            }
+          ]
+        }
+      })
+    ],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
-        'react': path.resolve(__dirname, 'node_modules/react'),
-        'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+        '@': path.resolve(__dirname, './src'),
       },
     },
-    optimizeDeps: {
-      include: ['react', 'react-dom', 'motion/react'],
-    },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
+      host: '0.0.0.0',
     },
   };
 });

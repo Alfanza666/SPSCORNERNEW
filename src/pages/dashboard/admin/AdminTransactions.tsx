@@ -8,8 +8,10 @@ import { id } from 'date-fns/locale';
 import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink, Clock, Bell, Package, PackageCheck, Loader2 } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, TransactionSkeleton } from '../../../components/ui/Skeleton';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 export default function AdminTransactions() {
+  const { user } = useAuthStore();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [failedTransactions, setFailedTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,8 +30,6 @@ export default function AdminTransactions() {
   const [sellerTxIds, setSellerTxIds] = useState<Set<string>>(new Set());
   const [sellerSubtotals, setSellerSubtotals] = useState<Record<string, number>>({});
   const [searchParams, setSearchParams] = useSearchParams();
-  const [notifyingReady, setNotifyingReady] = useState(false);
-  const [readyMessage, setReadyMessage] = useState('');
 
   // Auto-open transaction detail if ?id= param is present (from notification deep-link)
   useEffect(() => {
@@ -102,7 +102,7 @@ export default function AdminTransactions() {
       setLoadingItems(true);
       const { data, error } = await supabase
         .from('transaction_items')
-        .select('*, products(name)')
+        .select('*, products(name, category)')
         .eq('transaction_id', txId);
       
       if (error) throw error;
@@ -120,82 +120,6 @@ export default function AdminTransactions() {
       await fetchTransactionItems(tx.id);
     } else {
       setTxItems([]);
-    }
-  };
-
-
-  const handleConfirmSariroti = async () => {
-    if (!selectedTx) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-
-      const response = await fetch('/api/admin/transactions/confirm-sariroti', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ transaction_id: selectedTx.id }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Gagal mengkonfirmasi pesanan');
-
-      toast.success('Pesanan Sariroti berhasil dikonfirmasi dan nota telah dikirim ke pembeli.');
-      
-      // Update local state
-      setSelectedTx({
-        ...selectedTx,
-        metadata: {
-          ...(selectedTx.metadata || {}),
-          sariroti_confirmed: true,
-          sariroti_order_status: 'confirmed',
-        }
-      });
-      fetchTransactions();
-    } catch (error: any) {
-      console.error('Error confirming Sariroti order:', error);
-      toast.error(error.message);
-    }
-  };
-
-  const handleNotifyReady = async () => {
-    if (!selectedTx) return;
-    setNotifyingReady(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-
-      const response = await fetch('/api/admin/transactions/notify-ready', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          transaction_id: selectedTx.id,
-          custom_message: readyMessage.trim() || undefined
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Gagal mengirim notifikasi');
-
-      toast.success('✅ Notifikasi "Siap Diambil" berhasil dikirim ke pembeli!');
-      setReadyMessage('');
-      setSelectedTx({
-        ...selectedTx,
-        metadata: {
-          ...(selectedTx.metadata || {}),
-          sariroti_order_status: 'ready',
-        }
-      });
-      fetchTransactions();
-    } catch (error: any) {
-      console.error('Error sending ready notification:', error);
-      toast.error(error.message);
-    } finally {
-      setNotifyingReady(false);
     }
   };
 
@@ -794,54 +718,6 @@ export default function AdminTransactions() {
               </div>
 
               <div className="p-6 md:p-8 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 flex flex-col gap-3">
-                {/* Step 1: Konfirmasi Pesanan Sariroti */}
-                {activeTab === 'success' && txItems.some(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti') || item.products?.name?.toLowerCase().includes('roti')) && !selectedTx.metadata?.sariroti_confirmed && (
-                  <button 
-                    onClick={handleConfirmSariroti}
-                    className="btn-clay-primary h-10 md:h-12 px-8 md:px-10 w-full flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    Konfirmasi Pesanan & Kirim Nota ke Pembeli
-                  </button>
-                )}
-
-                {/* Step 2: Notify Siap Diambil — tampil setelah dikonfirmasi, sebelum status 'ready' */}
-                {activeTab === 'success' && selectedTx.metadata?.sariroti_confirmed && selectedTx.metadata?.sariroti_order_status !== 'ready' && (
-                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/30 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <PackageCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      <p className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Beritahu Pembeli — Pesanan Siap</p>
-                    </div>
-                    <textarea
-                      value={readyMessage}
-                      onChange={e => setReadyMessage(e.target.value)}
-                      placeholder="Pesan opsional (misal: Silakan ambil di kasir lantai 1). Biarkan kosong untuk pesan default."
-                      rows={2}
-                      className="w-full text-xs p-3 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-800/50 text-zinc-700 dark:text-zinc-300 font-medium resize-none focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    />
-                    <button
-                      onClick={handleNotifyReady}
-                      disabled={notifyingReady}
-                      className="w-full h-10 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-                    >
-                      {notifyingReady ? (
-                        <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-                      ) : (
-                        <Bell className="w-4 h-4" />
-                      )}
-                      {notifyingReady ? 'Mengirim...' : '🍞 Pesanan Siap Diambil — Kirim Notifikasi'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Status: sudah ready */}
-                {activeTab === 'success' && selectedTx.metadata?.sariroti_order_status === 'ready' && (
-                  <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
-                    <PackageCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <p className="text-xs font-black text-emerald-700 dark:text-emerald-400">Pembeli sudah diberitahu bahwa pesanan siap diambil.</p>
-                  </div>
-                )}
-
                 <div className="flex gap-3">
                   <button 
                     onClick={() => setSelectedTx(null)} 

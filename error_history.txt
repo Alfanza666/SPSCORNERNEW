@@ -1,25 +1,7 @@
-# Riwayat Error & Perbaikan (Error History)
-
-## [2026-04-13] Digiflazz Transaction Pending/Failed
-- **Error**: Transaksi produk digital (PLN/Listrik) tetap berstatus "pending" di Digiflazz namun di Kiosk History muncul sebagai "Gagal".
-- **Akar Masalah**: 
-  1. Logika di `server.ts` menganggap semua respon Digiflazz yang bukan `00` (Success) sebagai kegagalan total, termasuk `03` (Pending).
-  2. Status transaksi (`transactions`) diupdate menjadi `failed` jika ada satu item digital yang belum sukses seketika.
-  3. UI di `History.tsx` hanya mengecek status `success`, sehingga status `paid` atau `processing` ditampilkan sebagai "Gagal".
-- **Perbaikan**:
-  1. Memperbarui `server.ts` untuk memetakan RC `03` sebagai `processing` (bukan `failed`).
-  2. Menambahkan detail pesan error dan SN dari Digiflazz ke metadata `transaction_items` agar transparan.
-  3. Memperbarui `History.tsx` untuk mendukung tampilan status `Dibayar` dan `Proses`.
-- **Pelajaran**: Status transaksi digital bersifat asinkron, jangan langsung memvonis gagal jika responnya adalah 'Pending'.
-
-## [2026-04-13] Mobile UI Tutorial Blocking
-- **Error**: Jendela tutorial mengambang tidak optimal di mobile, menutupi layar dan tidak bisa diklik.
-- **Akar Masalah**: Lebar tooltip statis (320px) dan posisi `fixed` yang tidak memperhitungkan ukuran layar kecil (viewport mobile).
-- **Perbaikan**: Menggunakan logika responsif untuk lebar tooltip dan penyesuaian posisi otomatis ke tengah layar pada perangkat mobile.
-- **Pelajaran**: Selalu gunakan `windowSize` atau Media Queries untuk komponen UI yang bersifat *overlay*.
-
-## [2026-04-13] iPaymu Suspicious Buyer
-- **Error**: Transaksi ditolak iPaymu dengan alasan "Suspicious buyer".
-- **Akar Masalah**: iPaymu mewajibkan nama minimal 3 karakter dan format telepon yang valid. Data *dummy* sebelumnya tidak memenuhi kriteria ini.
-- **Perbaikan**: Implementasi pembersihan nama (min 3 char) dan penggunaan data asli pengguna (Nama, Email, Telepon) dari database profil.
-- **Pelajaran**: Integrasi payment gateway pihak ketiga memerlukan validasi data yang ketat sesuai standar mereka.
+Riwayat Error & Fix:
+- [FIXED] PWA cache conflicts resolved via vite-plugin-pwa.
+- [FIXED] Info icon lucide-react tidak ditemukan di SellerProducts.
+- [FIXED] API /api/standby/check Failed to fetch.
+- [FIXED] seller_sariroti tidak ada user karena role yang valid adalh seller, admin, buyer. Solusi: Gunakan like '%sariroti%'.
+- [FIXED] Syntax error JSX pada modal detail transaksi admin di AdminTransactions.tsx (v1.1.3).
+- [FIXED] Redundant curly braces pada conditional rendering di Dashboard Admin (v1.1.3).

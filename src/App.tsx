@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
 import Tutorial from './components/Tutorial';
+import FloatingReportButton from './components/FloatingReportButton';
 
 // Lazy load components
 const Home = React.lazy(() => import('./pages/Home'));
@@ -95,6 +96,8 @@ function LoadingFallback() {
   );
 }
 
+import AdminPickup from './pages/dashboard/admin/AdminPickup';
+
 export default function App() {
   const { fetchProfile, setUser } = useAuthStore();
 
@@ -175,6 +178,7 @@ export default function App() {
             }
           }}
         />
+        <FloatingReportButton />
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -208,6 +212,7 @@ export default function App() {
               <Route path="admin/categories" element={<AdminCategories />} />
               <Route path="admin/products" element={<AdminProducts />} />
               <Route path="admin/transactions" element={<AdminTransactions />} />
+              <Route path="admin/pickup" element={<AdminPickup />} />
               <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="admin/stock-requests" element={<AdminStockRequests />} />
               <Route path="admin/returns" element={<AdminReturns />} />

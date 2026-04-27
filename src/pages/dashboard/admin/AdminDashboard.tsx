@@ -213,12 +213,21 @@ export default function AdminDashboard() {
         .limit(5);
       setFailedTransactions(failedTx || []);
 
-      const { data: resets } = await supabase
-        .from('password_reset_requests')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-      setResetRequests(resets || []);
+      // Fetch password reset requests using backend endpoint to bypass RLS
+      const { data: { session } } = await supabase.auth.getSession();
+      const authHeader = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {};
+      
+      try {
+        const resetsRes = await fetch('/api/admin/password-resets', {
+          headers: authHeader
+        });
+        if (resetsRes.ok) {
+          const resetsData = await resetsRes.json();
+          setResetRequests(resetsData || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch password resets:', err);
+      }
 
       const { data: qrisData } = await supabase
         .from('settings')
@@ -254,10 +263,9 @@ export default function AdminDashboard() {
       }
 
       // Seller revenue breakdown
-      const { data: sellerItems } = await supabase
+      const { data: allItems } = await supabase
         .from('transaction_items')
-        .select('transaction_id, seller_id, price, quantity, profiles:seller_id(name)')
-        .not('seller_id', 'is', null);
+        .select('transaction_id, seller_id, price, quantity, is_digital, profiles:seller_id(name)');
 
       // Also get transaction status to only include successful ones
       const { data: successTxIds } = await supabase
@@ -265,16 +273,26 @@ export default function AdminDashboard() {
         .select('id')
         .in('status', ['success', 'paid']);
 
-      if (sellerItems && successTxIds) {
+      if (allItems && successTxIds) {
         const successIdSet = new Set(successTxIds.map((t: any) => t.id));
         const breakdown: Record<string, { name: string; total: number }> = {};
         
-        for (const item of sellerItems as any[]) {
+        for (const item of allItems as any[]) {
           // Only count items from successful transactions
           if (!successIdSet.has(item.transaction_id)) continue;
-          if (!item.seller_id) continue;
-          const sellerId = item.seller_id;
-          const sellerName = (item.profiles as any)?.name || 'Tidak dikenal';
+          
+          let sellerId = 'PPOB_DIGITAL';
+          let sellerName = 'Produk Digital (PPOB)';
+          
+          if (item.seller_id) {
+            sellerId = item.seller_id;
+            sellerName = (item.profiles as any)?.name || 'Penjual Koperasi';
+          } else if (!item.is_digital) {
+             // Fallback for physical items without a seller
+             sellerId = 'UNKNOWN';
+             sellerName = 'Produk Koperasi Tanpa Penjual';
+          }
+          
           if (!breakdown[sellerId]) {
             breakdown[sellerId] = { name: sellerName, total: 0 };
           }
@@ -312,12 +330,19 @@ export default function AdminDashboard() {
 
   const handleCompleteReset = async (requestId: string) => {
     try {
-      const { error } = await supabase
-        .from('password_reset_requests')
-        .update({ status: 'completed' })
-        .eq('id', requestId);
-
-      if (error) throw error;
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/password-resets/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ id: requestId })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal memperbarui status');
+      
       toast.success('Permintaan ditandai selesai');
       fetchDashboardData();
     } catch (err: any) {
@@ -827,7 +852,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Password Reset Requests */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden md:col-span-2">
+            <div id="reset-requests" className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden md:col-span-2">
               <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-amber-50/50 dark:bg-amber-900/20">
                 <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
                   <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-500" />

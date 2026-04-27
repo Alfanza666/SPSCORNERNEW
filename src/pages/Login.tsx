@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { useAuthStore } from '../store/useAuthStore';
@@ -13,12 +13,18 @@ export default function Login() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromPath = (location.state as any)?.from?.pathname;
+  const from = fromPath && fromPath !== 'undefined' ? fromPath + ((location.state as any)?.from?.search || '') : null;
   const { fetchProfile } = useAuthStore();
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     setError('');
     try {
+      if (from) {
+        sessionStorage.setItem('returnUrl', from);
+      }
       // Gunakan URL canonical dengan www agar konsisten dengan Supabase Redirect URL setting
       const redirectTo = `${window.location.origin}/auth/callback`;
 
@@ -77,7 +83,7 @@ export default function Login() {
               `Profil tidak ditemukan. (${basicError?.message || profileError?.message || 'unknown'})`
             );
           }
-          resolvedProfile = basicProfile;
+          resolvedProfile = basicProfile as any;
         }
 
         // Cek is_active (aman jika field tidak ada → undefined → tidak block)
@@ -96,7 +102,9 @@ export default function Login() {
         });
 
         // Navigate setelah store diisi
-        if (resolvedProfile!.role === 'admin') {
+        if (from) {
+          navigate(from);
+        } else if (resolvedProfile!.role === 'admin') {
           navigate('/dashboard/admin');
         } else if (resolvedProfile!.role === 'seller') {
           navigate('/dashboard/seller');

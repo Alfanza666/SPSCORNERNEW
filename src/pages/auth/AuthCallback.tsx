@@ -28,7 +28,7 @@ export default function AuthCallback() {
         // Query hanya kolom inti yang pasti ada
         let { data: profile, error } = await supabase
           .from('profiles')
-          .select('id, role, name, balance, is_active')
+          .select('id, role, name, balance, is_active, nik, phone')
           .eq('id', userId)
           .single();
 
@@ -52,7 +52,7 @@ export default function AuthCallback() {
               balance: 0,
               is_active: true,
             }, { onConflict: 'id' })
-            .select('id, role, name, balance, is_active')
+            .select('id, role, name, balance, is_active, nik, phone')
             .single();
 
           if (createError || !newProfile) {
@@ -103,7 +103,11 @@ export default function AuthCallback() {
           email: userEmail,
         });
 
-        if (profile!.role === 'admin') {
+        const returnUrl = sessionStorage.getItem('returnUrl');
+        if (returnUrl) {
+          sessionStorage.removeItem('returnUrl');
+          navigate(returnUrl, { replace: true });
+        } else if (profile!.role === 'admin') {
           navigate('/dashboard/admin', { replace: true });
         } else if (profile!.role === 'seller') {
           navigate('/dashboard/seller', { replace: true });

@@ -1,154 +1,20 @@
-v1.1.6 - [PATCH] CRITICAL Fix: Blank White Screen (Root Cause Analysis):
-  ROOT CAUSE #1 (FATAL): App.tsx - Komponen `AdminStockRequests` digunakan di Route line 211 TANPA lazy import. JavaScript berhenti total sebelum apapun di-render.
-  ROOT CAUSE #2 (FATAL): AdminDashboard.tsx - Komponen `QrCode` dan `Loader2` dipakai di JSX (dirender di halaman) tapi sudah dihapus definisinya manual dan tidak ada di import lucide-react. Crash terjadi saat render.
-  ROOT CAUSE #3 (FATAL): AdminTransactions.tsx - Komponen `Loader2` dipakai di JSX tapi tidak diimport.
-  FIX: Menambahkan semua import yang hilang ke file yang tepat (App.tsx, AdminDashboard.tsx, AdminTransactions.tsx).
-  SQL: supabase-schema.sql - Kebijakan RLS diubah menjadi idempotent (DROP IF EXISTS + CREATE) agar tidak error saat migrasi dijalankan ulang.
-
-ERROR LOG (Resolved):
-  [E001] App.tsx:211 - ReferenceError: AdminStockRequests is not defined → FIXED v1.1.6
-  [E002] AdminDashboard.tsx - ReferenceError: QrCode is not defined → FIXED v1.1.6
-  [E003] AdminDashboard.tsx - ReferenceError: Loader2 is not defined → FIXED v1.1.6
-  [E004] AdminTransactions.tsx - ReferenceError: Loader2 is not defined → FIXED v1.1.6
-  [E005] supabase-schema.sql - ERROR 42710: policy "stock_opnames_admin" already exists → FIXED v1.1.6
-
-v1.1.4 - [SECURITY] Peningkatan Audit & CCTV Correlation:
-  (1) System: Implementasi Auto-Cleanup. Transaksi 'Pending' (belum dibayar) yang berusia lebih dari 5 menit otomatis dianggap 'Gagal' (Failed) untuk menghindari kebingungan saat audit kehilangan barang.
-  (2) UI History & Dashboard: Upgrade format waktu ke HH:mm:ss (Presisi detik). Memudahkan admin melakukan tracking kejadian di CCTV berdasarkan timestamp transaksi yang akurat.
-  (3) Admin Dashboard: Trigger pembersihan transaksi expired otomatis setiap kali dashboard dibuka.
-
-v1.1.3 - [MAJOR] Implementasi Sistem Kantin Tanpa Penjaga (Unmanned Kiosk):
-  (1) History.tsx & AdminTransactions.tsx: Implementasi Digital Pickup Token (Kode Pickup). Pembeli mendapatkan kode unik setelah bayar, Admin memverifikasi kode tersebut saat serah terima barang untuk mencegah "ambil 2 bayar 1".
-  (2) AdminStockOpname.tsx: Modul baru untuk Audit Fisik Stok. Memungkinkan petugas standby memverifikasi jumlah barang di rak vs data sistem dan mencatat selisih (variance) secara otomatis.
-  (3) AdminStandbySchedule.tsx: Modul pengaturan jadwal kerja Anggota Koperasi.
-  (4) SellerProducts.tsx: Integrasi jadwal standby. Tombol "Request Restock" otomatis dinonaktifkan jika tidak ada petugas koperasi yang sedang standby di lokasi.
-  (5) Audit Trail: Setiap perubahan stok (Opname, Restock, Retur) kini tercatat lengkap dengan identitas pelaku dan alasan perubahan untuk mencegah fraud internal.
-
-v1.1.2 - [PATCH] Keamanan & Validasi Kontak:
-  (1) Cart.tsx: Menambahkan input Nomor HP (WhatsApp) wajib bagi semua pembeli (termasuk anonymous) untuk memudahkan koordinasi kendala atau pengambilan produk koperasi.
-  (2) Cart.tsx: Integrasi data profil otomatis untuk pengguna login sehingga tidak perlu input ulang nama/HP.
-  (3) System: Implementasi Stock Reservation (Locking) selama 3 menit saat proses checkout untuk mencegah "Race Condition" (dua orang beli barang yang sama di waktu bersamaan).
-  (4) server.ts: Pembersihan logika sinkronisasi stock digital agar lebih akurat.
-
-v1.1.1 - [PATCH] Major Visual Upgrade for Digital Products:
-  (1) DigitalProducts.tsx: Mengganti logo operator dan e-wallet yang rusak/tidak sesuai dengan aset berkualitas tinggi (Wikipedia/Commons) yang lebih stabil.
-  (2) DigitalProducts.tsx: Integrasi 4 Hero Image premium hasil generate AI (Telco, PLN, Games, E-Wallet) pada kartu kategori untuk kesan visual yang lebih mewah.
-  (3) DigitalProducts.tsx: Implementasi efek Glassmorphism Shine dan hover modern pada kartu kategori.
-  (4) index.css: Tambah utilitas animasi `animate-shine` untuk mendukung efek visual baru.
-
-v1.1.0 - [MINOR] Optimalisasi Mobile & Upgrade Laporan (Excel):
-  (1) Catalog.tsx: Grid mobile diubah jadi 2 kolom (grid-cols-2) agar tampilan produk lebih premium, label tidak terpotong, dan touch target lebih besar.
-  (2) KioskLayout.tsx: Tinggi header ditambah (h-14) agar logo lebih lega dan dropdown notifikasi dibatasi max-width agar tidak overflow di layar kecil.
-  (3) History.tsx: Tambah tracker progress pesanan roti (Diterima -> Produksi -> Siap Ambil) di detail transaksi agar pembeli tahu status rotinya secara real-time.
-  (4) AdminDashboard.tsx: Upgrade fitur export dari CSV ke Excel (.xlsx) yang sudah tertata rapi (auto-column width) sesuai permintaan user.
-  (5) server.ts: Tambah logic notifikasi otomatis ke SELLER (Sariroti) saat ada pesanan masuk & terbayar, agar proses produksi bisa langsung dimulai.
-  (6) server.ts: Tambah endpoint GET /api/transactions/:id untuk mendukung deep-linking dari notifikasi langsung ke detail pesanan di Success page.
-  (7) Checkout.tsx: Perbaikan navigasi setelah verifikasi pembayaran manual agar tidak langsung mental ke halaman utama, tapi masuk ke halaman Success dengan data lengkap.
-
-v1.0.9 - [MINOR] Alur Pesanan Roti (Sariroti) — Full Order Lifecycle:
-  (1) server.ts: Endpoint confirm-sariroti kini set sariroti_order_status='confirmed' + kirim notifikasi in-app ke buyer ("Pesanan dikonfirmasi, sedang produksi").
-  (2) server.ts: Tambah endpoint baru POST /api/admin/transactions/notify-ready — admin bisa beritahu buyer "Pesanan siap diambil" dengan pesan custom, mengubah status ke 'ready'.
-  (3) AdminTransactions.tsx: Flow tombol bertahap di modal detail:
-      - Tahap 1: Tombol "Konfirmasi Pesanan & Kirim Nota" (muncul jika ada item roti, belum dikonfirmasi)
-      - Tahap 2: Panel amber dengan textarea pesan + tombol "Pesanan Siap Diambil — Kirim Notifikasi" (muncul setelah dikonfirmasi, sebelum status 'ready')
-      - Tahap 3: Badge hijau "Pembeli sudah diberitahu" (muncul jika status sudah 'ready')
-  Alur lengkap: Bayar → Webhook iPaymu → Admin konfirmasi → Notif "Sedang Produksi" → Admin klik Siap → Notif "Siap Diambil" → Buyer datang ke toko.
-  Files diubah:
-    - server.ts
-    - src/pages/dashboard/admin/AdminTransactions.tsx
-
-v1.0.8 - [PATCH] Fix debug box hitam, tambah notifikasi kiosk, input HP anonim, izin push notification:
-  (1) Checkout.tsx: Hapus debug JSON box hitam yang masih tampil (kondisi `|| true` dihapus permanen).
-  (2) Checkout.tsx: Tambah input nomor HP opsional untuk pembeli anonim (warna amber) agar bisa dihubungi saat pesanan siap. Mengganti dummy phone generation dengan HP yang diinput user.
-  (3) Checkout.tsx: Tambah `Notification.requestPermission()` saat halaman mount untuk meminta izin push notification dari browser.
-  (4) KioskLayout.tsx: Tambah tombol Bell notifikasi di header (hanya untuk buyer login) dengan badge merah dan dropdown list notifikasi real-time dari tabel `notifications`.
-  Files diubah:
-    - src/pages/kiosk/Checkout.tsx
-    - src/pages/kiosk/KioskLayout.tsx
-
-v1.0.7 - [MINOR] Fitur Baru: Input HP Google OAuth, Sistem Notifikasi Pesanan, Halaman Kebijakan Privasi, Export Excel:
-  (1) PhonePromptModal: Modal baru muncul otomatis setelah login via Google jika nomor HP belum diisi. Tidak ada lagi nomor HP palsu yang di-generate sistem.
-  (2) Notifikasi Real-time: server.ts kini memanggil sendNotification() di webhook iPaymu (bayar berhasil/gagal), saat Digiflazz mengirimkan produk digital (delivered/failed), dan saat admin mengkonfirmasi pembayaran manual.
-  (3) Kebijakan Privasi: Halaman baru /privacy (PrivacyPolicy.tsx) dengan 7 seksi: data yang dikumpulkan, penggunaan data, keamanan, HP, hak pengguna, retensi, dan kontak.
-  (4) Export Excel: exportCSV diganti dengan exportExcel (SheetJS/xlsx) di utils.ts. AdminTransactions.tsx diperbarui untuk menghasilkan file .xlsx dengan header profesional, auto-column-width, dan freeze row.
-  (5) Link Kebijakan Privasi: Footer KioskLayout kini mencantumkan link ke /privacy.
-  Files diubah:
-    - src/components/PhonePromptModal.tsx (BARU)
-    - src/pages/PrivacyPolicy.tsx (BARU)
-    - src/pages/kiosk/KioskLayout.tsx
-    - src/lib/utils.ts
-    - src/pages/dashboard/admin/AdminTransactions.tsx
-    - src/App.tsx
-    - server.ts
-
-v4.2.1 - [PATCH] Fix login kembali ke halaman login setelah Google OAuth dan admin NIK login:
-  (1) Login.tsx: Menghapus race condition — fetchProfile terpisah dihapus, diganti 1 query gabungan lalu set store langsung via setUser() SEBELUM navigate. Sebelumnya fetchProfile bisa gagal (user=null) tapi navigate tetap jalan → DashboardLayout melihat user=null → redirect balik ke login.
-  (2) AuthCallback.tsx: Ditulis ulang — hapus duplikat useEffect, gunakan onAuthStateChange sebagai primary + getSession fallback + timeout 12 detik. Set store langsung via setUser() agar DashboardLayout tidak redirect balik.
-  (3) Supabase config: Tambahkan https://spscorner.store/auth/callback (tanpa www) ke Redirect URLs agar konsisten dengan window.location.origin.
-  (Files diubah: src/pages/Login.tsx, src/pages/auth/AuthCallback.tsx)
-
-  Alur: Klik "Masuk dengan Google" → redirect ke Google → Supabase callback → halaman /auth/callback → redirect ke dashboard sesuai role (admin/seller/kiosk).
-  File baru: src/pages/auth/AuthCallback.tsx (handler redirect setelah OAuth, cek role & is_active, redirect otomatis).
-  Update: src/pages/Login.tsx (tambah tombol Google dengan spinner state, divider "Atau masuk dengan NIK").
-  Update: src/App.tsx (daftarkan route /auth/callback dengan lazy import).
-  Verifikasi: Build sukses exit code 0.
-
-  Root Cause: src/lib/gemini.ts menggunakan top-level `await import()` — fitur ini merusak Vite build secara silent karena Vite memproses semua file di folder src/ termasuk yang tidak diimport oleh komponen manapun. Akibatnya seluruh aplikasi (termasuk halaman Login) tidak dapat dimuat di production.
-  Fix: Mengganti gemini.ts dengan placeholder null export yang aman — file ini memang tidak digunakan di frontend (Gemini AI diinisialisasi di server.ts saja).
-  Verifikasi: `npm run build` sukses dengan exit code 0, semua chunk terbuild tanpa error.
-  (File diubah: src/lib/gemini.ts)
-
-  (1) DEAD CODE: Menghapus 37 file script/test one-off dari root project yang tidak digunakan (fetch_*.js, test_*.js, check-*.ts, create-users.*, ipaymu samples, postman files, dll).
-  (2) SECURITY: Menghapus console.log di signature.ts yang mengekspos data kriptografi (VA, body hash, string-to-sign) ke log server — potensi kebocoran data sensitif.
-  (3) SECURITY: Memperbaiki src/lib/gemini.ts yang menggunakan process.env (Node.js) di frontend Vite; ditambahkan guard agar tidak crash di browser.
-  (4) PERFORMANCE: useAuthStore fetchProfile menggunakan select('*') diganti menjadi select kolom spesifik (id, role, name, nik, phone, balance) untuk mengurangi payload network.
-  (5) UX: Dark mode di App.tsx diperbaiki — kini menghormati prefers-color-scheme sistem terlebih dahulu, lalu localStorage preference, dan time-based (18:00-06:00) sebagai fallback terakhir. Juga listen perubahan system preference secara real-time.
-  (6) CSS CLEANUP: Menghapus empty rules dan duplikat dark mode selectors di index.css (12 baris dead CSS).
-  (Files diubah: src/lib/gemini.ts, src/lib/utils.ts, src/store/useAuthStore.ts, src/App.tsx, src/index.css, src/services/ipaymu/signature.ts)
-
-v4.1.0 - [MINOR] Perbaikan multi-fitur (signature iPaymu, email Sariroti, notifikasi, seller profit bug, breakdown pendapatan).
-
-  (1) KRITIS: Memperbaiki format signature iPaymu yang salah (root cause penolakan oleh iPaymu - format lama: METHOD:VA:BODY_HASH:APIKEY, format benar: VA:BODY_HASH:METHOD:TIMESTAMP sesuai sample resmi iPaymu).
-  (2) Email Sariroti sekarang menggunakan template HTML profesional lengkap dengan tabel item, subtotal per produk, langkah-langkah konfirmasi, dan CTA button.
-  (3) Notifikasi kini menghilang otomatis setelah diklik (markOneAsRead), dan navigasi langsung ke detail transaksi yang dimaksud via deep-link (?id=transactionId).
-  (4) Banner Midtrans di Admin Dashboard diganti dengan iPaymu Integration Status Banner.
-  (5) Kartu Total Pendapatan di Admin Dashboard kini dapat diklik untuk melihat breakdown kontribusi pendapatan per penjual.
-  (6) KRITIS: Memperbaiki bug seller "Hidayatullah" memiliki profit tanpa penjualan - root cause: trigger database memperbarui balance/total_sales pada SETIAP insert transaction_items (termasuk pending/failed). Trigger diperbaiki agar hanya memperbarui saldo ketika transaksi parent berstatus 'success'.
-  (7) Memperbaiki AdminTransactions.tsx untuk mendukung deep-link navigasi dari notifikasi.
-  (Files yang diubah: src/services/ipaymu/signature.ts, server.ts, supabase-schema.sql, src/hooks/useNotifications.ts, src/pages/dashboard/DashboardLayout.tsx, src/pages/dashboard/admin/AdminDashboard.tsx, src/pages/dashboard/admin/AdminTransactions.tsx, tsconfig.json)
-
-v4.0.26 - Memperbaiki semua error TypeScript di IDE (Cannot find module 'react', 'process', 'Buffer', dll.) dengan menjalankan 'npm install', menginstall '@types/node', dan menambahkan "types": ["node"] ke tsconfig.json. (Files yang diubah: tsconfig.json, package.json)
-
-v4.0.25 - Memperbaiki bug kronis status produk digital yang tersangkut ("Sedang Proses Operator" tanpa henti) dan gagal memunculkan SN (Root Cause: kolom 'status' di transaction_items tidak didukung oleh database). Memindahkan data status ke dalam field JSONB metadata di server.ts sehingga SN dan status terbaru berhasil tersimpan. Mengubah tampilan UI di History, Success, dan AdminTransactions agar sukses membaca metadata status tersebut.
-v4.0.24 - Memperbaiki isu "Menunggu respons SN..." yang tidak kunjung berubah ketika SN sebenarnya sudah tersedia akibat _stale closure_ saat UI direfresh secara _real-time_. Menghapus Auto Polling API secara background untuk menghemat kuota limit (Fixie / Digiflazz API), status PPOB kini hanya akan dicek melalui webhook Digiflazz atau tombol "Cek Status Manual/Paksa" yang dipicu pengguna secara langsung. Memperbaiki "Produk Terhapus" dengan fallback meta `product_name` pada daftar riwayat Admin yang hilang. (File yang diubah: src/pages/kiosk/History.tsx, src/pages/kiosk/Success.tsx)
-v4.0.23 - Memperbaiki isu "Produk Terhapus" pada histori transaksi di Admin Dashboard yang muncul akibat produk tidak terikat ke list produk database dengan membaca metadata secara dinamis. Mengembalikan tombol 'Cek Status Manual' pada Riwayat Transaksi agar pesanan PPOB dengan status lawas 'pending' yang tersangkut karena kendala webhook bisa terupdate ke status yang seharusnya secara paksa. Tombol ini juga diletakkan bersebelahan pada list 'Sedang Proses Operator' untuk kenyamanan. Automated Polling juga diperbarui agar menarik status item 'pending' selain 'processing'.
-v4.0.22 - Memperbaiki tampilan pada detail modal transaksi (History.tsx) agar menampilkan label "Transaksi Sukses" alih-alih "Menunggu respons SN..." bila status pembayaran telah "delivered" namun tidak terdapat/membutuhkan referensi Serial Number (SN) dari Digital Provider. (File yang diubah: src/pages/kiosk/History.tsx)
-v4.0.21 - UI/UX Overhaul Riwayat Transaksi: (1) Merombak total daftar riwayat transaksi (`History.tsx`) agar lebih ringkas (summary view). Daftar item disembunyikan dari halaman depan dan dipindahkan ke dalam Modal Detil Transaksi; (2) Menghapus tombol 'Cek Status' yang membingungkan dan menerapkan Automated Background Polling, sehingga status 'Sedang Proses Operator' otomatis akan menjadi Sukses/Gagal + SN tanpa perlu di tap manual; (3) Memperbarui halaman Sukses (`Success.tsx`) agar melakukan ping auto-update ke status provider apabila webhook gagal diterima di env pengembangan. (File yang diubah: src/pages/kiosk/History.tsx, src/pages/kiosk/Success.tsx)
-v4.0.20 - Memperbaiki UX pembelian produk digital: (1) Menyesuaikan halaman Sukses agar tidak otomatis pindah jika item digital masih "Sedang Diproses" dan menampilkannya secara tertahan, serta akan otomatis memunculkan SN (real) secara polling; (2) Mengubah label status digital yang semula "Proses" menjadi "Proses Operator" (plus ikon loading) pada halaman Riwayat agar logis. (File yang diubah: src/pages/kiosk/Success.tsx, src/pages/kiosk/History.tsx)
-v4.0.19 - Memperbaiki masalah 'Incomplete Digiflazz metadata' saat mengecek status pesanan digital lama dengan menambahkan metode pencarian parameter `ref_id`, `sku`, dan `customerNo` yang lebih komprehensif pada versi data yang lawas. (File yang diubah: server.ts)
-v4.0.18 - Menambahkan tombol "Cek Status" untuk periksa paksa token pesanan PPOB yang nyangkut, menambahkan tombol "Batalkan Pesanan" untuk menghapus tagihan lama, dan mengubah format "Cetak Nota" agar dapat mencetak semua barang (termasuk PLN/Digital) beserta harganya.
-v4.0.17 - Memperbarui halaman Transaksi Admin agar riwayat transaksi dapat dipisahkan dan difilter per penjual dengan lebih mudah. Menambahkan dropdown filter penjual di sebelah kolom pencarian dan memodifikasi tabel untuk menampilkan subtotal spesifik milik penjual yang dipilih.
-v4.0.16 - Memperbaiki error "Clock is not defined" di halaman Transaksi Admin (menambahkan import ikon Clock yang hilang).
-v4.0.15 - Memperbaiki bug target email notifikasi Sariroti yang tertimpa oleh email kontak umum, memperbarui tautan verifikasi di email agar mengarah langsung ke halaman transaksi admin, dan menambahkan fitur "Detail & Revisi Saldo" di menu Manajemen Penjual untuk melacak dan menyesuaikan saldo penjual secara manual.
-v4.0.14 - Memperbaiki bug di mana email notifikasi Sariroti ke admin sales tidak terkirim pada metode pembayaran manual (QRIS Manual).
-v4.0.13 - Memperbaiki masalah gambar logo produk digital yang crash/rusak dengan menggunakan API Clearbit Logo dan menambahkan fallback otomatis jika gambar gagal dimuat.
-v4.0.12 - Memperbarui pemetaan logo produk digital secara komprehensif (menambahkan puluhan logo baru untuk E-Wallet, Game, dan Utilitas) serta memberikan instruksi konfigurasi SMTP Email untuk notifikasi admin sales.
-v4.0.11 - Memperbaiki tampilan logo produk digital (menambahkan logo E-Wallet dan Game), menyembunyikan produk "Cek Nama" dari daftar katalog, memperbaiki tombol "Lihat Detail" di Riwayat Pesanan agar mengarah ke halaman sukses, dan memperbaiki error saat memuat saldo Digiflazz di Admin Dashboard.
-v4.0.10 - Memperbaiki bug produk digital (Pulsa/Data) yang hilang saat nomor HP dimasukkan (penyesuaian pemetaan provider "THREE" dan pengamanan filter kategori/brand).
-v4.0.9 - Memperbarui logika Webhook Digiflazz untuk mendukung Webhook ID sebagai Secret.
-v4.0.8 - Memperbaiki layout komponen Tutorial agar sepenuhnya adaptif dan responsif di perangkat mobile (mencegah overflow ke kanan).
-v4.0.7 - Memperbaiki webhook Digiflazz, mencegah transaksi fisik menjadi gagal jika produk digital gagal, memperbaiki tampilan error saldo Digiflazz di Admin Dashboard, dan menyembunyikan instruksi login di halaman awal bagi pengguna yang sudah masuk.
-v4.0.6 - Perbaikan integrasi Digiflazz (status pending & error handling), optimasi UI Tutorial untuk mobile, dan pembaruan status riwayat pesanan.
-v4.0.5 - Integrasi data asli pengguna (Nama, Email, Telepon) untuk transaksi iPaymu dan pembaruan skema profil.
-v4.0.4 - Memperbaiki secara tuntas error 'Suspicious buyer' iPaymu dan sinkronisasi skema database transaksi.
-v4.0.3 - Memperbaiki error schema cache pada transaksi dan mengaktifkan kembali semua metode pembayaran iPaymu.
-v4.0.2 - Memperbaiki bug notifikasi email Sariroti/Koperasi dan tampilan riwayat pesanan.
-v4.0.1 - Memperbaiki alur pembelian produk digital (Pulsa, PLN, Game, E-Money, Pascabayar), menambahkan tutorial Kantin & Koperasi, dan memperbaiki sistem notifikasi agar real-time dan faktual.
-
-Riwayat Error & Fix:
-- [FIXED] Syntax error JSX pada modal detail transaksi admin di AdminTransactions.tsx (v1.1.3).
-- [FIXED] Redundant curly braces pada conditional rendering di Dashboard Admin (v1.1.3).
-- [FIXED] Logo digital produk pecah/placeholder (v1.1.1).
-- [FIXED] Bug seller "Hidayatullah" memiliki profit tanpa penjualan (v4.1.0).
-v 1 . 1 . 5   -   M e m p e r b a i k i   i s u   b l a n k   s c r e e n   p a d a   d a s h b o a r d   a d m i n ,   o p t i m a s i   t a g   J S X ,   d a n   s t a b i l i t a s   a u t o - c l e a n u p .  
- 
+v1.2.15 - [UPDATE] Memperbarui favicon web browser (icon di tab bagian atas browser) agar mengikuti desain "logo-icon" SPS Corner menggantikan emoji bawaan.
+v1.2.14 - [FIX] Memperbaiki crash aplikasi akibat syntax error pada Floating Report Button. Mengubah field "Stok" pada halaman Admin Edit Produk menjadi input increment/decrement beserta validasinya. Menambahkan kolom "Seller Name" pada tabel dan mobile card daftar produk Admin. Menambahkan validasi lengkap untuk memastikan Nama, Harga, Stok, dan Kategori harus diisi saat fungsi handleUpdateProduct (klik Simpan Perubahan) dijalankan.
+v1.2.13 - [FEATURE & FIX] Menambahkan tombol "Laporan" (Floating Report Button) secara global di semua halaman Frontend agar user bisa merekam / melaporkan issue ke admin. Memperbaiki handling error pada file Logo gambar (SPSLogo) agar tidak menampilkan ikon gambar rusak (crash) jika sumber gambar tidak dapat dimuat (fallback to Text Node). Merapikan tampilan Notifikasi dengan Clay-Card variant, border radius melengkung halus, border berwarna sesuai tipe notifikasi, dan animasi Fade-In/Scale (Framer Motion). Dan telah memastikan email Nota pembelian yang dikirim pada proses "Kirim Nota Pembeli Sari Roti" menampilkan detail item pemesanan yang jelas.
+v1.2.12 - [FEATURE] Memisahkan sistem penyerahan Sari Roti (Pesanan Siap Diambil) menjadi menu tersendiri "Penyerahan Roti" khusus di Dashboard Admin. Menghubungkan setiap notifikasi push dan in-app menggunakan "Deep Link", agar saat diklik akan otomatis membuka halaman/menu yang terkait secara presisi (contoh: Notifikasi Reset Password akan mengarah ke tabel reset password, Notifikasi nota berhasil/siap diambil akan otomatis mengarah ke Detail Transaksi Pembeli).
+v1.2.11 - [UPDATE] Membedakan hak akses Admin SPS Corner dengan Super Admin (alfanza26@gmail.com). Tombol "Konfirmasi Pesanan" & "Kirim Nota" untuk pembelian Roti Sariroti sekarang HANYA bisa diakses oleh Admin SPS Corner (spscorner@gmail.com) dan Disembunyikan dari Super Admin.
+v1.2.10 - [FIX] Memperbaiki bug dimana fitur "Selesai Reset" pada admin dashboard tidak mereset password pengguna ke default (123456). Sekarang setelah diselesaikan, password user akan otomatis menggunakan 123456.
+v1.2.9 - [FIX] Menghapus kolom 'pic_name' dari jadwal standby karena isu schema realtime database, memperbarui UI input Jam Mulai & Jam Selesai agar lebih rapi. Menampilkan daftar permintaan reset password di dashboard menggunakan Endpoint Backend agar tidak terhambat oleh kebijakan akses RLS Supabase.
+v1.2.8 - [FEATURE] Form penjadwalan standby admin sekarang mendukung pemilihan multi-hari langsung (Senin, Selasa, dll) tanpa harus input manual satu-satu.
+v1.2.7 - [FIX] Memperbaiki fitur Request Rubah Password. Sekarang notifikasi akan otomatis masuk ke dashboard Admin apabila ada permintaan reset password.
+v1.2.6 - [FIX] Memperbaiki halaman "blank/hitam" karena redirect `undefined` setelah login jika ada stale route history.
+v1.2.5 - [FIX] Memperbaiki tautan (link) tombol dalam Email Sariroti yang mengarah ke dashboard Admin Utama dengan tulisan yang membingungkan. Sekarang email mengarah langsung ke **Dashboard Penjual (Pesanan Masuk)** dan instruksinya sudah disesuaikan agar konfirmasi dilakukan lewat akun Admin Sariroti/Seller (Sesuai tombol "Konfirmasi" yang baru ditambahkan).
+v1.2.4 - [FIX] Memperbaiki bug dimana transaksi kosong di dashboard penjual karena masalah RLS Supabase. Sekarang transaksi tampil dengan benar menggunakan Endpoint Backend.
+v1.2.3 - [FIX] Pesanan Masuk Penjual (Sariroti) sekarang HANYA menampilkan pesanan yang SUDAH DIBAYAR (paid/success/completed). Pesanan yang pending atau failed tidak akan dimunculkan lagi ke Penjual untuk di konfirmasi (ready).
+v1.2.2 - Memperbaiki Bug fatal tampilan (UI) yang hilang & memperbaiki bug Transactions List Sariroti gagal load karena product name undefined.
+v1.2.1 - Perbaikan Bug navigasi: Redirect yang benar ke halaman sukses setelah validasi pembayaran manual.
+v1.2.0 - Menambahkan PIC (Petugas Piket) ke jadwal standby & melengkapi notifikasi banner agar Restock transparan.
+v1.1.7 - Menghapus random token pick-up, menggunakan Nota koperasi, dan memperbaiki fitur digital produk.
+v1.1.6 - Konfirmasi pesanan siap via panel admin dan notifikasi.
+v1.1.5 - Fix bug seller_id untuk Sariroti.
+v1.0.0 - Rilis Awal Kiosk Kantin.

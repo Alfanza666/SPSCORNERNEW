@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
-import Logo from '../../components/ui/logo-landscape.png';
+import SPSLogo from '../../components/SPSLogo';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 
 function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
@@ -100,6 +100,10 @@ export default function DashboardLayout() {
   const notificationDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
     function handleClickOutside(event: MouseEvent) {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
         setIsProfileDropdownOpen(false);
@@ -111,6 +115,17 @@ export default function DashboardLayout() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (location.hash) {
+      setTimeout(() => {
+        const element = document.getElementById(location.hash.substring(1));
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 500); // Wait for content load
+    }
+  }, [location]);
 
   if (isLoading) {
     return (
@@ -126,7 +141,7 @@ export default function DashboardLayout() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   const handleSignOut = async () => {
@@ -182,6 +197,13 @@ export default function DashboardLayout() {
               onClick={() => { navigate("/dashboard/admin/transactions"); setIsSidebarOpen(false); }}
             />
           </div>
+          <NavItem 
+            to="/dashboard/admin/pickup" 
+            icon={Package} 
+            label="Penyerahan Roti" 
+            isActive={location.pathname === "/dashboard/admin/pickup"}
+            onClick={() => { navigate("/dashboard/admin/pickup"); setIsSidebarOpen(false); }}
+          />
           <div className="tour-admin-sidebar-withdrawals">
             <NavItem 
               to="/dashboard/admin/withdrawals" 
@@ -301,19 +323,7 @@ export default function DashboardLayout() {
         <div className="h-28 flex items-center px-10 border-b border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate('/')}>
             <div className="relative">
-              <motion.img 
-                whileHover={{ scale: 1.05, rotate: 2 }}
-                src={Logo} 
-                alt="SPS Corner Logo" 
-                className="h-16 w-auto object-contain drop-shadow-md" 
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-                }} 
-              />
-              <div className="hidden clay-icon-amber w-12 h-12">
-                <ShieldCheck className="w-8 h-8" />
-              </div>
+              <SPSLogo variant="wide" className="h-16 drop-shadow-md transition-transform hover:scale-105 hover:rotate-2" />
             </div>
           </div>
         </div>
@@ -391,13 +401,7 @@ export default function DashboardLayout() {
             >
               <div className="h-20 flex items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800">
                 <div className="flex items-center gap-2 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
-                  <img src={Logo} alt="SPS Corner Logo" className="h-10 w-auto object-contain" onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                    (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-                  }} />
-                  <div className="hidden w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center text-white">
-                    <ShieldCheck className="w-5 h-5" />
-                  </div>
+                  <SPSLogo variant="wide" className="h-10" />
                 </div>
                 <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
                   <X className="w-6 h-6" />
@@ -513,42 +517,50 @@ export default function DashboardLayout() {
                           <p className="text-sm font-medium">Belum ada notifikasi baru</p>
                         </div>
                       ) : (
-                      notifications.filter(n => !n.isRead).map((notif) => (
-                          <div 
+                        notifications.filter(n => !n.isRead).map((notif) => (
+                          <motion.div 
                             key={notif.id}
-                            className={`p-6 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors border-b border-zinc-50 dark:border-zinc-800 cursor-pointer group ${!notif.isRead ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+                            role="alert"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.2 }}
+                            className={`m-3 p-4 sm:p-5 rounded-2xl cursor-pointer group transition-all shadow-sm ${
+                              notif.type === 'transaction' ? 'bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50' :
+                              notif.type === 'withdrawal' ? 'bg-amber-50/50 hover:bg-amber-50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50' :
+                              'bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
+                            }`}
                             onClick={() => {
                               markOneAsRead(notif.id);
                               setIsNotificationDropdownOpen(false);
                               navigate(notif.path);
                             }}
                           >
-                            <div className="flex gap-4">
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 clay-icon group-hover:scale-110 transition-transform ${
-                                notif.type === 'transaction' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' :
-                                notif.type === 'withdrawal' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' :
-                                'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                            <div className="flex gap-3 sm:gap-4">
+                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 clay-icon group-hover:scale-105 transition-transform shadow-sm ${
+                                notif.type === 'transaction' ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400' :
+                                notif.type === 'withdrawal' ? 'bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400' :
+                                'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
                               }`}>
-                                {notif.type === 'transaction' ? <Receipt className="w-6 h-6" /> :
-                                 notif.type === 'withdrawal' ? <CreditCard className="w-6 h-6" /> :
-                                 <Info className="w-6 h-6" />}
+                                {notif.type === 'transaction' ? <Receipt className="w-5 h-5 sm:w-6 sm:h-6" /> :
+                                 notif.type === 'withdrawal' ? <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" /> :
+                                 <Info className="w-5 h-5 sm:w-6 sm:h-6" />}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
-                                  <p className={`text-sm font-black ${!notif.isRead ? 'text-zinc-900 dark:text-white' : 'text-zinc-700 dark:text-zinc-300'}`}>
+                                  <p className="text-sm font-black text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                     {notif.title}
                                   </p>
                                   {!notif.isRead && (
-                                    <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 mt-1.5" />
+                                    <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 mt-1.5 shadow-sm" />
                                   )}
                                 </div>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">{notif.message}</p>
-                                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest mt-3">
+                                <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 sm:mt-1.5 leading-relaxed font-medium">{notif.message}</p>
+                                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mt-2 sm:mt-3">
                                   {new Date(notif.time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               </div>
                             </div>
-                          </div>
+                          </motion.div>
                         ))
                       )}
                     </div>

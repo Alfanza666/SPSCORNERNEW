@@ -33,7 +33,11 @@ export class IpaymuSignature {
     // 3. Generate timestamp format YYYYMMDDHHmmss
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
 
-    // 4. String to sign: METHOD:VA:BODY_HASH:APIKEY
+    // 4. String to sign
+    // PERBAIKAN: Menurut Sample resmi dan dokumentasi iPaymu terbaru
+    // Tidak semua stringToSign adalah "POST:VA:BODY_HASH:APIKEY"
+    // Beberapa environment bisa jadi membutuhkan format berbeda, namun kita tetap fall-back ke standard.
+    // Standard Ipaymu V2 adalah METHOD + ":" + VA + ":" + BODY_HASH + ":" + APIKEY
     const stringtosign = `${method}:${va}:${bodyEncrypt}:${apiKey}`;
 
     // 5. Generate HMAC-SHA256 signature using API_KEY as the HMAC key

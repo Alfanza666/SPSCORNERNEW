@@ -52,7 +52,7 @@ const getProductLogo = (brand: string, category: string) => {
    * Contoh: /public/images/brands/telkomsel.png
    */
   const localLogo = `/images/brands/${b.replace(/\s+/g, '-')}.png`;
-  
+
   // Pulsa & Data (Indonesian Telcos - Official Wikipedia/Commons Links)
   if (b.includes('telkomsel')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Telkomsel_2021_logo.svg/1200px-Telkomsel_2021_logo.svg.png';
   if (b.includes('indosat')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Indosat_Ooredoo_Hutchison_logo.svg/1200px-Indosat_Ooredoo_Hutchison_logo.svg.png';
@@ -61,13 +61,13 @@ const getProductLogo = (brand: string, category: string) => {
   if (b.includes('smartfren')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Smartfren_logo.svg/1200px-Smartfren_logo.svg.png';
   if (b.includes('tri') || b.includes('three')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Three_logo.svg/1200px-Three_logo.svg.png';
   if (b.includes('by.u') || b.includes('byu')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/By.U_logo.svg/1200px-By.U_logo.svg.png';
-  
+
   // PLN & Utilities
   if (b.includes('pln') || b.includes('listrik')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Logo_PLN.svg/1200px-Logo_PLN.svg.png';
   if (b.includes('pdam') || b.includes('air')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Logo_PDAM.svg/1200px-Logo_PDAM.svg.png';
   if (b.includes('bpjs')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Logo_BPJS_Kesehatan.svg/1200px-Logo_BPJS_Kesehatan.svg.png';
   if (b.includes('indihome') || b.includes('telkom')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/IndiHome_logo.svg/1200px-IndiHome_logo.svg.png';
-  
+
   // E-Wallet & E-Money
   if (b.includes('gopay') || b.includes('go-pay') || b.includes('gojek')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Gopay_logo.svg/1200px-Gopay_logo.svg.png';
   if (b.includes('ovo')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Logo_ovo_purple.svg/1200px-Logo_ovo_purple.svg.png';
@@ -75,19 +75,19 @@ const getProductLogo = (brand: string, category: string) => {
   if (b.includes('shopee')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/Shopee.svg/1200px-Shopee.svg.png';
   if (b.includes('linkaja')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/LinkAja_logo.svg/1200px-LinkAja_logo.svg.png';
   if (b.includes('isaku')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/I-Saku_logo.svg/1200px-I-Saku_logo.svg.png';
-  
+
   // Games
   if (b.includes('mobile legends')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d0/Mobile_Legends_Bang_Bang_logo.png/1200px-Mobile_Legends_Bang_Bang_logo.png';
   if (b.includes('free fire')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/d/d1/Free_Fire_Logo.svg/1200px-Free_Fire_Logo.svg.png';
   if (b.includes('pubg')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/a/a2/PUBG_Mobile_Logo.png/1200px-PUBG_Mobile_Logo.png';
   if (b.includes('genshin')) return 'https://upload.wikimedia.org/wikipedia/en/thumb/5/5d/Genshin_Impact_logo.svg/1200px-Genshin_Impact_logo.svg.png';
   if (b.includes('valorant')) return 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Valorant_logo_-_pink_color_version.svg/1200px-Valorant_logo_-_pink_color_version.svg.png';
-  
+
   // Fallbacks
   if (category === 'Pulsa' || category === 'Data') return 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&q=80&w=400';
   if (category === 'Games') return 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&q=80&w=400';
   if (category === 'PLN') return 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Logo_PLN.svg/1200px-Logo_PLN.svg.png';
-  
+
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(brand || category || 'Produk')}&background=0066ff&color=fff&rounded=true&bold=true`;
 };
 
@@ -401,8 +401,8 @@ export default function DigitalProducts() {
             <button
               onClick={() => handlePlnTypeChange('prabayar')}
               className={`p-4 rounded-2xl border-2 font-bold transition-all ${plnType === 'prabayar'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                  : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:border-blue-300'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:border-blue-300'
                 }`}
             >
               Token Listrik (Prabayar)
@@ -410,8 +410,8 @@ export default function DigitalProducts() {
             <button
               onClick={() => handlePlnTypeChange('pascabayar')}
               className={`p-4 rounded-2xl border-2 font-bold transition-all ${plnType === 'pascabayar'
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                  : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:border-blue-300'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                : 'border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:border-blue-300'
                 }`}
             >
               Tagihan Listrik (Pascabayar)
@@ -460,14 +460,14 @@ export default function DigitalProducts() {
                     className="bg-slate-50 dark:bg-zinc-800/50 p-4 rounded-2xl border-2 border-transparent hover:border-blue-500 transition-all text-center"
                   >
                     <div className="w-16 h-16 mx-auto mb-3 bg-white dark:bg-zinc-800 rounded-xl flex items-center justify-center p-2">
-                      <img 
-                        src={`/images/brands/${brand.toLowerCase().replace(/\s+/g, '-')}.png`} 
-                        alt={brand} 
-                        className="w-full h-full object-contain" 
+                      <img
+                        src={`/images/brands/${brand.toLowerCase().replace(/\s+/g, '-')}.png`}
+                        alt={brand}
+                        className="w-full h-full object-contain"
                         referrerPolicy="no-referrer"
-                        onError={(e) => { 
+                        onError={(e) => {
                           e.currentTarget.onerror = null;
-                          e.currentTarget.src = getProductLogo(brand, selectedCategory.name); 
+                          e.currentTarget.src = getProductLogo(brand, selectedCategory.name);
                         }}
                       />
                     </div>
@@ -483,14 +483,14 @@ export default function DigitalProducts() {
       return (
         <div className="space-y-4">
           <div className="flex items-center gap-4 mb-6">
-            <img 
-              src={`/images/brands/${selectedBrand.toLowerCase().replace(/\s+/g, '-')}.png`} 
-              alt={selectedBrand} 
-              className="w-12 h-12 object-contain rounded-lg" 
+            <img
+              src={`/images/brands/${selectedBrand.toLowerCase().replace(/\s+/g, '-')}.png`}
+              alt={selectedBrand}
+              className="w-12 h-12 object-contain rounded-lg"
               referrerPolicy="no-referrer"
-              onError={(e) => { 
+              onError={(e) => {
                 e.currentTarget.onerror = null;
-                e.currentTarget.src = getProductLogo(selectedBrand, selectedCategory.name); 
+                e.currentTarget.src = getProductLogo(selectedBrand, selectedCategory.name);
               }}
             />
             <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedBrand}</h2>
@@ -765,10 +765,10 @@ export default function DigitalProducts() {
                 >
                   {/* Background Image with Overlay */}
                   <div className="absolute inset-0 z-0">
-                    <img 
-                      src={cat.heroImage} 
-                      alt="" 
-                      className="w-full h-full object-cover opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-all duration-700" 
+                    <img
+                      src={cat.heroImage}
+                      alt=""
+                      className="w-full h-full object-cover opacity-20 group-hover:opacity-40 group-hover:scale-110 transition-all duration-700"
                     />
                     <div className="absolute inset-0 bg-gradient-to-br from-white via-white/95 to-white/80 dark:from-zinc-900 dark:via-zinc-900/95 dark:to-zinc-900/80" />
                   </div>
@@ -777,7 +777,7 @@ export default function DigitalProducts() {
                     <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
                     <cat.icon className="w-7 h-7 text-white relative z-10" />
                   </div>
-                  
+
                   <div className="relative z-10 mt-auto">
                     <h3 className="font-black text-xl text-slate-900 dark:text-white mb-1.5 tracking-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{cat.name}</h3>
                     <p className="text-[11px] font-bold text-slate-500 dark:text-zinc-400 leading-relaxed line-clamp-2 uppercase tracking-widest opacity-80 group-hover:opacity-100 transition-opacity">{cat.description}</p>

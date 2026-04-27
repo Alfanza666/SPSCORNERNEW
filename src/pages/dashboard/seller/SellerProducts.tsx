@@ -22,7 +22,8 @@ import {
   ChevronRight,
   AlertCircle,
   FileSpreadsheet,
-  RotateCcw
+  RotateCcw,
+  Info
 } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, ProductSkeleton } from '../../../components/ui/Skeleton';
 
@@ -42,6 +43,7 @@ export default function SellerProducts() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [importingCSV, setImportingCSV] = useState(false);
   const [isStandbyActive, setIsStandbyActive] = useState(true); // Default true to prevent flicker
+  const [activeStandbyPic, setActiveStandbyPic] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [newProduct, setNewProduct] = useState({
@@ -160,9 +162,15 @@ export default function SellerProducts() {
       const res = await fetch('/api/standby/check');
       const data = await res.json();
       setIsStandbyActive(data.is_standby);
+      if (data.is_standby) {
+        setActiveStandbyPic("Petugas Piket");
+      } else {
+        setActiveStandbyPic('');
+      }
     } catch (error) {
       console.error('Error checking standby:', error);
       setIsStandbyActive(false); // Safety first
+      setActiveStandbyPic('');
     }
   };
 
@@ -446,6 +454,28 @@ export default function SellerProducts() {
           </button>
         </div>
       </div>
+
+      {!isStandbyActive ? (
+        <div className="bg-amber-50/80 dark:bg-amber-900/10 p-5 rounded-2xl border border-amber-200/50 dark:border-amber-900/30 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex flex-shrink-0 items-center justify-center">
+            <Info className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">Restock Tutup Sementara</h3>
+            <p className="text-xs text-amber-700 dark:text-amber-400/80 leading-relaxed mt-1">Saat ini belum ada jadwal petugas piket yang standby di lokasi. Silakan tunggu hingga petugas koperasi bertugas untuk melakukan request restock.</p>
+          </div>
+        </div>
+      ) : activeStandbyPic && (
+        <div className="bg-emerald-50/80 dark:bg-emerald-900/10 p-5 rounded-2xl border border-emerald-200/50 dark:border-emerald-900/30 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex flex-shrink-0 items-center justify-center">
+            <Package className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-emerald-900 dark:text-emerald-200">Restock Tersedia</h3>
+            <p className="text-xs text-emerald-700 dark:text-emerald-400/80 leading-relaxed mt-1">Saat ini <span className="font-bold underline">{activeStandbyPic}</span> sedang bertugas. Kamu bisa melakukan Request Restock dan menemui petugas untuk verifikasi barang.</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96 group">
@@ -1012,6 +1042,11 @@ export default function SellerProducts() {
                 <div className="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl">
                   <p className="text-sm font-medium text-zinc-900 dark:text-white">{restockingProduct.name}</p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Stok saat ini: {restockingProduct.stock}</p>
+                  {activeStandbyPic && (
+                    <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800/30">
+                      <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">👨‍💼 PIC / Petugas Standby: <span className="font-bold">{activeStandbyPic}</span></p>
+                    </div>
+                  )}
                 </div>
 
                 <form onSubmit={handleRequestRestock} className="space-y-6">

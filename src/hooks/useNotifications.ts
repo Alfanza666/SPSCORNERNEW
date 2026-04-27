@@ -64,7 +64,22 @@ export function useNotifications() {
         schema: 'public', 
         table: 'notifications',
         filter: `user_id=eq.${user.id}`
-      }, fetchNotifications)
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          // Attempt to show browser notification
+          if (Notification.permission === 'granted') {
+            try {
+              new Notification(payload.new.title, {
+                body: payload.new.message,
+                icon: '/vite.svg'
+              });
+            } catch (e) {
+              console.error('Failed to show push notification', e);
+            }
+          }
+        }
+        fetchNotifications();
+      })
       .subscribe();
 
     return () => {

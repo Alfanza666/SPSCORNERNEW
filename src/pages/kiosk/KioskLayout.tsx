@@ -6,9 +6,10 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
 import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
-import Logo from '../../components/ui/logo-landscape.png';
+import SPSLogo from '../../components/SPSLogo';
 import PhonePromptModal from '../../components/PhonePromptModal';
 import { useNotifications } from '../../hooks/useNotifications';
+import { motion, AnimatePresence } from 'motion/react';
 
 function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -43,6 +44,9 @@ export default function KioskLayout() {
   // Show phone modal if user is logged in via Google but has no phone
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     if (user && isCatalog && !user.phone) {
       // Small delay to avoid jarring the user immediately
       const t = setTimeout(() => setShowPhoneModal(true), 1500);
@@ -51,7 +55,7 @@ export default function KioskLayout() {
   }, [user, isCatalog]);
 
   // Notification bell for logged-in buyers
-  const { unreadCount, notifications, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   const currentStepIndex = STEPS.findIndex(step => step.path === location.pathname);
@@ -155,18 +159,7 @@ export default function KioskLayout() {
               )}
               <div className="flex items-center gap-2 cursor-pointer group" onClick={handleHomeClick}>
                 <div className="relative">
-                  <img 
-                    src={Logo} 
-                    alt="SPS Corner Logo" 
-                    className="h-10 sm:h-14 w-auto object-contain drop-shadow-sm transition-transform hover:scale-110 hover:rotate-3" 
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                      (e.target as HTMLImageElement).nextElementSibling!.classList.remove('hidden');
-                    }} 
-                  />
-                  <div className="hidden clay-icon-amber w-6 h-6 sm:w-8 sm:h-8">
-                    <Home className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </div>
+                  <SPSLogo variant="wide" className="h-10 sm:h-14 transition-transform hover:scale-110 hover:rotate-3" />
                 </div>
               </div>
             </div>
@@ -193,7 +186,7 @@ export default function KioskLayout() {
                       {/* Notification Bell */}
                       <div className="relative">
                         <button
-                          onClick={() => { setShowNotifDropdown(v => !v); markAllAsRead(); }}
+                          onClick={() => { setShowNotifDropdown(v => !v); }}
                           className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 relative"
                           title="Notifikasi"
                         >
@@ -206,24 +199,43 @@ export default function KioskLayout() {
                         </button>
                         {showNotifDropdown && (
                           <div className="absolute right-0 top-12 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 z-[100] overflow-hidden">
-                            <div className="p-3 border-b border-zinc-100 dark:border-zinc-800">
+                            <div className="p-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
                               <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Notifikasi</p>
+                              {unreadCount > 0 && (
+                                <button 
+                                  onClick={() => markAllAsRead()}
+                                  className="text-[10px] font-black text-blue-600 hover:text-blue-700"
+                                >
+                                  Tandai Semua Dibaca
+                                </button>
+                              )}
                             </div>
                             <div className="max-h-72 overflow-y-auto">
-                              {notifications.length === 0 ? (
-                                <p className="text-center text-zinc-400 text-xs font-medium py-6">Tidak ada notifikasi</p>
-                              ) : (
-                                notifications.slice(0, 10).map(n => (
-                                  <button
-                                    key={n.id}
-                                    onClick={() => { navigate(n.path); setShowNotifDropdown(false); }}
-                                    className={`w-full text-left p-3 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors ${ !n.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
-                                  >
-                                    <p className="text-xs font-black text-zinc-900 dark:text-white leading-snug">{n.title}</p>
-                                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2 font-medium">{n.message}</p>
-                                  </button>
-                                ))
-                              )}
+                              <AnimatePresence>
+                                {notifications.filter(n => !n.isRead).length === 0 ? (
+                                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-zinc-400 text-xs font-medium py-6">Tidak ada notifikasi baru</motion.p>
+                                ) : (
+                                  notifications.filter(n => !n.isRead).slice(0, 10).map(n => (
+                                    <motion.button
+                                      initial={{ opacity: 0, scale: 0.95 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      exit={{ opacity: 0, scale: 0.95 }}
+                                      transition={{ duration: 0.2 }}
+                                      key={n.id}
+                                      role="alert"
+                                      onClick={() => { markOneAsRead(n.id); navigate(n.path); setShowNotifDropdown(false); }}
+                                      className={`w-full text-left p-3 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-l-4 ${
+                                        n.type === 'transaction' ? 'bg-blue-50/50 dark:bg-blue-900/10 border-l-blue-500' :
+                                        n.type === 'withdrawal' ? 'bg-amber-50/50 dark:bg-amber-900/10 border-l-amber-500' :
+                                        'bg-zinc-50 dark:bg-zinc-800/50 border-l-zinc-300 dark:border-l-zinc-600'
+                                      }`}
+                                    >
+                                      <p className="text-xs font-black text-zinc-900 dark:text-white leading-snug">{n.title}</p>
+                                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 font-medium">{n.message}</p>
+                                    </motion.button>
+                                  ))
+                                )}
+                              </AnimatePresence>
                             </div>
                           </div>
                         )}

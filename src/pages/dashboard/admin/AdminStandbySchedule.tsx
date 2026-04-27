@@ -13,10 +13,10 @@ export default function AdminStandbySchedule() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newEntry, setNewEntry] = useState({
-    day_of_week: 1,
     start_time: '08:00',
     end_time: '17:00'
   });
+  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // default Mon-Fri
 
   useEffect(() => {
     fetchSchedules();
@@ -41,13 +41,31 @@ export default function AdminStandbySchedule() {
     }
   };
 
+  const toggleDay = (dayIndex: number) => {
+    if (selectedDays.includes(dayIndex)) {
+      setSelectedDays(selectedDays.filter(d => d !== dayIndex));
+    } else {
+      setSelectedDays([...selectedDays, dayIndex].sort());
+    }
+  };
+
   const handleAddSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedDays.length === 0) {
+      toast.error('Pilih minimal satu hari!');
+      return;
+    }
     setSaving(true);
     try {
+      const inserts = selectedDays.map(day => ({
+        day_of_week: day,
+        start_time: newEntry.start_time,
+        end_time: newEntry.end_time
+      }));
+
       const { error } = await supabase
         .from('standby_schedules')
-        .insert([newEntry]);
+        .insert(inserts);
       
       if (error) throw error;
       
@@ -108,34 +126,45 @@ export default function AdminStandbySchedule() {
           <form onSubmit={handleAddSchedule} className="space-y-6">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Hari</label>
-              <select 
-                value={newEntry.day_of_week}
-                onChange={(e) => setNewEntry({...newEntry, day_of_week: parseInt(e.target.value)})}
-                className="input-clay h-12"
-              >
+              <div className="flex flex-wrap gap-2">
                 {DAYS.map((day, i) => (
-                  <option key={i} value={i}>{day}</option>
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => toggleDay(i)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                      selectedDays.includes(i)
+                        ? 'bg-blue-100 border-blue-500/30 text-blue-700 dark:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-300'
+                        : 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/80'
+                    }`}
+                  >
+                    {day}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Jam Mulai</label>
-                <input 
-                  type="time" 
-                  value={newEntry.start_time}
-                  onChange={(e) => setNewEntry({...newEntry, start_time: e.target.value})}
-                  className="input-clay h-12"
-                />
+                <div className="relative">
+                  <input 
+                    type="time" 
+                    value={newEntry.start_time}
+                    onChange={(e) => setNewEntry({...newEntry, start_time: e.target.value})}
+                    className="input-clay h-12 w-full appearance-none pr-4"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Jam Selesai</label>
-                <input 
-                  type="time" 
-                  value={newEntry.end_time}
-                  onChange={(e) => setNewEntry({...newEntry, end_time: e.target.value})}
-                  className="input-clay h-12"
-                />
+                <div className="relative">
+                  <input 
+                    type="time" 
+                    value={newEntry.end_time}
+                    onChange={(e) => setNewEntry({...newEntry, end_time: e.target.value})}
+                    className="input-clay h-12 w-full appearance-none pr-4"
+                  />
+                </div>
               </div>
             </div>
             <button 
