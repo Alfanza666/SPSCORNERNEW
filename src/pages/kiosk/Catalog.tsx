@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, Product } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
-import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight, Loader2, X, Store } from 'lucide-react';
+import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight, Loader2, X, Store, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import React, { Suspense } from 'react';
+
+const ProductDetailModal = React.lazy(() => import('./ProductDetailModal'));
 
 export default function Catalog() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -36,7 +39,7 @@ export default function Catalog() {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('id, name, price, stock, category, seller_id, is_active, description, image_url, profiles:seller_id(name)')
         .eq('is_active', true)
         .gt('stock', 0);
 
@@ -45,7 +48,7 @@ export default function Catalog() {
       if (data) {
         // Categorize Koperasi products into Roti Tawar, Roti Manis, Roti Sandwich, Kue, and Sari Choco
         const processedProducts = data.map(p => {
-          if (isKoperasiProduct(p)) {
+          if (isKoperasiProduct(p as any as Product)) {
             let newCategory = p.category;
             const name = p.name.toLowerCase();
             const cat = (p.category || '').toLowerCase();
@@ -66,7 +69,7 @@ export default function Catalog() {
           return p;
         });
 
-        setProducts(processedProducts);
+        setProducts(processedProducts as any as Product[]);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -127,6 +130,11 @@ export default function Catalog() {
       {/* Header Section */}
       <div className="bg-white dark:bg-zinc-900 px-4 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-4 rounded-b-2xl sm:rounded-b-3xl shadow-sm dark:shadow-black/20 relative z-20 transition-colors duration-300">
         <div className="max-w-7xl mx-auto">
+          <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-600 mb-3 sm:mb-4 uppercase tracking-widest">
+            <span>Menu</span>
+            <span className="opacity-50">/</span>
+            <span className="text-blue-600 dark:text-blue-400">Katalog Produk</span>
+          </div>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-5">
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tracking-tighter mb-0.5 transition-colors">
@@ -245,7 +253,9 @@ export default function Catalog() {
                       alt={product.name}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       referrerPolicy="no-referrer"
-                      loading="lazy"
+                      loading={index < 8 ? "eager" : "lazy"}
+                      decoding="async"
+                      {...(index < 4 ? { fetchPriority: "high" } : {})}
                     />
                     {product.stock <= 5 && product.stock > 0 && (
                       <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1 py-0.5 sm:px-1.5 sm:py-0.5 bg-amber-400 dark:bg-amber-500 text-amber-950 text-[6px] sm:text-[8px] font-bold rounded-full shadow-sm uppercase tracking-wider">
@@ -345,118 +355,12 @@ export default function Catalog() {
       {/* Product Detail Modal */}
       <AnimatePresence>
         {selectedProduct && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedProduct(null)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+          <Suspense fallback={null}>
+            <ProductDetailModal 
+              selectedProduct={selectedProduct}
+              setSelectedProduct={setSelectedProduct}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl z-50 overflow-hidden border border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[90vh]"
-            >
-              <div className="relative aspect-video bg-zinc-100 dark:bg-zinc-800 flex-shrink-0">
-                <img
-                  src={selectedProduct.image_url || 'https://picsum.photos/seed/bread/800/600'}
-                  alt={selectedProduct.name}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-                <button
-                  onClick={() => setSelectedProduct(null)}
-                  className="absolute top-4 right-4 w-8 h-8 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center backdrop-blur-md transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-                {selectedProduct.stock <= 5 && selectedProduct.stock > 0 && (
-                  <div className="absolute top-4 left-4 px-3 py-1 bg-amber-400 text-amber-950 text-xs font-bold rounded-full shadow-sm uppercase tracking-wider">
-                    Sisa: {selectedProduct.stock}
-                  </div>
-                )}
-                {selectedProduct.stock === 0 && (
-                  <div className="absolute top-4 left-4 px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full shadow-sm uppercase tracking-wider">
-                    Habis
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div>
-                    <h2 className="text-xl font-black text-zinc-900 dark:text-white leading-tight mb-1">{selectedProduct.name}</h2>
-                    <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400">{selectedProduct.category}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{formatRupiah(selectedProduct.price)}</p>
-                  </div>
-                </div>
-                
-                <div className="mb-6">
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-2">Deskripsi</h3>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                    {selectedProduct.description || 'Tidak ada deskripsi untuk produk ini.'}
-                  </p>
-                </div>
-                
-                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Store className="w-5 h-5 text-zinc-400" />
-                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Informasi Toko</span>
-                  </div>
-                  <div className="text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
-                    <p>Kategori: {selectedProduct.category || 'Umum'}</p>
-                    <p>Tipe: {selectedProduct.is_digital ? 'Produk Digital' : 'Produk Fisik'}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 flex-shrink-0">
-                {(() => {
-                  const cartItem = items.find((item) => item.id === selectedProduct.id);
-                  const quantity = cartItem?.quantity || 0;
-                  
-                  return quantity > 0 ? (
-                    <div className="flex items-center justify-between bg-white dark:bg-zinc-800 rounded-xl p-2 shadow-sm border border-zinc-200 dark:border-zinc-700">
-                      <button
-                        onClick={() => {
-                          if (quantity === 1) removeItem(selectedProduct.id);
-                          else updateQuantity(selectedProduct.id, quantity - 1);
-                        }}
-                        className="w-10 h-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-white rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors"
-                      >
-                        <Minus className="w-5 h-5" />
-                      </button>
-                      <span className="font-black text-lg text-zinc-900 dark:text-white">{quantity}</span>
-                      <button
-                        onClick={() => {
-                          if (quantity < selectedProduct.stock) {
-                            updateQuantity(selectedProduct.id, quantity + 1);
-                          }
-                        }}
-                        disabled={quantity >= selectedProduct.stock}
-                        className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => addItem(selectedProduct)}
-                      disabled={selectedProduct.stock === 0}
-                      className="w-full btn-clay-primary py-3 text-sm flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-5 h-5" />
-                      Tambah ke Keranjang
-                    </button>
-                  );
-                })()}
-              </div>
-            </motion.div>
-          </>
+          </Suspense>
         )}
       </AnimatePresence>
     </div>

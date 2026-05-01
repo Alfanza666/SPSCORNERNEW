@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
-import { Save, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Save, Plus, Trash2, Edit2, Check, X, ShieldAlert } from 'lucide-react';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
@@ -77,6 +78,17 @@ export default function AdminSettings() {
     address: 'Bizpark Commercial Estate Blok C2 No.6.\nJl. Gubernur Soebardjo, Kec. Gambut, Kabupaten Banjar\nKalimantan Selatan, Kode Pos 70652\nIndonesia'
   });
 
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [paymentSettings, setPaymentSettings] = useState({
+    qrisDynamic: true,
+    qrisManual: true,
+    vaBca: false,
+    vaMandiri: false,
+    redirect: true
+  });
+  const { user } = useAuthStore();
+  const isSuperadmin = user?.role === 'superadmin';
+
   useEffect(() => {
     fetchSettings();
   }, []);
@@ -87,7 +99,11 @@ export default function AdminSettings() {
       const { data, error } = await supabase
         .from('settings')
         .select('*')
-        .in('key', ['faq_content', 'refund_policy_content', 'contact_info_content']);
+        .in('key', [
+          'faq_content', 'refund_policy_content', 'contact_info_content', 'loyalty_enabled',
+          'payment_method_qris_dynamic', 'payment_method_qris_manual', 'payment_method_va_bca', 
+          'payment_method_va_mandiri', 'payment_method_redirect'
+        ]);
 
       if (error) throw error;
 
@@ -100,6 +116,22 @@ export default function AdminSettings() {
 
         const contactData = data.find(d => d.key === 'contact_info_content');
         if (contactData) setContactInfo(JSON.parse(contactData.value));
+        
+        const loyaltyData = data.find(d => d.key === 'loyalty_enabled');
+        if (loyaltyData) setLoyaltyEnabled(loyaltyData.value === 'true');
+
+        const getBool = (key: string, def: boolean) => {
+          const found = data.find(d => d.key === key);
+          return found ? found.value === 'true' : def;
+        };
+
+        setPaymentSettings({
+          qrisDynamic: getBool('payment_method_qris_dynamic', true),
+          qrisManual: getBool('payment_method_qris_manual', true),
+          vaBca: getBool('payment_method_va_bca', false),
+          vaMandiri: getBool('payment_method_va_mandiri', false),
+          redirect: getBool('payment_method_redirect', true)
+        });
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
@@ -271,6 +303,95 @@ export default function AdminSettings() {
           </div>
         </div>
       </div>
+      {/* Superadmin Only: Loyalty Points Toggle */}
+      {isSuperadmin && (
+        <>
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+               <ShieldAlert className="w-24 h-24 text-amber-500" />
+            </div>
+            <div className="flex items-center justify-between mb-6 relative z-10">
+              <div>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  Metode Pembayaran (Superadmin)
+                </h2>
+                <p className="text-xs text-zinc-500 mt-1 max-w-xl">
+                  Atur metode pembayaran apa saja yang muncul di halaman Pembayaran / Kiosk.
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 relative z-10">
+              {[
+                { key: 'qrisDynamic', label: 'QRIS Dinamis', desc: 'Sistem QR Otomatis (Gopay dll)' },
+                { key: 'qrisManual', label: 'QRIS Statis', desc: 'Upload Bukti Transfer Manual' },
+                { key: 'vaBca', label: 'VA BCA', desc: 'Virtual Account BCA' },
+                { key: 'vaMandiri', label: 'VA Mandiri', desc: 'Virtual Account Mandiri' },
+                { key: 'redirect', label: 'Metode Lainnya', desc: 'Redirect ke iPaymu' }
+              ].map(method => (
+                <div key={method.key} className="p-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white">{method.label}</h3>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">{method.desc}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newVal = !paymentSettings[method.key as keyof typeof paymentSettings];
+                      setPaymentSettings(prev => ({ ...prev, [method.key]: newVal }));
+                      
+                      const dbKey = 
+                        method.key === 'qrisDynamic' ? 'payment_method_qris_dynamic' :
+                        method.key === 'qrisManual' ? 'payment_method_qris_manual' :
+                        method.key === 'vaBca' ? 'payment_method_va_bca' :
+                        method.key === 'vaMandiri' ? 'payment_method_va_mandiri' :
+                        'payment_method_redirect';
+
+                      handleSave(dbKey, String(newVal));
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${paymentSettings[method.key as keyof typeof paymentSettings] ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-600'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${paymentSettings[method.key as keyof typeof paymentSettings] ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+               <ShieldAlert className="w-24 h-24 text-amber-500" />
+            </div>
+            <div className="flex items-center justify-between mb-6 relative z-10">
+            <div>
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                Program Loyalty (Superadmin)
+              </h2>
+              <p className="text-xs text-zinc-500 mt-1 max-w-xl">
+                Fitur eksklusif untuk memberikan loyalty points untuk transaksi karyawan (dapat ditukar merchandise).
+              </p>
+            </div>
+            
+            <button
+              onClick={() => {
+                setLoyaltyEnabled(!loyaltyEnabled);
+                handleSave('loyalty_enabled', (!loyaltyEnabled).toString());
+              }}
+              disabled={saving}
+              className={`px-4 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-xl transition-all shadow-sm ${loyaltyEnabled ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' : 'btn-clay-primary'}`}
+            >
+              <Save className="w-4 h-4" /> {loyaltyEnabled ? 'Nonaktifkan Program' : 'Aktifkan Program'}
+            </button>
+          </div>
+          
+            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 relative z-10 flex gap-4">
+               <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+               <div className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
+                 <strong>Perhatian:</strong> Menyimpan perubahan ini akan langsung mengaktifkan fitur pencatatan dan penggunaan poin loyalty (Points) Kiosk bagi pegawai internal. Jangan aktifkan jika skema basis data <code>loyalty_points</code> belum ter-migrasi secara penuh di Supabase. (Hanya Anda sebagai Superadmin yang dapat melihat pengaturan ini).
+               </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

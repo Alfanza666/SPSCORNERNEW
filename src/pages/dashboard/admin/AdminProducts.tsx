@@ -318,19 +318,36 @@ export default function AdminProducts() {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('products')
-        .update({
-          name: editingProduct.name,
-          description: editingProduct.description,
-          price: Number(editingProduct.price),
-          stock: Number(editingProduct.stock),
-          category: editingProduct.category,
-          image_url: editingProduct.image_url
-        })
-        .eq('id', editingProduct.id);
+      const payload = {
+        name: editingProduct.name,
+        description: editingProduct.description,
+        price: Number(editingProduct.price),
+        stock: Number(editingProduct.stock),
+        category: editingProduct.category,
+        image_url: editingProduct.image_url,
+        is_active: true
+      };
 
-      if (error) throw error;
+      if (editingProduct.id) {
+        // Update existing
+        const { error } = await supabase
+          .from('products')
+          .update(payload)
+          .eq('id', editingProduct.id);
+        if (error) throw error;
+      } else {
+        // Create new
+        const { error } = await supabase
+          .from('products')
+          .insert({
+            ...payload,
+            seller_id: editingProduct.seller_id || user?.id,
+            is_digital: categories.find(c => c.name === editingProduct.category)?.is_digital || false
+          });
+        if (error) throw error;
+        toast.success(`Berhasil menambahkan produk: ${editingProduct.name}`);
+      }
+
       
       setEditingProduct(null);
       fetchProducts();
@@ -501,6 +518,15 @@ export default function AdminProducts() {
             className="hidden"
           />
           <button 
+            onClick={() => setEditingProduct({ name: '', price: '', stock: 0, category: '', description: '', seller_id: user?.id })} 
+            disabled={loading}
+            className="btn-clay-primary h-12 px-6 flex items-center justify-center gap-3"
+            title="Tambah Produk Baru"
+          >
+            <Package className="w-5 h-5" />
+            <span className="font-bold hidden sm:inline">Tambah Produk</span>
+          </button>
+          <button 
             onClick={cleanupDuplicates} 
             disabled={loading}
             className="btn-clay-secondary h-12 px-6 flex items-center gap-3 text-red-600 hover:text-red-700"
@@ -562,7 +588,9 @@ export default function AdminProducts() {
             >
               <div className="p-8 md:p-10">
                 <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Edit Produk (Admin)</h2>
+                  <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+                    {editingProduct.id ? 'Edit Produk (Admin)' : 'Tambah Produk (Admin)'}
+                  </h2>
                   <button onClick={() => setEditingProduct(null)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
                     <X className="w-6 h-6" />
                   </button>
@@ -713,7 +741,11 @@ export default function AdminProducts() {
                 <motion.tr 
                   layout
                   key={product.id} 
-                  className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group"
+                  className={`transition-colors group ${
+                    product.stock <= 5 
+                      ? 'bg-red-50/30 dark:bg-red-900/10 hover:bg-red-50 dark:hover:bg-red-900/20' 
+                      : 'hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50'
+                  }`}
                 >
                   <td className="p-6">
                     <div className="flex items-center gap-4">
@@ -764,11 +796,16 @@ export default function AdminProducts() {
                           className={`h-full ${product.stock > 5 ? 'bg-blue-600 dark:bg-blue-500' : 'bg-red-500 dark:bg-red-500'}`}
                         />
                       </div>
-                      <span className={`text-[10px] font-black uppercase tracking-wider ${
-                        product.stock > 5 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {product.stock} Tersisa
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className={`text-[10px] font-black uppercase tracking-wider ${
+                          product.stock > 5 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {product.stock} Tersisa
+                        </span>
+                        {product.stock <= 5 && (
+                          <AlertCircle className="w-3 h-3 text-red-500 animate-pulse" />
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="p-6 text-right">
@@ -798,7 +835,12 @@ export default function AdminProducts() {
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-zinc-100 dark:divide-zinc-800">
           {filteredProducts.map((product) => (
-            <div key={product.id} className="p-4 space-y-4">
+            <div 
+              key={product.id} 
+              className={`p-4 space-y-4 ${
+                product.stock <= 5 ? 'bg-red-50/10 dark:bg-red-900/5' : ''
+              }`}
+            >
               <div className="flex items-center gap-4">
                 <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white dark:bg-zinc-800 clay-icon flex-shrink-0">
                   {product.image_url ? (
@@ -816,10 +858,11 @@ export default function AdminProducts() {
                     <span className="clay-badge bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
                       Seller: {product.profiles?.name || 'Unknown'}
                     </span>
-                    <span className={`clay-badge ${
+                    <span className={`clay-badge flex items-center gap-1 ${
                       product.stock > 5 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                     }`}>
                       Stok: {product.stock}
+                      {product.stock <= 5 && <AlertCircle className="w-3 h-3 animate-pulse" />}
                     </span>
                   </div>
                 </div>

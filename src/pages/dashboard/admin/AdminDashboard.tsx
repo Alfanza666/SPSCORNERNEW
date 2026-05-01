@@ -66,7 +66,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
       fetchDashboardData();
       handleAutoCleanup();
     }
@@ -263,9 +263,13 @@ export default function AdminDashboard() {
       }
 
       // Seller revenue breakdown
-      const { data: allItems } = await supabase
+      const { data: allItems, error: itemsError } = await supabase
         .from('transaction_items')
-        .select('transaction_id, seller_id, price, quantity, is_digital, profiles:seller_id(name)');
+        .select('transaction_id, seller_id, price, quantity, metadata, profiles:seller_id(name), products (seller_id, is_digital, profiles:seller_id(name))');
+      
+      if (itemsError) {
+        console.error('Error fetching transaction_items for breakdown:', itemsError);
+      }
 
       // Also get transaction status to only include successful ones
       const { data: successTxIds } = await supabase
@@ -284,10 +288,13 @@ export default function AdminDashboard() {
           let sellerId = 'PPOB_DIGITAL';
           let sellerName = 'Produk Digital (PPOB)';
           
-          if (item.seller_id) {
-            sellerId = item.seller_id;
-            sellerName = (item.profiles as any)?.name || 'Penjual Koperasi';
-          } else if (!item.is_digital) {
+          const isDigital = item.metadata?.is_digital || item.products?.is_digital;
+          const actualSellerId = item.seller_id || item.products?.seller_id;
+          
+          if (actualSellerId) {
+            sellerId = actualSellerId;
+            sellerName = item.products?.profiles?.name || item.profiles?.name || 'Penjual Koperasi';
+          } else if (!isDigital) {
              // Fallback for physical items without a seller
              sellerId = 'UNKNOWN';
              sellerName = 'Produk Koperasi Tanpa Penjual';
@@ -531,7 +538,7 @@ export default function AdminDashboard() {
 
   const maxSales = Math.max(...salesData.map(d => d.sales), 1);
 
-  const StatCard = ({ title, value, icon: Icon, color, trend, subtitle }: any) => (
+  const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
     <motion.div 
       whileHover={{ y: -4, scale: 1.02 }}
       className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-6 flex flex-col gap-4 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md dark:shadow-none transition-all"
@@ -540,12 +547,6 @@ export default function AdminDashboard() {
         <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center ${color}`}>
           <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
-        {trend && (
-          <div className={`flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full ${trend > 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
-            {trend > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
-            {Math.abs(trend)}%
-          </div>
-        )}
       </div>
       <div>
         <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">{title}</p>
@@ -641,10 +642,6 @@ export default function AdminDashboard() {
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
               <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
-              <ArrowUpRight className="w-3 h-3" />
-              12%
-            </div>
           </div>
           <div>
             <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">Total Pendapatan</p>
@@ -655,11 +652,10 @@ export default function AdminDashboard() {
           </div>
         </div>
         <StatCard 
-          title="Total Biaya (8%)" 
+          title="Total Biaya (Fee)" 
           value={formatRupiah(stats.totalFees)} 
           icon={CreditCard} 
           color="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
-          trend={8}
         />
         <StatCard 
           title="Saldo Digiflazz" 

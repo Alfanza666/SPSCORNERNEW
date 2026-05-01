@@ -1,12 +1,18 @@
 {
-  "name": "SPS Corner Kantin Digital",
+  "name": "SPS Corner - Kantin Digital",
   "short_name": "SPS Corner",
-  "description": "Aplikasi Kiosk Kantin Digital SPS Corner",
-  "start_url": "/",
-  "display": "standalone",
+  "description": "Kantin Digital Internal SPS Corner untuk pemesanan kantin dan produk digital",
+  "theme_color": "#2563eb",
   "background_color": "#ffffff",
-  "theme_color": "#059669",
+  "display": "standalone",
+  "start_url": "/",
   "icons": [
+    {
+      "src": "/logos/sps-logo-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
     {
       "src": "/logos/sps-logo-icon.png",
       "sizes": "192x192",
@@ -16,6 +22,12 @@
       "src": "/logos/sps-logo-icon.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/logos/sps-logo-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

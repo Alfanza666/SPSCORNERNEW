@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import { formatRupiah } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
 export default function Success() {
@@ -80,21 +81,8 @@ export default function Success() {
   }, []);
 
   useEffect(() => {
-    const hasProcessingDigital = transaction?.transaction_items?.some(
-      (item: any) => item.metadata?.is_digital && item.metadata?.status === 'processing'
-    );
-
-    let timer: any;
-    if (!hasProcessingDigital) {
-      timer = setTimeout(() => {
-        navigate('/kiosk');
-      }, 15000); // Only auto-redirect after 15s if everything is processed
-    }
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [navigate, transaction]);
+    // We no longer auto navigate to kiosk. User must click explicitly.
+  }, []);
 
   const handlePrint = () => {
     window.print();
@@ -205,82 +193,83 @@ Sistem SPS Corner`);
   const digitalItems = transaction?.transaction_items?.filter((item: any) => item.metadata?.is_digital);
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-      {/* Decorative Background */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full -z-10 opacity-30 dark:opacity-10">
-        <div className="absolute top-0 left-0 w-40 h-40 sm:w-64 sm:h-64 bg-blue-200 dark:bg-blue-600 rounded-full blur-2xl animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-40 h-40 sm:w-64 sm:h-64 bg-amber-200 dark:bg-amber-600 rounded-full blur-2xl animate-pulse" />
-      </div>
-
+    <div className="min-h-[85vh] flex items-center justify-center p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950">
       <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', bounce: 0.4, duration: 0.8 }}
-        className="text-center max-w-md w-full clay-card p-6 sm:p-8 relative"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', bounce: 0.3, duration: 0.8 }}
+        className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-xl border border-zinc-200 dark:border-zinc-800"
       >
-        {/* Floating Stars */}
-        <motion.div 
-          animate={{ rotate: 360 }}
-          transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
-          className="absolute -top-3 -left-3 sm:-top-5 sm:-left-5 text-amber-400 drop-shadow-lg"
-        >
-          <Star className="w-6 h-6 sm:w-10 sm:h-10 fill-current" />
-        </motion.div>
-        <motion.div 
-          animate={{ rotate: -360 }}
-          transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
-          className="absolute -bottom-3 -right-3 sm:-bottom-5 sm:-right-5 text-amber-400 drop-shadow-lg"
-        >
-          <Star className="w-5 h-5 sm:w-8 sm:h-8 fill-current" />
-        </motion.div>
+        {/* Top Header Card */}
+        <div className={`relative p-8 text-center ${transaction?.status === 'pending' ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20'}`}>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${transaction?.status === 'pending' ? 'bg-amber-100 dark:bg-amber-800/50 text-amber-600 dark:text-amber-400' : 'bg-emerald-100 dark:bg-emerald-800/50 text-emerald-600 dark:text-emerald-400'}`}
+          >
+            {transaction?.status === 'pending' ? (
+              <Clock className="w-8 h-8" />
+            ) : (
+              <CheckCircle2 className="w-8 h-8" />
+            )}
+          </motion.div>
+          <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white mb-2">
+            {transaction?.status === 'pending' ? 'Pembayarannya masih diverifikasi' : 'Pembayaran Anda berhasil!'}
+          </h1>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {transaction?.status === 'pending'
+              ? 'Pilih \'Cek lagi statusnya\' untuk perbarui status transaksi, atau lihat riwayat pesanan.'
+              : 'Pesanan Anda telah diterima. Cek statusnya di halaman riwayat pesanan.'}
+          </p>
+        </div>
 
-        <motion.div
-          initial={{ scale: 0, rotate: -45 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-          className={`w-14 h-14 sm:w-16 sm:h-16 ${transaction?.status === 'pending' ? 'bg-amber-500' : 'bg-blue-500'} rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-md`}
-        >
-          {transaction?.status === 'pending' ? (
-            <Clock className="w-8 h-8 sm:w-10 sm:h-10 text-white stroke-[1.5]" />
-          ) : (
-            <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-white stroke-[1.5]" />
-          )}
-        </motion.div>
-
-        <h1 className="text-xl sm:text-3xl font-black text-zinc-900 dark:text-white mb-2 sm:mb-3 tracking-tight">
-          {transaction?.status === 'pending' ? 'Pesanan Diterima!' : 'Yuhuu! Berhasil.'}
-        </h1>
-        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 mb-4 sm:mb-6 leading-relaxed px-2 font-medium">
-          {transaction?.status === 'pending' 
-            ? 'Pesanan Anda sedang menunggu konfirmasi pembayaran dari Admin. Silakan cek status pesanan Anda secara berkala.'
-            : <>Terima kasih telah berbelanja di <span className="text-blue-600 dark:text-blue-400 font-black">SPS Corner</span>. Pesananmu sudah tercatat dan siap untuk dinikmati!</>}
-        </p>
-
-        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-3 sm:p-4 mb-6 sm:mb-8 border border-zinc-100 dark:border-zinc-800 flex flex-col items-center justify-center gap-1.5 shadow-inner">
-          <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest">Waktu Transaksi</p>
-          <div className="flex items-center gap-2 text-zinc-800 dark:text-zinc-200 font-mono font-bold text-sm sm:text-base">
-            <Clock className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-            {format(currentTime, 'dd MMM yyyy, HH:mm:ss', { locale: id })}
+        {/* Content Body */}
+        <div className="p-6">
+          <p className="text-sm font-bold text-zinc-900 dark:text-white mb-4">Ringkasan belanja</p>
+          <div className="space-y-3 mb-6">
+            {transaction?.transaction_items && transaction.transaction_items.slice(0, 3).map((item: any, idx: number) => (
+              <div key={idx} className="flex justify-between items-center text-sm">
+                <span className="text-zinc-600 dark:text-zinc-400">{item.products?.name || item.metadata?.product_name || 'Produk'} (x{item.quantity})</span>
+                <span className="text-zinc-900 dark:text-white font-medium">{item.price ? formatRupiah(item.price * item.quantity) : '-'}</span>
+              </div>
+            ))}
+            {(transaction?.transaction_items?.length || 0) > 3 && (
+              <div className="text-sm text-zinc-500 font-medium">+ {(transaction?.transaction_items?.length || 0) - 3} produk lainnya</div>
+            )}
+            
+            <div className="flex justify-between items-center text-sm pt-4 border-t border-zinc-100 dark:border-zinc-800">
+              <span className="font-bold text-zinc-900 dark:text-white">Total pembayaran</span>
+              <span className="font-black text-zinc-900 dark:text-white text-base">{transaction ? formatRupiah(transaction.total_amount) : '-'}</span>
+            </div>
+            <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-2">
+              Waktu Transaksi: {format(currentTime, 'dd MMM yyyy, HH:mm', { locale: id })}
+            </p>
           </div>
-        </div>
 
-        <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
-          <button
-            onClick={handlePrint}
-            className="btn-clay-secondary h-10 sm:h-12 text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2"
-          >
-            <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
-            Cetak Struk
-          </button>
-          <button
-            onClick={() => navigate('/kiosk')}
-            className="btn-clay-primary h-10 sm:h-12 text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2 group"
-          >
-            <ShoppingBag className="w-3 h-3 sm:w-4 sm:h-4" />
-            Pesan Lagi
-            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
-        </div>
+          <div className="flex flex-col gap-3">
+            {transaction?.status === 'pending' ? (
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-12 rounded-full font-bold transition-colors text-sm"
+              >
+                Cek lagi statusnya
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/kiosk')}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-12 rounded-full font-bold transition-colors text-sm"
+              >
+                Kembali ke beranda
+              </button>
+            )}
+            <button
+              onClick={() => navigate('/kiosk/history')}
+              className="w-full bg-white dark:bg-zinc-900 text-emerald-600 border-2 border-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/10 h-12 rounded-full font-bold transition-colors text-sm"
+            >
+              Lihat riwayat pesanan
+            </button>
+          </div>
 
         {digitalItems && digitalItems.length > 0 && (
           <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-zinc-100 dark:border-zinc-800 border-dashed text-left">
@@ -348,27 +337,23 @@ Sistem SPS Corner`);
             <p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-3">Pesanan Sariroti Anda</p>
             <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
               <button
-                onClick={handleEmailSalesAdmin}
-                className="btn-clay-secondary bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 h-10 sm:h-12 text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2"
-              >
-                <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
-                Email Sales Admin
-              </button>
-              <button
                 onClick={handlePrintNota}
                 className="btn-clay-secondary bg-amber-50 dark:bg-amber-900/30 border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 h-10 sm:h-12 text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2"
               >
                 <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
                 Cetak Nota Klaim
               </button>
+              <button
+                onClick={handlePrint}
+                className="btn-clay-secondary h-10 sm:h-12 text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2"
+              >
+                <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
+                Cetak Struk
+              </button>
             </div>
           </div>
         )}
         
-        <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-zinc-100 dark:border-zinc-800 border-dashed">
-          <p className="text-zinc-400 dark:text-zinc-500 text-[8px] sm:text-[10px] font-bold tracking-wide">
-            Halaman ini akan kembali otomatis dalam beberapa saat...
-          </p>
         </div>
       </motion.div>
     </div>

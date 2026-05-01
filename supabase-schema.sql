@@ -55,6 +55,24 @@ begin
   alter table public.profiles add column if not exists total_withdrawn numeric not null default 0;
   alter table public.profiles add column if not exists total_fee_paid numeric not null default 0;
   alter table public.profiles add column if not exists is_active boolean not null default true;
+  alter table public.profiles add column if not exists loyalty_points numeric not null default 0;
+  
+  -- Drop existing role check constraint to add superadmin
+  declare
+    constraint_name text;
+  begin
+    select conname into constraint_name
+    from pg_constraint c
+    join pg_class t on c.conrelid = t.oid
+    where t.relname = 'profiles'
+      and pg_get_constraintdef(c.oid) ilike '%role%';
+      
+    if constraint_name is not null then
+      execute 'alter table public.profiles drop constraint ' || constraint_name;
+    end if;
+  end;
+  
+  alter table public.profiles add constraint profiles_role_check check (role in ('superadmin', 'admin', 'seller', 'buyer'));
 exception when duplicate_column then
   -- nothing
 end;
@@ -354,7 +372,7 @@ begin
   )));
 
   -- Ensure role is strictly one of the allowed values
-  if user_role not in ('admin', 'seller', 'buyer') then
+  if user_role not in ('superadmin', 'admin', 'seller', 'buyer') then
     user_role := 'buyer';
   end if;
 
@@ -409,7 +427,7 @@ create or replace function public.is_admin()
 returns boolean language sql security definer as $$
   select exists (
     select 1 from public.profiles
-    where id = auth.uid() and role = 'admin'
+    where id = auth.uid() and role in ('admin', 'superadmin')
   );
 $$;
 
@@ -633,7 +651,7 @@ begin
   -- Get an admin user (just pick the first one for simplicity, or notify all admins)
   -- For now, we'll notify all admins
   if new.status in ('paid', 'completed', 'cancelled') then
-    for v_admin_id in (select id from public.profiles where role = 'admin') loop
+    for v_admin_id in (select id from public.profiles where role in ('admin', 'superadmin')) loop
       insert into public.notifications (user_id, type, title, message, path)
       values (
         v_admin_id,
@@ -697,7 +715,7 @@ begin
     select name into v_seller_name from public.profiles where id = new.seller_id;
     
     -- Notify admins
-    for v_admin_id in (select id from public.profiles where role = 'admin') loop
+    for v_admin_id in (select id from public.profiles where role in ('admin', 'superadmin')) loop
       insert into public.notifications (user_id, type, title, message, path)
       values (
         v_admin_id,
@@ -884,6 +902,7 @@ create table if not exists public.standby_schedules (
   day_of_week integer not null, -- 0 (Sunday) to 6 (Saturday)
   start_time time not null,
   end_time time not null,
+  pic_name text default 'Petugas',
   is_active boolean default true,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
@@ -908,4 +927,18 @@ BEGIN
 
     DROP POLICY IF EXISTS standby_schedules_select ON public.standby_schedules;
     CREATE POLICY standby_schedules_select ON public.standby_schedules FOR SELECT USING (true);
+END $$;
+
+-- Hardcoded role upgrade for alfanza26@gmail.com to ensure superadmin access
+DO $$
+BEGIN
+  -- We assume auth.users has the email column which might not be directly queryable if RLS restricts it,
+  -- but running this setup script is done as postgres service role, so it should work.
+  UPDATE public.profiles
+  SET role = 'superadmin'
+  FROM auth.users
+  WHERE public.profiles.id = auth.users.id
+    AND auth.users.email = 'alfanza26@gmail.com';
+EXCEPTION WHEN OTHERS THEN
+  RAISE LOG 'Error updating superadmin role: %', SQLERRM;
 END $$;

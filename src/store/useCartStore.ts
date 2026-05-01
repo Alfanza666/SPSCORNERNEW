@@ -13,6 +13,7 @@ export interface Product {
   is_digital?: boolean;
   target_number?: string;
   sku?: string;
+  profiles?: { name: string };
   metadata?: any;
 }
 

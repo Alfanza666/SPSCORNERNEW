@@ -41,7 +41,7 @@ export default function Tutorial() {
       
       let currentSteps: Step[] = [];
 
-      if (user?.role === 'admin' && location.pathname === '/dashboard/admin') {
+      if ((user?.role === 'admin' || user?.role === 'superadmin') && location.pathname === '/dashboard/admin') {
         currentSteps = [
           {
             target: 'body',
@@ -151,7 +151,7 @@ export default function Tutorial() {
     if (!hasSeenTutorial) {
       let currentSteps: Step[] = [];
 
-      if (user?.role === 'admin' && location.pathname === '/dashboard/admin') {
+      if ((user?.role === 'admin' || user?.role === 'superadmin') && location.pathname === '/dashboard/admin') {
         currentSteps = [
           {
             target: 'body',

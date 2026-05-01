@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
+import { Dialog, Transition, Menu } from '@headlessui/react';
 import { 
   LogOut, 
   LayoutDashboard, 
@@ -10,9 +11,8 @@ import {
   Package, 
   Receipt, 
   CreditCard,
-  Menu,
+  Menu as MenuIcon,
   X,
-  ChevronRight,
   ShieldCheck,
   Bell,
   Search,
@@ -92,28 +92,12 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   
-  const profileDropdownRef = useRef<HTMLDivElement>(null);
-  const notificationDropdownRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-
-    function handleClickOutside(event: MouseEvent) {
-      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
-        setIsProfileDropdownOpen(false);
-      }
-      if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(event.target as Node)) {
-        setIsNotificationDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -149,7 +133,7 @@ export default function DashboardLayout() {
     navigate('/');
   };
 
-  const isAdmin = user.role === 'admin';
+  const isAdmin = user.role === 'admin' || user.role === 'superadmin';
   const isSeller = user.role === 'seller';
 
   const renderNavItems = () => (
@@ -381,84 +365,94 @@ export default function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-40 lg:hidden"
-            />
-            <motion.aside 
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 bottom-0 w-80 bg-white dark:bg-zinc-900 z-50 lg:hidden flex flex-col shadow-2xl dark:shadow-black"
+      <Transition.Root show={isSidebarOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50 lg:hidden" onClose={setIsSidebarOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="transition-opacity ease-linear duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="transition-opacity ease-linear duration-300"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 flex">
+            <Transition.Child
+              as={Fragment}
+              enter="transition ease-in-out duration-300 transform"
+              enterFrom="-translate-x-full"
+              enterTo="translate-x-0"
+              leave="transition ease-in-out duration-300 transform"
+              leaveFrom="translate-x-0"
+              leaveTo="-translate-x-full"
             >
-              <div className="h-20 flex items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
-                  <SPSLogo variant="wide" className="h-10" />
-                </div>
-                <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                <div>
-                  <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
-                    Menu Utama
-                  </div>
-                  <div className="space-y-1.5">
-                    {renderNavItems()}
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
-                    Akses Cepat
-                  </div>
-                  <button
-                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
-                    onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
-                      <Store className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+              <Dialog.Panel className="relative mr-16 flex w-full max-w-[320px] flex-1">
+                <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-black">
+                  <div className="flex h-20 shrink-0 items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
+                      <SPSLogo variant="wide" className="h-10" />
                     </div>
-                    Lihat Kiosk
-                  </button>
-                </div>
-              </div>
-              <div className="p-6 border-t border-zinc-100 dark:border-zinc-800">
-                <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[1.5rem] border-2 border-white dark:border-zinc-700">
-                  <div className="w-10 h-10 rounded-xl clay-icon-blue font-black flex items-center justify-center overflow-hidden">
-                    <UserIcon className="w-5 h-5 text-white" />
+                    <button type="button" onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none">
+                      <X className="w-6 h-6" />
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-zinc-900 dark:text-white truncate">
-                      {user.name}
-                    </p>
-                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider">{user.role}</p>
+                  <div className="flex-1 overflow-y-auto px-6 py-6 pb-24 space-y-6 custom-scrollbar">
+                    <div>
+                      <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
+                        Menu Utama
+                      </div>
+                      <div className="space-y-1.5 focus:outline-none">
+                        {renderNavItems()}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
+                        Akses Cepat
+                      </div>
+                      <button
+                        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
+                        onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                          <Store className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                        </div>
+                        Lihat Kiosk
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[1.5rem] border-2 border-white dark:border-zinc-700">
+                      <div className="w-10 h-10 rounded-xl clay-icon-blue font-black flex items-center justify-center overflow-hidden">
+                        <UserIcon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-zinc-900 dark:text-white truncate">
+                          {user.name}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider">{user.role}</p>
+                      </div>
+                    </div>
+                    <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
+                      v4.2.3
+                    </div>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
+                      onClick={handleSignOut}
+                    >
+                      <LogOut className="w-5 h-5" />
+                      Keluar Akun
+                    </button>
                   </div>
                 </div>
-                <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                  v4.0.6
-                </div>
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all"
-                  onClick={handleSignOut}
-                >
-                  <LogOut className="w-5 h-5" />
-                  Keluar Akun
-                </button>
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition.Root>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
@@ -469,7 +463,7 @@ export default function DashboardLayout() {
               onClick={() => setIsSidebarOpen(true)}
               className="lg:hidden clay-icon w-12 h-12 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400"
             >
-              <Menu className="w-6 h-6" />
+              <MenuIcon className="w-6 h-6" />
             </button>
             <div className="hidden md:flex items-center gap-4 bg-zinc-50 dark:bg-zinc-800/50 px-6 py-3 rounded-2xl border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)] group focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-4 focus-within:ring-blue-500/10 dark:focus-within:ring-blue-500/20 transition-all">
               <Search className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400" />
@@ -482,113 +476,108 @@ export default function DashboardLayout() {
           </div>
 
           <div className="flex items-center gap-4 md:gap-8">
-            <div className="relative" ref={notificationDropdownRef}>
-              <button 
-                onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
-                className="relative clay-icon w-12 h-12 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
-              >
+            <Menu as="div" className="relative">
+              <Menu.Button className="relative clay-icon w-12 h-12 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none">
                 <Bell className="w-6 h-6" />
                 {unreadCount > 0 && (
                   <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 shadow-sm" />
                 )}
-              </button>
+              </Menu.Button>
               
-              <AnimatePresence>
-                {isNotificationDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute right-[-60px] sm:right-0 mt-4 w-[320px] sm:w-96 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl dark:shadow-black border border-zinc-100 dark:border-zinc-800 overflow-hidden z-50"
-                  >
-                    <div className="p-4 sm:p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
-                      <h3 className="font-black text-zinc-900 dark:text-white">Notifikasi</h3>
-                      {unreadCount > 0 && (
-                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full shadow-sm">
-                          {unreadCount} Baru
-                        </span>
-                      )}
-                    </div>
-                    <div className="max-h-[32rem] overflow-y-auto custom-scrollbar">
-                      {notifications.filter(n => !n.isRead).length === 0 ? (
-                        <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
-                          <Bell className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                          <p className="text-sm font-medium">Belum ada notifikasi baru</p>
-                        </div>
-                      ) : (
-                        notifications.filter(n => !n.isRead).map((notif) => (
-                          <motion.div 
-                            key={notif.id}
-                            role="alert"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.2 }}
-                            className={`m-3 p-4 sm:p-5 rounded-2xl cursor-pointer group transition-all shadow-sm ${
-                              notif.type === 'transaction' ? 'bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50' :
-                              notif.type === 'withdrawal' ? 'bg-amber-50/50 hover:bg-amber-50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50' :
-                              'bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
-                            }`}
-                            onClick={() => {
-                              markOneAsRead(notif.id);
-                              setIsNotificationDropdownOpen(false);
-                              navigate(notif.path);
-                            }}
-                          >
-                            <div className="flex gap-3 sm:gap-4">
-                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 clay-icon group-hover:scale-105 transition-transform shadow-sm ${
-                                notif.type === 'transaction' ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400' :
-                                notif.type === 'withdrawal' ? 'bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400' :
-                                'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                              }`}>
-                                {notif.type === 'transaction' ? <Receipt className="w-5 h-5 sm:w-6 sm:h-6" /> :
-                                 notif.type === 'withdrawal' ? <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" /> :
-                                 <Info className="w-5 h-5 sm:w-6 sm:h-6" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="text-sm font-black text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                    {notif.title}
-                                  </p>
-                                  {!notif.isRead && (
-                                    <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 mt-1.5 shadow-sm" />
-                                  )}
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-200"
+                enterFrom="transform opacity-0 scale-95 y-2"
+                enterTo="transform opacity-100 scale-100 y-0"
+                leave="transition ease-in duration-150"
+                leaveFrom="transform opacity-100 scale-100 y-0"
+                leaveTo="transform opacity-0 scale-95 y-2"
+              >
+                <Menu.Items className="absolute right-[-60px] sm:right-0 mt-4 w-[320px] sm:w-96 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl dark:shadow-black border border-zinc-100 dark:border-zinc-800 overflow-hidden z-50 focus:outline-none">
+                  <div className="p-4 sm:p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
+                    <h3 className="font-black text-zinc-900 dark:text-white">Notifikasi</h3>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full shadow-sm">
+                        {unreadCount} Baru
+                      </span>
+                    )}
+                  </div>
+                  <div className="max-h-[32rem] overflow-y-auto custom-scrollbar">
+                    {notifications.filter(n => !n.isRead).length === 0 ? (
+                      <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+                        <Bell className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-medium">Belum ada notifikasi baru</p>
+                      </div>
+                    ) : (
+                      notifications.filter(n => !n.isRead).map((notif) => (
+                        <Menu.Item key={notif.id}>
+                          {({ active }) => (
+                            <div 
+                              className={`m-3 p-4 sm:p-5 rounded-2xl cursor-pointer group transition-all shadow-sm ${
+                                active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900' : ''
+                              } ${
+                                notif.type === 'transaction' ? 'bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50' :
+                                notif.type === 'withdrawal' ? 'bg-amber-50/50 hover:bg-amber-50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50' :
+                                'bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
+                              }`}
+                              onClick={() => {
+                                markOneAsRead(notif.id);
+                                navigate(notif.path);
+                              }}
+                            >
+                              <div className="flex gap-3 sm:gap-4">
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 clay-icon group-hover:scale-105 transition-transform shadow-sm ${
+                                  notif.type === 'transaction' ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400' :
+                                  notif.type === 'withdrawal' ? 'bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400' :
+                                  'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                }`}>
+                                  {notif.type === 'transaction' ? <Receipt className="w-5 h-5 sm:w-6 sm:h-6" /> :
+                                   notif.type === 'withdrawal' ? <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" /> :
+                                   <Info className="w-5 h-5 sm:w-6 sm:h-6" />}
                                 </div>
-                                <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 sm:mt-1.5 leading-relaxed font-medium">{notif.message}</p>
-                                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mt-2 sm:mt-3">
-                                  {new Date(notif.time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                </p>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-black text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                      {notif.title}
+                                    </p>
+                                    {!notif.isRead && (
+                                      <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 mt-1.5 shadow-sm" />
+                                    )}
+                                  </div>
+                                  <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 sm:mt-1.5 leading-relaxed font-medium">{notif.message}</p>
+                                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mt-2 sm:mt-3">
+                                    {new Date(notif.time).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </motion.div>
-                        ))
-                      )}
-                    </div>
-                    {unreadCount > 0 && (
-                      <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 text-center bg-zinc-50/30 dark:bg-zinc-800/30">
+                          )}
+                        </Menu.Item>
+                      ))
+                    )}
+                  </div>
+                  {unreadCount > 0 && (
+                    <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 text-center bg-zinc-50/30 dark:bg-zinc-800/30">
+                      <Menu.Item>
                         <button 
                           onClick={() => {
                             markAllAsRead();
-                            setIsNotificationDropdownOpen(false);
                           }}
-                          className="text-xs font-black text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 uppercase tracking-widest"
+                          className="text-xs font-black text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 uppercase tracking-widest outline-none w-full text-center"
                         >
                           Tandai semua dibaca
                         </button>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                      </Menu.Item>
+                    </div>
+                  )}
+                </Menu.Items>
+              </Transition>
+            </Menu>
 
             <div className="h-10 w-1 bg-zinc-100 dark:bg-zinc-800 rounded-full hidden md:block" />
             
-            <div className="relative" ref={profileDropdownRef}>
-              <button 
-                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="flex items-center gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 p-2 rounded-[1.5rem] transition-all text-left group"
-              >
+            <Menu as="div" className="relative">
+              <Menu.Button className="flex items-center gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 p-2 rounded-[1.5rem] transition-all text-left group focus:outline-none">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-black text-zinc-900 dark:text-white leading-none mb-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{user.name}</p>
                   <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">{user.role}</p>
@@ -596,49 +585,60 @@ export default function DashboardLayout() {
                 <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
                   <UserIcon className="w-6 h-6 text-white" />
                 </div>
-              </button>
+              </Menu.Button>
 
-              <AnimatePresence>
-                {isProfileDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute right-0 mt-4 w-64 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl dark:shadow-black border border-zinc-100 dark:border-zinc-800 overflow-hidden z-50"
-                  >
-                    <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 sm:hidden bg-zinc-50/50 dark:bg-zinc-800/50">
-                      <p className="text-sm font-black text-zinc-900 dark:text-white truncate">{user.name}</p>
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">{user.role}</p>
-                    </div>
-                    <div className="p-3">
-                      <button 
-                        onClick={() => {
-                          setIsProfileDropdownOpen(false);
-                          setIsChangePasswordModalOpen(true);
-                        }}
-                        className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-blue-600 dark:hover:text-blue-400 transition-all group"
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
-                          <KeyRound className="w-5 h-5 opacity-70 group-hover:opacity-100" />
-                        </div>
-                        Ganti Password
-                      </button>
-                      <div className="h-1 bg-zinc-50 dark:bg-zinc-800 my-2 mx-4 rounded-full" />
-                      <button 
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
-                          <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
-                        </div>
-                        Keluar Akun
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-200"
+                enterFrom="transform opacity-0 scale-95 y-2"
+                enterTo="transform opacity-100 scale-100 y-0"
+                leave="transition ease-in duration-150"
+                leaveFrom="transform opacity-100 scale-100 y-0"
+                leaveTo="transform opacity-0 scale-95 y-2"
+              >
+                <Menu.Items className="absolute right-0 mt-4 w-64 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl dark:shadow-black border border-zinc-100 dark:border-zinc-800 overflow-hidden z-50 focus:outline-none">
+                  <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 sm:hidden bg-zinc-50/50 dark:bg-zinc-800/50">
+                    <p className="text-sm font-black text-zinc-900 dark:text-white truncate">{user.name}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">{user.role}</p>
+                  </div>
+                  <div className="p-3">
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button 
+                          onClick={() => {
+                            setIsChangePasswordModalOpen(true);
+                          }}
+                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${
+                            active ? 'bg-zinc-50 dark:bg-zinc-800/50 text-blue-600 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+                            <KeyRound className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+                          </div>
+                          Ganti Password
+                        </button>
+                      )}
+                    </Menu.Item>
+                    <div className="h-1 bg-zinc-50 dark:bg-zinc-800 my-2 mx-4 rounded-full" />
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button 
+                          onClick={handleSignOut}
+                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${
+                            active ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400' : 'text-red-600 dark:text-red-500'
+                          }`}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+                            <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+                          </div>
+                          Keluar Akun
+                        </button>
+                      )}
+                    </Menu.Item>
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </Menu>
           </div>
         </header>
 

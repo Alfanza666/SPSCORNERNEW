@@ -25,7 +25,9 @@ export default function AdminTransactions() {
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
-    sellerId: ''
+    sellerId: '',
+    status: '',
+    paymentMethod: ''
   });
   const [sellerTxIds, setSellerTxIds] = useState<Set<string>>(new Set());
   const [sellerSubtotals, setSellerSubtotals] = useState<Record<string, number>>({});
@@ -191,8 +193,14 @@ export default function AdminTransactions() {
     const matchesEndDate = !filters.endDate || txDate <= new Date(filters.endDate + 'T23:59:59');
     
     const matchesSeller = !filters.sellerId || (activeTab === 'success' && sellerTxIds.has(tx.id));
+    
+    const matchesStatus = !filters.status || (activeTab === 'success' && tx.status === filters.status);
+    
+    // Check if the property exists before matching (since failed_transactions might not have it or have different model)
+    const matchesPaymentMethod = !filters.paymentMethod || 
+      (activeTab === 'success' && tx.payment_method && typeof tx.payment_method === 'string' && tx.payment_method.toLowerCase().includes(filters.paymentMethod.toLowerCase()));
 
-    return matchesSearch && matchesStartDate && matchesEndDate && matchesSeller;
+    return matchesSearch && matchesStartDate && matchesEndDate && matchesSeller && matchesStatus && matchesPaymentMethod;
   });
 
   if (loading && transactions.length === 0) {
@@ -332,28 +340,74 @@ export default function AdminTransactions() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-8 bg-zinc-50/30 dark:bg-zinc-800/30 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6 sm:p-8 bg-zinc-50/30 dark:bg-zinc-800/30 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Dari Tanggal</label>
-                <input 
-                  type="date" 
-                  value={filters.startDate}
-                  onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-                  className="input-clay h-12 w-full"
-                />
+                <div className="relative">
+                  <input 
+                    type="date" 
+                    max={filters.endDate || undefined}
+                    value={filters.startDate}
+                    onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                    className="input-clay h-12 w-full relative z-10 text-transparent sm:text-transparent bg-transparent focus:bg-transparent dark:focus:bg-transparent [&::-webkit-datetime-edit]:hidden [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4"
+                  />
+                  <div className="absolute inset-0 flex items-center px-4 pointer-events-none z-0 bg-white dark:bg-zinc-800 rounded-xl">
+                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 uppercase">
+                      {filters.startDate && isValid(new Date(filters.startDate)) ? format(new Date(filters.startDate), 'dd-MMM-yyyy', { locale: id }) : 'PILIH TANGGAL'}
+                    </span>
+                  </div>
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Sampai Tanggal</label>
-                <input 
-                  type="date" 
-                  value={filters.endDate}
-                  onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-                  className="input-clay h-12 w-full"
-                />
+                <div className="relative">
+                  <input 
+                    type="date" 
+                    min={filters.startDate || undefined}
+                    value={filters.endDate}
+                    onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+                    className="input-clay h-12 w-full relative z-10 text-transparent sm:text-transparent bg-transparent focus:bg-transparent dark:focus:bg-transparent [&::-webkit-datetime-edit]:hidden [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4"
+                  />
+                  <div className="absolute inset-0 flex items-center px-4 pointer-events-none z-0 bg-white dark:bg-zinc-800 rounded-xl">
+                    <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 uppercase">
+                      {filters.endDate && isValid(new Date(filters.endDate)) ? format(new Date(filters.endDate), 'dd-MMM-yyyy', { locale: id }) : 'PILIH TANGGAL'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="md:col-span-2 flex justify-end">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Status Transaksi</label>
+                <select 
+                  value={filters.status}
+                  onChange={(e) => setFilters({...filters, status: e.target.value})}
+                  className="input-clay h-12 w-full appearance-none"
+                  disabled={activeTab !== 'success'}
+                >
+                  <option value="">Semua Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid (Dibayar)</option>
+                  <option value="success">Success (Selesai)</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Metode Bayar</label>
+                <select 
+                  value={filters.paymentMethod}
+                  onChange={(e) => setFilters({...filters, paymentMethod: e.target.value})}
+                  className="input-clay h-12 w-full appearance-none"
+                  disabled={activeTab !== 'success'}
+                >
+                  <option value="">Semua Metode</option>
+                  <option value="cash">Tunai (Cash)</option>
+                  <option value="qris">QRIS (Langsung)</option>
+                  <option value="manual_qris">QRIS (Manual)</option>
+                  <option value="points">Points (Loyalty)</option>
+                </select>
+              </div>
+              <div className="md:col-span-2 lg:col-span-4 flex justify-end">
                 <button 
-                  onClick={() => setFilters({ startDate: '', endDate: '', sellerId: '' })}
+                  onClick={() => setFilters({ startDate: '', endDate: '', sellerId: '', status: '', paymentMethod: '' })}
                   className="text-xs font-black text-red-500 dark:text-red-400 uppercase tracking-widest hover:text-red-600 dark:hover:text-red-300 transition-colors"
                 >
                   Reset Filter

@@ -107,7 +107,7 @@ export default function AuthCallback() {
         if (returnUrl) {
           sessionStorage.removeItem('returnUrl');
           navigate(returnUrl, { replace: true });
-        } else if (profile!.role === 'admin') {
+        } else if (profile!.role === 'admin' || profile!.role === 'superadmin') {
           navigate('/dashboard/admin', { replace: true });
         } else if (profile!.role === 'seller') {
           navigate('/dashboard/seller', { replace: true });

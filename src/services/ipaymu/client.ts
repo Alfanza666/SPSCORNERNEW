@@ -91,7 +91,11 @@ export class IpaymuClient {
       }
     } catch (error: any) {
       console.error('❌ Payment Error:', error.response?.data || error.message);
-      throw new Error(`Payment Error: ${error.response?.data?.Message || error.message}`);
+      let errMsg = error.response?.data?.Message || error.response?.data?.message || error.message;
+      if (error.response?.status === 401 || errMsg?.toLowerCase().includes('unauthorized')) {
+        errMsg = "Konfigurasi IPaymu belum sesuai atau Sandbox/Production tertukar. Silakan hubungi Admin.";
+      }
+      throw new Error(`Gagal memproses pembayaran IPaymu: ${errMsg}`);
     }
   }
 
@@ -130,7 +134,11 @@ export class IpaymuClient {
       }
     } catch (error: any) {
       console.error('❌ Direct Payment Error:', error.response?.data || error.message);
-      throw new Error(`Direct Payment Error: ${error.response?.data?.Message || error.message}`);
+      let errMsg = error.response?.data?.Message || error.response?.data?.message || error.message;
+      if (error.response?.status === 401 || errMsg?.toLowerCase().includes('unauthorized')) {
+        errMsg = "Konfigurasi IPaymu API belum sesuai atau Sandbox/Production tertukar. Hubungi Admin.";
+      }
+      throw new Error(`Gagal memproses pembayaran IPaymu: ${errMsg}`);
     }
   }
 

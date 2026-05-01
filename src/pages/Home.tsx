@@ -82,7 +82,7 @@ export default function Home() {
               whileTap={{ scale: 0.98 }}
               className="h-full"
             >
-              <Link to={user ? (user.role === 'admin' ? '/dashboard/admin' : '/dashboard/seller') : '/login'} className="group block h-full">
+              <Link to={user ? (user.role === 'admin' || user.role === 'superadmin' ? '/dashboard/admin' : '/dashboard/seller') : '/login'} className="group block h-full">
                 <div className="bg-white dark:bg-zinc-900/40 rounded-3xl h-full p-6 sm:p-8 text-left transition-all duration-500 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-amber-500/30 dark:hover:border-amber-500/50 hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.15)] dark:hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.15)] relative overflow-hidden backdrop-blur-xl">
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/0 group-hover:from-amber-50/50 dark:group-hover:from-amber-500/10 transition-colors duration-500 pointer-events-none" />
                   <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/10 dark:bg-amber-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -136,7 +136,7 @@ export default function Home() {
 
             <div className="flex flex-col items-center gap-1 mt-2">
               <div className="px-3 py-1 rounded-full bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-300/50 dark:border-zinc-700/50 backdrop-blur-sm">
-                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v1.1.6</p>
+                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v4.2.3</p>
               </div>
               <p className="text-[10px] sm:text-xs text-zinc-500 mt-2">
                 Ide & Dikembangkan oleh <span className="font-bold text-zinc-700 dark:text-zinc-300">Alif Irfansyah</span>

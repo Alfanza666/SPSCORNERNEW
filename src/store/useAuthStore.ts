@@ -3,12 +3,13 @@ import { supabase } from '../lib/supabase';
 
 export interface UserProfile {
   id: string;
-  role: 'admin' | 'seller' | 'buyer';
+  role: 'superadmin' | 'admin' | 'seller' | 'buyer';
   name: string;
   email?: string;
   nik?: string;
   phone?: string;
   balance: number;
+  loyalty_points?: number;
 }
 
 interface AuthState {
@@ -33,7 +34,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role, name, nik, phone, balance')
+        .select('id, role, name, nik, phone, balance, loyalty_points')
         .eq('id', userId)
         .single();
 

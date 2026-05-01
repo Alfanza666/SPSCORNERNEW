@@ -104,7 +104,7 @@ export default function Login() {
         // Navigate setelah store diisi
         if (from) {
           navigate(from);
-        } else if (resolvedProfile!.role === 'admin') {
+        } else if (resolvedProfile!.role === 'admin' || resolvedProfile!.role === 'superadmin') {
           navigate('/dashboard/admin');
         } else if (resolvedProfile!.role === 'seller') {
           navigate('/dashboard/seller');

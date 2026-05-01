@@ -19,7 +19,8 @@ import {
   ChevronRight,
   MessageSquare,
   FileText,
-  ExternalLink
+  ExternalLink,
+  Star
 } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
@@ -47,6 +48,21 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const { data } = await supabase.from('settings').select('value').eq('key', 'loyalty_enabled').single();
+        if (data && data.value === 'true') {
+          setLoyaltyEnabled(true);
+        }
+      } catch (err) {
+        console.error('Failed to fetch loyalty settings:', err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,6 +128,11 @@ export default function Profile() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 sm:space-y-10 px-4 sm:px-6 pb-16 sm:pb-20">
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-600 mb-[-1rem] uppercase tracking-widest">
+        <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => navigate('/kiosk')}>Menu</span>
+        <span className="opacity-50">/</span>
+        <span className="text-blue-600 dark:text-blue-400">Profil Saya</span>
+      </div>
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 pb-4 sm:pb-6 border-b border-zinc-100 dark:border-zinc-800 border-dashed">
         <div className="space-y-0.5 sm:space-y-1">
@@ -157,7 +178,7 @@ export default function Profile() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className={`grid gap-3 sm:gap-4 ${(loyaltyEnabled && user.loyalty_points !== undefined) ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-2'}`}>
                 <div className="p-3 sm:p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg sm:rounded-xl border border-zinc-50 dark:border-zinc-800 shadow-inner">
                   <p className="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-0.5 sm:mb-1">Status</p>
                   <div className="flex items-center gap-1.5 sm:gap-2 text-zinc-900 dark:text-white font-black text-xs sm:text-sm">
@@ -172,6 +193,15 @@ export default function Profile() {
                     {user.role}
                   </div>
                 </div>
+                {(loyaltyEnabled && user.loyalty_points !== undefined) && (
+                  <div className="p-3 sm:p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg sm:rounded-xl border border-amber-100 dark:border-amber-800 shadow-inner col-span-2 lg:col-span-1">
+                    <p className="text-[8px] sm:text-[10px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest mb-0.5 sm:mb-1">Points</p>
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-amber-900 dark:text-amber-300 font-black text-xs sm:text-sm capitalize">
+                      <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
+                      {user.loyalty_points}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>

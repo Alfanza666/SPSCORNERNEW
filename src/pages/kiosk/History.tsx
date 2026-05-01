@@ -36,6 +36,9 @@ export default function History() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [selectedTxDetail, setSelectedTxDetail] = useState<Transaction | null>(null);
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -321,30 +324,78 @@ Sistem SPS Corner`);
     }
   };
 
-  const filteredTransactions = transactions.filter(tx => 
-    tx.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    tx.transaction_items.some(item => (item.products?.name || item.metadata?.product_name || '').toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredTransactions = transactions.filter(tx => {
+    const matchesSearch = tx.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tx.transaction_items.some(item => (item.products?.name || item.metadata?.product_name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+      
+    let matchesStatus = true;
+    if (filterStatus === 'success') matchesStatus = tx.status === 'success' || tx.status === 'paid' || tx.status === 'delivered';
+    else if (filterStatus === 'pending') matchesStatus = tx.status === 'pending' || tx.status === 'processing';
+    else if (filterStatus === 'failed') matchesStatus = tx.status === 'failed';
 
+    let matchesDate = true;
+    if (filterStartDate) {
+      if (new Date(tx.created_at) < new Date(filterStartDate)) matchesDate = false;
+    }
+    if (filterEndDate) {
+      const end = new Date(filterEndDate);
+      end.setHours(23, 59, 59, 999);
+      if (new Date(tx.created_at) > end) matchesDate = false;
+    }
 
+    return matchesSearch && matchesStatus && matchesDate;
+  });
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 sm:space-y-8 px-4 sm:px-6 pb-10 sm:pb-12">
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-600 mb-2 uppercase tracking-widest">
+        <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => navigate('/kiosk')}>Menu</span>
+        <span className="opacity-50">/</span>
+        <span className="text-blue-600 dark:text-blue-400">Riwayat Pesanan</span>
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6">
         <div>
           <h1 className="text-xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">Riwayat Pesanan</h1>
           <p className="text-zinc-400 dark:text-zinc-500 mt-0.5 sm:mt-1 font-bold uppercase tracking-[0.2em] text-[8px] sm:text-[10px]">Pantau semua transaksi Anda di sini</p>
         </div>
         
-        <div className="relative group w-full sm:w-64">
-          <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 w-3.5 h-3.5 sm:w-4 sm:h-4 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
-          <input
-            type="text"
-            placeholder="Cari pesanan..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input-clay pl-9 sm:pl-10 py-2 sm:py-2.5 text-xs sm:text-sm h-10 w-full"
-          />
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <input
+              title="Tanggal Mulai"
+              type="date"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="input-clay py-2 px-3 text-xs h-10 w-full sm:w-36"
+            />
+            <input
+              title="Tanggal Akhir"
+              type="date"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="input-clay py-2 px-3 text-xs h-10 w-full sm:w-36"
+            />
+          </div>
+          <select 
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="input-clay py-2 px-3 text-xs h-10 w-full sm:w-32"
+          >
+            <option value="all">Semua Status</option>
+            <option value="success">Sukses</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Gagal</option>
+          </select>
+          <div className="relative group w-full sm:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 w-3.5 h-3.5 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+            <input
+              type="text"
+              placeholder="Cari pesanan..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input-clay pl-9 pr-3 py-2 text-xs h-10 w-full"
+            />
+          </div>
         </div>
       </div>
 
@@ -413,6 +464,30 @@ Sistem SPS Corner`);
                     <div className="text-left sm:text-right">
                       <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-0.5">Total Pembayaran</p>
                       <p className="text-lg sm:text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tighter">{formatRupiah(tx.total_amount)}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 bg-zinc-50 dark:bg-zinc-800/30 p-2 sm:p-3 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                    <div className="space-y-2">
+                      {tx.transaction_items.slice(0, 3).map((item, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-4">
+                          <div className="flex gap-2">
+                            <span className="text-[10px] sm:text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                              {item.quantity}x {item.products?.name || item.metadata?.product_name || 'Produk'}
+                            </span>
+                          </div>
+                          {item.metadata?.is_digital && (
+                            <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded sm:self-auto self-start">
+                              SN: {item.metadata?.sn || item.metadata?.digiflazz_response?.sn || item.metadata?.data?.sn || 'Proses...'}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                      {tx.transaction_items.length > 3 && (
+                        <div className="text-[10px] text-zinc-500 font-medium pt-1">
+                          + {tx.transaction_items.length - 3} produk lainnya...
+                        </div>
+                      )}
                     </div>
                   </div>
 

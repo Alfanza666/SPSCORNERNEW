@@ -122,6 +122,11 @@ export default function Cart() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-600 mb-3 sm:mb-4 uppercase tracking-widest">
+        <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => navigate('/kiosk')}>Menu</span>
+        <span className="opacity-50">/</span>
+        <span className="text-blue-600 dark:text-blue-400">Keranjang</span>
+      </div>
       <div className="flex flex-col lg:flex-row lg:items-end justify-between mb-4 sm:mb-8 gap-3 sm:gap-6">
         <div>
           <h1 className="text-xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter mb-0.5 sm:mb-1">Keranjang Belanja</h1>

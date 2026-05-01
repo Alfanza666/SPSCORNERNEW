@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2, Phone } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2, Phone, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 
@@ -20,7 +20,16 @@ export default function Checkout() {
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [verifyingReceipt, setVerifyingReceipt] = useState(false);
   const [qrisUrl, setQrisUrl] = useState<string>('/qris.png');
-  const [guestPhone, setGuestPhone] = useState('');
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [pointPaymentLoading, setPointPaymentLoading] = useState(false);
+  const [paymentSettings, setPaymentSettings] = useState({
+    qrisDynamic: true,
+    qrisManual: true,
+    vaBca: false,
+    vaMandiri: false,
+    redirect: true
+  });
+  const [guestPhone, setGuestPhone] = useState(sessionStorage.getItem('buyerPhone') || '');
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
@@ -44,24 +53,48 @@ export default function Checkout() {
       return;
     }
 
-    // Fetch dynamic QRIS URL
-    const fetchQrisUrl = async () => {
+    // Fetch dynamic QRIS URL and Loyalty setting
+    const fetchSettings = async () => {
       try {
         const { data, error } = await supabase
           .from('settings')
-          .select('value')
-          .eq('key', 'qris_image_url')
-          .single();
+          .select('key, value')
+          .in('key', [
+            'qris_image_url', 
+            'loyalty_enabled',
+            'payment_method_qris_dynamic',
+            'payment_method_qris_manual',
+            'payment_method_va_bca',
+            'payment_method_va_mandiri',
+            'payment_method_redirect'
+          ]);
 
-        if (data && data.value) {
-          setQrisUrl(data.value);
+        if (data) {
+          const qris = data.find(d => d.key === 'qris_image_url');
+          if (qris && qris.value) setQrisUrl(qris.value);
+          
+          const loyalty = data.find(d => d.key === 'loyalty_enabled');
+          if (loyalty && loyalty.value === 'true') setLoyaltyEnabled(true);
+
+          const getBool = (key: string, def: boolean) => {
+            const found = data.find(d => d.key === key);
+            return found ? found.value === 'true' : def;
+          };
+
+          setPaymentSettings({
+            qrisDynamic: getBool('payment_method_qris_dynamic', true),
+            qrisManual: getBool('payment_method_qris_manual', true),
+            vaBca: getBool('payment_method_va_bca', false),
+            vaMandiri: getBool('payment_method_va_mandiri', false),
+            redirect: getBool('payment_method_redirect', true)
+          });
         }
       } catch (err) {
-        console.error('Failed to fetch QRIS URL:', err);
+        console.error('Failed to fetch Checkout settings:', err);
       }
     };
 
-    fetchQrisUrl();
+    fetchSettings();
 
     // Request push notification permission
     if ('Notification' in window && Notification.permission === 'default') {
@@ -281,6 +314,106 @@ export default function Checkout() {
     }
   };
 
+  const handlePointPayment = async () => {
+    if (!buyerName || !user) return;
+    
+    // Check if points are sufficient locally before sending request
+    const total = getTotal();
+    if ((user.loyalty_points || 0) < total) {
+      toast.error('Points Anda tidak mencukupi untuk pembayaran ini');
+      return;
+    }
+
+    setPointPaymentLoading(true);
+    setLoading(true);
+
+    try {
+      // 1. Create transaction
+      const txData: any = {
+        buyer_name: buyerName,
+        buyer_id: user.id,
+        buyer_email: user.email || null,
+        total_amount: total,
+        items: items.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          is_digital: item.is_digital,
+          sku: item.sku,
+          target_number: item.target_number,
+          seller_id: item.seller_id,
+          metadata: item.metadata
+        }))
+      };
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
+      const txRes = await fetch('/api/transactions/create', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(txData)
+      });
+
+      if (!txRes.ok) {
+        let errorMessage = 'Failed to create transaction';
+        try {
+          const text = await txRes.text();
+          const errorData = JSON.parse(text);
+          errorMessage = errorData?.error || errorMessage;
+        } catch (e) {
+           errorMessage = 'Server error on transaction creation';
+        }
+        throw new Error(errorMessage);
+      }
+
+      const { transaction } = await txRes.json();
+      setTransactionId(transaction.id);
+
+      // Confirm reservations
+      for (const resId of reservations) {
+        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
+      }
+
+      // 2. Pay using points
+      const payRes = await fetch('/api/payment/points/pay', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ transaction_id: transaction.id })
+      });
+
+      if (!payRes.ok) {
+        let errorMessage = 'Gagal memproses pembayaran point';
+        try {
+          const text = await payRes.text();
+          const errorData = JSON.parse(text);
+          errorMessage = errorData?.error || errorMessage;
+        } catch (e) {
+          // ignore
+        }
+        throw new Error(errorMessage);
+      }
+
+      toast.success('Berhasil membayar dengan Points!');
+      clearCart();
+      setReservations([]);
+      navigate('/kiosk/success', { state: { transactionId: transaction.id } });
+
+    } catch (error: any) {
+      console.error('Point Payment error:', error);
+      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+    } finally {
+      setLoading(false);
+      setPointPaymentLoading(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -457,6 +590,13 @@ export default function Checkout() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-600 mb-4 sm:mb-6 uppercase tracking-widest justify-center">
+        <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => navigate('/kiosk')}>Menu</span>
+        <span className="opacity-50">/</span>
+        <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => navigate('/kiosk/cart')}>Keranjang</span>
+        <span className="opacity-50">/</span>
+        <span className="text-blue-600 dark:text-blue-400">Pembayaran</span>
+      </div>
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -492,130 +632,144 @@ export default function Checkout() {
               </div>
 
               <div className="p-6 sm:p-8">
-                {/* Guest phone number input */}
-                {!user && (
-                  <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/30">
-                    <label className="flex items-center gap-2 text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">
-                      <Phone className="w-3.5 h-3.5" />
-                      Nomor HP (Wajib)
-                    </label>
-                    <input
-                      type="tel"
-                      value={guestPhone}
-                      onChange={e => setGuestPhone(e.target.value)}
-                      placeholder="08xxxxxxxxxx — untuk notifikasi status pesanan"
-                      className="input-clay w-full text-sm"
-                    />
-                    <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-1.5 font-medium">
-                      Nomor ini digunakan untuk pemberitahuan status pesanan Anda.
-                    </p>
-                  </div>
-                )}
                 <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
                   Pilih Metode Pembayaran
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Loyalty Points Option */}
+                  {user && loyaltyEnabled && (
+                    <button
+                      onClick={handlePointPayment}
+                      disabled={loading || pointPaymentLoading || (user.loyalty_points || 0) < getTotal()}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 dark:border-amber-900 shadow-sm bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-900/10 hover:border-amber-300 dark:hover:border-amber-700 transition-all text-left group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed md:col-span-2 sm:col-span-1"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-amber-100 dark:border-zinc-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+                      </div>
+                      <div>
+                        <p className="font-black text-amber-900 dark:text-amber-100 text-sm tracking-tight flex items-center gap-2">
+                           Bayar Penuh via Points
+                           {(user.loyalty_points || 0) < getTotal() && <span className="text-[10px] bg-red-100 text-red-600 px-1 py-0.5 rounded">Kurang</span>}
+                        </p>
+                        <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-1">
+                          Saldo Anda: <strong className="font-black text-amber-900 dark:text-amber-200">{user.loyalty_points || 0} Pts</strong>
+                        </p>
+                      </div>
+                      <div className="absolute right-0 top-0 w-16 h-16 bg-gradient-to-br from-amber-400/20 to-transparent rounded-bl-full pointer-events-none" />
+                    </button>
+                  )}
+
                   {/* QRIS Option */}
-                  <button
-                    onClick={() => {
-                      if (!user && !guestPhone) {
-                        toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
-                        return;
-                      }
-                      handleDirectPayment('qris', 'qris');
-                    }}
-                    disabled={loading}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                      <QrCode className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Otomatis)</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Gopay, OVO, Dana, LinkAja</p>
-                    </div>
-                  </button>
+                  {paymentSettings.qrisDynamic && (
+                    <button
+                      onClick={() => {
+                        if (!user && !guestPhone) {
+                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          return;
+                        }
+                        handleDirectPayment('qris', 'qris');
+                      }}
+                      disabled={loading}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                        <QrCode className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Otomatis)</p>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Gopay, OVO, Dana, LinkAja</p>
+                      </div>
+                    </button>
+                  )}
 
                   {/* VA BCA Option */}
-                  <button
-                    onClick={() => {
-                      if (!user && !guestPhone) {
-                        toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
-                        return;
-                      }
-                      handleDirectPayment('va', 'bca');
-                    }}
-                    disabled={loading}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                      <CreditCard className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">Virtual Account BCA</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Transfer via M-Banking BCA</p>
-                    </div>
-                  </button>
+                  {paymentSettings.vaBca && (
+                    <button
+                      onClick={() => {
+                        if (!user && !guestPhone) {
+                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          return;
+                        }
+                        handleDirectPayment('va', 'bca');
+                      }}
+                      disabled={loading}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                        <CreditCard className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">Virtual Account BCA</p>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Transfer via M-Banking BCA</p>
+                      </div>
+                    </button>
+                  )}
 
                   {/* VA Mandiri Option */}
-                  <button
-                    onClick={() => {
-                      if (!user && !guestPhone) {
-                        toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
-                        return;
-                      }
-                      handleDirectPayment('va', 'mandiri');
-                    }}
-                    disabled={loading}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                      <CreditCard className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">Virtual Account Mandiri</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Transfer via Livin' Mandiri</p>
-                    </div>
-                  </button>
+                  {paymentSettings.vaMandiri && (
+                    <button
+                      onClick={() => {
+                        if (!user && !guestPhone) {
+                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          return;
+                        }
+                        handleDirectPayment('va', 'mandiri');
+                      }}
+                      disabled={loading}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                        <CreditCard className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">Virtual Account Mandiri</p>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Transfer via Livin' Mandiri</p>
+                      </div>
+                    </button>
+                  )}
 
                   {/* Manual QRIS Option */}
-                  <button
-                    onClick={() => {
-                      if (!user && !guestPhone) {
-                        toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
-                        return;
-                      }
-                      handleManualQris();
-                    }}
-                    disabled={loading}
-                    className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
-                  >
-                    <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
-                      <QrCode className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Manual)</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Upload Bukti Bayar</p>
-                    </div>
-                  </button>
+                  {paymentSettings.qrisManual && (
+                    <button
+                      onClick={() => {
+                        if (!user && !guestPhone) {
+                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          return;
+                        }
+                        handleManualQris();
+                      }}
+                      disabled={loading}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all text-left group relative overflow-hidden"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
+                        <QrCode className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                      </div>
+                      <div>
+                        <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Manual)</p>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Upload Bukti Bayar</p>
+                      </div>
+                    </button>
+                  )}
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                  <div className="relative">
-                    <button
-                      onClick={handlePayment}
-                      disabled={loading}
-                      className="btn-clay-secondary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-900 flex items-center justify-center shadow-inner">
-                        <ShieldCheck className="w-4 h-4 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                      </div>
-                      Metode Pembayaran Lainnya
-                    </button>
+                {paymentSettings.redirect && (
+                  <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="relative">
+                      <button
+                        onClick={handlePayment}
+                        disabled={loading}
+                        className="btn-clay-secondary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-900 flex items-center justify-center shadow-inner">
+                          <ShieldCheck className="w-4 h-4 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                        </div>
+                        Metode Pembayaran Lainnya
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 

@@ -1,6 +1,10 @@
+// @ts-nocheck
+var __defProp = Object.defineProperty;
+var __name = (target, value) =>
+  __defProp(target, "name", { value, configurable: true });
 import express from "express";
 import dotenv from "dotenv";
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import path from "path";
@@ -8,412 +12,491 @@ import os from "os";
 import crypto from "crypto";
 import fs from "fs";
 import nodemailer from "nodemailer";
-import { IpaymuClient } from './src/services/ipaymu/client.js';
-import type { RedirectPaymentData, DirectPaymentData } from './src/services/ipaymu/client.js';
-
+import { IpaymuClient } from "./src/services/ipaymu/client.js";
 dotenv.config();
-
-// Initialize Supabase Client (Server-side with Service Role Key for bypass RLS)
 const envUrl = process.env.VITE_SUPABASE_URL;
-const supabaseUrl = typeof envUrl === 'string' && envUrl.startsWith('http') ? envUrl : 'https://jofwebrbdlovwkgklwab.supabase.co';
-
+const supabaseUrl =
+  typeof envUrl === "string" && envUrl.startsWith("http")
+    ? envUrl
+    : "https://jofwebrbdlovwkgklwab.supabase.co";
 const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabaseServiceKey = typeof envKey === 'string' && envKey.trim() !== '' ? envKey : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvZndlYnJiZGxvdndrZ2tsd2FiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDc5MTkwNywiZXhwIjoyMDg2MzY3OTA3fQ.Q51X1VHwEB9vnB5tXWd9ajJJ58F4OaYqUnaqi20DJxQ';
-
+const supabaseServiceKey =
+  typeof envKey === "string" && envKey.trim() !== ""
+    ? envKey
+    : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvZndlYnJiZGxvdndrZ2tsd2FiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDc5MTkwNywiZXhwIjoyMDg2MzY3OTA3fQ.Q51X1VHwEB9vnB5tXWd9ajJJ58F4OaYqUnaqi20DJxQ";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-import { GoogleGenAI } from '@google/genai';
-
-// Initialize Gemini API
+import { GoogleGenAI } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const app = express();
-
-// Increase payload limit for base64 images and save raw body for webhook signature verification
-app.use(express.json({ 
-  limit: '50mb',
-  verify: (req: any, res, buf) => {
-    req.rawBody = buf.toString();
-  }
-}));
+app.use(
+  express.json({
+    limit: "50mb",
+    verify: __name((req, res, buf) => {
+      req.rawBody = buf.toString();
+    }, "verify"),
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
-
-  // API routes FIRST
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
-
-  app.get("/api/debug-schema", async (req, res) => {
-    const { data, error } = await supabase.rpc('get_schema_info'); // Wait, we can just select from information_schema
-    const { data: cols } = await supabase.from('transaction_items').select('*').limit(1);
-    res.json({ error: null, cols: cols ? Object.keys(cols[0] || {}) : [] });
-  });
-
-  // Debug endpoint to check outbound IP
-  app.get("/api/debug/ip", async (req, res) => {
-    try {
-      const response = await axios.get('https://ifconfig.me/ip');
-      const ip = response.data.trim();
-      
-      let proxyIp = null;
-      if (FIXIE_URL) {
-        try {
-          const proxyResponse = await axios.get('https://ifconfig.me/ip', getDigiflazzAxiosConfig());
-          proxyIp = proxyResponse.data.trim();
-        } catch (e) {
-          proxyIp = 'Error fetching proxy IP';
-        }
-      }
-
-      res.json({ 
-        outbound_ip: ip,
-        proxy_ip: proxyIp,
-        using_proxy: !!FIXIE_URL
-      });
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch outbound IP' });
-    }
-  });
-
-  // Digiflazz API Config
-  const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || '').replace(/['"]/g, '').trim();
-  const DIGIFLAZZ_API_KEY = (process.env.DIGIFLAZZ_API_KEY || '').replace(/['"]/g, '').trim();
-  
-  const isDefaultDigiflazz = !DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY;
-
-  console.log('🔧 Digiflazz Config:', {
-    username: DIGIFLAZZ_USERNAME,
-    apiKeySet: !!process.env.DIGIFLAZZ_API_KEY,
-    isDefault: isDefaultDigiflazz
-  });
-
-  const FIXIE_URL = process.env.FIXIE_URL && !process.env.FIXIE_URL.includes('YOUR_FIXIE_PROXY_URL') ? process.env.FIXIE_URL : null;
-
-  // Helper to get Axios config with proxy if available
-  const getDigiflazzAxiosConfig = () => {
-    const config: any = {};
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+app.get("/api/debug-schema", async (req, res) => {
+  const { data, error } = await supabase.rpc("get_schema_info");
+  const { data: cols } = await supabase
+    .from("transaction_items")
+    .select("*")
+    .limit(1);
+  res.json({ error: null, cols: cols ? Object.keys(cols[0] || {}) : [] });
+});
+app.get("/api/debug/ip", async (req, res) => {
+  try {
+    const response = await axios.get("https://ifconfig.me/ip");
+    const ip = response.data.trim();
+    let proxyIp = null;
     if (FIXIE_URL) {
       try {
-        config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
-        config.proxy = false;
-      } catch (error) {
-        console.error('❌ Invalid FIXIE_URL provided. Proxy will not be used.', error);
+        const proxyResponse = await axios.get(
+          "https://ifconfig.me/ip",
+          getDigiflazzAxiosConfig(),
+        );
+        proxyIp = proxyResponse.data.trim();
+      } catch (e) {
+        proxyIp = "Error fetching proxy IP";
       }
     }
-    return config;
-  };
-
-  // ===== IPAYMU PAYMENT INITIALIZATION =====
-  const IPAYMU_VA = (process.env.IPAYMU_VA || '').replace(/['"]/g, '').trim();
-  const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || '').replace(/['"]/g, '').trim();
-  const IPAYMU_PRODUCTION = true;
-
-  if (!IPAYMU_VA || !IPAYMU_API_KEY) {
-    console.warn('⚠️ IPAYMU_VA or IPAYMU_API_KEY not configured');
+    res.json({ outbound_ip: ip, proxy_ip: proxyIp, using_proxy: !!FIXIE_URL });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch outbound IP" });
   }
-
-  const ipaymuClient = new IpaymuClient(IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_PRODUCTION, getDigiflazzAxiosConfig());
-
-  console.log('💳 Ipaymu Config:', {
-    va: IPAYMU_VA ? '✓ Set' : '✗ Not Set',
-    apiKey: IPAYMU_API_KEY ? '✓ Set' : '✗ Not Set',
-    production: IPAYMU_PRODUCTION,
-    baseUrl: IPAYMU_PRODUCTION ? 'https://my.ipaymu.com' : 'https://sandbox.ipaymu.com',
-  });
-
-  // ===== HELPER: Send Notification to User =====
-  const sendNotification = async (userId: string, payload: {
-    type: 'transaction' | 'withdrawal' | 'system';
-    title: string;
-    message: string;
-    path?: string;
-  }) => {
+});
+const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || "")
+  .replace(/['"]/g, "")
+  .trim();
+const DIGIFLAZZ_API_KEY = (process.env.DIGIFLAZZ_API_KEY || "")
+  .replace(/['"]/g, "")
+  .trim();
+const isDefaultDigiflazz = !DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY;
+console.log("\u{1F527} Digiflazz Config:", {
+  username: DIGIFLAZZ_USERNAME,
+  apiKeySet: !!process.env.DIGIFLAZZ_API_KEY,
+  isDefault: isDefaultDigiflazz,
+});
+const FIXIE_URL =
+  process.env.FIXIE_URL &&
+  !process.env.FIXIE_URL.includes("YOUR_FIXIE_PROXY_URL")
+    ? process.env.FIXIE_URL
+    : null;
+const getDigiflazzAxiosConfig = __name(() => {
+  const config = {};
+  if (FIXIE_URL) {
     try {
-      await supabase.from('notifications').insert({
+      config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
+      config.proxy = false;
+    } catch (error) {
+      console.error(
+        "\u274C Invalid FIXIE_URL provided. Proxy will not be used.",
+        error,
+      );
+    }
+  }
+  return config;
+}, "getDigiflazzAxiosConfig");
+const IPAYMU_VA = (process.env.IPAYMU_VA || "").replace(/['"]/g, "").trim();
+const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || "")
+  .replace(/['"]/g, "")
+  .trim();
+const IPAYMU_PRODUCTION = true;
+if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+  console.warn("\u26A0\uFE0F IPAYMU_VA or IPAYMU_API_KEY not configured");
+}
+const ipaymuClient = new IpaymuClient(
+  IPAYMU_VA,
+  IPAYMU_API_KEY,
+  IPAYMU_PRODUCTION,
+  getDigiflazzAxiosConfig(),
+);
+console.log("\u{1F4B3} Ipaymu Config:", {
+  va: IPAYMU_VA ? "\u2713 Set" : "\u2717 Not Set",
+  apiKey: IPAYMU_API_KEY ? "\u2713 Set" : "\u2717 Not Set",
+  production: IPAYMU_PRODUCTION,
+  baseUrl: IPAYMU_PRODUCTION
+    ? "https://my.ipaymu.com"
+    : "https://sandbox.ipaymu.com",
+});
+const sendNotification = __name(async (userId, payload) => {
+  try {
+    await supabase
+      .from("notifications")
+      .insert({
         user_id: userId,
         type: payload.type,
         title: payload.title,
         message: payload.message,
-        path: payload.path || '/',
+        path: payload.path || "/",
         is_read: false,
       });
-    } catch (err) {
-      console.error('Failed to send notification:', err);
-    }
-  };
-
-  // Helper to process digital items via Digiflazz
-  const processDigitalItems = async (transactionId: string, transactionItems: any[]) => {
-    const digitalItems = transactionItems.filter((item: any) => item.metadata?.is_digital);
-    let allDigitalSuccess = true;
-
-    if (digitalItems.length > 0 && (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY)) {
-      console.error('❌ Digiflazz credentials not configured. Cannot process digital items.');
-      
-      for (const item of digitalItems) {
-        await supabase
-          .from('transaction_items')
-          .update({
-            metadata: {
-              ...item.metadata,
-              status: 'failed',
-              digiflazz_message: 'Digiflazz credentials not configured',
-              digiflazz_error: 'Digiflazz credentials not configured'
-            }
-          })
-          .eq('id', item.id);
-      }
-      
+  } catch (err) {
+    console.error("Failed to send notification:", err);
+  }
+}, "sendNotification");
+const processDigitalItems = __name(async (transactionId, transactionItems) => {
+  const digitalItems = transactionItems.filter(
+    (item) => item.metadata?.is_digital,
+  );
+  let allDigitalSuccess = true;
+  if (digitalItems.length > 0 && (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY)) {
+    console.error(
+      "\u274C Digiflazz credentials not configured. Cannot process digital items.",
+    );
+    for (const item of digitalItems) {
       await supabase
-        .from('transactions')
-        .update({ status: 'failed' })
-        .eq('id', transactionId);
-        
-      return false;
+        .from("transaction_items")
+        .update({
+          metadata: {
+            ...item.metadata,
+            status: "failed",
+            digiflazz_message: "Digiflazz credentials not configured",
+            digiflazz_error: "Digiflazz credentials not configured",
+          },
+        })
+        .eq("id", item.id);
     }
-
-    for (let i = 0; i < digitalItems.length; i++) {
-      const item = digitalItems[i];
-      const sku = item.metadata?.sku;
-      const target = item.metadata?.target_number;
-      const isPostpaid = item.metadata?.is_postpaid;
-      const quantity = item.quantity || 1;
-      
-      if (sku && target) {
-        for (let j = 0; j < quantity; j++) {
-          const refId = (digitalItems.length === 1 && quantity === 1) 
-            ? transactionId 
+    await supabase
+      .from("transactions")
+      .update({ status: "failed" })
+      .eq("id", transactionId);
+    return false;
+  }
+  for (let i = 0; i < digitalItems.length; i++) {
+    const item = digitalItems[i];
+    const sku = item.metadata?.sku;
+    const target = item.metadata?.target_number;
+    const isPostpaid = item.metadata?.is_postpaid;
+    const quantity = item.quantity || 1;
+    if (sku && target) {
+      for (let j = 0; j < quantity; j++) {
+        const refId =
+          digitalItems.length === 1 && quantity === 1
+            ? transactionId
             : `${transactionId.substring(0, 25)}-${i}-${j}`;
-
-          console.log(`Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${refId}`);
-          
-          const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).digest('hex');
-          
-          const payload: any = {
-            username: DIGIFLAZZ_USERNAME,
-            buyer_sku_code: sku,
-            customer_no: target,
-            ref_id: refId,
-            sign: sign,
-            testing: process.env.DIGIFLAZZ_TESTING === 'true'
-          };
-
-          if (isPostpaid) {
-            payload.commands = 'pay-pasca';
-          }
-
-          try {
-            const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', payload, getDigiflazzAxiosConfig());
-            const digiData = digiResponse.data;
-            console.log('Digiflazz Order Response:', JSON.stringify(digiData, null, 2));
-
-            const responseData = digiData.data || {};
-            const rc = responseData.rc;
-            const message = responseData.message || 'No message from Digiflazz';
-            const sn = responseData.sn || '';
-
-            // Map Digiflazz RC to item status
-            let itemStatus = 'processing';
-            if (rc === '00') {
-              itemStatus = 'delivered';
-            } else if (rc === '03') {
-              itemStatus = 'processing'; // Still pending at Digiflazz
-            } else {
-              itemStatus = 'failed';
-              allDigitalSuccess = false;
-              console.error(`❌ Digiflazz Order Failed (RC ${rc}): ${message}`);
-            }
-
-            await supabase
-              .from('transaction_items')
-              .update({
-                metadata: {
-                  ...item.metadata,
-                  status: itemStatus,
-                  digiflazz_response: responseData,
-                  digiflazz_rc: rc,
-                  digiflazz_message: message,
-                  sn: sn,
-                  last_update: new Date().toISOString(),
-                  ref_id: refId
-                }
-              })
-              .eq('id', item.id);
-
-            // Send notification based on item result
-            const txForNotif = await supabase.from('transactions').select('buyer_id').eq('id', transactionId).single();
-            if (txForNotif.data?.buyer_id) {
-              if (itemStatus === 'delivered') {
-                await sendNotification(txForNotif.data.buyer_id, {
-                  type: 'transaction',
-                  title: '📦 Produk Digital Terkirim!',
-                  message: `${item.metadata?.product_name || 'Produk digital'} Anda untuk nomor ${item.metadata?.target_number} berhasil terkirim.`,
-                  path: `/kiosk/success?id=${transactionId}`
-                });
-              } else if (itemStatus === 'failed') {
-                await sendNotification(txForNotif.data.buyer_id, {
-                  type: 'transaction',
-                  title: '⚠️ Pengiriman Produk Gagal',
-                  message: `Pengiriman ${item.metadata?.product_name || 'produk digital'} gagal (RC: ${rc}). Dana akan dikembalikan.`,
-                  path: `/kiosk/success?id=${transactionId}`
-                });
-              }
-            }
-
-          } catch (digiErr: any) {
+        console.log(
+          `Placing Digiflazz order for SKU: ${sku}, Target: ${target}, Ref: ${refId}`,
+        );
+        const sign = crypto
+          .createHash("md5")
+          .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId)
+          .digest("hex");
+        const payload = {
+          username: DIGIFLAZZ_USERNAME,
+          buyer_sku_code: sku,
+          customer_no: target,
+          ref_id: refId,
+          sign,
+          testing: process.env.DIGIFLAZZ_TESTING === "true",
+        };
+        if (isPostpaid) {
+          payload.commands = "pay-pasca";
+        }
+        try {
+          const digiResponse = await axios.post(
+            "https://api.digiflazz.com/v1/transaction",
+            payload,
+            getDigiflazzAxiosConfig(),
+          );
+          const digiData = digiResponse.data;
+          console.log(
+            "Digiflazz Order Response:",
+            JSON.stringify(digiData, null, 2),
+          );
+          const responseData = digiData.data || {};
+          const rc = responseData.rc;
+          const message = responseData.message || "No message from Digiflazz";
+          const sn = responseData.sn || "";
+          let itemStatus = "processing";
+          if (rc === "00") {
+            itemStatus = "delivered";
+          } else if (rc === "03") {
+            itemStatus = "processing";
+          } else {
+            itemStatus = "failed";
             allDigitalSuccess = false;
-            const errorDetail = digiErr.response?.data || digiErr.message;
-            console.error('❌ Digiflazz Order Error:', typeof errorDetail === 'object' ? JSON.stringify(errorDetail, null, 2) : errorDetail);
-            
-            await supabase
-              .from('transaction_items')
-              .update({
-                metadata: {
-                  ...item.metadata,
-                  status: 'failed',
-                  digiflazz_error: errorDetail,
-                  last_update: new Date().toISOString(),
-                  ref_id: refId
-                }
-              })
-              .eq('id', item.id);
+            console.error(
+              `\u274C Digiflazz Order Failed (RC ${rc}): ${message}`,
+            );
           }
-        }
-      }
-    }
-
-    return allDigitalSuccess;
-  };
-
-  // Helper to send email via Nodemailer (Gmail)
-  const sendSarirotiEmailInternal = async (to: string, subject: string, html: string) => {
-    const GMAIL_USER = process.env.GMAIL_USER;
-    const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
-
-    if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
-      console.error('⚠️ GMAIL_USER or GMAIL_APP_PASSWORD not set.');
-      return { success: false, error: 'GMAIL_USER atau GMAIL_APP_PASSWORD belum diatur di Environment Variables.' };
-    }
-
-    try {
-      console.log(`📧 Attempting to send email to ${to} via Gmail...`);
-      
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: GMAIL_USER,
-          pass: GMAIL_APP_PASSWORD
-        },
-        connectionTimeout: 5000, // 5 seconds timeout
-        greetingTimeout: 5000,
-        socketTimeout: 5000
-      });
-
-      const info = await transporter.sendMail({
-        from: `"SPS Corner" <${GMAIL_USER}>`,
-        to: to,
-        subject: subject,
-        html: html,
-      });
-
-      console.log('✅ Email sent successfully:', info.messageId);
-      return { success: true, data: info };
-    } catch (error: any) {
-      console.error('❌ Error sending email via Gmail:', error);
-      return { success: false, error: error.message || 'Unknown email error' };
-    }
-  };
-
-  // Helper to update seller balances (92% for seller, 8% platform fee)
-  const updateSellerBalances = async (items: any[]) => {
-    try {
-      if (!items || items.length === 0) return;
-
-      const sellerTotals: Record<string, { total: number }> = {};
-      
-      for (const item of items) {
-        if (item.seller_id) {
-          const itemTotal = (item.price || 0) * (item.quantity || 1);
-          if (!sellerTotals[item.seller_id]) {
-            sellerTotals[item.seller_id] = { total: 0 };
-          }
-          sellerTotals[item.seller_id].total += itemTotal;
-        }
-      }
-
-      for (const [sellerId, data] of Object.entries(sellerTotals)) {
-        const sellerShare = Math.round(data.total * 0.92);
-
-        // Fetch current balance & sales
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('balance, total_sales')
-          .eq('id', sellerId)
-          .single();
-
-        if (profile) {
           await supabase
-            .from('profiles')
+            .from("transaction_items")
             .update({
-              balance: (profile.balance || 0) + sellerShare,
-              total_sales: (profile.total_sales || 0) + data.total
+              metadata: {
+                ...item.metadata,
+                status: itemStatus,
+                digiflazz_response: responseData,
+                digiflazz_rc: rc,
+                digiflazz_message: message,
+                sn,
+                last_update: new Date().toISOString(),
+                ref_id: refId,
+              },
             })
-            .eq('id', sellerId);
+            .eq("id", item.id);
+          const txForNotif = await supabase
+            .from("transactions")
+            .select("buyer_id")
+            .eq("id", transactionId)
+            .single();
+          if (txForNotif.data?.buyer_id) {
+            if (itemStatus === "delivered") {
+              await sendNotification(txForNotif.data.buyer_id, {
+                type: "transaction",
+                title: "\u{1F4E6} Produk Digital Terkirim!",
+                message: `${item.metadata?.product_name || "Produk digital"} Anda untuk nomor ${item.metadata?.target_number} berhasil terkirim.`,
+                path: `/kiosk/history?id=${transactionId}`,
+              });
+            } else if (itemStatus === "failed") {
+              await sendNotification(txForNotif.data.buyer_id, {
+                type: "transaction",
+                title: "\u26A0\uFE0F Pengiriman Produk Gagal",
+                message: `Pengiriman ${item.metadata?.product_name || "produk digital"} gagal (RC: ${rc}). Dana akan dikembalikan.`,
+                path: `/kiosk/history?id=${transactionId}`,
+              });
+            }
+          }
+        } catch (digiErr) {
+          allDigitalSuccess = false;
+          const errorDetail = digiErr.response?.data || digiErr.message;
+          console.error(
+            "\u274C Digiflazz Order Error:",
+            typeof errorDetail === "object"
+              ? JSON.stringify(errorDetail, null, 2)
+              : errorDetail,
+          );
+          await supabase
+            .from("transaction_items")
+            .update({
+              metadata: {
+                ...item.metadata,
+                status: "failed",
+                digiflazz_error: errorDetail,
+                last_update: new Date().toISOString(),
+                ref_id: refId,
+              },
+            })
+            .eq("id", item.id);
         }
       }
-      console.log('✅ Seller balances updated successfully');
-    } catch (error) {
-      console.error('❌ Error updating seller balances:', error);
     }
-  };
+  }
+  return allDigitalSuccess;
+}, "processDigitalItems");
+const sendSarirotiEmailInternal = __name(async (to, subject, html) => {
+  const GMAIL_USER = process.env.GMAIL_USER;
+  const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    console.error("\u26A0\uFE0F GMAIL_USER or GMAIL_APP_PASSWORD not set.");
+    return {
+      success: false,
+      error:
+        "GMAIL_USER atau GMAIL_APP_PASSWORD belum diatur di Environment Variables.",
+    };
+  }
+  try {
+    console.log(`\u{1F4E7} Attempting to send email to ${to} via Gmail...`);
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+      connectionTimeout: 5e3,
+      greetingTimeout: 5e3,
+      socketTimeout: 5e3,
+    });
+    const info = await transporter.sendMail({
+      from: `"SPS Corner" <${GMAIL_USER}>`,
+      to,
+      subject,
+      html,
+    });
+    console.log("\u2705 Email sent successfully:", info.messageId);
+    return { success: true, data: info };
+  } catch (error) {
+    console.error("\u274C Error sending email via Gmail:", error);
+    return { success: false, error: error.message || "Unknown email error" };
+  }
+}, "sendSarirotiEmailInternal");
+const updateSellerBalances = __name(async (items) => {
+  try {
+    if (!items || items.length === 0) return;
+    const sellerTotals = {};
+    for (const item of items) {
+      if (item.seller_id) {
+        const itemTotal = (item.price || 0) * (item.quantity || 1);
+        if (!sellerTotals[item.seller_id]) {
+          sellerTotals[item.seller_id] = { total: 0 };
+        }
+        sellerTotals[item.seller_id].total += itemTotal;
+      }
+    }
+    for (const [sellerId, data] of Object.entries(sellerTotals)) {
+      const sellerShare = Math.round(data.total * 0.92);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("balance, total_sales")
+        .eq("id", sellerId)
+        .single();
+      if (profile) {
+        await supabase
+          .from("profiles")
+          .update({
+            balance: (profile.balance || 0) + sellerShare,
+            total_sales: (profile.total_sales || 0) + data.total,
+          })
+          .eq("id", sellerId);
+      }
+    }
+    console.log("\u2705 Seller balances updated successfully");
+  } catch (error) {
+    console.error("\u274C Error updating seller balances:", error);
+  }
+}, "updateSellerBalances");
 
-  // Helper to trigger Sariroti email based on transaction
-  const triggerSarirotiEmail = async (transactionId: string, buyerName: string, totalAmount: number) => {
+const checkLowStockAndNotify = __name(async (items) => {
+  try {
+    if (!items || items.length === 0) return;
+    for (const item of items) {
+      if (item.metadata?.is_digital) continue;
+      
+      const productId = item.product_id || item.products?.id;
+      if (!productId) continue;
+      
+      const { data: product } = await supabase
+        .from('products')
+        .select('name, stock, seller_id, profiles(name)')
+        .eq('id', productId)
+        .single();
+        
+      if (product && product.stock < 5) {
+        const { data: userAuth } = await supabase.auth.admin.getUserById(product.seller_id);
+        const sellerEmail = userAuth?.user?.email;
+        if (sellerEmail) {
+          const emailHtml = `
+            <div style="font-family: sans-serif; padding: 20px; color: #333;">
+              <h2 style="color: #ef4444;">Peringatan Stok Menipis</h2>
+              <p>Halo ${product.profiles?.name || 'Penjual'},</p>
+              <p>Produk <strong>${product.name}</strong> Anda di SPS Corner memiliki sisa stok yang sedikit.</p>
+              <p style="font-size: 20px; font-weight: bold; color: #ef4444;">Sisa stok: ${product.stock}</p>
+              <p>Silakan lakukan restok melalui dashboard penjual untuk memastikan ketersediaan barang.</p>
+            </div>
+          `;
+          await sendSarirotiEmailInternal(
+            sellerEmail,
+            `[SPS Corner] Peringatan: Stok ${product.name} Menipis`,
+            emailHtml
+          );
+          console.log(`\u2705 Low stock warning email sent to ${sellerEmail} for product ${product.name}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("\u274C Error checking low stock:", error);
+  }
+}, "checkLowStockAndNotify");
+
+const updateBuyerPoints = __name(async (transaction_id, buyer_id, total_amount) => {
+  try {
+    if (!buyer_id) return;
+    const { data: setting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "loyalty_enabled")
+      .single();
+    if (setting?.value !== "true") return;
+    const earnedPoints = Math.floor((total_amount || 0) * 0.01);
+    if (earnedPoints <= 0) return;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("loyalty_points")
+      .eq("id", buyer_id)
+      .single();
+    if (profile) {
+      await supabase
+        .from("profiles")
+        .update({
+          loyalty_points: (profile.loyalty_points || 0) + earnedPoints,
+        })
+        .eq("id", buyer_id);
+      console.log(`\u2705 Buyer points updated successfully for ${buyer_id}: +${earnedPoints} pts`);
+    }
+  } catch (error) {
+    console.error("\u274C Error updating buyer points:", error);
+  }
+}, "updateBuyerPoints");
+const triggerSarirotiEmail = __name(
+  async (transactionId, buyerName, totalAmount) => {
     try {
       const { data: items, error } = await supabase
-        .from('transaction_items')
-        .select('*, products(name, category, price)')
-        .eq('transaction_id', transactionId);
-
+        .from("transaction_items")
+        .select("*, products(name, category, price)")
+        .eq("transaction_id", transactionId);
       if (error) throw error;
-
-      // Filter only Sariroti/Koperasi items
-      const sarirotiItems = items.filter((item: any) => {
-        const name = (item.products?.name || item.metadata?.product_name || '').toLowerCase();
-        const category = (item.products?.category || item.metadata?.category || '').toLowerCase();
-        return name.includes('sariroti') || name.includes('roti') || name.includes('koperasi') ||
-               category.includes('sariroti') || category.includes('roti') || category.includes('koperasi');
+      const sarirotiItems = items.filter((item) => {
+        const name = (
+          item.products?.name ||
+          item.metadata?.product_name ||
+          ""
+        ).toLowerCase();
+        const category = (
+          item.products?.category ||
+          item.metadata?.category ||
+          ""
+        ).toLowerCase();
+        return (
+          name.includes("sariroti") ||
+          name.includes("roti") ||
+          name.includes("koperasi") ||
+          category.includes("sariroti") ||
+          category.includes("roti") ||
+          category.includes("koperasi")
+        );
       });
-
       if (sarirotiItems.length === 0) {
-        console.log(`ℹ️ No Sariroti items in transaction ${transactionId}. Skipping email.`);
+        console.log(
+          `\u2139\uFE0F No Sariroti items in transaction ${transactionId}. Skipping email.`,
+        );
         return;
       }
-
-      const sarirotiSubtotal = sarirotiItems.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0);
-      const orderDate = new Date().toLocaleString('id-ID', { 
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
-        hour: '2-digit', minute: '2-digit' 
+      const sarirotiSubtotal = sarirotiItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+      const orderDate = new Date().toLocaleString("id-ID", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
-
-      const itemRows = sarirotiItems.map((item: any) => {
-        const name = item.products?.name || item.metadata?.product_name || 'Produk Koperasi';
-        const qty = item.quantity || 1;
-        const price = item.price || 0;
-        const subtotal = price * qty;
-        return `
+      const itemRows = sarirotiItems
+        .map((item) => {
+          const name =
+            item.products?.name ||
+            item.metadata?.product_name ||
+            "Produk Koperasi";
+          const qty = item.quantity || 1;
+          const price = item.price || 0;
+          const subtotal = price * qty;
+          return `
           <tr style="border-bottom: 1px solid #e5e7eb;">
             <td style="padding: 12px 16px; color: #111827; font-weight: 500;">${name}</td>
             <td style="padding: 12px 16px; text-align: center; color: #374151; font-weight: 600;">${qty}</td>
-            <td style="padding: 12px 16px; text-align: right; color: #374151;">Rp ${price.toLocaleString('id-ID')}</td>
-            <td style="padding: 12px 16px; text-align: right; color: #1d4ed8; font-weight: 700;">Rp ${subtotal.toLocaleString('id-ID')}</td>
+            <td style="padding: 12px 16px; text-align: right; color: #374151;">Rp ${price.toLocaleString("id-ID")}</td>
+            <td style="padding: 12px 16px; text-align: right; color: #1d4ed8; font-weight: 700;">Rp ${subtotal.toLocaleString("id-ID")}</td>
           </tr>`;
-      }).join('');
-
-      let targetEmail = process.env.SARIROTI_ADMIN_EMAIL || 'Sales.Adm.bjm@sariroti.com';
-      const appUrl = process.env.APP_URL || 'https://spscorner.store';
+        })
+        .join("");
+      let targetEmail =
+        process.env.SARIROTI_ADMIN_EMAIL || "Sales.Adm.bjm@sariroti.com";
+      const appUrl = process.env.APP_URL || "https://spscorner.store";
       const txShortId = transactionId.slice(0, 8).toUpperCase();
-
       const emailHtml = `<!DOCTYPE html>
 <html lang="id">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Pesanan Roti Baru - SPS Corner</title></head>
@@ -426,7 +509,7 @@ app.use(express.urlencoded({ extended: true }));
         <span style="color: #bfdbfe; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">Notifikasi Pesanan Baru</span>
       </div>
       <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Pesanan Roti Koperasi</h1>
-      <p style="margin: 8px 0 0; color: #bfdbfe; font-size: 14px;">SPS Corner — Koperasi Karyawan</p>
+      <p style="margin: 8px 0 0; color: #bfdbfe; font-size: 14px;">SPS Corner \u2014 Koperasi Karyawan</p>
     </div>
 
     <!-- Alert Banner -->
@@ -481,7 +564,7 @@ app.use(express.urlencoded({ extended: true }));
           <tfoot>
             <tr style="background: #eff6ff; border-top: 2px solid #bfdbfe;">
               <td colspan="3" style="padding: 14px 16px; font-size: 14px; font-weight: 700; color: #1e40af; text-align: right;">Total Pesanan Roti:</td>
-              <td style="padding: 14px 16px; font-size: 16px; font-weight: 800; color: #1d4ed8; text-align: right;">Rp ${sarirotiSubtotal.toLocaleString('id-ID')}</td>
+              <td style="padding: 14px 16px; font-size: 16px; font-weight: 800; color: #1d4ed8; text-align: right;">Rp ${sarirotiSubtotal.toLocaleString("id-ID")}</td>
             </tr>
           </tfoot>
         </table>
@@ -489,11 +572,11 @@ app.use(express.urlencoded({ extended: true }));
 
       <!-- Instructions -->
       <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; margin-bottom: 28px;">
-        <h3 style="margin: 0 0 10px; font-size: 13px; font-weight: 700; color: #92400e;">📋 Langkah Selanjutnya untuk Admin Sales</h3>
+        <h3 style="margin: 0 0 10px; font-size: 13px; font-weight: 700; color: #92400e;">\u{1F4CB} Langkah Selanjutnya untuk Admin Sales</h3>
         <ol style="margin: 0; padding-left: 20px; color: #78350f; font-size: 13px; line-height: 1.8;">
-          <li>Login ke dashboard SPS Corner menggunakan akun Admin.</li>
-          <li>Buka menu <strong>Riwayat Transaksi</strong> dan cari ID Transaksi: <strong>#${txShortId}</strong>.</li>
-          <li>Klik <strong>Konfirmasi Pesanan Sariroti</strong> untuk menandai pesanan sebagai dikonfirmasi.</li>
+          <li>Login ke dashboard SPS Corner menggunakan akun Anda.</li>
+          <li>Buka menu <strong>Pesanan Masuk</strong> dan cari ID Transaksi: <strong>#${txShortId}</strong>.</li>
+          <li>Klik <strong>Konfirmasi</strong> untuk menandai pesanan sebagai dikonfirmasi.</li>
           <li>Sistem akan otomatis mengirim <strong>nota pengambilan</strong> ke email pembeli.</li>
           <li>Lanjutkan proses pemesanan ke bagian produksi/distribusi sesuai prosedur.</li>
         </ol>
@@ -501,9 +584,9 @@ app.use(express.urlencoded({ extended: true }));
 
       <!-- CTA Button -->
       <div style="text-align: center; margin-bottom: 8px;">
-        <a href="${appUrl}/dashboard/admin/transactions" 
+        <a href="${appUrl}/dashboard/seller/transactions?id=${transactionId}" 
            style="display: inline-block; background: linear-gradient(135deg, #1e40af, #1d4ed8); color: #ffffff; padding: 14px 36px; border-radius: 10px; font-size: 14px; font-weight: 700; text-decoration: none; letter-spacing: 0.3px; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4);">
-          🔗 Buka Dashboard &amp; Konfirmasi Pesanan
+          \u{1F517} Buka Dashboard &amp; Konfirmasi Pesanan
         </a>
       </div>
     </div>
@@ -511,1213 +594,1436 @@ app.use(express.urlencoded({ extended: true }));
     <!-- Footer -->
     <div style="background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 24px 40px; text-align: center;">
       <p style="margin: 0 0 6px; font-size: 12px; color: #9ca3af;">Email ini dikirim secara otomatis oleh sistem SPS Corner</p>
-      <p style="margin: 0; font-size: 12px; color: #9ca3af;">Koperasi Karyawan SPS — Banjarmasin | <a href="${appUrl}" style="color: #3b82f6; text-decoration: none;">spscorner.store</a></p>
+      <p style="margin: 0; font-size: 12px; color: #9ca3af;">Koperasi Karyawan SPS \u2014 Banjarmasin | <a href="${appUrl}" style="color: #3b82f6; text-decoration: none;">spscorner.store</a></p>
     </div>
   </div>
 </body>
 </html>`;
-
-      const result = await sendSarirotiEmailInternal(targetEmail, `[SPS Corner] Pesanan Roti Baru #${txShortId} dari ${buyerName}`, emailHtml);
+      const result = await sendSarirotiEmailInternal(
+        targetEmail,
+        `[SPS Corner] Pesanan Roti Baru #${txShortId} dari ${buyerName}`,
+        emailHtml,
+      );
       if (result.success) {
-        console.log(`✅ Sariroti email triggered for transaction ${transactionId}`);
+        console.log(
+          `\u2705 Sariroti email triggered for transaction ${transactionId}`,
+        );
       } else {
-        console.error(`❌ Failed to send Sariroti email for transaction ${transactionId}:`, result.error);
+        console.error(
+          `\u274C Failed to send Sariroti email for transaction ${transactionId}:`,
+          result.error,
+        );
       }
     } catch (err) {
-      console.error('❌ Error triggering Sariroti email:', err);
+      console.error("\u274C Error triggering Sariroti email:", err);
     }
-  };
-
-  const sendBuyerReceiptEmail = async (transactionId: string, buyerEmail: string, buyerName: string, items: any[], totalAmount: number) => {
+  },
+  "triggerSarirotiEmail",
+);
+const sendBuyerReceiptEmail = __name(
+  async (transactionId, buyerEmail, buyerName, items, totalAmount) => {
     try {
-      const sarirotiItems = items.filter((item: any) => {
-        const name = (item.products?.name || item.metadata?.product_name || '').toLowerCase();
-        const category = (item.products?.category || item.metadata?.category || '').toLowerCase();
-        return name.includes('sariroti') || name.includes('roti') || name.includes('koperasi') ||
-               category.includes('sariroti') || category.includes('roti') || category.includes('koperasi');
+      const sarirotiItems = items.filter((item) => {
+        const name = (
+          item.products?.name ||
+          item.metadata?.product_name ||
+          ""
+        ).toLowerCase();
+        const category = (
+          item.products?.category ||
+          item.metadata?.category ||
+          ""
+        ).toLowerCase();
+        return (
+          name.includes("sariroti") ||
+          name.includes("roti") ||
+          name.includes("koperasi") ||
+          category.includes("sariroti") ||
+          category.includes("roti") ||
+          category.includes("koperasi")
+        );
       });
-
       if (sarirotiItems.length === 0) return;
-
-      const itemsHtml = sarirotiItems.map((item: any) => {
-        const name = item.products?.name || item.metadata?.product_name || 'Produk Koperasi';
-        return `
+      const itemsHtml = sarirotiItems
+        .map((item) => {
+          const name =
+            item.products?.name ||
+            item.metadata?.product_name ||
+            "Produk Koperasi";
+          const price = item.price || 0;
+          const subtotal = price * (item.quantity || 1);
+          return `
           <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd;">${name}</td>
-            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #374151; font-size: 14px;">
+              <strong>${name}</strong>
+            </td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; text-align: center; color: #4b5563; font-size: 14px;">${item.quantity}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #4b5563; font-size: 14px;">Rp ${price.toLocaleString("id-ID")}</td>
+            <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #111827; font-weight: bold; font-size: 14px;">Rp ${subtotal.toLocaleString("id-ID")}</td>
           </tr>
         `;
-      }).join('');
+        })
+        .join("");
+        
+      const currentDate = new Date().toLocaleDateString('id-ID', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+      const currentTime = new Date().toLocaleTimeString('id-ID', {
+        hour: '2-digit', minute: '2-digit'
+      });
 
       const emailHtml = `
-        <div style="font-family: sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #0056b3; margin-bottom: 5px;">KOPERASI KARYAWAN</h2>
-            <h4 style="color: #666; margin-top: 0;">SPS CORNER</h4>
-            <h3 style="border-bottom: 2px dashed #ccc; padding-bottom: 10px;">NOTA PENGAMBILAN - SARIROTI</h3>
-          </div>
-          
-          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <p style="margin: 5px 0;"><strong>ID Pesanan:</strong> #${transactionId.slice(0, 8)}</p>
-            <p style="margin: 5px 0;"><strong>Nama Pemesan:</strong> ${buyerName}</p>
-            <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: #28a745; font-weight: bold;">Telah Dikonfirmasi</span></p>
-          </div>
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f3f4f6; padding: 40px 0; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
+            
+            <!-- Header -->
+            <div style="background-color: #1e3a8a; padding: 30px; text-align: center; color: white;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 1px;">KOPERASI KARYAWAN</h1>
+              <h2 style="margin: 5px 0 0; font-size: 14px; font-weight: 400; opacity: 0.9; letter-spacing: 2px;">SPS CORNER</h2>
+            </div>
+            
+            <!-- Body -->
+            <div style="padding: 30px;">
+              <h3 style="color: #111827; font-size: 18px; font-weight: 600; margin-top: 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">E-Receipt / Nota Pengambilan</h3>
+              
+              <p style="color: #4b5563; font-size: 15px; line-height: 1.6;">Halo <strong>${buyerName}</strong>,</p>
+              <p style="color: #4b5563; font-size: 15px; line-height: 1.6;">Terima kasih atas pembelian Anda. Pesanan Anda telah <strong>LUNAS</strong> dan dikonfirmasi oleh Admin. Berikut adalah rincian pesanan Anda:</p>
+              
+              <!-- Details Box -->
+              <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <table style="width: 100%; font-size: 14px;">
+                  <tr>
+                    <td style="padding-bottom: 8px; color: #6b7280; width: 40%;">ID Transaksi</td>
+                    <td style="padding-bottom: 8px; color: #111827; font-weight: 600;">#${transactionId.slice(0, 8).toUpperCase()}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding-bottom: 8px; color: #6b7280;">Tanggal Konfirmasi</td>
+                    <td style="padding-bottom: 8px; color: #111827; font-weight: 600;">${currentDate}, ${currentTime} WIB</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #6b7280;">Status Pembayaran</td>
+                    <td style="color: #059669; font-weight: 700;">LUNAS & DIKONFIRMASI</td>
+                  </tr>
+                </table>
+              </div>
 
-          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-            <thead>
-              <tr style="background-color: #f1f1f1;">
-                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Produk</th>
-                <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Qty</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHtml}
-            </tbody>
-          </table>
+              <!-- Item Table -->
+              <h4 style="color: #111827; font-size: 16px; margin-bottom: 15px;">Rincian Produk Sariroti</h4>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                  <tr style="background-color: #f3f4f6;">
+                    <th style="padding: 12px 15px; text-align: left; border-bottom: 2px solid #d1d5db; color: #374151; font-size: 13px; text-transform: uppercase; font-weight: 600;">Produk</th>
+                    <th style="padding: 12px 15px; text-align: center; border-bottom: 2px solid #d1d5db; color: #374151; font-size: 13px; text-transform: uppercase; font-weight: 600;">Qty</th>
+                    <th style="padding: 12px 15px; text-align: right; border-bottom: 2px solid #d1d5db; color: #374151; font-size: 13px; text-transform: uppercase; font-weight: 600;">Harga/Item</th>
+                    <th style="padding: 12px 15px; text-align: right; border-bottom: 2px solid #d1d5db; color: #374151; font-size: 13px; text-transform: uppercase; font-weight: 600;">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHtml}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="3" style="padding: 15px; text-align: right; font-weight: 600; color: #374151; font-size: 15px;">Total Keseluruhan</td>
+                    <td style="padding: 15px; text-align: right; font-weight: 700; color: #111827; font-size: 16px;">Rp ${Number(totalAmount || 0).toLocaleString("id-ID")}</td>
+                  </tr>
+                </tfoot>
+              </table>
 
-          <div style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; border: 1px solid #ffeeba; margin-top: 20px; font-size: 14px;">
-            <p style="margin: 0;"><strong>PENTING:</strong> Gunakan nota ini untuk pengambilan roti di bagian Distribusi dan sebagai bukti pembelian pada saat pemeriksaan security.</p>
+              <!-- Warning Alert -->
+              <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px 20px; border-radius: 4px; margin-top: 30px;">
+                <p style="margin: 0; color: #b45309; font-size: 14px; line-height: 1.5;">
+                  <strong style="color: #92400e;">INFORMASI PENTING:</strong><br>
+                  Harap tunjukkan <strong>nota elektronik ini (E-Receipt)</strong> kepada petugas Distribusi saat pengambilan pesanan dan juga gunakan sebagai bukti pengesahan saat melewati pemeriksaan tim Keamanan/Security area perusahaan.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background-color: #f9fafb; padding: 25px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; color: #6b7280; font-size: 13px;">Ini adalah email otomatis, mohon tidak membalas email ini.</p>
+              <p style="margin: 10px 0 0; color: #9ca3af; font-size: 12px;">© ${new Date().getFullYear()} SPS Corner - Koperasi Karyawan</p>
+            </div>
           </div>
-          
-          <p style="text-align: center; margin-top: 30px; font-size: 12px; color: #999;">
-            Terima kasih telah berbelanja di SPS Corner.
-          </p>
         </div>
       `;
-
-      const result = await sendSarirotiEmailInternal(buyerEmail, `Nota Pengambilan Sariroti - #${transactionId.slice(0, 8)}`, emailHtml);
+      const result = await sendSarirotiEmailInternal(
+        buyerEmail,
+        `Nota Pengambilan Sariroti SPS Corner - Ref #${transactionId.slice(0, 8).toUpperCase()}`,
+        emailHtml,
+      );
       if (result.success) {
-        console.log(`✅ Buyer receipt email sent to ${buyerEmail} for transaction ${transactionId}`);
+        console.log(
+          `\u2705 Buyer receipt email sent to ${buyerEmail} for transaction ${transactionId}`,
+        );
       } else {
-        console.error(`❌ Failed to send buyer receipt email for transaction ${transactionId}:`, result.error);
+        console.error(
+          `\u274C Failed to send buyer receipt email for transaction ${transactionId}:`,
+          result.error,
+        );
       }
     } catch (err) {
-      console.error('❌ Error sending buyer receipt email:', err);
+      console.error("\u274C Error sending buyer receipt email:", err);
     }
-  };
-
-  // Simple file-based cache for Digiflazz prices to survive server restarts
-  // Use os.tmpdir() to support read-only filesystems like Cloud Run and Vercel
-  const CACHE_FILE = path.join(os.tmpdir(), 'digiflazz_cache.json');
-  let priceCache: {
-    [key: string]: {
-      data: any;
-      timestamp: number;
-    }
-  } = {};
-
-  // Load cache from file on startup
+  },
+  "sendBuyerReceiptEmail",
+);
+const CACHE_FILE = path.join(os.tmpdir(), "digiflazz_cache.json");
+let priceCache = {};
+try {
+  if (fs.existsSync(CACHE_FILE)) {
+    const fileContent = fs.readFileSync(CACHE_FILE, "utf-8");
+    priceCache = JSON.parse(fileContent);
+    console.log("\u2705 Loaded Digiflazz price cache from file.");
+  }
+} catch (err) {
+  console.error("Failed to load Digiflazz cache from file:", err);
+}
+const saveCacheToFile = __name(() => {
   try {
-    if (fs.existsSync(CACHE_FILE)) {
-      const fileContent = fs.readFileSync(CACHE_FILE, 'utf-8');
-      priceCache = JSON.parse(fileContent);
-      console.log('✅ Loaded Digiflazz price cache from file.');
-    }
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(priceCache), "utf-8");
   } catch (err) {
-    console.error('Failed to load Digiflazz cache from file:', err);
+    console.error("Failed to save Digiflazz cache to file:", err);
   }
-
-  const saveCacheToFile = () => {
-    try {
-      fs.writeFileSync(CACHE_FILE, JSON.stringify(priceCache), 'utf-8');
-    } catch (err) {
-      console.error('Failed to save Digiflazz cache to file:', err);
-    }
-  };
-  
-  const CACHE_TTL = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
-
-  // Background fetcher to keep cache warm
-  const updateDigiflazzCache = async () => {
-    if (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY) {
-      console.log('⚠️ Skipping background Digiflazz price update: Credentials not configured.');
-      return;
-    }
-
-    try {
-      const types = ['prepaid', 'postpaid'];
-      for (const type of types) {
-        // Check if we already have a fresh cache
-        if (priceCache[type] && (Date.now() - priceCache[type].timestamp < CACHE_TTL)) {
-          console.log(`ℹ️ Skipping background update for ${type} prices: Cache is still fresh.`);
-          continue;
-        }
-
-        console.log(`Fetching ${type} price list from Digiflazz...`);
-        const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").digest('hex');
-        
-        const payload = {
-          cmd: type === 'postpaid' ? 'pasca' : 'prepaid',
-          username: DIGIFLAZZ_USERNAME,
-          sign: sign
-        };
-
-        const response = await axios.post('https://api.digiflazz.com/v1/price-list', payload, getDigiflazzAxiosConfig());
-
-        if (response.data?.data && Array.isArray(response.data.data)) {
-          priceCache[type] = {
-            data: response.data.data,
-            timestamp: Date.now()
-          };
-          saveCacheToFile();
-          console.log(`✅ Successfully updated ${type} price cache in background.`);
-        } else if (response.data?.data?.rc) {
-          if (response.data.data.rc === '83') {
-            console.warn(`⚠️ Digiflazz ${type} rate limit reached (Code 83). Will retry later. Existing cache retained.`);
-          } else {
-            console.error(`❌ Digiflazz ${type} update returned error code ${response.data.data.rc}: ${response.data.data.message}`);
-          }
-        } else {
-          console.warn(`⚠️ Digiflazz ${type} update returned unexpected format:`, JSON.stringify(response.data).substring(0, 200));
-        }
-        
-        // Small delay between requests to avoid immediate rate limit
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    } catch (error: any) {
-      const errorDetail = error.response?.data || error.message;
-      console.error('❌ Background Digiflazz update failed:', typeof errorDetail === 'object' ? JSON.stringify(errorDetail, null, 2) : errorDetail);
-      
-      if (error.response?.status === 400) {
-        console.error('💡 Tip: A 400 error often means an invalid signature or invalid parameters. Check your DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY.');
-      } else if (error.response?.status === 401) {
-        console.error('💡 Tip: A 401 error means unauthorized. Check your credentials and ensure your IP is whitelisted in Digiflazz dashboard.');
-      }
-    }
-  };
-
-  // Run immediately and then every 1 hour
-  if (!process.env.VERCEL) {
-    setTimeout(updateDigiflazzCache, 5000);
-    setInterval(updateDigiflazzCache, CACHE_TTL);
+}, "saveCacheToFile");
+const CACHE_TTL = 12 * 60 * 60 * 1e3;
+const updateDigiflazzCache = __name(async () => {
+  if (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY) {
+    console.log(
+      "\u26A0\uFE0F Skipping background Digiflazz price update: Credentials not configured.",
+    );
+    return;
   }
-
-  // 1. Get Real-time Prices from Digiflazz
-  app.post("/api/digital/prices", async (req, res) => {
-    try {
-      const { category, type = 'prepaid' } = req.body;
-      const cacheKey = `${type}`;
-
-      if (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY) {
-        console.log(`Digiflazz credentials not configured. Returning empty data for ${category || type}`);
-        return res.json({ success: true, data: [], mock: true });
+  try {
+    const types = ["prepaid", "postpaid"];
+    for (const type of types) {
+      if (
+        priceCache[type] &&
+        Date.now() - priceCache[type].timestamp < CACHE_TTL
+      ) {
+        console.log(
+          `\u2139\uFE0F Skipping background update for ${type} prices: Cache is still fresh.`,
+        );
+        continue;
       }
-
-      // Check cache first
-      if (priceCache[cacheKey] && (Date.now() - priceCache[cacheKey].timestamp < CACHE_TTL)) {
-        let filtered = priceCache[cacheKey].data;
-        if (category) {
-          filtered = filtered.filter((p: any) => p.category && p.category.toLowerCase().includes(category.toLowerCase()));
-        }
-        return res.json({ success: true, data: filtered, cached: true });
-      }
-
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").digest('hex');
-      
-      const response = await axios.post('https://api.digiflazz.com/v1/price-list', {
-        cmd: type === 'postpaid' ? 'pasca' : 'prepaid',
+      console.log(`Fetching ${type} price list from Digiflazz...`);
+      const sign = crypto
+        .createHash("md5")
+        .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist")
+        .digest("hex");
+      const payload = {
+        cmd: type === "postpaid" ? "pasca" : "prepaid",
         username: DIGIFLAZZ_USERNAME,
-        sign: sign
-      }, getDigiflazzAxiosConfig());
-
-      const data = response.data;
-      
-      if (data.data && Array.isArray(data.data)) {
-        // Update cache
-        priceCache[cacheKey] = {
-          data: data.data,
-          timestamp: Date.now()
-        };
+        sign,
+      };
+      const response = await axios.post(
+        "https://api.digiflazz.com/v1/price-list",
+        payload,
+        getDigiflazzAxiosConfig(),
+      );
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        priceCache[type] = { data: response.data.data, timestamp: Date.now() };
         saveCacheToFile();
-
-        // Filter by category if provided
-        let filtered = data.data;
-        if (category) {
-          filtered = data.data.filter((p: any) => p.category && p.category.toLowerCase().includes(category.toLowerCase()));
+        console.log(
+          `\u2705 Successfully updated ${type} price cache in background.`,
+        );
+      } else if (response.data?.data?.rc) {
+        if (response.data.data.rc === "83") {
+          console.warn(
+            `\u26A0\uFE0F Digiflazz ${type} rate limit reached (Code 83). Will retry later. Existing cache retained.`,
+          );
+        } else {
+          console.error(
+            `\u274C Digiflazz ${type} update returned error code ${response.data.data.rc}: ${response.data.data.message}`,
+          );
         }
-        return res.json({ success: true, data: filtered });
-      } else if (data.data && data.data.rc) {
-        if (data.data.rc !== '83') {
-          console.error('Digiflazz Price Error Response:', JSON.stringify(data.data));
-        }
-        
-        // If rate limited (rc 83) and we have stale cache, serve stale cache
-        if (data.data.rc === '83') {
-          if (priceCache[cacheKey]) {
-            console.log(`Rate limited, serving STALE ${type} prices from cache`);
-            let filtered = priceCache[cacheKey].data;
-            if (category) {
-              filtered = filtered.filter((p: any) => p.category && p.category.toLowerCase().includes(category.toLowerCase()));
-            }
-            return res.json({ success: true, data: filtered, cached: true, stale: true });
-          } else {
-            // Return empty data if rate limited and no cache
-            console.log(`Rate limited and no cache available. Returning empty data for ${category || type}`);
-            return res.json({ success: true, data: [], mock: true });
+      } else {
+        console.warn(
+          `\u26A0\uFE0F Digiflazz ${type} update returned unexpected format:`,
+          JSON.stringify(response.data).substring(0, 200),
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2e3));
+    }
+  } catch (error) {
+    const errorDetail = error.response?.data || error.message;
+    console.error(
+      "\u274C Background Digiflazz update failed:",
+      typeof errorDetail === "object"
+        ? JSON.stringify(errorDetail, null, 2)
+        : errorDetail,
+    );
+    if (error.response?.status === 400) {
+      console.error(
+        "\u{1F4A1} Tip: A 400 error often means an invalid signature or invalid parameters. Check your DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY.",
+      );
+    } else if (error.response?.status === 401) {
+      console.error(
+        "\u{1F4A1} Tip: A 401 error means unauthorized. Check your credentials and ensure your IP is whitelisted in Digiflazz dashboard.",
+      );
+    }
+  }
+}, "updateDigiflazzCache");
+if (!process.env.VERCEL) {
+  setTimeout(updateDigiflazzCache, 5e3);
+  setInterval(updateDigiflazzCache, CACHE_TTL);
+}
+app.post("/api/digital/prices", async (req, res) => {
+  try {
+    const { category, type = "prepaid" } = req.body;
+    const cacheKey = `${type}`;
+    if (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY) {
+      console.log(
+        `Digiflazz credentials not configured. Returning empty data for ${category || type}`,
+      );
+      return res.json({ success: true, data: [], mock: true });
+    }
+    if (
+      priceCache[cacheKey] &&
+      Date.now() - priceCache[cacheKey].timestamp < CACHE_TTL
+    ) {
+      let filtered = priceCache[cacheKey].data;
+      if (category) {
+        filtered = filtered.filter(
+          (p) =>
+            p.category &&
+            p.category.toLowerCase().includes(category.toLowerCase()),
+        );
+      }
+      return res.json({ success: true, data: filtered, cached: true });
+    }
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist")
+      .digest("hex");
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/price-list",
+      {
+        cmd: type === "postpaid" ? "pasca" : "prepaid",
+        username: DIGIFLAZZ_USERNAME,
+        sign,
+      },
+      getDigiflazzAxiosConfig(),
+    );
+    const data = response.data;
+    if (data.data && Array.isArray(data.data)) {
+      priceCache[cacheKey] = { data: data.data, timestamp: Date.now() };
+      saveCacheToFile();
+      let filtered = data.data;
+      if (category) {
+        filtered = data.data.filter(
+          (p) =>
+            p.category &&
+            p.category.toLowerCase().includes(category.toLowerCase()),
+        );
+      }
+      return res.json({ success: true, data: filtered });
+    } else if (data.data && data.data.rc) {
+      if (data.data.rc !== "83") {
+        console.error(
+          "Digiflazz Price Error Response:",
+          JSON.stringify(data.data),
+        );
+      }
+      if (data.data.rc === "83") {
+        if (priceCache[cacheKey]) {
+          console.log(`Rate limited, serving STALE ${type} prices from cache`);
+          let filtered = priceCache[cacheKey].data;
+          if (category) {
+            filtered = filtered.filter(
+              (p) =>
+                p.category &&
+                p.category.toLowerCase().includes(category.toLowerCase()),
+            );
           }
+          return res.json({
+            success: true,
+            data: filtered,
+            cached: true,
+            stale: true,
+          });
+        } else {
+          console.log(
+            `Rate limited and no cache available. Returning empty data for ${category || type}`,
+          );
+          return res.json({ success: true, data: [], mock: true });
         }
-
-        return res.json({ success: false, error: data.data.message || 'Failed to fetch prices' });
-      } else if (data.rc) {
-        if (data.rc !== '83') {
-          console.error('Digiflazz Price Error Response:', JSON.stringify(data));
-        }
-        
-        // If rate limited (rc 83) and we have stale cache, serve stale cache
-        if (data.rc === '83') {
-          if (priceCache[cacheKey]) {
-            console.log(`Rate limited, serving STALE ${type} prices from cache`);
-            let filtered = priceCache[cacheKey].data;
-            if (category) {
-              filtered = filtered.filter((p: any) => p.category && p.category.toLowerCase().includes(category.toLowerCase()));
-            }
-            return res.json({ success: true, data: filtered, cached: true, stale: true });
-          } else {
-            // Return empty data if rate limited and no cache
-            console.log(`Rate limited and no cache available. Returning empty data for ${category || type}`);
-            return res.json({ success: true, data: [], mock: true });
+      }
+      return res.json({
+        success: false,
+        error: data.data.message || "Failed to fetch prices",
+      });
+    } else if (data.rc) {
+      if (data.rc !== "83") {
+        console.error("Digiflazz Price Error Response:", JSON.stringify(data));
+      }
+      if (data.rc === "83") {
+        if (priceCache[cacheKey]) {
+          console.log(`Rate limited, serving STALE ${type} prices from cache`);
+          let filtered = priceCache[cacheKey].data;
+          if (category) {
+            filtered = filtered.filter(
+              (p) =>
+                p.category &&
+                p.category.toLowerCase().includes(category.toLowerCase()),
+            );
           }
+          return res.json({
+            success: true,
+            data: filtered,
+            cached: true,
+            stale: true,
+          });
+        } else {
+          console.log(
+            `Rate limited and no cache available. Returning empty data for ${category || type}`,
+          );
+          return res.json({ success: true, data: [], mock: true });
         }
-
-        return res.json({ success: false, error: data.message || 'Failed to fetch prices' });
       }
-      
-      res.json({ success: false, error: 'Invalid response from provider' });
-    } catch (error: any) {
-      console.error('Digiflazz Price Error:', error.response?.data ? JSON.stringify(error.response.data) : error.message);
-      
-      // If error and we have stale cache, serve stale cache
-      const cacheKey = `${req.body.type || 'prepaid'}`;
-      if (priceCache[cacheKey]) {
-        console.log(`Network error, serving STALE ${cacheKey} prices from cache`);
-        let filtered = priceCache[cacheKey].data;
-        if (req.body.category) {
-          filtered = filtered.filter((p: any) => p.category && p.category.toLowerCase().includes(req.body.category.toLowerCase()));
-        }
-        return res.json({ success: true, data: filtered, cached: true, stale: true });
-      }
-
-      res.json({ success: false, error: error.response?.data?.data?.message || error.message || 'Failed to fetch prices' });
+      return res.json({
+        success: false,
+        error: data.message || "Failed to fetch prices",
+      });
     }
-  });
-
-  app.post("/api/digital/inquiry-pln", async (req, res) => {
-    try {
-      const { customer_no } = req.body;
-      if (!customer_no) {
-        return res.status(400).json({ success: false, error: 'Nomor pelanggan harus diisi' });
+    res.json({ success: false, error: "Invalid response from provider" });
+  } catch (error) {
+    console.error(
+      "Digiflazz Price Error:",
+      error.response?.data
+        ? JSON.stringify(error.response.data)
+        : error.message,
+    );
+    const cacheKey = `${req.body.type || "prepaid"}`;
+    if (priceCache[cacheKey]) {
+      console.log(`Network error, serving STALE ${cacheKey} prices from cache`);
+      let filtered = priceCache[cacheKey].data;
+      if (req.body.category) {
+        filtered = filtered.filter(
+          (p) =>
+            p.category &&
+            p.category.toLowerCase().includes(req.body.category.toLowerCase()),
+        );
       }
-
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + customer_no).digest('hex');
-
-      console.log('Digiflazz PLN Inquiry Request:', { customer_no });
-
-      const response = await axios.post('https://api.digiflazz.com/v1/inquiry-pln', {
+      return res.json({
+        success: true,
+        data: filtered,
+        cached: true,
+        stale: true,
+      });
+    }
+    res.json({
+      success: false,
+      error:
+        error.response?.data?.data?.message ||
+        error.message ||
+        "Failed to fetch prices",
+    });
+  }
+});
+app.post("/api/digital/inquiry-pln", async (req, res) => {
+  try {
+    const { customer_no } = req.body;
+    if (!customer_no) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Nomor pelanggan harus diisi" });
+    }
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + customer_no)
+      .digest("hex");
+    console.log("Digiflazz PLN Inquiry Request:", { customer_no });
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/inquiry-pln",
+      { username: DIGIFLAZZ_USERNAME, customer_no, sign },
+      getDigiflazzAxiosConfig(),
+    );
+    const data = response.data.data;
+    if (data && data.rc === "00") {
+      res.json({ success: true, data });
+    } else {
+      const errorMsg = data?.message || "Gagal melakukan inquiry PLN";
+      console.error("Digiflazz PLN Inquiry Business Error:", data);
+      res.json({ success: false, error: errorMsg });
+    }
+  } catch (error) {
+    const errorData =
+      error.response?.data?.data || error.response?.data || error.message;
+    const errorMessage =
+      typeof errorData === "string"
+        ? errorData
+        : errorData.message || JSON.stringify(errorData);
+    console.error("Digiflazz PLN Inquiry Connection Error:", errorMessage);
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+app.post("/api/digital/inquiry-pasca", async (req, res) => {
+  try {
+    const { customer_no, buyer_sku_code } = req.body;
+    if (!customer_no || !buyer_sku_code) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Nomor pelanggan dan SKU harus diisi" });
+    }
+    const ref_id = `inq_${buyer_sku_code}_${Date.now()}_${Math.floor(Math.random() * 1e3)}`;
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id)
+      .digest("hex");
+    console.log("Digiflazz Pasca Inquiry Request:", {
+      customer_no,
+      buyer_sku_code,
+      ref_id,
+    });
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/transaction",
+      {
+        commands: "inq-pasca",
         username: DIGIFLAZZ_USERNAME,
-        customer_no: customer_no,
-        sign: sign
-      }, getDigiflazzAxiosConfig());
-
-      const data = response.data.data;
-      
-      if (data && data.rc === '00') {
-        res.json({ success: true, data: data });
-      } else {
-        const errorMsg = data?.message || 'Gagal melakukan inquiry PLN';
-        console.error('Digiflazz PLN Inquiry Business Error:', data);
-        res.json({ success: false, error: errorMsg });
-      }
-    } catch (error: any) {
-      const errorData = error.response?.data?.data || error.response?.data || error.message;
-      const errorMessage = typeof errorData === 'string' ? errorData : (errorData.message || JSON.stringify(errorData));
-      
-      console.error('Digiflazz PLN Inquiry Connection Error:', errorMessage);
-      res.status(500).json({ success: false, error: errorMessage });
+        buyer_sku_code,
+        customer_no,
+        ref_id,
+        sign,
+      },
+      getDigiflazzAxiosConfig(),
+    );
+    const data = response.data.data;
+    if (data && data.rc === "00") {
+      res.json({ success: true, data });
+    } else {
+      const errorMsg = data?.message || "Gagal melakukan inquiry tagihan";
+      console.error("Digiflazz Pasca Inquiry Business Error:", data);
+      res.json({ success: false, error: errorMsg });
     }
-  });
-
-  app.post("/api/digital/inquiry-pasca", async (req, res) => {
-    try {
-      const { customer_no, buyer_sku_code } = req.body;
-      if (!customer_no || !buyer_sku_code) {
-        return res.status(400).json({ success: false, error: 'Nomor pelanggan dan SKU harus diisi' });
-      }
-
-      const ref_id = `inq_${buyer_sku_code}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
-
-      console.log('Digiflazz Pasca Inquiry Request:', { customer_no, buyer_sku_code, ref_id });
-
-      const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
-        commands: 'inq-pasca',
-        username: DIGIFLAZZ_USERNAME,
-        buyer_sku_code: buyer_sku_code,
-        customer_no: customer_no,
-        ref_id: ref_id,
-        sign: sign
-      }, getDigiflazzAxiosConfig());
-
-      const data = response.data.data;
-      
-      if (data && data.rc === '00') {
-        res.json({ success: true, data: data });
-      } else {
-        const errorMsg = data?.message || 'Gagal melakukan inquiry tagihan';
-        console.error('Digiflazz Pasca Inquiry Business Error:', data);
-        res.json({ success: false, error: errorMsg });
-      }
-    } catch (error: any) {
-      const errorData = error.response?.data?.data || error.response?.data || error.message;
-      const errorMessage = typeof errorData === 'string' ? errorData : (errorData.message || JSON.stringify(errorData));
-      
-      console.error('Digiflazz Pasca Inquiry Connection Error:', errorMessage);
-      res.status(500).json({ success: false, error: errorMessage });
+  } catch (error) {
+    const errorData =
+      error.response?.data?.data || error.response?.data || error.message;
+    const errorMessage =
+      typeof errorData === "string"
+        ? errorData
+        : errorData.message || JSON.stringify(errorData);
+    console.error("Digiflazz Pasca Inquiry Connection Error:", errorMessage);
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+app.post("/api/digital/inquiry-ewallet", async (req, res) => {
+  try {
+    const { customer_no, brand } = req.body;
+    if (!customer_no || !brand) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Nomor pelanggan dan brand harus diisi",
+        });
     }
-  });
-
-  app.post("/api/digital/inquiry-ewallet", async (req, res) => {
-    try {
-      const { customer_no, brand } = req.body;
-      if (!customer_no || !brand) {
-        return res.status(400).json({ success: false, error: 'Nomor pelanggan dan brand harus diisi' });
-      }
-
-      // Map brand to common check SKUs
-      const brandLower = brand.toLowerCase();
-      let sku = '';
-      if (brandLower.includes('dana')) sku = 'CEKDANA';
-      else if (brandLower.includes('ovo')) sku = 'CEKOVO';
-      else if (brandLower.includes('gopay') || brandLower.includes('go-pay')) sku = 'CEKGOPAY';
-      else if (brandLower.includes('shopee') || brandLower.includes('shopeepay')) sku = 'CEKSHOPEE';
-      else if (brandLower.includes('linkaja')) sku = 'CEKLINKAJA';
-      else {
-        return res.status(400).json({ success: false, error: `Pengecekan nama untuk brand ${brand} belum didukung` });
-      }
-
-      const ref_id = `cek_${sku}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
-
-      console.log('Digiflazz E-Wallet Inquiry Request:', { customer_no, brand, sku, ref_id });
-
-      const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
+    const brandLower = brand.toLowerCase();
+    let sku = "";
+    if (brandLower.includes("dana")) sku = "CEKDANA";
+    else if (brandLower.includes("ovo")) sku = "CEKOVO";
+    else if (brandLower.includes("gopay") || brandLower.includes("go-pay"))
+      sku = "CEKGOPAY";
+    else if (brandLower.includes("shopee") || brandLower.includes("shopeepay"))
+      sku = "CEKSHOPEE";
+    else if (brandLower.includes("linkaja")) sku = "CEKLINKAJA";
+    else {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: `Pengecekan nama untuk brand ${brand} belum didukung`,
+        });
+    }
+    const ref_id = `cek_${sku}_${Date.now()}_${Math.floor(Math.random() * 1e3)}`;
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id)
+      .digest("hex");
+    console.log("Digiflazz E-Wallet Inquiry Request:", {
+      customer_no,
+      brand,
+      sku,
+      ref_id,
+    });
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/transaction",
+      {
         username: DIGIFLAZZ_USERNAME,
         buyer_sku_code: sku,
-        customer_no: customer_no,
-        ref_id: ref_id,
-        sign: sign
-      }, getDigiflazzAxiosConfig());
-
-      const data = response.data.data;
-      
-      if (data && (data.rc === '00' || data.status === 'Sukses')) {
-        // Digiflazz usually returns the name in 'sn' or 'message'
-        // Example SN: "A/N BUDI SANTOSO" or just "BUDI SANTOSO"
-        let name = data.sn || data.message || 'Nama ditemukan';
-        
-        // Clean up common prefixes if needed
-        if (name.toUpperCase().startsWith('A/N ')) {
-          name = name.substring(4).trim();
-        } else if (name.toUpperCase().startsWith('AN ')) {
-          name = name.substring(3).trim();
-        }
-
-        res.json({ success: true, data: { name: name, raw: data } });
-      } else {
-        const errorMsg = data?.message || 'Gagal melakukan pengecekan e-wallet';
-        console.error('Digiflazz E-Wallet Inquiry Business Error:', data);
-        res.json({ success: false, error: errorMsg });
+        customer_no,
+        ref_id,
+        sign,
+      },
+      getDigiflazzAxiosConfig(),
+    );
+    const data = response.data.data;
+    if (data && (data.rc === "00" || data.status === "Sukses")) {
+      let name = data.sn || data.message || "Nama ditemukan";
+      if (name.toUpperCase().startsWith("A/N ")) {
+        name = name.substring(4).trim();
+      } else if (name.toUpperCase().startsWith("AN ")) {
+        name = name.substring(3).trim();
       }
-    } catch (error: any) {
-      const errorData = error.response?.data?.data || error.response?.data || error.message;
-      const errorMessage = typeof errorData === 'string' ? errorData : (errorData.message || JSON.stringify(errorData));
-      
-      console.error('Digiflazz E-Wallet Inquiry Connection Error:', errorMessage);
-      res.status(500).json({ success: false, error: errorMessage });
+      res.json({ success: true, data: { name, raw: data } });
+    } else {
+      const errorMsg = data?.message || "Gagal melakukan pengecekan e-wallet";
+      console.error("Digiflazz E-Wallet Inquiry Business Error:", data);
+      res.json({ success: false, error: errorMsg });
     }
-  });
-
-  app.post("/api/digital/status-pasca", async (req, res) => {
-    try {
-      const { sku, customer_no, ref_id } = req.body;
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
-
-      const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
-        commands: 'status-pasca',
+  } catch (error) {
+    const errorData =
+      error.response?.data?.data || error.response?.data || error.message;
+    const errorMessage =
+      typeof errorData === "string"
+        ? errorData
+        : errorData.message || JSON.stringify(errorData);
+    console.error("Digiflazz E-Wallet Inquiry Connection Error:", errorMessage);
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+app.post("/api/digital/status-pasca", async (req, res) => {
+  try {
+    const { sku, customer_no, ref_id } = req.body;
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id)
+      .digest("hex");
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/transaction",
+      {
+        commands: "status-pasca",
         username: DIGIFLAZZ_USERNAME,
         buyer_sku_code: sku,
-        customer_no: customer_no,
-        ref_id: ref_id,
-        sign: sign
-      }, getDigiflazzAxiosConfig());
-
-      const data = response.data.data;
-      if (data && (data.rc === '00' || data.status === 'Success')) {
-        res.json({ success: true, data: data });
-      } else {
-        const errorMsg = data?.message || 'Gagal mengecek status pascabayar';
-        res.json({ success: false, error: errorMsg });
-      }
-    } catch (error: any) {
-      const errorData = error.response?.data?.data || error.response?.data || error.message;
-      const errorMessage = typeof errorData === 'string' ? errorData : (errorData.message || JSON.stringify(errorData));
-      
-      console.error('Digiflazz Status Pasca Error:', errorMessage);
-      res.status(500).json({ success: false, error: errorMessage });
+        customer_no,
+        ref_id,
+        sign,
+      },
+      getDigiflazzAxiosConfig(),
+    );
+    const data = response.data.data;
+    if (data && (data.rc === "00" || data.status === "Success")) {
+      res.json({ success: true, data });
+    } else {
+      const errorMsg = data?.message || "Gagal mengecek status pascabayar";
+      res.json({ success: false, error: errorMsg });
     }
-  });
-
-  app.post("/api/digital/inq-pasca", async (req, res) => {
-    try {
-      const { sku, customer_no, ref_id } = req.body;
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
-
-      const response = await axios.post('https://api.digiflazz.com/v1/transaction', {
-        commands: 'inq-pasca',
+  } catch (error) {
+    const errorData =
+      error.response?.data?.data || error.response?.data || error.message;
+    const errorMessage =
+      typeof errorData === "string"
+        ? errorData
+        : errorData.message || JSON.stringify(errorData);
+    console.error("Digiflazz Status Pasca Error:", errorMessage);
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+app.post("/api/digital/inq-pasca", async (req, res) => {
+  try {
+    const { sku, customer_no, ref_id } = req.body;
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id)
+      .digest("hex");
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/transaction",
+      {
+        commands: "inq-pasca",
         username: DIGIFLAZZ_USERNAME,
         buyer_sku_code: sku,
-        customer_no: customer_no,
-        ref_id: ref_id,
-        sign: sign,
-        testing: process.env.DIGIFLAZZ_TESTING === 'true'
-      }, getDigiflazzAxiosConfig());
-
-      const data = response.data.data;
-      if (data && (data.rc === '00' || data.status === 'Sukses')) {
-        res.json({ success: true, data: data });
-      } else {
-        const errorMsg = data?.message || 'Gagal melakukan cek tagihan pascabayar';
-        res.json({ success: false, error: errorMsg });
-      }
-    } catch (error: any) {
-      const errorData = error.response?.data?.data || error.response?.data || error.message;
-      const errorMessage = typeof errorData === 'string' ? errorData : (errorData.message || JSON.stringify(errorData));
-      
-      console.error('Digiflazz Inq Pasca Error:', errorMessage);
-      res.status(500).json({ success: false, error: errorMessage });
+        customer_no,
+        ref_id,
+        sign,
+        testing: process.env.DIGIFLAZZ_TESTING === "true",
+      },
+      getDigiflazzAxiosConfig(),
+    );
+    const data = response.data.data;
+    if (data && (data.rc === "00" || data.status === "Sukses")) {
+      res.json({ success: true, data });
+    } else {
+      const errorMsg =
+        data?.message || "Gagal melakukan cek tagihan pascabayar";
+      res.json({ success: false, error: errorMsg });
     }
-  });
-
-  app.post("/api/digital/deposit", async (req, res) => {
-    try {
-      const { amount, bank, owner_name } = req.body;
-      
-      if (!amount || !bank || !owner_name) {
-        return res.status(400).json({ success: false, error: 'Amount, bank, and owner_name are required' });
-      }
-
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "deposit").digest('hex');
-
-      const response = await axios.post('https://api.digiflazz.com/v1/deposit', {
+  } catch (error) {
+    const errorData =
+      error.response?.data?.data || error.response?.data || error.message;
+    const errorMessage =
+      typeof errorData === "string"
+        ? errorData
+        : errorData.message || JSON.stringify(errorData);
+    console.error("Digiflazz Inq Pasca Error:", errorMessage);
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+app.post("/api/digital/deposit", async (req, res) => {
+  try {
+    const { amount, bank, owner_name } = req.body;
+    if (!amount || !bank || !owner_name) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: "Amount, bank, and owner_name are required",
+        });
+    }
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "deposit")
+      .digest("hex");
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/deposit",
+      {
         username: DIGIFLAZZ_USERNAME,
         amount: parseInt(amount),
         Bank: bank,
-        owner_name: owner_name,
-        sign: sign
-      }, getDigiflazzAxiosConfig());
-
-      const data = response.data.data;
-      if (data && data.rc === '00') {
-        res.json({ success: true, data: data });
-      } else {
-        const errorMsg = data?.message || 'Gagal membuat tiket deposit';
-        res.json({ success: false, error: errorMsg });
-      }
-    } catch (error: any) {
-      const errorData = error.response?.data?.data || error.response?.data || error.message;
-      const errorMessage = typeof errorData === 'string' ? errorData : (errorData.message || JSON.stringify(errorData));
-      
-      console.error('Digiflazz Deposit Error:', errorMessage);
-      res.status(500).json({ success: false, error: errorMessage });
+        owner_name,
+        sign,
+      },
+      getDigiflazzAxiosConfig(),
+    );
+    const data = response.data.data;
+    if (data && data.rc === "00") {
+      res.json({ success: true, data });
+    } else {
+      const errorMsg = data?.message || "Gagal membuat tiket deposit";
+      res.json({ success: false, error: errorMsg });
     }
-  });
-
-  app.post("/api/digital/check-status", async (req, res) => {
-    try {
-      const { transaction_item_id } = req.body;
-      
-      if (!transaction_item_id) {
-        return res.status(400).json({ success: false, error: 'Missing transaction_item_id' });
-      }
-
-      // Fetch the transaction item
-      const { data: item, error: fetchError } = await supabase
-        .from('transaction_items')
-        .select('*')
-        .eq('id', transaction_item_id)
-        .single();
-
-      if (fetchError || !item) {
-        return res.status(404).json({ success: false, error: 'Item not found' });
-      }
-
-      // Robust fallback for refId, sku, and customerNo
-      const refId = item.metadata?.ref_id || item.metadata?.digiflazz_response?.ref_id || item.transaction_id;
-      const sku = item.metadata?.sku || item.metadata?.digiflazz_response?.buyer_sku_code;
-      const customerNo = item.metadata?.target_number || item.metadata?.digiflazz_request?.customer_no || item.metadata?.digiflazz_response?.customer_no;
-
-      if (!refId || !sku || !customerNo) {
-        console.error('Incomplete metadata for checking status:', JSON.stringify(item.metadata, null, 2));
-        return res.status(400).json({ success: false, error: 'Data produk digital tidak lengkap untuk mengecek status (hubungi admin sales)' });
-      }
-
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).digest('hex');
-      
-      const payload: any = {
-        username: DIGIFLAZZ_USERNAME,
-        buyer_sku_code: sku,
-        customer_no: customerNo,
-        ref_id: refId,
-        sign: sign
-      };
-
-      if (item.metadata?.is_postpaid) {
-        payload.commands = 'pay-pasca';
-      }
-
-      const digiResponse = await axios.post('https://api.digiflazz.com/v1/transaction', payload, getDigiflazzAxiosConfig());
-      const digiData = digiResponse.data;
-
-      const responseData = digiData.data || {};
-      const rc = responseData.rc;
-      const message = responseData.message || 'No message from Digiflazz';
-      const sn = responseData.sn || '';
-
-      // Map Digiflazz RC to item status
-      let itemStatus = 'processing';
-      if (rc === '00') {
-        itemStatus = 'delivered';
-      } else if (rc === '03') {
-        itemStatus = 'processing';
-      } else {
-        itemStatus = 'failed';
-      }
-
-      // Update the database
-      const { error: updateError } = await supabase
-        .from('transaction_items')
-        .update({
-          metadata: {
-            ...item.metadata,
-            status: itemStatus,
-            digiflazz_response: responseData,
-            digiflazz_rc: rc,
-            digiflazz_message: message,
-            sn: sn || item.metadata?.sn, // preserve old SN if new SN is empty (though Digiflazz replaces it correctly)
-            last_check: new Date().toISOString()
-          }
-        })
-        .eq('id', transaction_item_id);
-
-      if (updateError) {
-        console.error('Error updating item based on manual check:', updateError);
-      }
-
-      res.json({ success: true, itemStatus, sn, message });
-    } catch (error: any) {
-      console.error('Check Status Error:', error);
-      res.status(500).json({ success: false, error: error.message });
+  } catch (error) {
+    const errorData =
+      error.response?.data?.data || error.response?.data || error.message;
+    const errorMessage =
+      typeof errorData === "string"
+        ? errorData
+        : errorData.message || JSON.stringify(errorData);
+    console.error("Digiflazz Deposit Error:", errorMessage);
+    res.status(500).json({ success: false, error: errorMessage });
+  }
+});
+app.post("/api/digital/check-status", async (req, res) => {
+  try {
+    const { transaction_item_id } = req.body;
+    if (!transaction_item_id) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Missing transaction_item_id" });
     }
-  });
-
-  // 1.5 Cek Saldo Digiflazz (Test Endpoint)
-  app.get("/api/digital/cek-saldo", async (req, res) => {
-    try {
-      if (isDefaultDigiflazz) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Digiflazz credentials not configured. Please set DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY in environment variables.',
-          is_default: true
+    const { data: item, error: fetchError } = await supabase
+      .from("transaction_items")
+      .select("*")
+      .eq("id", transaction_item_id)
+      .single();
+    if (fetchError || !item) {
+      return res.status(404).json({ success: false, error: "Item not found" });
+    }
+    const refId =
+      item.metadata?.ref_id ||
+      item.metadata?.digiflazz_response?.ref_id ||
+      item.transaction_id;
+    const sku =
+      item.metadata?.sku || item.metadata?.digiflazz_response?.buyer_sku_code;
+    const customerNo =
+      item.metadata?.target_number ||
+      item.metadata?.digiflazz_request?.customer_no ||
+      item.metadata?.digiflazz_response?.customer_no;
+    if (!refId || !sku || !customerNo) {
+      console.error(
+        "Incomplete metadata for checking status:",
+        JSON.stringify(item.metadata, null, 2),
+      );
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error:
+            "Data produk digital tidak lengkap untuk mengecek status (hubungi admin sales)",
         });
-      }
-
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").digest('hex');
-      
-      console.log('🔍 Cek Saldo Debug:', {
-        username: DIGIFLAZZ_USERNAME,
-        sign: sign,
-        apiKeyLength: DIGIFLAZZ_API_KEY.length,
-        apiKeyPrefix: DIGIFLAZZ_API_KEY.substring(0, 5) + '...'
-      });
-
-      const response = await axios.post('https://api.digiflazz.com/v1/cek-saldo', {
-        cmd: 'deposit',
-        username: DIGIFLAZZ_USERNAME,
-        sign: sign
-      }, getDigiflazzAxiosConfig());
-
-      if (!response.data || !response.data.data) {
-        console.error('❌ Digiflazz Cek Saldo Invalid Response:', response.data);
-        return res.status(500).json({ 
-          success: false, 
-          error: 'Invalid response from Digiflazz',
-          details: response.data
+    }
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId)
+      .digest("hex");
+    const payload = {
+      username: DIGIFLAZZ_USERNAME,
+      buyer_sku_code: sku,
+      customer_no: customerNo,
+      ref_id: refId,
+      sign,
+    };
+    if (item.metadata?.is_postpaid) {
+      payload.commands = "pay-pasca";
+    }
+    const digiResponse = await axios.post(
+      "https://api.digiflazz.com/v1/transaction",
+      payload,
+      getDigiflazzAxiosConfig(),
+    );
+    const digiData = digiResponse.data;
+    const responseData = digiData.data || {};
+    const rc = responseData.rc;
+    const message = responseData.message || "No message from Digiflazz";
+    const sn = responseData.sn || "";
+    let itemStatus = "processing";
+    if (rc === "00") {
+      itemStatus = "delivered";
+    } else if (rc === "03") {
+      itemStatus = "processing";
+    } else {
+      itemStatus = "failed";
+    }
+    const { error: updateError } = await supabase
+      .from("transaction_items")
+      .update({
+        metadata: {
+          ...item.metadata,
+          status: itemStatus,
+          digiflazz_response: responseData,
+          digiflazz_rc: rc,
+          digiflazz_message: message,
+          sn: sn || item.metadata?.sn,
+          last_check: new Date().toISOString(),
+        },
+      })
+      .eq("id", transaction_item_id);
+    if (updateError) {
+      console.error("Error updating item based on manual check:", updateError);
+    }
+    res.json({ success: true, itemStatus, sn, message });
+  } catch (error) {
+    console.error("Check Status Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+app.get("/api/digital/cek-saldo", async (req, res) => {
+  try {
+    if (isDefaultDigiflazz) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error:
+            "Digiflazz credentials not configured. Please set DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY in environment variables.",
+          is_default: true,
         });
-      }
-
-      if (response.data.data.rc && response.data.data.rc !== '00') {
-        console.error('❌ Digiflazz Cek Saldo RC Error:', response.data.data);
-        return res.status(400).json({ 
-          success: false, 
-          error: response.data.data.message || 'Digiflazz error',
-          rc: response.data.data.rc
+    }
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo")
+      .digest("hex");
+    console.log("\u{1F50D} Cek Saldo Debug:", {
+      username: DIGIFLAZZ_USERNAME,
+      sign,
+      apiKeyLength: DIGIFLAZZ_API_KEY.length,
+      apiKeyPrefix: DIGIFLAZZ_API_KEY.substring(0, 5) + "...",
+    });
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/cek-saldo",
+      { cmd: "deposit", username: DIGIFLAZZ_USERNAME, sign },
+      getDigiflazzAxiosConfig(),
+    );
+    if (!response.data || !response.data.data) {
+      console.error(
+        "\u274C Digiflazz Cek Saldo Invalid Response:",
+        response.data,
+      );
+      return res
+        .status(500)
+        .json({
+          success: false,
+          error: "Invalid response from Digiflazz",
+          details: response.data,
         });
-      }
-
-      res.json({ success: true, data: response.data.data });
-    } catch (error: any) {
-      const errorData = error.response?.data || error.message;
-      const statusCode = error.response?.status || 500;
-      
-      console.error(`❌ Digiflazz Cek Saldo Error [${statusCode}]:`, {
-        message: error.message,
-        data: error.response?.data,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          headers: error.config?.headers
-        }
-      });
-
-      let userFriendlyError = 'Failed to fetch balance';
-      if (typeof errorData === 'string') {
-        userFriendlyError = errorData;
-      } else if (errorData?.data?.message) {
-        userFriendlyError = errorData.data.message;
-      } else if (errorData?.message) {
-        userFriendlyError = errorData.message;
-      } else if (error.message) {
-        userFriendlyError = error.message;
-      }
-      
-      // Digiflazz often returns "Signature Anda salah" if the IP is not whitelisted, even if the signature is correct.
-      if (userFriendlyError.toLowerCase().includes('signature') || statusCode === 403 || statusCode === 401 || statusCode === 400) {
-        userFriendlyError = 'Akses Ditolak: Pastikan IP Address server (Cloud Run) sudah di-whitelist di Digiflazz ATAU gunakan FIXIE_URL yang valid. (Error asli: ' + userFriendlyError + ')';
-      }
-
-      res.status(statusCode).json({ 
-        success: false, 
+    }
+    if (response.data.data.rc && response.data.data.rc !== "00") {
+      console.error("\u274C Digiflazz Cek Saldo RC Error:", response.data.data);
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: response.data.data.message || "Digiflazz error",
+          rc: response.data.data.rc,
+        });
+    }
+    res.json({ success: true, data: response.data.data });
+  } catch (error) {
+    const errorData = error.response?.data || error.message;
+    const statusCode = error.response?.status || 500;
+    console.error(`\u274C Digiflazz Cek Saldo Error [${statusCode}]:`, {
+      message: error.message,
+      data: error.response?.data,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers,
+      },
+    });
+    let userFriendlyError = "Failed to fetch balance";
+    if (typeof errorData === "string") {
+      userFriendlyError = errorData;
+    } else if (errorData?.data?.message) {
+      userFriendlyError = errorData.data.message;
+    } else if (errorData?.message) {
+      userFriendlyError = errorData.message;
+    } else if (error.message) {
+      userFriendlyError = error.message;
+    }
+    if (
+      userFriendlyError.toLowerCase().includes("signature") ||
+      statusCode === 403 ||
+      statusCode === 401 ||
+      statusCode === 400
+    ) {
+      userFriendlyError =
+        "Akses Ditolak: Pastikan IP Address server (Cloud Run) sudah di-whitelist di Digiflazz ATAU gunakan FIXIE_URL yang valid. (Error asli: " +
+        userFriendlyError +
+        ")";
+    }
+    res
+      .status(statusCode)
+      .json({
+        success: false,
         error: userFriendlyError,
         details: errorData,
-        tip: 'Digiflazz mewajibkan Whitelist IP. Jika deploy ke Cloud Run, IP akan berubah-ubah. Anda WAJIB menggunakan proxy statis (FIXIE_URL).'
+        tip: "Digiflazz mewajibkan Whitelist IP. Jika deploy ke Cloud Run, IP akan berubah-ubah. Anda WAJIB menggunakan proxy statis (FIXIE_URL).",
+      });
+  }
+});
+app.post("/api/digital/order", async (req, res) => {
+  try {
+    const { sku, customer_no, ref_id, is_postpaid } = req.body || {};
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id)
+      .digest("hex");
+    const payload = {
+      username: DIGIFLAZZ_USERNAME,
+      buyer_sku_code: sku,
+      customer_no,
+      ref_id,
+      sign,
+      testing: process.env.DIGIFLAZZ_TESTING === "true",
+    };
+    if (is_postpaid) {
+      payload.commands = "pay-pasca";
+    }
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/transaction",
+      payload,
+      getDigiflazzAxiosConfig(),
+    );
+    const data = response.data;
+    res.json({ success: true, data: data.data });
+  } catch (error) {
+    const errData = error.response?.data
+      ? JSON.stringify(error.response.data)
+      : error.message;
+    console.error("Digiflazz Order Error:", errData);
+    res.status(500).json({ error: errData });
+  }
+});
+app.post("/api/admin/transactions/approve", async (req, res) => {
+  try {
+    const { transaction_id } = req.body;
+    if (!transaction_id)
+      return res.status(400).json({ error: "Transaction ID is required" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user)
+      return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profile?.role !== "admin")
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    const { data: transaction, error: txError } = await supabase
+      .from("transactions")
+      .select("*, transaction_items(*)")
+      .eq("id", transaction_id)
+      .single();
+    if (txError || !transaction)
+      return res.status(404).json({ error: "Transaction not found" });
+    if (transaction.status === "success")
+      return res.status(400).json({ error: "Transaction already successful" });
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({ status: "success" })
+      .eq("id", transaction_id);
+    if (updateError) throw updateError;
+    await updateSellerBalances(transaction.transaction_items);
+    await checkLowStockAndNotify(transaction.transaction_items);
+    await updateBuyerPoints(transaction_id, transaction.buyer_id, transaction.total_amount);
+    await processDigitalItems(transaction_id, transaction.transaction_items);
+    await triggerSarirotiEmail(
+      transaction_id,
+      transaction.buyer_name,
+      transaction.total_amount,
+    );
+    if (transaction.buyer_id) {
+      await sendNotification(transaction.buyer_id, {
+        type: "transaction",
+        title: "\u2705 Pembayaran Dikonfirmasi!",
+        message: `Pesanan Anda #${transaction_id.slice(0, 8)} telah diverifikasi oleh admin. Terima kasih!`,
+        path: `/kiosk/history?id=${transaction_id}`,
       });
     }
-  });
-
-  // 2. Place Order to Digiflazz
-  app.post("/api/digital/order", async (req, res) => {
-    try {
-      const { sku, customer_no, ref_id, is_postpaid } = req.body || {};
-      const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
-
-      const payload: any = {
-        username: DIGIFLAZZ_USERNAME,
-        buyer_sku_code: sku,
-        customer_no: customer_no,
-        ref_id: ref_id,
-        sign: sign,
-        testing: process.env.DIGIFLAZZ_TESTING === 'true'
-      };
-
-      if (is_postpaid) {
-        payload.commands = 'pay-pasca';
-      }
-
-      const response = await axios.post('https://api.digiflazz.com/v1/transaction', payload, getDigiflazzAxiosConfig());
-
-      const data = response.data;
-      res.json({ success: true, data: data.data });
-    } catch (error: any) {
-      const errData = error.response?.data ? JSON.stringify(error.response.data) : error.message;
-      console.error('Digiflazz Order Error:', errData);
-      res.status(500).json({ error: errData });
-    }
-  });
-
-  // Admin: Approve Transaction (Manual QRIS)
-  app.post('/api/admin/transactions/approve', async (req, res) => {
-    try {
-      const { transaction_id } = req.body;
-      if (!transaction_id) return res.status(400).json({ error: 'Transaction ID is required' });
-
-      // 1. Verify admin status
-      const authHeader = req.headers.authorization;
-      if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
-      const token = authHeader.split(' ')[1];
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Admin only' });
-
-      // 2. Get transaction details
-      const { data: transaction, error: txError } = await supabase
-        .from('transactions')
-        .select('*, transaction_items(*)')
-        .eq('id', transaction_id)
-        .single();
-
-      if (txError || !transaction) return res.status(404).json({ error: 'Transaction not found' });
-      if (transaction.status === 'success') return res.status(400).json({ error: 'Transaction already successful' });
-
-      // 3. Update transaction status
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ status: 'success' })
-        .eq('id', transaction_id);
-
-      if (updateError) throw updateError;
-
-      // 4. Update seller balances AND total_sales
-      await updateSellerBalances(transaction.transaction_items);
-
-      // 5. Process digital items if any
-      await processDigitalItems(transaction_id, transaction.transaction_items);
-
-      // 6. Trigger Sariroti Email if applicable
-      await triggerSarirotiEmail(transaction_id, transaction.buyer_name, transaction.total_amount);
-
-      // 7. Notify buyer
-      if (transaction.buyer_id) {
-        await sendNotification(transaction.buyer_id, {
-          type: 'transaction',
-          title: '✅ Pembayaran Dikonfirmasi!',
-          message: `Pesanan Anda #${transaction_id.slice(0, 8)} telah diverifikasi oleh admin. Terima kasih!`,
-          path: `/kiosk/success?id=${transaction_id}`
+    const uniqueSellers = [
+      ...new Set(transaction.transaction_items.map((item) => item.seller_id)),
+    ];
+    for (const sellerId of uniqueSellers) {
+      if (sellerId) {
+        await sendNotification(sellerId, {
+          type: "transaction",
+          title: "\u{1F4B0} Pesanan Baru Masuk!",
+          message: `Ada pesanan baru #${transaction_id.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
+          path: `/dashboard/seller/transactions?id=${transaction_id}`,
         });
       }
-
-      // 8. Notify sellers
-      const uniqueSellers = [...new Set(transaction.transaction_items.map((item: any) => item.seller_id))];
-      for (const sellerId of uniqueSellers) {
-        if (sellerId) {
-          await sendNotification(sellerId as string, {
-            type: 'transaction',
-            title: '💰 Pesanan Baru Masuk!',
-            message: `Ada pesanan baru #${transaction_id.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
-            path: `/dashboard/seller/transactions?id=${transaction_id}`
-          });
-        }
-      }
-
-      res.json({ success: true, message: 'Transaction approved and processed' });
-    } catch (error: any) {
-      console.error('Error approving transaction:', error);
-      res.status(500).json({ error: error.message || 'Internal server error' });
     }
-  });
-
-  // Admin: Confirm Sariroti Order
-  app.post('/api/admin/transactions/confirm-sariroti', async (req, res) => {
-    try {
-      const { transaction_id } = req.body;
-      if (!transaction_id) return res.status(400).json({ error: 'Transaction ID is required' });
-
-      // 1. Verify admin status
-      const authHeader = req.headers.authorization;
-      if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
-      const token = authHeader.split(' ')[1];
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Admin only' });
-
-      // 2. Get transaction details
-      const { data: transaction, error: txError } = await supabase
-        .from('transactions')
-        .select('*, transaction_items(*, products(*))')
-        .eq('id', transaction_id)
-        .single();
-
-      if (txError || !transaction) return res.status(404).json({ error: 'Transaction not found' });
-
-      // 3. Update transaction metadata to mark as confirmed
-      const newMetadata = {
-        ...(transaction.metadata || {}),
-        sariroti_confirmed: true,
-        sariroti_confirmed_at: new Date().toISOString(),
-        sariroti_confirmed_by: user.id,
-        sariroti_order_status: 'confirmed', // Flow: confirmed → ready → picked_up
-      };
-
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ metadata: newMetadata })
-        .eq('id', transaction_id);
-
-      if (updateError) throw updateError;
-
-      // 4. Get buyer email
-      let buyerEmail = null;
-      if (transaction.buyer_id) {
-        const { data: buyerAuth } = await supabase.auth.admin.getUserById(transaction.buyer_id);
-        buyerEmail = buyerAuth?.user?.email;
-      } else if (transaction.payment_details?.buyer_email) {
-        buyerEmail = transaction.payment_details.buyer_email;
-      }
-
-      // 5. Send email receipt to buyer
-      if (buyerEmail) {
-        await sendBuyerReceiptEmail(transaction_id, buyerEmail, transaction.buyer_name, transaction.transaction_items, transaction.total_amount);
-      } else {
-        console.log(`ℹ️ No buyer email found for transaction ${transaction_id}. Skipping buyer receipt email.`);
-      }
-
-      // 6. Send in-app notification: order confirmed, now in production
-      if (transaction.buyer_id) {
-        await sendNotification(transaction.buyer_id, {
-          type: 'transaction',
-          title: '📋 Pesanan Roti Dikonfirmasi!',
-          message: `Pesanan roti Anda #${transaction_id.slice(0, 8)} telah dikonfirmasi dan sedang dalam proses produksi. Kami akan memberitahu Anda saat siap diambil.`,
-          path: `/kiosk/success?id=${transaction_id}`
-        });
-      }
-
-      res.json({ success: true, message: 'Pesanan Sariroti berhasil dikonfirmasi' });
-    } catch (error: any) {
-      console.error('Error confirming Sariroti order:', error);
-      res.status(500).json({ error: error.message || 'Internal server error' });
+    res.json({ success: true, message: "Transaction approved and processed" });
+  } catch (error) {
+    console.error("Error approving transaction:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+app.post("/api/admin/transactions/confirm-sariroti", async (req, res) => {
+  try {
+    const { transaction_id } = req.body;
+    if (!transaction_id)
+      return res.status(400).json({ error: "Transaction ID is required" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user)
+      return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profile?.role !== "admin" && profile?.role !== "seller")
+      return res.status(403).json({ error: "Forbidden: Admin/Seller only" });
+    const { data: transaction, error: txError } = await supabase
+      .from("transactions")
+      .select("*, transaction_items(*, products(*))")
+      .eq("id", transaction_id)
+      .single();
+    if (txError || !transaction)
+      return res.status(404).json({ error: "Transaction not found" });
+    const newMetadata = {
+      ...(transaction.metadata || {}),
+      sariroti_confirmed: true,
+      sariroti_confirmed_at: new Date().toISOString(),
+      sariroti_confirmed_by: user.id,
+      sariroti_order_status: "confirmed",
+    };
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({ metadata: newMetadata })
+      .eq("id", transaction_id);
+    if (updateError) throw updateError;
+    let buyerEmail = null;
+    if (transaction.buyer_id) {
+      const { data: buyerAuth } = await supabase.auth.admin.getUserById(
+        transaction.buyer_id,
+      );
+      buyerEmail = buyerAuth?.user?.email;
+    } else if (transaction.payment_details?.buyer_email) {
+      buyerEmail = transaction.payment_details.buyer_email;
     }
-  });
-
-  /**
-   * Admin: Notify Buyer — Bread Order Ready for Pickup
-   * POST /api/admin/transactions/notify-ready
-   */
-  app.post('/api/admin/transactions/notify-ready', async (req, res) => {
-    try {
-      const { transaction_id, custom_message } = req.body;
-      if (!transaction_id) return res.status(400).json({ error: 'Transaction ID is required' });
-
-      // 1. Verify admin
-      const authHeader = req.headers.authorization;
-      if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
-      const token = authHeader.split(' ')[1];
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
-
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-      if (profile?.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Admin only' });
-
-      // 2. Get transaction
-      const { data: transaction, error: txError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('id', transaction_id)
-        .single();
-
-      if (txError || !transaction) return res.status(404).json({ error: 'Transaction not found' });
-
-      // 3. Update metadata: sariroti_order_status → 'ready'
-      const newMetadata = {
-        ...(transaction.metadata || {}),
-        sariroti_order_status: 'ready',
-        sariroti_ready_at: new Date().toISOString(),
-        sariroti_ready_message: custom_message || null,
-      };
-
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ metadata: newMetadata })
-        .eq('id', transaction_id);
-
-      if (updateError) throw updateError;
-
-      // 4. Send in-app notification
-      const notifMessage = custom_message
-        || `Pesanan roti Anda #${transaction_id.slice(0, 8)} sudah siap diambil! Silakan datang ke toko kami. Terima kasih! 🙏`;
-
-      if (transaction.buyer_id) {
-        await sendNotification(transaction.buyer_id, {
-          type: 'transaction',
-          title: '🍞 Pesanan Siap Diambil!',
-          message: notifMessage,
-          path: `/kiosk/success?id=${transaction_id}`
-        });
-      }
-
-      console.log(`✅ notify-ready sent: ${transaction_id}`);
-      res.json({ success: true, message: 'Notifikasi siap diambil berhasil dikirim' });
-    } catch (error: any) {
-      console.error('Error sending ready notification:', error);
-      res.status(500).json({ error: error.message || 'Internal server error' });
+    if (buyerEmail) {
+      await sendBuyerReceiptEmail(
+        transaction_id,
+        buyerEmail,
+        transaction.buyer_name,
+        transaction.transaction_items,
+        transaction.total_amount,
+      );
+    } else {
+      console.log(
+        `\u2139\uFE0F No buyer email found for transaction ${transaction_id}. Skipping buyer receipt email.`,
+      );
     }
-  });
-  
-  /**
-   * Get Transaction Details
-   * GET /api/transactions/:id
-   */
-  app.get('/api/transactions/:id', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { data: transaction, error } = await supabase
-        .from('transactions')
-        .select(`
+    if (transaction.buyer_id) {
+      const emailNote = buyerEmail ? ` E-Receipt / Nota telah dikirim ke email Anda (${buyerEmail}).` : "";
+      await sendNotification(transaction.buyer_id, {
+        type: "transaction",
+        title: "\u{1F4CB} Pesanan Roti Dikonfirmasi!",
+        message: `Pesanan roti Anda #${transaction_id.slice(0, 8)} telah dikonfirmasi dan sedang diproses.${emailNote} Kami akan memberitahu saat siap diambil.`,
+        path: `/kiosk/history?id=${transaction_id}`,
+      });
+    }
+    res.json({
+      success: true,
+      message: "Pesanan Sariroti berhasil dikonfirmasi",
+    });
+  } catch (error) {
+    console.error("Error confirming Sariroti order:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+app.post("/api/admin/transactions/notify-ready", async (req, res) => {
+  try {
+    const { transaction_id, custom_message } = req.body;
+    if (!transaction_id)
+      return res.status(400).json({ error: "Transaction ID is required" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user)
+      return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profile?.role !== "admin")
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    const { data: transaction, error: txError } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("id", transaction_id)
+      .single();
+    if (txError || !transaction)
+      return res.status(404).json({ error: "Transaction not found" });
+    const newMetadata = {
+      ...(transaction.metadata || {}),
+      sariroti_order_status: "ready",
+      sariroti_ready_at: new Date().toISOString(),
+      sariroti_ready_message: custom_message || null,
+    };
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({ metadata: newMetadata })
+      .eq("id", transaction_id);
+    if (updateError) throw updateError;
+    const notifMessage =
+      custom_message ||
+      `Pesanan roti Anda #${transaction_id.slice(0, 8)} sudah siap diambil! Silakan datang ke toko kami. Terima kasih! \u{1F64F}`;
+    if (transaction.buyer_id) {
+      await sendNotification(transaction.buyer_id, {
+        type: "transaction",
+        title: "\u{1F35E} Pesanan Siap Diambil!",
+        message: notifMessage,
+        path: `/kiosk/history?id=${transaction_id}`,
+      });
+    }
+    console.log(`\u2705 notify-ready sent: ${transaction_id}`);
+    res.json({
+      success: true,
+      message: "Notifikasi siap diambil berhasil dikirim",
+    });
+  } catch (error) {
+    console.error("Error sending ready notification:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+app.get("/api/transactions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: transaction, error } = await supabase
+      .from("transactions")
+      .select(
+        `
           *,
           transaction_items (
             *,
             products (*)
           )
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error || !transaction) {
-        return res.status(404).json({ error: 'Transaction not found' });
-      }
-
-      res.json({ success: true, transaction });
-    } catch (error: any) {
-      console.error('Error fetching transaction:', error);
-      res.status(500).json({ error: 'Internal server error' });
+        `,
+      )
+      .eq("id", id)
+      .single();
+    if (error || !transaction) {
+      return res.status(404).json({ error: "Transaction not found" });
     }
-  });
-
-  // 3. Digiflazz Webhook (Callback)
-  app.post("/api/digital/callback", async (req: any, res) => {
-    try {
-      const callbackData = req.body;
-      const hubSignature = req.header('X-Hub-Signature');
-      const digiflazzEvent = req.header('X-Digiflazz-Event');
-      const webhookSecret = process.env.DIGIFLAZZ_WEBHOOK_SECRET;
-      const webhookId = process.env.DIGIFLAZZ_WEBHOOK_ID; // Optional: If user provides Webhook ID instead of Secret
-
-      console.log(`🔔 Digiflazz Webhook Received (Event: ${digiflazzEvent}):`, JSON.stringify(callbackData, null, 2));
-
-      // Handle Ping Event
-      if (digiflazzEvent === 'ping' || callbackData.data === 'ping') {
-        return res.status(200).json({ success: true, message: 'pong' });
+    res.json({ success: true, transaction });
+  } catch (error) {
+    console.error("Error fetching transaction:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+app.post("/api/digital/callback", async (req, res) => {
+  try {
+    const callbackData = req.body;
+    const hubSignature = req.header("X-Hub-Signature");
+    const digiflazzEvent = req.header("X-Digiflazz-Event");
+    const webhookSecret = process.env.DIGIFLAZZ_WEBHOOK_SECRET;
+    const webhookId = process.env.DIGIFLAZZ_WEBHOOK_ID;
+    console.log(
+      `\u{1F514} Digiflazz Webhook Received (Event: ${digiflazzEvent}):`,
+      JSON.stringify(callbackData, null, 2),
+    );
+    if (digiflazzEvent === "ping" || callbackData.data === "ping") {
+      return res.status(200).json({ success: true, message: "pong" });
+    }
+    if (!callbackData.data || typeof callbackData.data !== "object") {
+      return res.status(400).json({ error: "Invalid callback data" });
+    }
+    const { ref_id, status, sn } = callbackData.data;
+    const secretToUse = webhookSecret || webhookId;
+    if (secretToUse && hubSignature) {
+      const bodyString = req.rawBody || JSON.stringify(req.body);
+      const expectedHubSignature =
+        "sha1=" +
+        crypto.createHmac("sha1", secretToUse).update(bodyString).digest("hex");
+      if (hubSignature !== expectedHubSignature) {
+        console.error(
+          "\u274C Invalid X-Hub-Signature. Expected:",
+          expectedHubSignature,
+          "Got:",
+          hubSignature,
+        );
+        return res.status(403).json({ error: "Invalid signature" });
       }
-
-      // Digiflazz sends data in 'data' object
-      if (!callbackData.data || typeof callbackData.data !== 'object') {
-        return res.status(400).json({ error: 'Invalid callback data' });
+    } else if (callbackData.data.signature) {
+      const signature = callbackData.data.signature;
+      const expectedSignature = crypto
+        .createHash("md5")
+        .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id)
+        .digest("hex");
+      if (signature !== expectedSignature) {
+        console.error(
+          "\u274C Invalid Digiflazz Callback Signature. Expected:",
+          expectedSignature,
+          "Got:",
+          signature,
+        );
+        return res.status(403).json({ error: "Invalid signature" });
       }
-
-      const { ref_id, status, sn } = callbackData.data;
-
-      // Validate Signature from Digiflazz
-      // Digiflazz uses HMAC SHA1 with the Secret key. If user provided Webhook ID, we'll try that too as a fallback.
-      const secretToUse = webhookSecret || webhookId;
-      
-      if (secretToUse && hubSignature) {
-        // Use rawBody for accurate HMAC generation
-        const bodyString = req.rawBody || JSON.stringify(req.body);
-        const expectedHubSignature = 'sha1=' + crypto.createHmac('sha1', secretToUse).update(bodyString).digest('hex');
+    } else {
+      console.warn(
+        "\u26A0\uFE0F Digiflazz Webhook received without signature validation. Ensure DIGIFLAZZ_WEBHOOK_SECRET is set.",
+      );
+    }
+    if (ref_id) {
+      const { data: itemsByRef, error: fetchError } = await supabase
+        .from("transaction_items")
+        .select("id, metadata")
+        .contains("metadata", { ref_id });
+      if (itemsByRef && itemsByRef.length > 0) {
+        for (const item of itemsByRef) {
+          await supabase
+            .from("transaction_items")
+            .update({
+              metadata: {
+                ...item.metadata,
+                status:
+                  status.toLowerCase() === "sukses"
+                    ? "delivered"
+                    : status.toLowerCase() === "gagal"
+                      ? "failed"
+                      : "processing",
+                ...callbackData.data,
+                sn,
+                last_update: new Date().toISOString(),
+              },
+            })
+            .eq("id", item.id);
+        }
         
-        if (hubSignature !== expectedHubSignature) {
-          console.error('❌ Invalid X-Hub-Signature. Expected:', expectedHubSignature, 'Got:', hubSignature);
-          return res.status(403).json({ error: 'Invalid signature' });
-        }
-      } else if (callbackData.data.signature) {
-        // Fallback to old MD5 signature if X-Hub-Signature is not used/configured
-        const signature = callbackData.data.signature;
-        const expectedSignature = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + ref_id).digest('hex');
-
-        if (signature !== expectedSignature) {
-          console.error('❌ Invalid Digiflazz Callback Signature. Expected:', expectedSignature, 'Got:', signature);
-          return res.status(403).json({ error: 'Invalid signature' });
+        // Trigger Notification
+        if (status.toLowerCase() === "sukses" || status.toLowerCase() === "gagal") {
+           const { data: tx } = await supabase.from('transactions').select('buyer_id').eq('id', ref_id).single();
+           if (tx && tx.buyer_id) {
+             await supabase.from('notifications').insert({
+               user_id: tx.buyer_id,
+               title: status.toLowerCase() === 'sukses' ? 'Pesanan Digital Berhasil' : 'Pesanan Digital Gagal',
+               message: status.toLowerCase() === 'sukses' 
+                  ? `Transaksi produk digital kamu dengan SN/Ref: ${sn || ref_id || ''} telah berhasil diproses.` 
+                  : `Transaksi produk digital kamu gagal diproses. ${callbackData.data?.message || ''}`,
+               type: status.toLowerCase() === 'sukses' ? 'transaction' : 'system',
+               path: `/kiosk/history?id=${ref_id}`
+             });
+           }
         }
       } else {
-        console.warn('⚠️ Digiflazz Webhook received without signature validation. Ensure DIGIFLAZZ_WEBHOOK_SECRET is set.');
-      }
-
-      // Update transaction status in Supabase
-      if (ref_id) {
-        // First try to find by metadata->>ref_id
-        const { data: itemsByRef, error: fetchError } = await supabase
-          .from('transaction_items')
-          .select('id, metadata')
-          .contains('metadata', { ref_id: ref_id });
-
-        if (itemsByRef && itemsByRef.length > 0) {
-          for (const item of itemsByRef) {
+        const { data: itemsByTx, error: txFetchError } = await supabase
+          .from("transaction_items")
+          .select("id, metadata")
+          .eq("transaction_id", ref_id)
+          .contains("metadata", { is_digital: true });
+        if (itemsByTx && itemsByTx.length > 0) {
+          for (const item of itemsByTx) {
             await supabase
-              .from('transaction_items')
-              .update({ 
-                metadata: { 
+              .from("transaction_items")
+              .update({
+                metadata: {
                   ...item.metadata,
-                  status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
-                  ...callbackData.data, // Store full callback data for reference
-                  sn: sn,
-                  last_update: new Date().toISOString()
-                }
+                  status:
+                    status.toLowerCase() === "sukses"
+                      ? "delivered"
+                      : status.toLowerCase() === "gagal"
+                        ? "failed"
+                        : "processing",
+                  ...callbackData.data,
+                  sn,
+                  last_update: new Date().toISOString(),
+                },
               })
-              .eq('id', item.id);
+              .eq("id", item.id);
           }
-        } else {
-          // Fallback to transaction_id for backward compatibility
-          const { data: itemsByTx, error: txFetchError } = await supabase
-            .from('transaction_items')
-            .select('id, metadata')
-            .eq('transaction_id', ref_id)
-            .contains('metadata', { is_digital: true });
-
-          if (itemsByTx && itemsByTx.length > 0) {
-            for (const item of itemsByTx) {
-              await supabase
-                .from('transaction_items')
-                .update({ 
-                  metadata: { 
-                    ...item.metadata,
-                    status: status.toLowerCase() === 'sukses' ? 'delivered' : (status.toLowerCase() === 'gagal' ? 'failed' : 'processing'),
-                    ...callbackData.data,
-                    sn: sn,
-                    last_update: new Date().toISOString()
-                  }
-                })
-                .eq('id', item.id);
-            }
+          // Trigger Notification
+          if (status.toLowerCase() === "sukses" || status.toLowerCase() === "gagal") {
+             const { data: tx } = await supabase.from('transactions').select('buyer_id').eq('id', ref_id).single();
+             if (tx && tx.buyer_id) {
+               await supabase.from('notifications').insert({
+                 user_id: tx.buyer_id,
+                 title: status.toLowerCase() === 'sukses' ? 'Pesanan Digital Berhasil' : 'Pesanan Digital Gagal',
+                 message: status.toLowerCase() === 'sukses' 
+                    ? `Transaksi produk digital kamu dengan SN/Ref: ${sn || ref_id || ''} telah berhasil diproses.` 
+                    : `Transaksi produk digital kamu gagal diproses. ${callbackData.data?.message || ''}`,
+                 type: status.toLowerCase() === 'sukses' ? 'transaction' : 'system',
+                 path: `/kiosk/history?id=${ref_id}`
+               });
+             }
           }
         }
       }
-
-      res.status(200).json({ success: true });
-    } catch (error: any) {
-      console.error('Webhook Error:', error);
-      res.status(500).json({ error: error.message });
     }
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Webhook Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/payment/ipaymu/debug", (req, res) => {
+  res.json({
+    va: IPAYMU_VA,
+    apiKeyLength: IPAYMU_API_KEY.length,
+    production: IPAYMU_PRODUCTION,
+    rawEnvProduction: process.env.IPAYMU_PRODUCTION,
   });
-
-  /**
-   * Debug IPaymu Config
-   */
-  app.get('/api/payment/ipaymu/debug', (req, res) => {
-    res.json({
-      va: IPAYMU_VA,
-      apiKeyLength: IPAYMU_API_KEY.length,
-      production: IPAYMU_PRODUCTION,
-      rawEnvProduction: process.env.IPAYMU_PRODUCTION
+});
+app.post("/api/payment/ipaymu/create", async (req, res) => {
+  try {
+    const {
+      transaction_id,
+      amount,
+      buyer_name,
+      buyer_email,
+      buyer_phone,
+      items = [],
+    } = req.body;
+    if (
+      !buyer_name ||
+      !buyer_email ||
+      !buyer_phone ||
+      !amount ||
+      !transaction_id
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error:
+            "Missing required fields: buyer_name, buyer_email, buyer_phone, amount, transaction_id",
+        });
+    }
+    if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+      return res
+        .status(500)
+        .json({
+          success: false,
+          error: "Ipaymu not configured. Set IPAYMU_VA and IPAYMU_API_KEY",
+        });
+    }
+    const appUrl = process.env.APP_URL || "https://spscorner.store";
+    let cleanName = (buyer_name || "Customer")
+      .replace(/[^a-zA-Z\s]/g, "")
+      .trim();
+    if (cleanName.length < 3 || cleanName.toLowerCase().includes("test")) {
+      cleanName = "Pelanggan SPS Corner";
+    }
+    if (cleanName.length < 3) cleanName = "Pelanggan";
+    const paymentData = {
+      product: [],
+      qty: [],
+      price: [],
+      amount: Math.round(Number(amount)).toString(),
+      returnUrl: `${appUrl}/kiosk/history?id=${transaction_id}`,
+      cancelUrl: `${appUrl}/kiosk/cart?id=${transaction_id}`,
+      notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
+      referenceId: String(transaction_id),
+      buyerName: cleanName,
+      buyerPhone:
+        buyer_phone ||
+        "0812" + Math.floor(1e7 + Math.random() * 9e7).toString(),
+      buyerEmail:
+        buyer_email ||
+        `${cleanName.replace(/\s+/g, "").toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1e3)}@gmail.com`,
+    };
+    if (items && Array.isArray(items) && items.length > 0) {
+      paymentData.product = items.map((i) => String(i.name || i.product_name));
+      paymentData.qty = items.map((i) => String(i.quantity || 1));
+      paymentData.price = items.map((i) => String(Math.round(Number(i.price))));
+    } else {
+      paymentData.product = ["Transaction"];
+      paymentData.qty = ["1"];
+      paymentData.price = [Math.round(Number(amount)).toString()];
+    }
+    console.log("\u{1F4DD} Payment Request:", {
+      reference_id: transaction_id,
+      amount,
+      buyer_name,
     });
-  });
-
-  /**
-   * Create Redirect Payment (User diarahkan ke Ipaymu)
-   * POST /api/payment/ipaymu/create
-   */
-  app.post('/api/payment/ipaymu/create', async (req, res) => {
-    try {
-      const { transaction_id, amount, buyer_name, buyer_email, buyer_phone, items = [] } = req.body;
-
-      // Validation
-      if (!buyer_name || !buyer_email || !buyer_phone || !amount || !transaction_id) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing required fields: buyer_name, buyer_email, buyer_phone, amount, transaction_id',
-        });
-      }
-
-      if (!IPAYMU_VA || !IPAYMU_API_KEY) {
-        return res.status(500).json({
-          success: false,
-          error: 'Ipaymu not configured. Set IPAYMU_VA and IPAYMU_API_KEY',
-        });
-      }
-
-      const appUrl = process.env.APP_URL || 'https://spscorner.store';
-
-      // Clean up buyerName (remove numbers, special chars, ensure min length)
-      let cleanName = (buyer_name || 'Customer').replace(/[^a-zA-Z\s]/g, '').trim();
-      if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
-          cleanName = 'Pelanggan SPS Corner';
-      }
-      // Ensure name is at least 3 chars for iPaymu
-      if (cleanName.length < 3) cleanName = "Pelanggan";
-
-      const paymentData: any = {
-        product: [],
-        qty: [],
-        price: [],
-        amount: Math.round(Number(amount)).toString(),
-        returnUrl: `${appUrl}/kiosk/success?id=${transaction_id}`,
-        cancelUrl: `${appUrl}/kiosk/cart?id=${transaction_id}`,
-        notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
-        referenceId: String(transaction_id),
-        buyerName: cleanName,
-        buyerPhone: buyer_phone || ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString()),
-        buyerEmail: buyer_email || `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`,
-      };
-
-      // Add items if provided
-      if (items && Array.isArray(items) && items.length > 0) {
-        paymentData.product = items.map((i: any) => String(i.name || i.product_name));
-        paymentData.qty = items.map((i: any) => String(i.quantity || 1));
-        paymentData.price = items.map((i: any) => String(Math.round(Number(i.price))));
-      } else {
-        paymentData.product = ['Transaction'];
-        paymentData.qty = ['1'];
-        paymentData.price = [Math.round(Number(amount)).toString()];
-      }
-
-      console.log('📝 Payment Request:', { reference_id: transaction_id, amount, buyer_name });
-
-      const response = await ipaymuClient.createPayment(paymentData as RedirectPaymentData);
-
-      res.json({
-        success: true,
-        payment_url: response.Data?.Url,
-        session_id: response.Data?.SessionId,
-      });
-    } catch (error: any) {
-      console.error('❌ Payment Creation Error:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message,
-      });
+    const response = await ipaymuClient.createPayment(paymentData);
+    res.json({
+      success: true,
+      payment_url: response.Data?.Url,
+      session_id: response.Data?.SessionId,
+    });
+  } catch (error) {
+    console.error("\u274C Payment Creation Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+app.post("/api/payment/manual/verify", async (req, res) => {
+  try {
+    const { transaction_id, receipt_image, expected_amount } = req.body;
+    if (!transaction_id || !receipt_image) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Missing required fields" });
     }
-  });
-
-  /**
-   * Manual Payment Verification
-   * POST /api/payment/manual/verify
-   */
-  app.post('/api/payment/manual/verify', async (req, res) => {
+    const base64Data = receipt_image.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, "base64");
+    const mimeType =
+      receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || "image/jpeg";
+    const fileExt = mimeType.split("/")[1] || "jpg";
+    const fileName = `receipts/${transaction_id}_${Date.now()}.${fileExt}`;
+    let receiptUrl = receipt_image;
     try {
-      const { transaction_id, receipt_image, expected_amount } = req.body;
-
-      if (!transaction_id || !receipt_image) {
-        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      const { error: uploadError } = await supabase.storage
+        .from("products")
+        .upload(fileName, buffer, { contentType: mimeType });
+      if (!uploadError) {
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("products").getPublicUrl(fileName);
+        receiptUrl = publicUrl;
+      } else {
+        console.error("Failed to upload receipt image:", uploadError);
       }
-
-      // Use Gemini Vision to verify the receipt
-      const base64Data = receipt_image.replace(/^data:image\/\w+;base64,/, "");
-      
-      // Upload receipt to Supabase Storage
-      const buffer = Buffer.from(base64Data, 'base64');
-      const mimeType = receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
-      const fileExt = mimeType.split('/')[1] || 'jpg';
-      const fileName = `receipts/${transaction_id}_${Date.now()}.${fileExt}`;
-      
-      let receiptUrl = receipt_image; // Fallback to base64 if upload fails
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from('products')
-          .upload(fileName, buffer, { contentType: mimeType });
-          
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('products')
-            .getPublicUrl(fileName);
-          receiptUrl = publicUrl;
-        } else {
-          console.error('Failed to upload receipt image:', uploadError);
-        }
-      } catch (uploadErr) {
-        console.error('Exception uploading receipt image:', uploadErr);
-      }
-
-      const prompt = `
+    } catch (uploadErr) {
+      console.error("Exception uploading receipt image:", uploadErr);
+    }
+    const prompt = `
         Tolong verifikasi bukti transfer ini.
         Nominal yang diharapkan adalah: Rp ${expected_amount}
         
@@ -1729,399 +2035,441 @@ app.use(express.urlencoded({ extended: true }));
           "reason": "Alasan singkat mengapa valid/tidak valid"
         }
       `;
-
-      const geminiResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  data: base64Data,
-                  mimeType: receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || 'image/jpeg'
-                }
-              }
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: 'application/json',
-        }
-      });
-
-      const resultText = geminiResponse.text;
-      if (!resultText) {
-        throw new Error('Gagal mendapatkan respons dari AI');
-      }
-
-      const verificationResult = JSON.parse(resultText);
-
-      // Fetch existing transaction to preserve payment_details (like buyer_email)
-      const { data: existingTx } = await supabase
-        .from('transactions')
-        .select('status, payment_details')
-        .eq('id', transaction_id)
-        .single();
-      const existingPaymentDetails = existingTx?.payment_details || {};
-
-      if (!verificationResult.isValid) {
-        // Save the failed attempt
-        await supabase
-          .from('transactions')
-          .update({
-            receipt_image: receiptUrl,
-            payment_details: {
-              ...existingPaymentDetails,
-              receipt_uploaded: true,
-              verification_failed: true,
-              reason: verificationResult.reason,
-              attempted_at: new Date().toISOString()
-            }
-          })
-          .eq('id', transaction_id);
-
-        return res.status(400).json({ 
-          success: false, 
-          error: `Bukti transfer tidak valid: ${verificationResult.reason}` 
-        });
-      }
-      
-      const { error: updateError } = await supabase
-        .from('transactions')
+    const geminiResponse = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType:
+                  receipt_image.match(/data:(image\/\w+);base64,/)?.[1] ||
+                  "image/jpeg",
+              },
+            },
+          ],
+        },
+      ],
+      config: { responseMimeType: "application/json" },
+    });
+    const resultText = geminiResponse.text;
+    if (!resultText) {
+      throw new Error("Gagal mendapatkan respons dari AI");
+    }
+    const verificationResult = JSON.parse(resultText);
+    const { data: existingTx } = await supabase
+      .from("transactions")
+      .select("status, payment_details")
+      .eq("id", transaction_id)
+      .single();
+    const existingPaymentDetails = existingTx?.payment_details || {};
+    if (!verificationResult.isValid) {
+      await supabase
+        .from("transactions")
         .update({
-          status: 'paid',
-          payment_method: 'manual_qris',
           receipt_image: receiptUrl,
           payment_details: {
             ...existingPaymentDetails,
             receipt_uploaded: true,
-            verified_at: new Date().toISOString()
-          }
+            verification_failed: true,
+            reason: verificationResult.reason,
+            attempted_at: new Date().toISOString(),
+          },
         })
-        .eq('id', transaction_id);
-
-      if (updateError) throw updateError;
-
-      // Fetch transaction items for processing
-      const { data: txData, error: txFetchError } = await supabase
-        .from('transactions')
-        .select('*, transaction_items(*)')
-        .eq('id', transaction_id)
-        .single();
-
-      if (!txFetchError && txData && txData.transaction_items) {
-        // Update seller balances
-        if (existingTx && existingTx.status !== 'paid' && existingTx.status !== 'success') {
-          await updateSellerBalances(txData.transaction_items);
-        }
-        // Process digital items if any
-        await processDigitalItems(transaction_id, txData.transaction_items);
-        // Trigger Sariroti Email
-        await triggerSarirotiEmail(transaction_id, txData.buyer_name, txData.total_amount);
-      }
-
-      res.json({ success: true, message: 'Payment verified successfully' });
-
-    } catch (error: any) {
-      console.error('❌ Manual Verification Error:', error);
-      res.status(500).json({ success: false, error: error.message });
+        .eq("id", transaction_id);
+      return res
+        .status(400)
+        .json({
+          success: false,
+          error: `Bukti transfer tidak valid: ${verificationResult.reason}`,
+        });
     }
-  });
-
-  /**
-   * Create Direct Payment (Pembayaran langsung)
-   * POST /api/payment/ipaymu/direct
-   */
-  app.post('/api/payment/ipaymu/direct', async (req, res) => {
-    try {
-      const {
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({
+        status: "paid",
+        payment_method: "manual_qris",
+        receipt_image: receiptUrl,
+        payment_details: {
+          ...existingPaymentDetails,
+          receipt_uploaded: true,
+          verified_at: new Date().toISOString(),
+        },
+      })
+      .eq("id", transaction_id);
+    if (updateError) throw updateError;
+    const { data: txData, error: txFetchError } = await supabase
+      .from("transactions")
+      .select("*, transaction_items(*)")
+      .eq("id", transaction_id)
+      .single();
+    if (!txFetchError && txData && txData.transaction_items) {
+      if (
+        existingTx &&
+        existingTx.status !== "paid" &&
+        existingTx.status !== "success"
+      ) {
+        await updateSellerBalances(txData.transaction_items);
+        await checkLowStockAndNotify(txData.transaction_items);
+        await updateBuyerPoints(transaction_id, txData.buyer_id, txData.total_amount);
+      }
+      await processDigitalItems(transaction_id, txData.transaction_items);
+      await triggerSarirotiEmail(
         transaction_id,
-        amount,
-        buyer_name,
-        buyer_email,
-        buyer_phone,
-        payment_method = 'qris',
-        payment_channel = 'qris',
-      } = req.body || {};
-
-      if (!buyer_name || !buyer_email || !buyer_phone || !amount || !transaction_id) {
-        return res.status(400).json({
-          success: false,
-          error: 'Missing required fields',
-        });
-      }
-
-      if (!IPAYMU_VA || !IPAYMU_API_KEY) {
-        return res.status(500).json({
-          success: false,
-          error: 'Ipaymu not configured',
-        });
-      }
-
-      const appUrl = process.env.APP_URL || 'https://spscorner.store';
-
-      let method = (payment_method || 'qris').toLowerCase();
-      let channel = (payment_channel || 'qris').toLowerCase();
-      
-      // IPaymu requires paymentChannel to be 'mpm' if paymentMethod is 'qris'
-      if (method === 'qris') {
-        channel = 'mpm';
-      }
-
-      // Clean up buyerName (remove numbers, special chars, ensure min length)
-      let cleanName = (buyer_name || 'Customer').replace(/[^a-zA-Z\s]/g, '').trim();
-      if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
-          cleanName = 'Pelanggan SPS Corner';
-      }
-      // Ensure name is at least 3 chars for iPaymu
-      if (cleanName.length < 3) cleanName = "Pelanggan";
-
-      const directPaymentData: DirectPaymentData = {
-        name: cleanName,
-        phone: buyer_phone || ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString()),
-        email: buyer_email || `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`,
-        amount: Math.round(Number(amount)),
-        comments: `Payment for transaction ${transaction_id}`,
-        notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
-        referenceId: String(transaction_id),
-        paymentMethod: method,
-        paymentChannel: channel,
-      };
-
-      console.log('💳 Direct Payment:', { reference_id: transaction_id, payment_channel: channel });
-
-      const response = await ipaymuClient.createDirectPayment(directPaymentData);
-
-      res.json({
-        success: true,
-        data: response.Data,
-        qr_code: response.Data?.QrCode,
-      });
-    } catch (error: any) {
-      console.error('❌ Direct Payment Error:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message,
-      });
+        txData.buyer_name,
+        txData.total_amount,
+      );
     }
-  });
+    res.json({ success: true, message: "Payment verified successfully" });
+  } catch (error) {
+    console.error("\u274C Manual Verification Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+app.post("/api/payment/points/pay", async (req, res) => {
+  try {
+    const { transaction_id } = req.body;
+    if (!transaction_id) throw new Error("Transaction ID is required");
 
-  /**
-   * Ipaymu Webhook Callback
-   * POST /api/payment/ipaymu/callback
-   */
-  app.post('/api/payment/ipaymu/callback', async (req, res) => {
-    try {
-      const { status, reference_id, trx_id, sid, transaction_id } = req.body || {};
+    const { data: setting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "loyalty_enabled")
+      .single();
+    if (setting?.value !== "true") throw new Error("Fitur Loyalty Points sedang dinonaktifkan");
 
-      console.log('🔔 Ipaymu Callback Received:', {
-        status,
-        reference_id,
-        trx_id,
-        sid,
-        transaction_id,
-        timestamp: new Date().toISOString(),
+    const { data: tx, error: txError } = await supabase
+      .from("transactions")
+      .select("*, transaction_items(*, products(name, category, price))")
+      .eq("id", transaction_id)
+      .single();
+
+    if (txError || !tx) throw new Error("Transaksi tidak ditemukan");
+    if (!tx.buyer_id) throw new Error("Hanya karyawan terdaftar yang dapat menggunakan Points");
+    if (tx.status === "success" || tx.status === "paid") throw new Error("Transaksi sudah dibayar");
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("loyalty_points")
+      .eq("id", tx.buyer_id)
+      .single();
+
+    if (!profile || (profile.loyalty_points || 0) < tx.total_amount) {
+      throw new Error(`Points tidak mencukupi. Point: ${profile?.loyalty_points || 0}, Tagihan: ${tx.total_amount}`);
+    }
+
+    // Deduct points
+    const { error: deductError } = await supabase
+      .from("profiles")
+      .update({ loyalty_points: profile.loyalty_points - tx.total_amount })
+      .eq("id", tx.buyer_id);
+    if (deductError) throw deductError;
+
+    // Update transaction
+    const { error: updateTx } = await supabase
+      .from("transactions")
+      .update({ 
+        status: "success", 
+        payment_method: "points",
+        metadata: { ...tx.metadata, point_payment: true }
+      })
+      .eq("id", transaction_id);
+    if (updateTx) throw updateTx;
+
+    // Run post processes
+    await updateSellerBalances(tx.transaction_items);
+    await checkLowStockAndNotify(tx.transaction_items);
+    await processDigitalItems(transaction_id, tx.transaction_items);
+    await triggerSarirotiEmail(transaction_id, tx.buyer_name, tx.total_amount);
+
+    res.json({ success: true, message: "Pembayaran berhasil menggunakan Points" });
+  } catch (error) {
+    console.error("Point Payment Error:", error);
+    res.status(500).json({ error: error.message || "Gagal memproses pembayaran dengan poin" });
+  }
+});
+app.post("/api/payment/ipaymu/direct", async (req, res) => {
+  try {
+    const {
+      transaction_id,
+      amount,
+      buyer_name,
+      buyer_email,
+      buyer_phone,
+      payment_method = "qris",
+      payment_channel = "qris",
+    } = req.body || {};
+    if (
+      !buyer_name ||
+      !buyer_email ||
+      !buyer_phone ||
+      !amount ||
+      !transaction_id
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Missing required fields" });
+    }
+    if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+      return res
+        .status(500)
+        .json({ success: false, error: "Ipaymu not configured" });
+    }
+    const appUrl = process.env.APP_URL || "https://spscorner.store";
+    let method = (payment_method || "qris").toLowerCase();
+    let channel = (payment_channel || "qris").toLowerCase();
+    if (method === "qris") {
+      channel = "mpm";
+    }
+    let cleanName = (buyer_name || "Customer")
+      .replace(/[^a-zA-Z\s]/g, "")
+      .trim();
+    if (cleanName.length < 3 || cleanName.toLowerCase().includes("test")) {
+      cleanName = "Pelanggan SPS Corner";
+    }
+    if (cleanName.length < 3) cleanName = "Pelanggan";
+    const directPaymentData = {
+      name: cleanName,
+      phone:
+        buyer_phone ||
+        "0812" + Math.floor(1e7 + Math.random() * 9e7).toString(),
+      email:
+        buyer_email ||
+        `${cleanName.replace(/\s+/g, "").toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1e3)}@gmail.com`,
+      amount: Math.round(Number(amount)),
+      comments: `Payment for transaction ${transaction_id}`,
+      notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
+      referenceId: String(transaction_id),
+      paymentMethod: method,
+      paymentChannel: channel,
+    };
+    console.log("\u{1F4B3} Direct Payment:", {
+      reference_id: transaction_id,
+      payment_channel: channel,
+    });
+    const response = await ipaymuClient.createDirectPayment(directPaymentData);
+    res.json({
+      success: true,
+      data: response.Data,
+      qr_code: response.Data?.QrCode,
+    });
+  } catch (error) {
+    console.error("\u274C Direct Payment Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+app.post("/api/payment/ipaymu/callback", async (req, res) => {
+  try {
+    const { status, reference_id, trx_id, sid, transaction_id } =
+      req.body || {};
+    console.log("\u{1F514} Ipaymu Callback Received:", {
+      status,
+      reference_id,
+      trx_id,
+      sid,
+      transaction_id,
+      timestamp: new Date().toISOString(),
+    });
+    const refId = reference_id || transaction_id;
+    if (!refId) {
+      return res.status(400).json({ error: "Missing reference_id" });
+    }
+    const txStatus =
+      status === "berhasil"
+        ? "paid"
+        : status === "gagal"
+          ? "failed"
+          : "pending";
+    const { data: transaction, error: fetchError } = await supabase
+      .from("transactions")
+      .select("*, transaction_items(*)")
+      .eq("id", refId)
+      .single();
+    if (fetchError) {
+      console.error("Transaction not found:", refId);
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({
+        status: txStatus,
+        payment_details: {
+          ...(transaction.payment_details || {}),
+          ipaymu_trx_id: trx_id || transaction_id,
+          ipaymu_sid: sid,
+          ipaymu_status: status,
+          paid_at: txStatus === "paid" ? new Date().toISOString() : null,
+        },
+      })
+      .eq("id", refId);
+    if (updateError) throw updateError;
+    if (
+      txStatus === "paid" &&
+      transaction.status !== "paid" &&
+      transaction.status !== "success" &&
+      transaction.transaction_items
+    ) {
+      await updateSellerBalances(transaction.transaction_items);
+      await checkLowStockAndNotify(transaction.transaction_items);
+      await updateBuyerPoints(refId, transaction.buyer_id, transaction.total_amount);
+      await processDigitalItems(refId, transaction.transaction_items);
+      await triggerSarirotiEmail(
+        refId,
+        transaction.buyer_name,
+        transaction.total_amount,
+      );
+      if (transaction.buyer_id) {
+        await sendNotification(transaction.buyer_id, {
+          type: "transaction",
+          title: "\u2705 Pembayaran Berhasil!",
+          message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
+          path: `/kiosk/history?id=${refId}`,
+        });
+      }
+    } else if (txStatus === "failed") {
+      if (transaction.buyer_id) {
+        await sendNotification(transaction.buyer_id, {
+          type: "transaction",
+          title: "\u274C Pembayaran Gagal",
+          message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
+          path: `/kiosk/history?id=${refId}`,
+        });
+      }
+    }
+    console.log("\u2705 Transaction Updated:", {
+      reference_id: refId,
+      txStatus,
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("\u274C Callback Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/payment/ipaymu/status/:reference_id", async (req, res) => {
+  try {
+    const { reference_id } = req.params;
+    if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+      return res
+        .status(500)
+        .json({ success: false, error: "Ipaymu not configured" });
+    }
+    const status = await ipaymuClient.getTransactionStatus(reference_id);
+    res.json({ success: true, data: status });
+  } catch (error) {
+    console.error("\u274C Status Check Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+app.get("/api/payment/ipaymu/methods", async (req, res) => {
+  try {
+    if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+      return res
+        .status(500)
+        .json({ success: false, error: "Ipaymu not configured" });
+    }
+    const methods = await ipaymuClient.getPaymentMethods();
+    res.json({ success: true, data: methods });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+app.post("/api/auth/reset-password-request", async (req, res) => {
+  try {
+    const { nikOrEmail } = req.body;
+    if (!nikOrEmail) {
+      return res.status(400).json({ error: "NIK atau Email wajib diisi" });
+    }
+    let userId = null;
+    let userName = "Unknown";
+    let userNik = null;
+    const { data: profileByNik } = await supabase
+      .from("profiles")
+      .select("id, name, nik")
+      .eq("nik", nikOrEmail)
+      .single();
+    if (profileByNik) {
+      userId = profileByNik.id;
+      userName = profileByNik.name;
+      userNik = profileByNik.nik;
+    } else {
+      const listResult = await supabase.auth.admin.listUsers({
+        page: 1,
+        perPage: 1e3,
       });
-
-      // IPaymu might send reference_id or transaction_id depending on the endpoint
-      const refId = reference_id || transaction_id;
-
-      if (!refId) {
-        return res.status(400).json({ error: 'Missing reference_id' });
-      }
-
-      // Map Ipaymu status
-      const txStatus =
-        status === 'berhasil'
-          ? 'paid'
-          : status === 'gagal'
-            ? 'failed'
-            : 'pending';
-
-      // Get transaction
-      const { data: transaction, error: fetchError } = await supabase
-        .from('transactions')
-        .select('*, transaction_items(*)')
-        .eq('id', refId)
-        .single();
-
-      if (fetchError) {
-        console.error('Transaction not found:', refId);
-        return res.status(404).json({ error: 'Transaction not found' });
-      }
-
-      // Update transaction
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({
-          status: txStatus,
-          payment_details: {
-            ...(transaction.payment_details || {}),
-            ipaymu_trx_id: trx_id || transaction_id,
-            ipaymu_sid: sid,
-            ipaymu_status: status,
-            paid_at: txStatus === 'paid' ? new Date().toISOString() : null,
+      const authUsers = listResult.data?.users ?? [];
+      const listError = listResult.error;
+      if (!listError && authUsers.length > 0) {
+        const foundUser = authUsers.find(
+          (u) => u.email?.toLowerCase() === nikOrEmail.toLowerCase(),
+        );
+        if (foundUser) {
+          userId = foundUser.id;
+          const { data: profileByEmail } = await supabase
+            .from("profiles")
+            .select("name, nik")
+            .eq("id", userId)
+            .single();
+          if (profileByEmail) {
+            userName = profileByEmail.name;
+            userNik = profileByEmail.nik;
           }
-        })
-        .eq('id', refId);
-
-      if (updateError) throw updateError;
-
-      // Process if successful and ONLY IF IT WAS NOT ALREADY SUCCESSFUL
-      if (txStatus === 'paid' && transaction.status !== 'paid' && transaction.status !== 'success' && transaction.transaction_items) {
-        await updateSellerBalances(transaction.transaction_items);
-        await processDigitalItems(refId, transaction.transaction_items);
-        await triggerSarirotiEmail(refId, transaction.buyer_name, transaction.total_amount);
-        // Notify buyer
-        if (transaction.buyer_id) {
-          await sendNotification(transaction.buyer_id, {
-            type: 'transaction',
-            title: '✅ Pembayaran Berhasil!',
-            message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString('id-ID')} telah dikonfirmasi.`,
-            path: `/kiosk/success?id=${refId}`
-          });
-        }
-      } else if (txStatus === 'failed') {
-        if (transaction.buyer_id) {
-          await sendNotification(transaction.buyer_id, {
-            type: 'transaction',
-            title: '❌ Pembayaran Gagal',
-            message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
-            path: `/kiosk/success?id=${refId}`
-          });
         }
       }
-
-      console.log('✅ Transaction Updated:', { reference_id: refId, txStatus });
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error('❌ Callback Error:', error);
-      res.status(500).json({ error: error.message });
     }
-  });
-
-  /**
-   * Check Payment Status
-   * GET /api/payment/ipaymu/status/:reference_id
-   */
-  app.get('/api/payment/ipaymu/status/:reference_id', async (req, res) => {
-    try {
-      const { reference_id } = req.params;
-
-      if (!IPAYMU_VA || !IPAYMU_API_KEY) {
-        return res.status(500).json({
-          success: false,
-          error: 'Ipaymu not configured',
+    if (!userId) {
+      return res
+        .status(404)
+        .json({
+          error:
+            "Data tidak ditemukan. Pastikan NIK atau Email yang Anda masukkan benar.",
         });
-      }
-
-      const status = await ipaymuClient.getTransactionStatus(reference_id);
-
-      res.json({ success: true, data: status });
-    } catch (error: any) {
-      console.error('❌ Status Check Error:', error);
-      res.status(500).json({ success: false, error: error.message });
     }
-  });
+    const { error: requestError } = await supabase
+      .from("password_reset_requests")
+      .insert({
+        user_id: userId,
+        user_name: userName,
+        user_nik: userNik,
+        status: "pending",
+      });
+    if (requestError) throw requestError;
 
-  /**
-   * Get Payment Methods
-   * GET /api/payment/ipaymu/methods
-   */
-  app.get('/api/payment/ipaymu/methods', async (req, res) => {
-    try {
-      if (!IPAYMU_VA || !IPAYMU_API_KEY) {
-        return res.status(500).json({
-          success: false,
-          error: 'Ipaymu not configured',
-        });
-      }
+    // Fetch admins and create notifications
+    const { data: admins } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "admin");
 
-      const methods = await ipaymuClient.getPaymentMethods();
-      res.json({ success: true, data: methods });
-    } catch (error: any) {
-      res.status(500).json({ success: false, error: error.message });
+    if (admins && admins.length > 0) {
+      const notificationsToInsert = admins.map((admin) => ({
+        user_id: admin.id,
+        type: "system",
+        title: "🔑 Permintaan Reset Password Baru",
+        message: `${userName} (${userNik || "Tidak ada NIK"}) meminta reset password.`,
+        path: "/dashboard/admin#reset-requests",
+      }));
+      await supabase.from("notifications").insert(notificationsToInsert);
     }
-  });
 
-  // Endpoint to request a password reset via NIK or Email
-  app.post('/api/auth/reset-password-request', async (req, res) => {
-    try {
-      const { nikOrEmail } = req.body;
-      if (!nikOrEmail) {
-        return res.status(400).json({ error: 'NIK atau Email wajib diisi' });
-      }
-
-      let userId = null;
-      let userName = 'Unknown';
-      let userNik = null;
-
-      // 1. Try finding by NIK in profiles
-      const { data: profileByNik } = await supabase
-        .from('profiles')
-        .select('id, name, nik')
-        .eq('nik', nikOrEmail)
-        .single();
-
-      if (profileByNik) {
-        userId = profileByNik.id;
-        userName = profileByNik.name;
-        userNik = profileByNik.nik;
-      } else {
-        // 2. Try finding by Email in auth.users (using service role key)
-        const listResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        const authUsers = listResult.data?.users ?? [];
-        const listError = listResult.error;
-
-        if (!listError && authUsers.length > 0) {
-          const foundUser = authUsers.find((u: any) => u.email?.toLowerCase() === nikOrEmail.toLowerCase());
-          if (foundUser) {
-            userId = foundUser.id;
-            // Get profile details
-            const { data: profileByEmail } = await supabase
-              .from('profiles')
-              .select('name, nik')
-              .eq('id', userId)
-              .single();
-            if (profileByEmail) {
-              userName = profileByEmail.name;
-              userNik = profileByEmail.nik;
-            }
-          }
-        }
-      }
-
-      if (!userId) {
-        return res.status(404).json({ error: 'Data tidak ditemukan. Pastikan NIK atau Email yang Anda masukkan benar.' });
-      }
-
-      // Create reset request
-      const { error: requestError } = await supabase
-        .from('password_reset_requests')
-        .insert({
-          user_id: userId,
-          user_name: userName,
-          user_nik: userNik,
-          status: 'pending'
-        });
-
-      if (requestError) throw requestError;
-
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error('Reset password request error:', error);
-      res.status(500).json({ error: error.message || 'Terjadi kesalahan pada server' });
-    }
-  });
-
-  app.get("/api/transactions/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Reset password request error:", error);
+    res
+      .status(500)
+      .json({ error: error.message || "Terjadi kesalahan pada server" });
+  }
+});
+app.get("/api/transactions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from("transactions")
+      .select(
+        `
           *,
           transaction_items (
             *,
@@ -2130,351 +2478,586 @@ app.use(express.urlencoded({ extended: true }));
               category
             )
           )
-        `)
-        .eq('id', id)
-        .single();
-      
-      if (error) {
-        return res.status(404).json({ error: 'Transaction not found' });
-      }
-      res.json({ transaction: data });
-    } catch (error: any) {
-      console.error('Error fetching transaction:', error);
-      res.status(500).json({ error: error.message || 'Failed to fetch transaction' });
+        `,
+      )
+      .eq("id", id)
+      .single();
+    if (error) {
+      return res.status(404).json({ error: "Transaction not found" });
     }
-  });
-
-  app.post("/api/transactions/create", async (req, res) => {
-    try {
-      const { buyer_name, buyer_id, buyer_phone, buyer_email, total_amount, items, payment_method, status, receipt_image } = req.body;
-
-      // 1. Create transaction record
-      const txDataToInsert: any = {
-        buyer_name,
-        buyer_phone,
-        total_amount,
-        status: status || 'pending'
-      };
-      if (buyer_id) txDataToInsert.buyer_id = buyer_id;
-      if (payment_method) txDataToInsert.payment_method = payment_method;
-      if (receipt_image) txDataToInsert.receipt_image = receipt_image;
-      if (buyer_email) txDataToInsert.payment_details = { buyer_email };
-
-      if (buyer_email) txDataToInsert.payment_details = { buyer_email };
-
-      const { data: txDataResult, error: txError } = await supabase
-        .from('transactions')
-        .insert(txDataToInsert)
-        .select()
-        .single();
-
-      if (txError) throw txError;
-
-      const tx = txDataResult;
-
-      // 2. Create transaction items
-      const txItems = items.map((item: any) => ({
-        transaction_id: tx.id,
-        product_id: item.is_digital ? null : item.id,
-        quantity: item.quantity,
-        price: item.price,
-        subtotal: item.price * item.quantity,
-        seller_id: item.is_digital ? null : item.seller_id,
-        metadata: item.is_digital ? {
-          is_digital: true,
-          status: 'processing',
-          target_number: item.target_number,
-          product_name: item.name,
-          sku: item.sku,
-          is_postpaid: item.metadata?.is_postpaid,
-          customer_name: item.metadata?.customer_name,
-          segment_power: item.metadata?.segment_power
-        } : null
-      }));
-
-      const { data: insertedItems, error: itemsError } = await supabase
-        .from('transaction_items')
-        .insert(txItems)
-        .select();
-
-      if (itemsError) throw itemsError;
-
-      // 2.5 ATOMIC STOCK DECREMENT
-      // We do this immediately to "reserve" the items. 
-      // If payment fails or time expires, they will be returned via cleanup.
-      for (const item of items) {
-        if (!item.is_digital && item.id) {
-          const { error: stockErr } = await supabase.rpc('decrement_stock', {
-            p_id: item.id,
-            p_amount: item.quantity
+    res.json({ transaction: data });
+  } catch (error) {
+    console.error("Error fetching transaction:", error);
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to fetch transaction" });
+  }
+});
+const getDigiflazzBalance = __name(async () => {
+  if (isDefaultDigiflazz) return 0;
+  try {
+    const sign = crypto
+      .createHash("md5")
+      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo")
+      .digest("hex");
+    const response = await axios.post(
+      "https://api.digiflazz.com/v1/cek-saldo",
+      { cmd: "deposit", username: DIGIFLAZZ_USERNAME, sign },
+    );
+    return response.data?.data?.deposit || 0;
+  } catch (err) {
+    console.error(
+      "Failed to get Digiflazz balance:",
+      err?.response?.data || err.message,
+    );
+    return 0;
+  }
+}, "getDigiflazzBalance");
+app.post("/api/transactions/create", async (req, res) => {
+  try {
+    const {
+      buyer_name,
+      buyer_id,
+      buyer_phone,
+      buyer_email,
+      total_amount,
+      items,
+      payment_method,
+      status,
+      receipt_image,
+    } = req.body;
+    const digitalItems = items.filter((item) => item.is_digital);
+    if (digitalItems.length > 0) {
+      const totalDigitalValue = digitalItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+      const currentBalance = await getDigiflazzBalance();
+      const estimatedHpp = totalDigitalValue * 0.95;
+      if (currentBalance < estimatedHpp) {
+        return res
+          .status(400)
+          .json({
+            error: `Mohon maaf, saldo sistem (PPOB) sedang tidak mencukupi untuk memproses pesanan digital ini. Saldo: ${currentBalance}`,
           });
-          if (stockErr) {
-            // Rollback transaction (delete) if stock check fails
-            await supabase.from('transactions').delete().eq('id', tx.id);
-            throw new Error(`Stok tidak mencukupi untuk ${item.name}`);
+      }
+    }
+    const txDataToInsert = {
+      buyer_name,
+      buyer_phone,
+      total_amount,
+      status: status || "pending",
+    };
+    if (buyer_id) txDataToInsert.buyer_id = buyer_id;
+    if (payment_method) txDataToInsert.payment_method = payment_method;
+    if (receipt_image) txDataToInsert.receipt_image = receipt_image;
+    if (buyer_email) txDataToInsert.payment_details = { buyer_email };
+    if (buyer_email) txDataToInsert.payment_details = { buyer_email };
+    const { data: txDataResult, error: txError } = await supabase
+      .from("transactions")
+      .insert(txDataToInsert)
+      .select()
+      .single();
+    if (txError) throw txError;
+    const tx = txDataResult;
+    const txItems = items.map((item) => ({
+      transaction_id: tx.id,
+      product_id: item.is_digital ? null : item.id,
+      quantity: item.quantity,
+      price: item.price,
+      subtotal: item.price * item.quantity,
+      seller_id: item.is_digital ? null : item.seller_id,
+      metadata: item.is_digital
+        ? {
+            is_digital: true,
+            status: "processing",
+            target_number: item.target_number,
+            product_name: item.name,
+            sku: item.sku,
+            is_postpaid: item.metadata?.is_postpaid,
+            customer_name: item.metadata?.customer_name,
+            segment_power: item.metadata?.segment_power,
+          }
+        : null,
+    }));
+    const { data: insertedItems, error: itemsError } = await supabase
+      .from("transaction_items")
+      .insert(txItems)
+      .select();
+    if (itemsError) throw itemsError;
+    for (const item of items) {
+      if (!item.is_digital && item.id) {
+        const { error: stockErr } = await supabase.rpc("decrement_stock", {
+          p_id: item.id,
+          p_amount: item.quantity,
+        });
+        if (stockErr) {
+          await supabase.from("transactions").delete().eq("id", tx.id);
+          throw new Error(`Stok tidak mencukupi untuk ${item.name}`);
+        }
+      }
+    }
+    if (tx.status === "paid" || tx.status === "success") {
+      if (insertedItems && insertedItems.length > 0) {
+        await processDigitalItems(tx.id, insertedItems);
+      }
+    }
+    if (tx.status === "paid" || tx.status === "success") {
+      await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
+    }
+    res.json({ success: true, transaction: tx });
+  } catch (error) {
+    console.error("Create transaction error:", error);
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to create transaction" });
+  }
+});
+app.post("/api/transactions/pay", async (req, res) => {
+  try {
+    const { transaction_id } = req.body;
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({ status: "paid" })
+      .eq("id", transaction_id);
+    if (updateError) throw updateError;
+    const { data: transaction, error: fetchError } = await supabase
+      .from("transactions")
+      .select("*, transaction_items(*)")
+      .eq("id", transaction_id)
+      .single();
+    if (fetchError) throw fetchError;
+    await processDigitalItems(transaction_id, transaction.transaction_items);
+    await triggerSarirotiEmail(
+      transaction_id,
+      transaction.buyer_name,
+      transaction.total_amount,
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Pay transaction error:", error);
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to update transaction" });
+  }
+});
+app.post("/api/transactions/cancel", async (req, res) => {
+  try {
+    const { transaction_id } = req.body;
+    const { data: tx, error: fetchError } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("id", transaction_id)
+      .single();
+    if (fetchError || !tx) {
+      return res.status(404).json({ error: "Transaction not found" });
+    }
+    if (tx.status !== "pending" && tx.status !== "failed") {
+      return res
+        .status(400)
+        .json({ error: "Hanya pesanan pending yang dapat dibatalkan." });
+    }
+    const { error: deleteError } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", transaction_id);
+    if (deleteError) throw deleteError;
+    res.json({ success: true, message: "Pesanan berhasil dibatalkan." });
+  } catch (error) {
+    console.error("Cancel Order Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post("/api/admin/transactions/cleanup", async (req, res) => {
+  try {
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
+    const { data: expired, error: fetchError } = await supabase
+      .from("transactions")
+      .select("id, metadata")
+      .eq("status", "pending")
+      .lt("created_at", fiveMinsAgo);
+    if (fetchError) throw fetchError;
+    if (!expired || expired.length === 0) {
+      return res.json({ success: true, count: 0 });
+    }
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({
+        status: "failed",
+        metadata: { cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
+      })
+      .in(
+        "id",
+        expired.map((tx) => tx.id),
+      );
+    if (updateError) throw updateError;
+    for (const tx of expired) {
+      const { data: items } = await supabase
+        .from("transaction_items")
+        .select("product_id, quantity")
+        .eq("transaction_id", tx.id);
+      if (items) {
+        for (const item of items) {
+          if (item.product_id) {
+            await supabase.rpc("increment_stock", {
+              p_id: item.product_id,
+              p_amount: item.quantity,
+            });
           }
         }
       }
-
-      // Process digital items via Digiflazz if status is paid or success
-      if (tx.status === 'paid' || tx.status === 'success') {
-        if (insertedItems && insertedItems.length > 0) {
-          await processDigitalItems(tx.id, insertedItems);
-        }
-      }
-
-      // 3. Trigger Sariroti Email if status is paid or success
-      if (tx.status === 'paid' || tx.status === 'success') {
-        await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
-      }
-
-      res.json({ success: true, transaction: tx });
-    } catch (error: any) {
-      console.error('Create transaction error:', error);
-      res.status(500).json({ error: error.message || 'Failed to create transaction' });
     }
-  });
+    res.json({ success: true, count: expired.length });
+  } catch (error) {
+    console.error("Cleanup Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/standby/check", async (req, res) => {
+  try {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const currentTime = now.toTimeString().split(" ")[0];
+    const { data: schedule, error } = await supabase
+      .from("standby_schedules")
+      .select("*")
+      .eq("day_of_week", dayOfWeek)
+      .eq("is_active", true)
+      .lte("start_time", currentTime)
+      .gte("end_time", currentTime);
+    if (error) throw error;
+    res.json({
+      is_standby: schedule && schedule.length > 0,
+      schedule: schedule && schedule.length > 0 ? schedule[0] : null,
+      current_time: currentTime,
+      day: dayOfWeek,
+    });
+  } catch (error) {
+    console.error("Error checking standby schedule:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/admin/password-resets", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
 
-  app.post("/api/transactions/pay", async (req, res) => {
-    try {
-      const { transaction_id } = req.body;
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin') return res.status(403).json({ error: "Forbidden: Admin only" });
 
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ status: 'paid' })
-        .eq('id', transaction_id);
+    const { data: resets, error } = await supabase
+      .from('password_reset_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
 
-      if (updateError) throw updateError;
+    if (error) throw error;
+    res.json(resets || []);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/admin/password-resets/complete", async (req, res) => {
+  try {
+    const { id } = req.body;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
 
-      // We need to fetch the transaction items to process digital items
-      const { data: transaction, error: fetchError } = await supabase
-        .from('transactions')
-        .select('*, transaction_items(*)')
-        .eq('id', transaction_id)
-        .single();
-        
-      if (fetchError) throw fetchError;
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin') return res.status(403).json({ error: "Forbidden: Admin only" });
 
-      // Process digital items via Digiflazz
-      await processDigitalItems(transaction_id, transaction.transaction_items);
+    const { data: request, error: reqError } = await supabase
+      .from('password_reset_requests')
+      .select('user_id')
+      .eq('id', id)
+      .single();
 
-      // Trigger Sariroti Email
-      await triggerSarirotiEmail(transaction_id, transaction.buyer_name, transaction.total_amount);
-
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error('Pay transaction error:', error);
-      res.status(500).json({ error: error.message || 'Failed to update transaction' });
+    if (reqError || !request) {
+      return res.status(404).json({ error: "Permintaan reset password tidak ditemukan." });
     }
-  });
 
-  // Cancel pending transaction
-  app.post("/api/transactions/cancel", async (req, res) => {
-    try {
-      const { transaction_id } = req.body;
-      const { data: tx, error: fetchError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('id', transaction_id)
-        .single();
-        
-      if (fetchError || !tx) {
-        return res.status(404).json({ error: 'Transaction not found' });
-      }
+    const { error: updateAuthError } = await supabase.auth.admin.updateUserById(request.user_id, {
+      password: "123456"
+    });
 
-      if (tx.status !== 'pending' && tx.status !== 'failed') {
-        return res.status(400).json({ error: 'Hanya pesanan pending yang dapat dibatalkan.' });
-      }
+    if (updateAuthError) throw updateAuthError;
 
-      const { error: deleteError } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', transaction_id);
+    const { error } = await supabase
+      .from('password_reset_requests')
+      .update({ status: 'completed' })
+      .eq('id', id);
 
-      if (deleteError) throw deleteError;
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get("/api/transactions/seller/:sellerId", async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    const { data: items, error } = await supabase
+      .from('transaction_items')
+      .select(`
+        *,
+        products ( name, category, seller_id ),
+        transactions ( id, buyer_id, buyer_name, status, created_at, payment_method, metadata )
+      `)
+      .eq('seller_id', sellerId)
+      .order('created_at', { ascending: false });
 
-      res.json({ success: true, message: 'Pesanan berhasil dibatalkan.' });
-    } catch (error: any) {
-      console.error('Cancel Order Error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Admin: Cleanup expired transactions (> 5 mins)
-  app.post('/api/admin/transactions/cleanup', async (req, res) => {
-    try {
-      const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    // filter items that have non-null transactions
+    const filteredItems = items?.filter((item: any) => 
+      item.transactions !== null && 
+      ['paid', 'success', 'completed'].includes(item.transactions.status)
+    ) || [];
       
-      const { data: expired, error: fetchError } = await supabase
-        .from('transactions')
-        .select('id, metadata')
-        .eq('status', 'pending')
-        .lt('created_at', fiveMinsAgo);
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    res.json(filteredItems);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get("/api/test-db4", async (req, res) => {
+  try {
+    const { data: items, error } = await supabase
+      .from('transaction_items')
+      .select(`
+        *,
+        products (
+          name
+        ),
+        transactions (
+          id,
+          buyer_id,
+          buyer_name,
+          status,
+          created_at,
+          payment_method
+        )
+      `)
+      .eq('seller_id', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e')
+      .order('created_at', { ascending: false });
+    res.json({ count: items?.length, error: error?.message, items: items?.slice(0, 2) });
+  } catch (e: any) { res.json({ error: e.message }); }
+});
+app.get("/api/test-db2", async (req, res) => {
+  try {
+    const { data } = await supabase.from('profiles').select('*').in('id', ['0b11d7b5-d920-4c7b-bee0-472267ba92bc', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e']);
+    res.json(data);
+  } catch (e: any) { res.json({ error: e.message }); }
+});
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const { data: sarirotiUsers } = await supabase
+      .from("profiles")
+      .select("id, name")
+      .eq("role", "seller")
+      .ilike("name", "%sariroti%");
+    if (!sarirotiUsers || sarirotiUsers.length === 0) {
+      return res.json({ msg: "No sariroti seller" });
+    }
+    const sarirotiId = sarirotiUsers[0].id;
+    const { data: items } = await supabase
+      .from('transaction_items')
+      .select(`id, seller_id, products ( name, category, seller_id )`)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    res.json({ users: sarirotiUsers, items });
+  } catch (e: any) {
+    res.json({ error: e.message });
+  }
+});
+app.get("/api/fix-sariroti", async (req, res) => {
+  try {
+    const { data: sarirotiUsers } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "seller")
+      .ilike("name", "%sariroti%")
+      .limit(1);
+    if (!sarirotiUsers || sarirotiUsers.length === 0) {
+      return res.json({ success: false, message: "Tidak ada admin sariroti" });
+    }
+    const sarirotiId = sarirotiUsers[0].id;
+    
+    const { data: products } = await supabase
+      .from("products")
+      .select("id")
+      .or("category.eq.Sariroti,name.ilike.%roti%");
 
-      if (fetchError) throw fetchError;
-      if (!expired || expired.length === 0) {
-        return res.json({ success: true, count: 0 });
-      }
+    let productIds = [];
+    if (products && products.length > 0) {
+      productIds = products.map((p) => p.id);
+      await supabase
+        .from("products")
+        .update({ seller_id: sarirotiId })
+        .in("id", productIds);
 
-      const { error: updateError } = await supabase
-        .from('transactions')
-        .update({ 
-          status: 'failed',
-          metadata: { cancel_reason: 'Auto-cancelled: Unpaid > 5 minutes' }
-        })
-        .in('id', expired.map(tx => tx.id));
-
-      if (updateError) throw updateError;
-
-      // Restore stock for each item in expired transactions
-      for (const tx of expired) {
-        const { data: items } = await supabase
-          .from('transaction_items')
-          .select('product_id, quantity')
-          .eq('transaction_id', tx.id);
-        
-        if (items) {
-          for (const item of items) {
-            if (item.product_id) {
-              await supabase.rpc('increment_stock', {
-                p_id: item.product_id,
-                p_amount: item.quantity
-              });
-            }
+      await supabase
+        .from("transaction_items")
+        .update({ seller_id: sarirotiId })
+        .in("product_id", productIds);
+    }
+    
+    res.json({
+      success: true,
+      message: "Berhasil mengaitkan Roti ke Admin Sariroti!",
+      updatedProducts: productIds.length
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+app.post("/api/admin/test-email", async (req, res) => {
+  try {
+    const { to } = req.body;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user)
+      return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profile?.role !== "admin")
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    let targetEmail =
+      to || process.env.SARIROTI_ADMIN_EMAIL || "Sales.Adm.bjm@sariroti.com";
+    if (!to) {
+      try {
+        const { data: settingsData } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("key", "contact_info_content")
+          .single();
+        if (settingsData && settingsData.value) {
+          const contactInfo =
+            typeof settingsData.value === "string"
+              ? JSON.parse(settingsData.value)
+              : settingsData.value;
+          if (contactInfo.email) {
+            targetEmail = contactInfo.email;
           }
         }
+      } catch (e) {
+        console.error(
+          "Failed to fetch contact info from settings for test email",
+          e,
+        );
       }
-
-      res.json({ success: true, count: expired.length });
-    } catch (error: any) {
-      console.error('Cleanup Error:', error);
-      res.status(500).json({ error: error.message });
     }
-  });
-
-  // Standby Schedule Check
-  app.get('/api/standby/check', async (req, res) => {
-    try {
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const currentTime = now.toTimeString().split(' ')[0]; // HH:mm:ss
-
-      const { data: schedule, error } = await supabase
-        .from('standby_schedules')
-        .select('*')
-        .eq('day_of_week', dayOfWeek)
-        .eq('is_active', true)
-        .lte('start_time', currentTime)
-        .gte('end_time', currentTime);
-
-      if (error) throw error;
-
-      res.json({ 
-        is_standby: schedule && schedule.length > 0,
-        current_time: currentTime,
-        day: dayOfWeek
-      });
-    } catch (error: any) {
-      console.error('Error checking standby schedule:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Admin: Test Email Sariroti
-  app.post('/api/admin/test-email', async (req, res) => {
-    try {
-      const { to } = req.body;
-      
-      // Verify admin status
-      const authHeader = req.headers.authorization;
-      if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
-      const token = authHeader.split(' ')[1];
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (profile?.role !== 'admin') return res.status(403).json({ error: 'Forbidden: Admin only' });
-
-      let targetEmail = to || process.env.SARIROTI_ADMIN_EMAIL || 'Sales.Adm.bjm@sariroti.com';
-      
-      if (!to) {
-        try {
-          const { data: settingsData } = await supabase
-            .from('settings')
-            .select('value')
-            .eq('key', 'contact_info_content')
-            .single();
-            
-          if (settingsData && settingsData.value) {
-            const contactInfo = typeof settingsData.value === 'string' ? JSON.parse(settingsData.value) : settingsData.value;
-            if (contactInfo.email) {
-              targetEmail = contactInfo.email;
-            }
-          }
-        } catch (e) {
-          console.error('Failed to fetch contact info from settings for test email', e);
-        }
-      }
-      const emailHtml = `
+    const emailHtml = `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
           <h2 style="color: #0056b3;">Test Email Sariroti</h2>
           <p>Halo Admin,</p>
           <p>Ini adalah email percobaan untuk memastikan sistem notifikasi Sariroti berfungsi dengan baik.</p>
           <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p><strong>Status:</strong> Aktif</p>
-            <p><strong>Waktu:</strong> ${new Date().toLocaleString('id-ID')}</p>
+            <p><strong>Waktu:</strong> ${new Date().toLocaleString("id-ID")}</p>
             <p><strong>Target:</strong> ${targetEmail}</p>
           </div>
           <p>Jika Anda menerima email ini, berarti konfigurasi Gmail Nodemailer sudah benar.</p>
         </div>
       `;
-
-      const result = await sendSarirotiEmailInternal(targetEmail, 'Test Email Sariroti - Berhasil', emailHtml);
-      
-      if (result.success) {
-        res.json({ success: true, message: 'Test email sent successfully', data: result.data });
-      } else {
-        res.status(500).json({ 
-          error: 'Failed to send test email', 
-          details: result.error,
-          tip: 'Pastikan GMAIL_USER dan GMAIL_APP_PASSWORD sudah benar di Environment Variables.'
-        });
-      }
-    } catch (error: any) {
-      console.error('Error in test-email endpoint:', error);
-      res.status(500).json({ error: error.message || 'Internal server error' });
-    }
-  });
-
-  // Vite middleware for development
-  if (!process.env.VERCEL) {
-    const PORT = 3000;
-    (async () => {
-      if (process.env.NODE_ENV !== "production") {
-        const viteModule = "vite";
-        const { createServer: createViteServer } = await import(viteModule);
-        const vite = await createViteServer({
-          server: { middlewareMode: true },
-          appType: "spa",
-        });
-        app.use(vite.middlewares);
-      } else {
-        app.use(express.static('dist'));
-        app.get('*', (req, res) => {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-          res.sendFile('dist/index.html', { root: '.' });
-        });
-      }
-
-      app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on http://localhost:${PORT}`);
+    const result = await sendSarirotiEmailInternal(
+      targetEmail,
+      "Test Email Sariroti - Berhasil",
+      emailHtml,
+    );
+    if (result.success) {
+      res.json({
+        success: true,
+        message: "Test email sent successfully",
+        data: result.data,
       });
-    })();
+    } else {
+      res
+        .status(500)
+        .json({
+          error: "Failed to send test email",
+          details: result.error,
+          tip: "Pastikan GMAIL_USER dan GMAIL_APP_PASSWORD sudah benar di Environment Variables.",
+        });
+    }
+  } catch (error) {
+    console.error("Error in test-email endpoint:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
+});
 
-export default app;
+app.post("/api/report", async (req, res) => {
+  try {
+    const { type, message, url, userAgent, userId } = req.body;
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    const reportObj = {
+      timestamp: new Date().toISOString(),
+      type: type || 'unknown',
+      message: message || '',
+      url: url || '',
+      userAgent: userAgent || '',
+      userId: userId || 'anonymous'
+    };
+    
+    const logLine = `[${reportObj.timestamp}] [${reportObj.type.toUpperCase()}] User: ${reportObj.userId} | URL: ${reportObj.url} | Message: ${reportObj.message} | UA: ${reportObj.userAgent}\n`;
+    const logFile = path.resolve(process.cwd(), 'error_history.txt');
+    
+    fs.appendFileSync(logFile, logLine);
+    res.json({ success: true, message: "Laporan berhasil dikirim dan dicatat." });
+  } catch (error) {
+    console.error("Gagal menyimpan laporan:", error);
+    res.status(500).json({ error: "Gagal menyimpan laporan" });
+  }
+});
+
+if (!process.env.VERCEL) {
+  const PORT = 3e3;
+  (async () => {
+    if (process.env.NODE_ENV !== "production") {
+      const viteModule = "vite";
+      const { createServer: createViteServer } = await import(viteModule).then(
+        (s) => {
+          const e = "default";
+          return s[e] && typeof s[e] == "object" && "__esModule" in s[e]
+            ? s[e]
+            : s;
+        },
+      );
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      app.use(express.static("dist"));
+      app.get("*", (req, res) => {
+        res.setHeader(
+          "Cache-Control",
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        );
+        res.sendFile("dist/index.html", { root: "." });
+      });
+    }
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  })();
+}
+var server_default = app;
+export { server_default as default };

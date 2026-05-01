@@ -164,11 +164,13 @@ export default function DigitalProducts() {
           .sort((a: any, b: any) => a.price - b.price);
         setProducts(activeProducts);
       } else {
-        toast.error('Gagal mengambil data produk');
+        const errMsg = response.data.error || 'Gagal mengambil data produk dari server provider';
+        toast.error(errMsg);
       }
     } catch (error: any) {
       console.error('Error fetching digital products:', error);
-      toast.error('Terjadi kesalahan jaringan');
+      const netErrMsg = error.response?.data?.error || error.message || 'Terjadi kesalahan jaringan saat mengambil data produk';
+      toast.error(netErrMsg);
     } finally {
       setLoading(false);
     }
@@ -228,10 +230,12 @@ export default function DigitalProducts() {
       if (response.data.success) {
         setInquiryResult(response.data.data);
       } else {
-        toast.error(response.data.error || 'Data tidak ditemukan');
+        toast.error(response.data.error || 'Data tagihan tidak ditemukan. Pastikan nomor/ID benar.');
       }
-    } catch (error) {
-      toast.error('Gagal melakukan pengecekan tagihan');
+    } catch (error: any) {
+      console.error('Inquiry error:', error);
+      const netErrMsg = error.response?.data?.error || error.message || 'Gagal melakukan pengecekan tagihan, silakan coba lagi.';
+      toast.error(netErrMsg);
     } finally {
       setInquiryLoading(false);
     }

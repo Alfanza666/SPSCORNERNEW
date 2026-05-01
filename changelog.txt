@@ -1,20 +1,48 @@
-v1.2.15 - [UPDATE] Memperbarui favicon web browser (icon di tab bagian atas browser) agar mengikuti desain "logo-icon" SPS Corner menggantikan emoji bawaan.
-v1.2.14 - [FIX] Memperbaiki crash aplikasi akibat syntax error pada Floating Report Button. Mengubah field "Stok" pada halaman Admin Edit Produk menjadi input increment/decrement beserta validasinya. Menambahkan kolom "Seller Name" pada tabel dan mobile card daftar produk Admin. Menambahkan validasi lengkap untuk memastikan Nama, Harga, Stok, dan Kategori harus diisi saat fungsi handleUpdateProduct (klik Simpan Perubahan) dijalankan.
-v1.2.13 - [FEATURE & FIX] Menambahkan tombol "Laporan" (Floating Report Button) secara global di semua halaman Frontend agar user bisa merekam / melaporkan issue ke admin. Memperbaiki handling error pada file Logo gambar (SPSLogo) agar tidak menampilkan ikon gambar rusak (crash) jika sumber gambar tidak dapat dimuat (fallback to Text Node). Merapikan tampilan Notifikasi dengan Clay-Card variant, border radius melengkung halus, border berwarna sesuai tipe notifikasi, dan animasi Fade-In/Scale (Framer Motion). Dan telah memastikan email Nota pembelian yang dikirim pada proses "Kirim Nota Pembeli Sari Roti" menampilkan detail item pemesanan yang jelas.
-v1.2.12 - [FEATURE] Memisahkan sistem penyerahan Sari Roti (Pesanan Siap Diambil) menjadi menu tersendiri "Penyerahan Roti" khusus di Dashboard Admin. Menghubungkan setiap notifikasi push dan in-app menggunakan "Deep Link", agar saat diklik akan otomatis membuka halaman/menu yang terkait secara presisi (contoh: Notifikasi Reset Password akan mengarah ke tabel reset password, Notifikasi nota berhasil/siap diambil akan otomatis mengarah ke Detail Transaksi Pembeli).
-v1.2.11 - [UPDATE] Membedakan hak akses Admin SPS Corner dengan Super Admin (alfanza26@gmail.com). Tombol "Konfirmasi Pesanan" & "Kirim Nota" untuk pembelian Roti Sariroti sekarang HANYA bisa diakses oleh Admin SPS Corner (spscorner@gmail.com) dan Disembunyikan dari Super Admin.
-v1.2.10 - [FIX] Memperbaiki bug dimana fitur "Selesai Reset" pada admin dashboard tidak mereset password pengguna ke default (123456). Sekarang setelah diselesaikan, password user akan otomatis menggunakan 123456.
-v1.2.9 - [FIX] Menghapus kolom 'pic_name' dari jadwal standby karena isu schema realtime database, memperbarui UI input Jam Mulai & Jam Selesai agar lebih rapi. Menampilkan daftar permintaan reset password di dashboard menggunakan Endpoint Backend agar tidak terhambat oleh kebijakan akses RLS Supabase.
-v1.2.8 - [FEATURE] Form penjadwalan standby admin sekarang mendukung pemilihan multi-hari langsung (Senin, Selasa, dll) tanpa harus input manual satu-satu.
-v1.2.7 - [FIX] Memperbaiki fitur Request Rubah Password. Sekarang notifikasi akan otomatis masuk ke dashboard Admin apabila ada permintaan reset password.
-v1.2.6 - [FIX] Memperbaiki halaman "blank/hitam" karena redirect `undefined` setelah login jika ada stale route history.
-v1.2.5 - [FIX] Memperbaiki tautan (link) tombol dalam Email Sariroti yang mengarah ke dashboard Admin Utama dengan tulisan yang membingungkan. Sekarang email mengarah langsung ke **Dashboard Penjual (Pesanan Masuk)** dan instruksinya sudah disesuaikan agar konfirmasi dilakukan lewat akun Admin Sariroti/Seller (Sesuai tombol "Konfirmasi" yang baru ditambahkan).
-v1.2.4 - [FIX] Memperbaiki bug dimana transaksi kosong di dashboard penjual karena masalah RLS Supabase. Sekarang transaksi tampil dengan benar menggunakan Endpoint Backend.
-v1.2.3 - [FIX] Pesanan Masuk Penjual (Sariroti) sekarang HANYA menampilkan pesanan yang SUDAH DIBAYAR (paid/success/completed). Pesanan yang pending atau failed tidak akan dimunculkan lagi ke Penjual untuk di konfirmasi (ready).
-v1.2.2 - Memperbaiki Bug fatal tampilan (UI) yang hilang & memperbaiki bug Transactions List Sariroti gagal load karena product name undefined.
-v1.2.1 - Perbaikan Bug navigasi: Redirect yang benar ke halaman sukses setelah validasi pembayaran manual.
-v1.2.0 - Menambahkan PIC (Petugas Piket) ke jadwal standby & melengkapi notifikasi banner agar Restock transparan.
-v1.1.7 - Menghapus random token pick-up, menggunakan Nota koperasi, dan memperbaiki fitur digital produk.
-v1.1.6 - Konfirmasi pesanan siap via panel admin dan notifikasi.
-v1.1.5 - Fix bug seller_id untuk Sariroti.
-v1.0.0 - Rilis Awal Kiosk Kantin.
+# Changelog & Error History
+
+## v4.2.7
+- **UI Bug Fix:** Memperbaiki konflik nama komponen (`Menu` dari Headless UI vs icon dari `lucide-react`) yang menyebabkan error rendering 'Passing props on Fragment' di `DashboardLayout`.
+
+## v4.2.6
+- **Headless UI Refactoring:** Mengganti custom AnimatePresence Overlay dan dropdown pada UI DashboardLayout dengan komponen `Dialog`, `Menu`, dan `Transition` dari `@headlessui/react`. Pendekatan ini mengatasi masalah a11y, menangkap fokus secara sempurna, dan memberikan perilaku responsif yang lebih native serta andal di Mobile maupun Desktop.
+- **Automated Low Stock Alert:** Fungsi monitoring stok (`checkLowStockAndNotify`) berhasil diterapkan langsung pada `server.ts`. Sistem secara otomatis mengecek stok setelah transaksi berhasil diupdate, dan mengirimkan email peringatan ke Seller apabila terdapat sisa produk di bawah 5 item.
+
+## v4.2.5
+- **Admin Products Enhancement:** Penambahan tombol "Tambah Produk" untuk Admin dengan dukungan parameter form yang lengkap termasuk deskripsi (description).
+- **Admin Products Low Stock Indicator:** Menambahkan highlight peringatan (visual indicator warning & border merah berkedip) di tabel & card view untuk stok produk di bawah 5.
+- **Payment Methods Toggle:** Menambahkan panel khusus di `AdminSettings` untuk Superadmin guna mengatur visibilitas metode pembayaran (QRIS Dinamis, Statis, VA, Lainnya) secara real-time di halaman Kiosk Checkout. Metode Virtual Account (VA) secara default dinonaktifkan (disimpan).
+
+## v4.2.4
+- **Dashboard Stats Fix:** Menghapus label "trend" manual (12%, 8%) pada layar Admin Dashboard karena statik dan membingungkan.
+- **Admin Revenue Breakdown Fix:** Memperbaiki algoritma fetch `transaction_items` sehingga mampu menampilkan rincian toko pengelola transaksi digital (PPOB) & Koperasi dengan benar di Breakdown Pendapatan Admin Dashboard.
+- **Kiosk LCP Performance:** Menyesuaikan lazy loading gambar Catalog Kiosk, mencegah `eager` fetcher ditahan oleh attribute lazy (Mempercepat Lighthouse visual rendering di Kiosk).
+
+## v4.2.3
+- **Superadmin Fixes:** Memindahkan konfigurasi auto-upgrade Superadmin ('alfanza26@gmail.com') langsung ke level database (`supabase-schema.sql`) menggunakan blok DO $$ SQL yang dieksekusi secara native untuk menyelesaikan masalah bug trigger node. 
+- **Admin Transaction Date:** Tanggal pada filter transaksi Admin di-layer agar tampil dalam format `DD-MMM-YYYY` (menggunakan helper `date-fns` `format`) sementara field aslinya tetap menggunakan Native Date picker.
+- **PWA Manifest Improvements:** Memperbaiki file manifest PWA dengan menyertakan logo SVG, memastikan cache ukuran icon up-to-date, dan menyesuaikan warna `theme_color` agar sinkron dengan biru aplikasi.
+
+## v4.2.2
+- **Superadmin Auto-Upgrade:** Mengonfigurasi backend (server.ts) secara otomatis meng-upgrade akun dengan email `alfanza26@gmail.com` menjadi `superadmin` saat aplikasi dijalankan, untuk menyelesaikan bug role yang tidak tertaut sempurna saat pendaftaran awal.
+- **PWA Manifest:** Memastikan `/public/manifest.json` beserta asset logo tersedia untuk Progressive Web Apps (PWA) yang menggunakan *theme_color*, *background_color*, dan *metadata* aplikasi digital kantin.
+
+## v4.2.1
+- **Kiosk Product Detail Modal:** Memperbarui modal detail produk di halaman Catalog Kiosk menjadi lebih responsif (side-by-side di layar yang mendukung), gambar lebih besar, serta menampilkan informasi Penjual (Nama Toko & Tipe Produk). User kini mendapatkan pengalaman melihat info produk yang lebih utuh.
+
+## v4.2.0
+- **Loyalty Program Earning & Redemption:** Karyawan (buyer) kini dapat mengumpulkan Loyalty Points sebesar 1% dari total transaksi yang diselesaikan.
+- **Pay with Points:** Menambahkan metode pembayaran penuh dengan Loyalty Points di halaman Checkout Kiosk (hanya tampil jika fitur diaktifkan oleh Superadmin).
+- **Backend Optimizations:** Menambahkan fungsi `updateBuyerPoints` di rute-rute pembayaran dan endpoint approval khusus point-payment.
+- **SQL Schema Fix:** Memperbaiki Nested Block `do $$` declaration di `supabase-schema.sql` untuk mencegah crash pada Supabase Initial Sync.
+
+## v4.1.0
+- **Loyalty Program (Superadmin):** Menambahkan opsi untuk mengaktifkan fitur Loyalty Points di Admin Settings khusus untuk Superadmin.
+- **Kiosk Performance:** Optimasi lazy loading dan decoding async pada gambar di halaman Catalog. Optimasi Supabase select query (hanya fetch kolom yang dibutuhkan) untuk mempercepat muat produk.
+- **Admin Transactions Filter:** Menambahkan opsi filter lanjutan `Status Transaksi` dan `Metode Bayar` pada tabel riwayat transaksi (Admin).
+- **Profil Kiosk:** Menampilkan Loyalty Points milik pegawai jika memiliki `loyalty_points` pada menu profil kiosk.
+
+## Riwayat Error
+*   **Error:** Tampilan Filter di Transaksi Admin sebelumnya hanya mendukung Tanggal dan Seller, tidak spesifik.
+    *   **Fix:** Menambahkan `status` dan `payment_method` dengan pencarian tipe data yang aman (menghindari undefined error pada tabel `failed_transactions`).
+*   **Error:** Supabase Query Image fetching bisa memberatkan jaringan untuk list yang sangat banyak.
+    *   **Fix:** Menerapkan `select` fields spesifik ketimbang `*` (asterisk) serta native attributes `loading="lazy" decoding="async"` pada rendering DOM React image element.
