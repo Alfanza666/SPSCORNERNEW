@@ -1,5 +1,12 @@
 # Changelog & Error History
 
+## v4.5.6
+- **PWA Config Update:** Menonaktifkan `devOptions` PWA pada `vite.config.ts` agar simulasi Service Worker tidak mengganggu proses *development* lokal (`npm run dev`). PWA kini hanya aktif sepenuhnya pada *environment Production* atau saat di-*build*.
+
+## v4.5.5
+- **UX/Scrolling Fix (Mobile):** Memperbaiki *bug* sistematis di mana perangkat *mobile* (khususnya iOS/iPadOS) mengharuskan gulir dengan 2 jari akibat *rule* `overscroll-behavior-y: none`. Telah dihapus dan diganti dengan `-webkit-overflow-scrolling: touch` agar gulir (*scrolling*) kembali sangat mulus (*native-like*) hanya dengan 1 jari.
+- **UI Premium Revamp:** Merombak desain kartu produk di Katalog agar terlihat jauh lebih profesional layaknya aplikasi *Native* (seperti GoFood/GrabMart). Menggunakan rasio gambar *inset* (gambar berada di dalam padding), tipografi harga yang lebih mencolok, efek *hover/shadow* yang elegan, serta memperbesar area sentuh (*touch-target*) untuk tombol "+ Tambah" dan "+/-" kuantitas.
+
 ## v4.5.4
 - **PWA Installation Fix:** Memperbaiki masalah PWA tidak bisa di-*install* dengan menambahkan `start_url` pada konfigurasi manifest Vite, serta membuat komponen `PWAInstallPrompt` kustom yang secara proaktif menangkap *event* `beforeinstallprompt` dan menampilkan spanduk ajakan instalasi (*Install App Banner*) ke pengguna agar lebih mudah di-*install* langsung dari browser. Mengaktifkan flag `devOptions` agar dapat diuji coba (*testable*) saat mode `dev`.
 

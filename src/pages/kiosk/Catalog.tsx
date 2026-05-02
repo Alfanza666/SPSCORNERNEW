@@ -242,49 +242,51 @@ export default function Catalog() {
                   layout
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ y: -2 }}
+                  whileHover={{ y: -4 }}
                   onClick={() => setSelectedProduct(product)}
-                  className={`clay-card group overflow-hidden flex flex-col h-full cursor-pointer tour-product-card-${index}`}
+                  className={`bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-100/80 dark:border-zinc-800 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:shadow-none group overflow-hidden flex flex-col h-full cursor-pointer tour-product-card-${index} transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]`}
                 >
-                  <div className="relative aspect-square overflow-hidden bg-zinc-50 dark:bg-zinc-800/50">
-                    <img
-                      src={product.image_url || 'https://picsum.photos/seed/bread/400/400'}
-                      alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      referrerPolicy="no-referrer"
-                      loading={index < 8 ? "eager" : "lazy"}
-                      decoding="async"
-                      {...(index < 4 ? { fetchPriority: "high" } : {})}
-                    />
-                    {product.stock <= 5 && product.stock > 0 && (
-                      <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 px-1 py-0.5 sm:px-1.5 sm:py-0.5 bg-amber-400 dark:bg-amber-500 text-amber-950 text-[6px] sm:text-[8px] font-bold rounded-full shadow-sm uppercase tracking-wider">
-                        Sisa: {product.stock}
-                      </div>
-                    )}
-                    {product.stock === 0 && (
-                      <div className="absolute inset-0 bg-zinc-900/60 dark:bg-black/60 backdrop-blur-[2px] flex items-center justify-center">
-                        <span className="px-2 py-1 sm:px-3 sm:py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white text-[8px] sm:text-[10px] font-bold rounded-full shadow-md uppercase tracking-widest">Habis</span>
-                      </div>
-                    )}
+                  <div className="p-2 sm:p-2.5 pb-0">
+                    <div className="relative aspect-[4/3] sm:aspect-square overflow-hidden bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl">
+                      <img
+                        src={product.image_url || 'https://picsum.photos/seed/bread/400/400'}
+                        alt={product.name}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        referrerPolicy="no-referrer"
+                        loading={index < 8 ? "eager" : "lazy"}
+                        decoding="async"
+                        {...(index < 4 ? { fetchPriority: "high" } : {})}
+                      />
+                      {product.stock <= 5 && product.stock > 0 && (
+                        <div className="absolute top-2 left-2 px-2 py-1 bg-amber-400/90 backdrop-blur-md text-amber-950 text-[9px] font-black rounded-lg shadow-sm uppercase tracking-wider">
+                          Sisa {product.stock}
+                        </div>
+                      )}
+                      {product.stock === 0 && (
+                        <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                          <span className="px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-black rounded-xl shadow-lg uppercase tracking-widest">Habis</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="p-2.5 sm:p-3 flex flex-col flex-1">
-                    <h3 className="text-[10px] sm:text-xs font-bold text-zinc-900 dark:text-white mb-0.5 sm:mb-1 tracking-tight line-clamp-1">{product.name}</h3>
-                    <p className="text-blue-600 dark:text-blue-400 text-xs sm:text-sm font-black mb-2 sm:mb-3">{formatRupiah(product.price)}</p>
+                  <div className="p-3 sm:p-4 flex flex-col flex-1">
+                    <h3 className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-1 tracking-tight line-clamp-2 leading-snug">{product.name}</h3>
+                    <p className="text-blue-600 dark:text-blue-400 text-sm sm:text-base font-black mb-3 sm:mb-4 tracking-tight">{formatRupiah(product.price)}</p>
                     
                     <div className="mt-auto" onClick={(e) => e.stopPropagation()}>
                       {quantity > 0 ? (
-                        <div className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 rounded-md sm:rounded-lg p-0.5 sm:p-1 shadow-inner dark:shadow-none">
+                        <div className="flex items-center justify-between bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl p-1 shadow-sm">
                           <button
                             onClick={() => {
                               if (quantity === 1) removeItem(product.id);
                               else updateQuantity(product.id, quantity - 1);
                             }}
-                            className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white rounded shadow-sm dark:shadow-none active:scale-95 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-600"
+                            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 rounded-lg shadow-sm hover:scale-105 active:scale-95 transition-all"
                           >
-                            <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                            <Minus className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
                           </button>
-                          <span className="font-bold text-[10px] sm:text-xs text-zinc-900 dark:text-white">{quantity}</span>
+                          <span className="font-black text-xs sm:text-sm text-blue-700 dark:text-blue-300 w-6 text-center">{quantity}</span>
                           <button
                             onClick={() => {
                               if (quantity < product.stock) {
@@ -292,18 +294,18 @@ export default function Catalog() {
                               }
                             }}
                             disabled={quantity >= product.stock}
-                            className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center bg-blue-600 text-white rounded shadow-sm active:scale-95 transition-all disabled:opacity-50"
+                            className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
                           >
-                            <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                            <Plus className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
                           </button>
                         </div>
                       ) : (
                         <button
                           onClick={() => addItem(product)}
                           disabled={product.stock === 0}
-                          className="w-full btn-clay-primary py-1 sm:py-1.5 text-[8px] sm:text-[10px] flex items-center justify-center gap-1 sm:gap-1.5"
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:hover:bg-blue-600"
                         >
-                          <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                          <Plus className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
                           Tambah
                         </button>
                       )}

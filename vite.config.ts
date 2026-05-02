@@ -19,7 +19,7 @@ export default defineConfig(({mode}) => {
           injectionPoint: 'self.__WB_MANIFEST'
         },
         devOptions: {
-          enabled: true,
+          enabled: false,
           type: 'module',
         },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'logos/sps-logo-icon.png'],
