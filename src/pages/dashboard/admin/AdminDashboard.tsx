@@ -25,7 +25,11 @@ import {
   KeyRound,
   Wallet,
   QrCode,
-  Loader2
+  Loader2,
+  Package,
+  Settings,
+  Bug,
+  Receipt
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -265,7 +269,7 @@ export default function AdminDashboard() {
       // Seller revenue breakdown
       const { data: allItems, error: itemsError } = await supabase
         .from('transaction_items')
-        .select('transaction_id, seller_id, price, quantity, metadata, profiles:seller_id(name), products (seller_id, is_digital, profiles:seller_id(name))');
+        .select('transaction_id, seller_id, price, quantity, metadata, profiles:seller_id(name), products (seller_id, profiles:seller_id(name))');
       
       if (itemsError) {
         console.error('Error fetching transaction_items for breakdown:', itemsError);
@@ -288,7 +292,7 @@ export default function AdminDashboard() {
           let sellerId = 'PPOB_DIGITAL';
           let sellerName = 'Produk Digital (PPOB)';
           
-          const isDigital = item.metadata?.is_digital || item.products?.is_digital;
+          const isDigital = item.metadata?.is_digital;
           const actualSellerId = item.seller_id || item.products?.seller_id;
           
           if (actualSellerId) {
@@ -597,6 +601,58 @@ export default function AdminDashboard() {
             <span className="sm:hidden">Export</span>
           </button>
         </div>
+      </div>
+
+      {/* Quick Access Menu */}
+      <div className="bg-white dark:bg-zinc-900 rounded-[2rem] p-4 sm:p-6 shadow-sm border border-zinc-100 dark:border-zinc-800">
+         <h2 className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest mb-4">Akses Cepat</h2>
+         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+            <button 
+              onClick={() => window.location.href = '/dashboard/admin/transactions'}
+              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                <Receipt className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Riwayat Transaksi</span>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/dashboard/admin/products'}
+              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Semua Produk</span>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/dashboard/admin/withdrawals'}
+              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Penarikan Saldo</span>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/dashboard/admin/settings'}
+              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Pengaturan Web</span>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/dashboard/admin/reports'}
+              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
+            >
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform relative">
+                <Bug className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Laporan & Bug</span>
+            </button>
+         </div>
       </div>
 
       {/* iPaymu Integration Status Banner */}

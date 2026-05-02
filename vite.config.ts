@@ -11,7 +11,13 @@ export default defineConfig(({mode}) => {
       react(), 
       tailwindcss(),
       VitePWA({
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
         registerType: 'autoUpdate',
+        injectManifest: {
+          injectionPoint: 'self.__WB_MANIFEST'
+        },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'logos/sps-logo-icon.png'],
         manifest: {
           name: 'SPS Corner Kantin Digital',

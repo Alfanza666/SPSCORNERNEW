@@ -95,10 +95,13 @@ export default function AdminWithdrawals() {
   const exportToCSV = () => {
     if (withdrawals.length === 0) return;
     
-    const headers = ['ID', 'Penjual', 'Jumlah Kotor', 'Biaya (8%)', 'Jumlah Bersih', 'Status', 'Tanggal'];
+    const headers = ['ID', 'Penjual', 'Bank', 'No. Rekening', 'Nama Pemilik', 'Jumlah Kotor', 'Biaya (8%)', 'Jumlah Bersih', 'Status', 'Tanggal'];
     const rows = withdrawals.map(w => [
       w.id,
       w.profiles?.name || 'Unknown',
+      w.bank_name || '-',
+      w.account_number || '-',
+      w.account_name || '-',
       w.amount,
       w.fee,
       w.net_amount,
@@ -205,6 +208,7 @@ export default function AdminWithdrawals() {
             <thead>
               <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] bg-zinc-50/50 dark:bg-zinc-800/50">
                 <th className="p-6">Penjual</th>
+                <th className="p-6">Rekening</th>
                 <th className="p-6">Rincian Dana</th>
                 <th className="p-6">Diterima</th>
                 <th className="p-6">Status</th>
@@ -230,6 +234,13 @@ export default function AdminWithdrawals() {
                           {format(new Date(w.created_at), 'dd MMM yyyy, HH:mm', { locale: id })}
                         </p>
                       </div>
+                    </div>
+                  </td>
+                  <td className="p-6">
+                    <div className="space-y-1">
+                      <p className="font-bold text-zinc-900 dark:text-white uppercase text-xs tracking-wider">{w.bank_name || '-'}</p>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono tracking-widest">{w.account_number || '-'}</p>
+                      <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{w.account_name || '-'}</p>
                     </div>
                   </td>
                   <td className="p-6">
@@ -348,18 +359,27 @@ export default function AdminWithdrawals() {
                 </div>
               </div>
               
-              <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex justify-between items-center shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)]">
+              <div className="bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-800 space-y-3 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)]">
                 <div>
-                  <p className="text-[8px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-wider">Kotor</p>
-                  <p className="text-sm font-bold text-zinc-900 dark:text-white">{formatRupiah(w.amount)}</p>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Tujuan Transfer</p>
+                  <p className="font-bold text-sm text-zinc-900 dark:text-white">{w.bank_name || '-'}</p>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 font-mono">{w.account_number || '-'}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-500">{w.account_name || '-'}</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-[8px] text-red-500 dark:text-red-400 font-black uppercase tracking-wider">Biaya</p>
-                  <p className="text-sm font-bold text-red-500 dark:text-red-400">-{formatRupiah(w.fee)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[8px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-wider">Bersih</p>
-                  <p className="text-base font-black text-blue-600 dark:text-blue-400 tracking-tight">{formatRupiah(w.net_amount)}</p>
+                
+                <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                  <div>
+                    <p className="text-[8px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-wider">Kotor</p>
+                    <p className="text-sm font-bold text-zinc-900 dark:text-white">{formatRupiah(w.amount)}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[8px] text-red-500 dark:text-red-400 font-black uppercase tracking-wider">Biaya</p>
+                    <p className="text-sm font-bold text-red-500 dark:text-red-400">-{formatRupiah(w.fee)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[8px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-wider">Bersih</p>
+                    <p className="text-base font-black text-blue-600 dark:text-blue-400 tracking-tight">{formatRupiah(w.net_amount)}</p>
+                  </div>
                 </div>
               </div>
 

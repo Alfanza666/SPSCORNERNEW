@@ -2,7 +2,7 @@ import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
-import { Dialog, Transition, Menu } from '@headlessui/react';
+import { Dialog, Transition, Menu, Disclosure } from '@headlessui/react';
 import { 
   LogOut, 
   LayoutDashboard, 
@@ -24,7 +24,9 @@ import {
   ShoppingCart,
   RotateCcw,
   Clock,
-  ClipboardList
+  ClipboardList,
+  Bug,
+  ChevronDown
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -63,7 +65,7 @@ interface NavItemProps {
   onClick: () => void;
 }
 
-const NavItem = ({ to, icon: Icon, label, isActive, onClick }: NavItemProps) => {
+const NavItem = ({ to, icon: Icon, label, isActive, onClick, badge }: NavItemProps & { badge?: number }) => {
   return (
     <button
       onClick={onClick}
@@ -79,10 +81,36 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick }: NavItemProps) => 
         <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white'}`} />
       </div>
       <span className="flex-1 text-left">{label}</span>
-      {isActive && (
-        <motion.div layoutId="active-nav" className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+      {badge && badge > 0 && (
+        <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center shadow-sm">
+          {badge}
+        </span>
+      )}
+      {isActive && !badge && (
+        <motion.div layoutId="active-nav" className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 shrink-0" />
       )}
     </button>
+  );
+};
+
+const NavGroup = ({ label, icon: Icon, defaultOpen, children }: { label: string, icon: any, defaultOpen?: boolean, children: React.ReactNode }) => {
+  return (
+    <Disclosure defaultOpen={defaultOpen}>
+      {({ open }) => (
+        <>
+          <Disclosure.Button className="w-full flex items-center justify-between px-4 py-3 rounded-2xl font-bold text-sm text-zinc-600 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800/30 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors focus:outline-none">
+            <div className="flex items-center gap-3">
+              <Icon className="w-5 h-5 text-zinc-400 dark:text-zinc-500" />
+              <span>{label}</span>
+            </div>
+            <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+          </Disclosure.Button>
+          <Disclosure.Panel className="px-2 pt-2 space-y-1">
+            {children}
+          </Disclosure.Panel>
+        </>
+      )}
+    </Disclosure>
   );
 };
 
@@ -136,116 +164,163 @@ export default function DashboardLayout() {
   const isAdmin = user.role === 'admin' || user.role === 'superadmin';
   const isSeller = user.role === 'seller';
 
+  if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
+    if (isAdmin) {
+      return <Navigate to="/dashboard/admin" replace />;
+    } else if (isSeller) {
+      return <Navigate to="/dashboard/seller" replace />;
+    } else {
+      return <Navigate to="/kiosk" replace />;
+    }
+  }
+
   const renderNavItems = () => (
+
     <>
       {isAdmin && (
         <>
-          <div className="tour-admin-sidebar-overview">
+          <NavGroup label="Overview & Utama" icon={LayoutDashboard} defaultOpen={true}>
+            <div className="tour-admin-sidebar-overview">
+              <NavItem 
+                to="/dashboard/admin" 
+                icon={LayoutDashboard} 
+                label="Overview" 
+                isActive={location.pathname === "/dashboard/admin"}
+                onClick={() => { navigate("/dashboard/admin"); setIsSidebarOpen(false); }}
+              />
+            </div>
+          </NavGroup>
+
+          <NavGroup label="Toko & Transaksi" icon={Store} defaultOpen={true}>
+            <div className="tour-admin-sidebar-transactions">
+              <NavItem 
+                to="/dashboard/admin/transactions" 
+                icon={Receipt} 
+                label="Riwayat Transaksi" 
+                isActive={location.pathname === "/dashboard/admin/transactions"}
+                onClick={() => { navigate("/dashboard/admin/transactions"); setIsSidebarOpen(false); }}
+              />
+            </div>
+            <div className="tour-admin-sidebar-withdrawals">
+              <NavItem 
+                to="/dashboard/admin/withdrawals" 
+                icon={CreditCard} 
+                label="Penarikan Saldo" 
+                isActive={location.pathname === "/dashboard/admin/withdrawals"}
+                onClick={() => { navigate("/dashboard/admin/withdrawals"); setIsSidebarOpen(false); }}
+              />
+            </div>
+          </NavGroup>
+
+          <NavGroup label="Input Data Induk" icon={Tag} defaultOpen={false}>
+            <div className="tour-admin-sidebar-sellers">
+              <NavItem 
+                to="/dashboard/admin/sellers" 
+                icon={Users} 
+                label="Data Penjual" 
+                isActive={location.pathname === "/dashboard/admin/sellers"}
+                onClick={() => { navigate("/dashboard/admin/sellers"); setIsSidebarOpen(false); }}
+              />
+            </div>
             <NavItem 
-              to="/dashboard/admin" 
-              icon={LayoutDashboard} 
-              label="Overview" 
-              isActive={location.pathname === "/dashboard/admin"}
-              onClick={() => { navigate("/dashboard/admin"); setIsSidebarOpen(false); }}
-            />
-          </div>
-          <div className="tour-admin-sidebar-sellers">
-            <NavItem 
-              to="/dashboard/admin/sellers" 
-              icon={Users} 
-              label="Data Penjual" 
-              isActive={location.pathname === "/dashboard/admin/sellers"}
-              onClick={() => { navigate("/dashboard/admin/sellers"); setIsSidebarOpen(false); }}
-            />
-          </div>
-          <NavItem 
-            to="/dashboard/admin/categories" 
-            icon={Tag} 
-            label="Kategori Produk" 
-            isActive={location.pathname === "/dashboard/admin/categories"}
-            onClick={() => { navigate("/dashboard/admin/categories"); setIsSidebarOpen(false); }}
-          />
-          <NavItem 
-            to="/dashboard/admin/products" 
-            icon={Package} 
-            label="Semua Produk" 
-            isActive={location.pathname === "/dashboard/admin/products"}
-            onClick={() => { navigate("/dashboard/admin/products"); setIsSidebarOpen(false); }}
-          />
-          <div className="tour-admin-sidebar-transactions">
-            <NavItem 
-              to="/dashboard/admin/transactions" 
-              icon={Receipt} 
-              label="Riwayat Transaksi" 
-              isActive={location.pathname === "/dashboard/admin/transactions"}
-              onClick={() => { navigate("/dashboard/admin/transactions"); setIsSidebarOpen(false); }}
-            />
-          </div>
-          <NavItem 
-            to="/dashboard/admin/pickup" 
-            icon={Package} 
-            label="Penyerahan Roti" 
-            isActive={location.pathname === "/dashboard/admin/pickup"}
-            onClick={() => { navigate("/dashboard/admin/pickup"); setIsSidebarOpen(false); }}
-          />
-          <div className="tour-admin-sidebar-withdrawals">
-            <NavItem 
-              to="/dashboard/admin/withdrawals" 
-              icon={CreditCard} 
-              label="Penarikan Saldo" 
-              isActive={location.pathname === "/dashboard/admin/withdrawals"}
-              onClick={() => { navigate("/dashboard/admin/withdrawals"); setIsSidebarOpen(false); }}
-            />
-          </div>
-          <div className="tour-admin-sidebar-stock-requests">
-            <NavItem 
-              to="/dashboard/admin/stock-requests" 
+              to="/dashboard/admin/products" 
               icon={Package} 
-              label="Req. Restock" 
-              isActive={location.pathname === "/dashboard/admin/stock-requests"}
-              onClick={() => { navigate("/dashboard/admin/stock-requests"); setIsSidebarOpen(false); }}
+              label="Semua Produk" 
+              isActive={location.pathname === "/dashboard/admin/products"}
+              onClick={() => { navigate("/dashboard/admin/products"); setIsSidebarOpen(false); }}
             />
-          </div>
-          <div className="tour-admin-sidebar-returns">
             <NavItem 
-              to="/dashboard/admin/returns" 
-              icon={RotateCcw} 
-              label="Req. Retur" 
-              isActive={location.pathname === "/dashboard/admin/returns"}
-              onClick={() => { navigate("/dashboard/admin/returns"); setIsSidebarOpen(false); }}
+              to="/dashboard/admin/categories" 
+              icon={Tag} 
+              label="Kategori Produk" 
+              isActive={location.pathname === "/dashboard/admin/categories"}
+              onClick={() => { navigate("/dashboard/admin/categories"); setIsSidebarOpen(false); }}
             />
-          </div>
-          <div className="my-2 border-t border-zinc-100 dark:border-zinc-800/50"></div>
-          <NavItem 
-            to="/dashboard/admin/stock-opname" 
-            icon={ClipboardList} 
-            label="Stock Opname" 
-            isActive={location.pathname === "/dashboard/admin/stock-opname"}
-            onClick={() => { navigate("/dashboard/admin/stock-opname"); setIsSidebarOpen(false); }}
-          />
-          <NavItem 
-            to="/dashboard/admin/standby-schedule" 
-            icon={Clock} 
-            label="Jadwal Standby" 
-            isActive={location.pathname === "/dashboard/admin/standby-schedule"}
-            onClick={() => { navigate("/dashboard/admin/standby-schedule"); setIsSidebarOpen(false); }}
-          />
-          <div className="my-2 border-t border-zinc-100 dark:border-zinc-800/50"></div>
-          <NavItem 
-            to="/dashboard/admin/settings" 
-            icon={Settings} 
-            label="Pengaturan Konten" 
-            isActive={location.pathname === "/dashboard/admin/settings"}
-            onClick={() => { navigate("/dashboard/admin/settings"); setIsSidebarOpen(false); }}
-          />
-          <div className="my-4 border-t border-zinc-200 dark:border-zinc-800"></div>
-          <NavItem 
-            to="/help" 
-            icon={Info} 
-            label="Pusat Bantuan" 
-            isActive={location.pathname === "/help"}
-            onClick={() => { navigate("/help"); setIsSidebarOpen(false); }}
-          />
+          </NavGroup>
+
+          <NavGroup label="Logistik & Stok" icon={Package} defaultOpen={false}>
+            <NavItem 
+              to="/dashboard/admin/pickup" 
+              icon={Package} 
+              label="Penyerahan Roti" 
+              isActive={location.pathname === "/dashboard/admin/pickup"}
+              onClick={() => { navigate("/dashboard/admin/pickup"); setIsSidebarOpen(false); }}
+            />
+            <div className="tour-admin-sidebar-stock-requests">
+              <NavItem 
+                to="/dashboard/admin/stock-requests" 
+                icon={Package} 
+                label="Req. Restock" 
+                isActive={location.pathname === "/dashboard/admin/stock-requests"}
+                onClick={() => { navigate("/dashboard/admin/stock-requests"); setIsSidebarOpen(false); }}
+              />
+            </div>
+            <div className="tour-admin-sidebar-returns">
+              <NavItem 
+                to="/dashboard/admin/returns" 
+                icon={RotateCcw} 
+                label="Req. Retur" 
+                isActive={location.pathname === "/dashboard/admin/returns"}
+                onClick={() => { navigate("/dashboard/admin/returns"); setIsSidebarOpen(false); }}
+              />
+            </div>
+            <NavItem 
+              to="/dashboard/admin/stock-opname" 
+              icon={ClipboardList} 
+              label="Stock Opname" 
+              isActive={location.pathname === "/dashboard/admin/stock-opname"}
+              onClick={() => { navigate("/dashboard/admin/stock-opname"); setIsSidebarOpen(false); }}
+            />
+          </NavGroup>
+
+          <NavGroup label="Laporan & Evaluasi" icon={ClipboardList} defaultOpen={false}>
+            <NavItem 
+              to="/dashboard/admin/reports" 
+              icon={Bug} 
+              label="Laporan & Bug" 
+              isActive={location.pathname === "/dashboard/admin/reports"}
+              onClick={() => { navigate("/dashboard/admin/reports"); setIsSidebarOpen(false); }}
+              badge={unreadCount > 0 ? unreadCount : undefined}
+            />
+          </NavGroup>
+
+          <NavGroup label="Pengaturan & Sistem" icon={Settings} defaultOpen={false}>
+            <NavItem 
+              to="/dashboard/admin/settings" 
+              icon={Settings} 
+              label="Pengaturan Umum" 
+              isActive={location.pathname === "/dashboard/admin/settings"}
+              onClick={() => { navigate("/dashboard/admin/settings"); setIsSidebarOpen(false); }}
+            />
+            <NavItem 
+              to="/dashboard/admin/payments" 
+              icon={CreditCard} 
+              label="Metode Pembayaran" 
+              isActive={location.pathname === "/dashboard/admin/payments"}
+              onClick={() => { navigate("/dashboard/admin/payments"); setIsSidebarOpen(false); }}
+            />
+            <NavItem 
+              to="/dashboard/admin/loyalty" 
+              icon={Tag} 
+              label="Loyalty Point" 
+              isActive={location.pathname === "/dashboard/admin/loyalty"}
+              onClick={() => { navigate("/dashboard/admin/loyalty"); setIsSidebarOpen(false); }}
+            />
+            <NavItem 
+              to="/dashboard/admin/standby-schedule" 
+              icon={Clock} 
+              label="Jadwal Standby" 
+              isActive={location.pathname === "/dashboard/admin/standby-schedule"}
+              onClick={() => { navigate("/dashboard/admin/standby-schedule"); setIsSidebarOpen(false); }}
+            />
+            <NavItem 
+              to="/help" 
+              icon={Info} 
+              label="Pusat Bantuan" 
+              isActive={location.pathname === "/help"}
+              onClick={() => { navigate("/help"); setIsSidebarOpen(false); }}
+            />
+          </NavGroup>
         </>
       )}
 

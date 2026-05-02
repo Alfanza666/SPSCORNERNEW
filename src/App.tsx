@@ -5,13 +5,12 @@ import { Toaster } from 'react-hot-toast';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
 import Tutorial from './components/Tutorial';
-import FloatingReportButton from './components/FloatingReportButton';
 
 // Lazy load components
 const Home = React.lazy(() => import('./pages/Home'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/auth/Register'));
-const AuthCallback = React.lazy(() => import('./pages/auth/AuthCallback'));
+
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
 const KioskLayout = React.lazy(() => import('./pages/kiosk/KioskLayout'));
 const Catalog = React.lazy(() => import('./pages/kiosk/Catalog'));
@@ -27,7 +26,7 @@ const Contact = React.lazy(() => import('./pages/Contact'));
 const HelpCenter = React.lazy(() => import('./pages/HelpCenter'));
 const FAQ = React.lazy(() => import('./pages/FAQ'));
 const RefundPolicy = React.lazy(() => import('./pages/RefundPolicy'));
-const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy'));
+
 
 const DashboardLayout = React.lazy(() => import('./pages/dashboard/DashboardLayout'));
 const AdminDashboard = React.lazy(() => import('./pages/dashboard/admin/AdminDashboard'));
@@ -39,8 +38,6 @@ const AdminWithdrawals = React.lazy(() => import('./pages/dashboard/admin/AdminW
 const AdminSettings = React.lazy(() => import('./pages/dashboard/admin/AdminSettings'));
 const AdminReturns = React.lazy(() => import('./pages/dashboard/admin/AdminReturns'));
 const AdminStockRequests = React.lazy(() => import('./pages/dashboard/admin/AdminStockRequests'));
-const AdminStockOpname = React.lazy(() => import('./pages/dashboard/admin/AdminStockOpname'));
-const AdminStandbySchedule = React.lazy(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
 
 const SellerDashboard = React.lazy(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = React.lazy(() => import('./pages/dashboard/seller/SellerProducts'));
@@ -96,7 +93,6 @@ function LoadingFallback() {
   );
 }
 
-import AdminPickup from './pages/dashboard/admin/AdminPickup';
 
 export default function App() {
   const { fetchProfile, setUser } = useAuthStore();
@@ -178,16 +174,16 @@ export default function App() {
             }
           }}
         />
-        <FloatingReportButton />
+
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
+
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
+
             <Route path="/contact" element={<Contact />} />
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/faq" element={<FAQ />} />
@@ -212,13 +208,10 @@ export default function App() {
               <Route path="admin/categories" element={<AdminCategories />} />
               <Route path="admin/products" element={<AdminProducts />} />
               <Route path="admin/transactions" element={<AdminTransactions />} />
-              <Route path="admin/pickup" element={<AdminPickup />} />
+
               <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="admin/stock-requests" element={<AdminStockRequests />} />
               <Route path="admin/returns" element={<AdminReturns />} />
-              <Route path="admin/stock-opname" element={<AdminStockOpname />} />
-              <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
-              <Route path="admin/settings" element={<AdminSettings />} />
               
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/products" element={<SellerProducts />} />

@@ -29,6 +29,9 @@ export default function SellerWithdrawals() {
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(0);
   const [amount, setAmount] = useState('');
+  const [bankName, setBankName] = useState('BCA');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
   const [isRequesting, setIsRequesting] = useState(false);
 
   useEffect(() => {
@@ -93,7 +96,10 @@ export default function SellerWithdrawals() {
           amount: withdrawAmount,
           fee: fee,
           net_amount: netAmount,
-          status: 'pending'
+          status: 'pending',
+          bank_name: bankName,
+          account_number: accountNumber,
+          account_name: accountName
         });
 
       if (withdrawalError) throw withdrawalError;
@@ -194,20 +200,68 @@ export default function SellerWithdrawals() {
               Ajukan Penarikan
             </h3>
             <form onSubmit={handleRequestWithdrawal} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Jumlah Penarikan (Rp)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-zinc-400 dark:text-zinc-500">Rp</span>
-                  <input 
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Jumlah Penarikan (Rp)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-zinc-400 dark:text-zinc-500">Rp</span>
+                    <input 
+                      required 
+                      type="number"
+                      min="50000"
+                      max={balance}
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="Minimal 50.000"
+                      className="input-clay pl-12"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Nama Bank Tujuan</label>
+                  <select 
                     required 
-                    type="number"
-                    min="50000"
-                    max={balance}
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Minimal 50.000"
-                    className="input-clay pl-12"
-                  />
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="input-clay"
+                  >
+                    <option value="BCA">BCA (Bank Central Asia)</option>
+                    <option value="Mandiri">Bank Mandiri</option>
+                    <option value="BNI">BNI (Bank Negara Indonesia)</option>
+                    <option value="BRI">BRI (Bank Rakyat Indonesia)</option>
+                    <option value="BSI">BSI (Bank Syariah Indonesia)</option>
+                    <option value="BSI">Bank Kalsel</option>
+                    <option value="Gopay">GoPay</option>
+                    <option value="Ovo">OVO</option>
+                    <option value="Dana">DANA</option>
+                    <option value="ShopeePay">ShopeePay</option>
+                  </select>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Nomor Rekening / HP</label>
+                    <input 
+                      required 
+                      type="text"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                      placeholder="Contoh: 1234567890"
+                      className="input-clay"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Nama Pemilik Rekening</label>
+                    <input 
+                      required 
+                      type="text"
+                      value={accountName}
+                      onChange={(e) => setAccountName(e.target.value)}
+                      placeholder="Contoh: John Doe"
+                      className="input-clay"
+                    />
+                  </div>
                 </div>
               </div>
               

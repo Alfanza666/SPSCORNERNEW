@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useCartStore } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -14,6 +15,7 @@ export default function Success() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
+  const { clearCart } = useCartStore();
   const [currentTime] = useState(new Date());
   const [transaction, setTransaction] = useState<any>(null);
   const queryParams = new URLSearchParams(location.search);
@@ -81,8 +83,12 @@ export default function Success() {
   }, []);
 
   useEffect(() => {
+    // Clear cart and guest session data when reaching success page
+    clearCart();
+    sessionStorage.removeItem('buyerName');
+    sessionStorage.removeItem('buyerPhone');
     // We no longer auto navigate to kiosk. User must click explicitly.
-  }, []);
+  }, [clearCart]);
 
   const handlePrint = () => {
     window.print();

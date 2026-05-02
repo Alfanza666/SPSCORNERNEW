@@ -1,5 +1,59 @@
 # Changelog & Error History
 
+## v4.5.3
+- **UI/UX Enhancement:** Memperbarui gaya visual *icon* antarmuka (seperti Keranjang, Dashboard, dan Kategori PPOB) yang sebelumnya terkesan kaku menjadi lebih *vibrant* dan berdimensi (*3D-like*) menggunakan gradasi dan efek *shadow* tingkat lanjut, **tanpa** mengganggu logo PNG asli website.
+
+## v4.5.2
+- **Environment Setup:** Mengkonfigurasi `user.name` dan `user.email` secara global untuk Git pada workspace untuk menunjang pencatatan versi.
+
+## v4.5.1
+- **PWA UI Fix (iOS Safe Area):** Memperbaiki elemen *Floating Cart* di Kiosk yang sebelumnya sering tumpang tindih dengan *Home Indicator* (garis bawah) di perangkat iPhone/iOS dengan menambahkan *padding env(safe-area-inset-bottom)*.
+- **PWA UX Fix (Pull-to-refresh):** Menonaktifkan perilaku *pull-to-refresh* (tarik ke bawah untuk memuat ulang) di browser *mobile* yang sering kali mengganggu pengalaman navigasi Katalog Kiosk menggunakan `overscroll-behavior-y: none`.
+- **Notification Icon Fix:** Mengganti ikon notifikasi *real-time* browser yang sebelumnya memuat `/vite.svg` menjadi `/logos/sps-logo-icon.png` agar selaras dengan merek PWA.
+
+## v4.5.0 (PWA Support)
+- **Progressive Web App (PWA):** Mengaktifkan kapabilitas PWA secara penuh menggunakan `vite-plugin-pwa`. Aplikasi kini dapat diinstal (Add to Home Screen) layaknya aplikasi native di Android/iOS dan Desktop.
+- **Service Worker Registration:** Menambahkan registrasi Service Worker di `main.tsx` dengan fitur *Auto-Update Prompt* (Notifikasi "Versi baru tersedia" ketika ada pembaruan).
+- **Manifest & Icons Validation:** Memastikan logo PWA tersedia di folder `public/logos/` dan menghapus manifest ganda di `index.html` agar VitePWA menangani injeksi manifest secara otomatis (`manifest.webmanifest`).
+
+## v4.4.5
+- **Dead Code Removal & Stability Fix:** Menghapus referensi modul yang tidak eksis (seperti `FloatingReportButton`, `ProductDetailModal`, `AdminStockOpname`, `AdminStandbySchedule`, dll) di `App.tsx`, `Catalog.tsx`, dan `KioskLayout.tsx` yang sebelumnya menyebabkan kegagalan proses *build* (Fatal Module Not Found).
+- **Project Cleanup:** Menghapus lebih dari 30 file *script testing/fetching* di *root directory* (`fetch_*.js`, `test_*.js`, `create-users.*`) yang tidak digunakan lagi untuk optimasi ukuran aplikasi dan meminimalisir celah eksploitasi.
+
+## v4.4.4
+- **Return URL IPaymu Fix:** Mengubah `returnUrl` untuk pembayaran IPaymu agar diarahkan ke halaman `/kiosk/success` (bukan `/kiosk/history`), menghindari issue guest terlempar ke halaman awal saat selesai bayar.
+- **Cart Cleanup di Success:** Menambahkan logika `clearCart()` dan menghapus Data Guest di sessionStorage pada halaman `Success.tsx` supaya keranjang bersih saat user kembali ke aplikasi setelah bayar di gateway.
+- **Detail Transaksi Admin:** Memunculkan metadata detail secara lengkap (Nomor Tujuan, SN/Token PPOB, Pesan Error/Gagal, dan Ref ID) di halaman Riwayat Transaksi Admin untuk mempermudah pengecekan complain dari customer.
+
+
+## v4.4.3
+- **Sidebar Restructuring:** Menambahkan grouping "Input Data Induk" dan "Laporan & Evaluasi" di sidebar Superadmin untuk kontrol dan navigasi yang lebih granular terkait data input dan laporan.
+- **Bug Fix (Admin Dashboard):** Memperbaiki query breakdown transaksi yang error akibat pemanggilan kolom `is_digital` dari tabel `products` yang tidak eksis (sekarang memanggil menggunakan item `metadata.is_digital`).
+
+## v4.4.2
+- **Admin Management Fix:** Menambahkan Tombol "Riwayat Transaksi" ke menu Akses Cepat di Admin Dashboard.
+- **Product Category Select:** Memperbaiki bug di Settings fetch (AdminPayments & AdminLoyalty) yang error column ID exist (memanggil by JSON key instead). Select dropdown untuk kategori yang tersedia langsung muncul berdasarkan query 'categories'.
+
+## v4.4.1
+- **Bug Fix (Admin Dashboard Crash):** Memperbaiki missing import komponen icon `Package`, `Settings`, dan `Bug` dari `lucide-react` di `AdminDashboard.tsx` yang menyebabkan pesan error *Package is not defined*.
+
+## v4.4.0
+- **Peningkatan Fitur Superadmin & Notifikasi Laporan:** Meringkas menu sidebar Superadmin menggunakan bentuk Accordion agar lebih rapih beserta dengan pengelompokan yang jelas.
+- **Akses Cepat:** Menambahkan section "Akses Cepat" di halaman dashboard utama Admin/Superadmin.
+- **Admin Loyalty & Payments:** Menambahkan halaman `AdminLoyalty.tsx` khusus untuk pengaturan skema poin. Menambahkan halaman `AdminPayments.tsx` untuk konfigurasi toggle metode pembayaran (QRIS, Transfer, VA, dll).
+- **Integrasi Feedback Laporan:** Menautkan setiap kali ada laporan user yang disumban masuk ke database notifikasi agar Superadmin langsung mendapat notifikasi lonceng/indikator merah ketika berada di dashboard.
+- **Ipaymu Sandbox Environment Fix:** Memastikan instansiasi instance `IpaymuClient` di server force environment parameter `production: true`, selaras dengan API VA dan API_KEY asli server terlepas dari test mock logic.
+
+## v4.3.1
+- **Bug Fix (Blank Screen):** Memperbaiki isu layar menjadi blank (putih/kosong) saat pengguna berstatus `superadmin` login. Ini terjadi karena belum adanya redirect/fallback secara spesifik ketika route mengakses `/dashboard` secara langsung sehingga `Outlet` tidak memuat modul apa pun. Telah ditambahkan logika `Navigate` di level root `DashboardLayout` untuk mengarahkan pengguna ke path yang sesuai (`/dashboard/admin` atau `/dashboard/seller`).
+- **Fitur Baru (Admin Reports):** Menambahkan menu "Laporan & Bug" pada dashboard Superadmin (`AdminReports.tsx`). Menu ini memungkinkan admin untuk memantau semua laporan bug/saran yang dikirimkan oleh pengguna melalui tombol Floating Report tanpa harus mengecek file log sistem `error_history.txt` secara manual. 
+
+## v4.3.0
+- **Penarikan Dana / Withdrawal:** Mengembangkan halaman Penarikan Dana khusus Penjual (`SellerWithdrawals.tsx`) dengan menambahkan form lengkap yang terdiri dari Jumlah Penarikan, Nama Bank, Nomor Rekening, dan Nama Pemilik Rekening sesuai permintaan.
+- **Admin Withdrawals:** Melakukan pembaruan pada dashboard Superadmin (`AdminWithdrawals.tsx`) untuk menampilkan informasi rekening (Nama Bank, Nomor Rekening, Nama Pemilik) dan menambahkannya pada eksport CSV dan tampilan mobile. Skema basis data `withdrawals` juga telah diperbarui dengan field `bank_name`, `account_number`, dan `account_name`.
+- **UI Update:** Mengubah teks pada tombol "Masuk" di antarmuka halaman registrasi menjadi "Login ke Akun Anda" sesuai permintaan.
+- **Dashboard Refactor Notes:** Pengaturan terkait pengelola metode pembayaran Checkout Kiosk (QRIS Dinamis, Manual / Statis, dan opsi lainnya) sebelumnya sudah disematkan dalam menu Admin Settings.
+
 ## v4.2.7
 - **UI Bug Fix:** Memperbaiki konflik nama komponen (`Menu` dari Headless UI vs icon dari `lucide-react`) yang menyebabkan error rendering 'Passing props on Fragment' di `DashboardLayout`.
 

@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
 import SPSLogo from '../../components/SPSLogo';
-import PhonePromptModal from '../../components/PhonePromptModal';
+
 import { useNotifications } from '../../hooks/useNotifications';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -355,9 +355,7 @@ export default function KioskLayout() {
           </div>
         </footer>
       )}
-      {showPhoneModal && (
-        <PhonePromptModal onClose={() => setShowPhoneModal(false)} />
-      )}
+
     </div>
   );
 }

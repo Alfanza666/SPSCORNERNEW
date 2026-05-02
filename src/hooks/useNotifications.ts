@@ -71,7 +71,7 @@ export function useNotifications() {
             try {
               new Notification(payload.new.title, {
                 body: payload.new.message,
-                icon: '/vite.svg'
+                icon: '/logos/sps-logo-icon.png'
               });
             } catch (e) {
               console.error('Failed to show push notification', e);
@@ -125,5 +125,49 @@ export function useNotifications() {
     }
   };
 
-  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead };
+  const subscribeToWebPush = async () => {
+    if ('serviceWorker' in navigator && 'PushManager' in window && user) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        
+        // Convert base64 to Uint8Array for applicationServerKey
+        const urlBase64ToUint8Array = (base64String: string) => {
+          const padding = '='.repeat((4 - base64String.length % 4) % 4);
+          const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+          const rawData = window.atob(base64);
+          const outputArray = new Uint8Array(rawData.length);
+          for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+          }
+          return outputArray;
+        };
+
+        const applicationServerKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+        if (!applicationServerKey) {
+          console.warn('VITE_VAPID_PUBLIC_KEY is missing');
+          return;
+        }
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(applicationServerKey)
+        });
+
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id,
+            subscription: subscription
+          })
+        });
+        
+        console.log('Berhasil langganan push notifikasi latar belakang!');
+      } catch (error) {
+        console.error('Gagal langganan web push', error);
+      }
+    }
+  };
+
+  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead, subscribeToWebPush };
 }

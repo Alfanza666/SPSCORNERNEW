@@ -709,6 +709,20 @@ export default function AdminTransactions() {
                                         {item.metadata?.is_digital && (
                                           <span className="ml-2 text-[8px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded uppercase tracking-tighter">Digital</span>
                                         )}
+                                        {item.metadata?.is_digital && (
+                                          <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400 font-medium space-y-1">
+                                            {item.metadata?.target_number && <p>Tujuan: <span className="font-bold text-zinc-700 dark:text-zinc-300">{item.metadata.target_number}</span></p>}
+                                            {(item.metadata?.sn || item.metadata?.digiflazz_response?.sn || item.metadata?.data?.sn) && (
+                                              <p>SN/Token: <span className="font-mono font-bold text-blue-600 dark:text-blue-400 select-all">{item.metadata?.sn || item.metadata?.digiflazz_response?.sn || item.metadata?.data?.sn}</span></p>
+                                            )}
+                                            {(item.metadata?.digiflazz_message || item.metadata?.digiflazz_error) && (
+                                              <p className="text-[10px] text-red-500 dark:text-red-400 leading-tight">Msg: {item.metadata?.digiflazz_message || item.metadata?.digiflazz_error}</p>
+                                            )}
+                                            {item.metadata?.digiflazz_response?.ref_id && (
+                                              <p className="text-[10px]">Ref ID: <span className="font-mono">{item.metadata.digiflazz_response.ref_id}</span></p>
+                                            )}
+                                          </div>
+                                        )}
                                       </td>
                                       <td className="px-4 md:px-6 py-4 text-right text-zinc-500 dark:text-zinc-400 font-medium">{formatRupiah(item.price)}</td>
                                       <td className="px-4 md:px-6 py-4 text-center text-zinc-500 dark:text-zinc-400 font-black">{item.quantity}</td>

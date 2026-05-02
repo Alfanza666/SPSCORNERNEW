@@ -7,7 +7,6 @@ import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, Arro
 import { motion, AnimatePresence } from 'motion/react';
 import React, { Suspense } from 'react';
 
-const ProductDetailModal = React.lazy(() => import('./ProductDetailModal'));
 
 export default function Catalog() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -324,12 +323,12 @@ export default function Catalog() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-40"
+            className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-40 safe-area-bottom"
           >
             <div className="max-w-3xl mx-auto clay-card-blue p-2.5 sm:p-3 flex items-center justify-between gap-2.5 sm:gap-4">
               <div className="flex items-center gap-2.5 sm:gap-3">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md rounded-md sm:rounded-lg flex items-center justify-center relative shadow-inner overflow-hidden">
-                  <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-white/30 to-white/10 backdrop-blur-md rounded-[0.8rem] flex items-center justify-center relative shadow-[0_4px_12px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(255,255,255,0.3)] border border-white/20 overflow-hidden group-hover:scale-105 transition-transform">
+                  <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-md" strokeWidth={2.5} />
                   <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 w-4 h-4 sm:w-5 sm:h-5 bg-amber-400 text-amber-950 text-[8px] sm:text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm border border-blue-600">
                     {totalItems}
                   </span>
@@ -354,14 +353,7 @@ export default function Catalog() {
 
       {/* Product Detail Modal */}
       <AnimatePresence>
-        {selectedProduct && (
-          <Suspense fallback={null}>
-            <ProductDetailModal 
-              selectedProduct={selectedProduct}
-              setSelectedProduct={setSelectedProduct}
-            />
-          </Suspense>
-        )}
+
       </AnimatePresence>
     </div>
   );

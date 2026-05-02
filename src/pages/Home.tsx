@@ -61,8 +61,9 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/0 group-hover:from-blue-50/50 dark:group-hover:from-blue-500/10 transition-colors duration-500 pointer-events-none" />
                 <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/10 dark:bg-blue-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-blue-50/50 dark:bg-blue-900/20 flex items-center justify-center mb-5 sm:mb-6 relative z-10 shadow-sm border border-blue-100 dark:border-blue-800/50 group-hover:scale-110 transition-transform duration-500 overflow-hidden">
-                  <ShoppingCart className="w-8 h-8 sm:w-10 sm:h-10 text-blue-600 dark:text-blue-400" />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center mb-5 sm:mb-6 relative z-10 shadow-[0_8px_20px_rgba(59,130,246,0.4),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-blue-300/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.3)_0%,transparent_60%)]" />
+                  <ShoppingCart className="w-8 h-8 sm:w-10 sm:h-10 text-white drop-shadow-md relative z-10" strokeWidth={2.5} />
                 </div>
 
                 <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2 tracking-tight transition-colors relative z-10">
@@ -87,8 +88,9 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-br from-amber-500/0 to-amber-500/0 group-hover:from-amber-50/50 dark:group-hover:from-amber-500/10 transition-colors duration-500 pointer-events-none" />
                   <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/10 dark:bg-amber-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-amber-50/50 dark:bg-amber-900/20 flex items-center justify-center mb-5 sm:mb-6 relative z-10 shadow-sm border border-amber-100 dark:border-amber-800/50 group-hover:scale-110 transition-transform duration-500 overflow-hidden">
-                    {user ? <LayoutDashboard className="w-8 h-8 sm:w-10 sm:h-10 text-amber-500 dark:text-amber-400" /> : <UserCircle className="w-8 h-8 sm:w-10 sm:h-10 text-amber-500 dark:text-amber-400" />}
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center mb-5 sm:mb-6 relative z-10 shadow-[0_8px_20px_rgba(245,158,11,0.4),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-amber-300/50 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500 overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.4)_0%,transparent_60%)]" />
+                    {user ? <LayoutDashboard className="w-8 h-8 sm:w-10 sm:h-10 text-white drop-shadow-md relative z-10" strokeWidth={2.5} /> : <UserCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white drop-shadow-md relative z-10" strokeWidth={2.5} />}
                   </div>
 
                   <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2 tracking-tight transition-colors relative z-10">
@@ -98,7 +100,7 @@ export default function Home() {
                   <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base leading-relaxed font-medium transition-colors relative z-10">
                     {user
                       ? 'Kelola sistem, produk, dan pantau transaksi Anda melalui dashboard.'
-                      : 'Akses dashboard untuk mengelola produk, melihat riwayat transaksi, atau melakukan penarikan saldo.'}
+                      : 'Akses dashboard untuk mengelola produk, riwayat transaksi, dan penarikan.'}
                   </p>
                 </div>
               </Link>

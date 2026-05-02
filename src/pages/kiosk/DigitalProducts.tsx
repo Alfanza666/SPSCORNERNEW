@@ -777,9 +777,9 @@ export default function DigitalProducts() {
                     <div className="absolute inset-0 bg-gradient-to-br from-white via-white/95 to-white/80 dark:from-zinc-900 dark:via-zinc-900/95 dark:to-zinc-900/80" />
                   </div>
 
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 relative z-10 overflow-hidden ${cat.color} group-hover:shadow-blue-500/30`}>
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent" />
-                    <cat.icon className="w-7 h-7 text-white relative z-10" />
+                  <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center mb-5 shadow-[0_8px_16px_rgba(0,0,0,0.15),inset_0_2px_4px_rgba(255,255,255,0.4)] group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500 relative z-10 overflow-hidden ${cat.color} bg-gradient-to-br from-white/20 to-black/10 border border-white/20`}>
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.4)_0%,transparent_60%)]" />
+                    <cat.icon className="w-7 h-7 text-white relative z-10 drop-shadow-lg" strokeWidth={2.5} />
                   </div>
 
                   <div className="relative z-10 mt-auto">

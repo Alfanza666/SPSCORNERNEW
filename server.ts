@@ -12,6 +12,7 @@ import os from "os";
 import crypto from "crypto";
 import fs from "fs";
 import nodemailer from "nodemailer";
+import webpush from "web-push";
 import { IpaymuClient } from "./src/services/ipaymu/client.js";
 dotenv.config();
 const envUrl = process.env.VITE_SUPABASE_URL;
@@ -38,6 +39,31 @@ app.use(
   }),
 );
 app.use(express.urlencoded({ extended: true }));
+
+try {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT || "mailto:test@test.com",
+    process.env.VITE_VAPID_PUBLIC_KEY || "",
+    process.env.VAPID_PRIVATE_KEY || ""
+  );
+} catch (e) {
+  console.warn("VAPID details not configured properly", e);
+}
+
+app.post("/api/push/subscribe", async (req, res) => {
+  const { user_id, subscription } = req.body;
+  if (!user_id || !subscription) return res.status(400).json({ error: "Data tidak lengkap" });
+
+  try {
+    await supabase.from("push_subscriptions").insert({
+      user_id,
+      subscription
+    });
+    res.status(201).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Gagal menyimpan langganan" });
+  }
+});
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
@@ -136,6 +162,29 @@ const sendNotification = __name(async (userId, payload) => {
         path: payload.path || "/",
         is_read: false,
       });
+
+    const { data: subs } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", userId);
+
+    if (subs && subs.length > 0) {
+      const pushPayload = JSON.stringify({
+        title: payload.title,
+        body: payload.message,
+        url: payload.path || "/",
+      });
+
+      const pushPromises = subs.map((sub) =>
+        webpush.sendNotification(sub.subscription, pushPayload).catch((err) => {
+          if (err.statusCode === 404 || err.statusCode === 410) {
+            // Subscription has expired or is no longer valid
+            // In a real app, delete it from the DB here
+          }
+        })
+      );
+      await Promise.all(pushPromises);
+    }
   } catch (err) {
     console.error("Failed to send notification:", err);
   }
@@ -1956,8 +2005,8 @@ app.post("/api/payment/ipaymu/create", async (req, res) => {
       qty: [],
       price: [],
       amount: Math.round(Number(amount)).toString(),
-      returnUrl: `${appUrl}/kiosk/history?id=${transaction_id}`,
-      cancelUrl: `${appUrl}/kiosk/cart?id=${transaction_id}`,
+      returnUrl: `${appUrl}/kiosk/success?id=${transaction_id}`,
+      cancelUrl: `${appUrl}/kiosk/cart`,
       notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
       referenceId: String(transaction_id),
       buyerName: cleanName,
@@ -3019,10 +3068,70 @@ app.post("/api/report", async (req, res) => {
     const logFile = path.resolve(process.cwd(), 'error_history.txt');
     
     fs.appendFileSync(logFile, logLine);
+
+    // Also send notification to all admins/superadmins
+    try {
+      const { data: admins } = await supabase
+        .from('profiles')
+        .select('id')
+        .in('role', ['admin', 'superadmin']);
+        
+      if (admins && admins.length > 0) {
+        const notificationsToInsert = admins.map(admin => ({
+          user_id: admin.id,
+          type: 'system',
+          title: `Laporan Baru: ${reportObj.type.toUpperCase()}`,
+          message: reportObj.message.length > 80 ? reportObj.message.substring(0, 80) + '...' : reportObj.message,
+          path: '/dashboard/admin/reports'
+        }));
+        await supabase.from('notifications').insert(notificationsToInsert);
+      }
+    } catch (dbErr) {
+      console.error("Gagal mengirim notif ke admin:", dbErr);
+    }
+
     res.json({ success: true, message: "Laporan berhasil dikirim dan dicatat." });
   } catch (error) {
     console.error("Gagal menyimpan laporan:", error);
     res.status(500).json({ error: "Gagal menyimpan laporan" });
+  }
+});
+
+app.get("/api/reports", async (req, res) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const logFile = path.resolve(process.cwd(), 'error_history.txt');
+    
+    if (!fs.existsSync(logFile)) {
+      return res.json({ success: true, data: [] });
+    }
+    
+    const content = fs.readFileSync(logFile, 'utf8');
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+    
+    const reports = lines.map((line, index) => {
+      // Very basic parsing
+      // Format: [TIMESTAMP] [TYPE] User: USER_ID | URL: URL | Message: MESSAGE | UA: UA
+      const match = line.match(/^\[(.*?)\] \[(.*?)\] User: (.*?) \| URL: (.*?) \| Message: (.*?) \| UA: (.*)$/);
+      if (match) {
+        return {
+          id: index.toString(),
+          timestamp: match[1],
+          type: match[2],
+          userId: match[3],
+          url: match[4],
+          message: match[5],
+          userAgent: match[6]
+        };
+      }
+      return { id: index.toString(), raw: line, timestamp: new Date().toISOString() };
+    });
+    
+    res.json({ success: true, data: reports.reverse() });
+  } catch (error) {
+    console.error("Gagal membaca laporan:", error);
+    res.status(500).json({ error: "Gagal membaca laporan" });
   }
 });
 

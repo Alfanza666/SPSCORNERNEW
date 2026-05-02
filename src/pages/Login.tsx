@@ -246,7 +246,7 @@ export default function Login() {
                   <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Memproses...
                 </span>
-              ) : 'Masuk'}
+              ) : 'Login ke Akun Anda'}
             </button>
 
             <div className="relative py-2 sm:py-3">
