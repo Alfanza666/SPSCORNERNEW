@@ -18,6 +18,10 @@ export default defineConfig(({mode}) => {
         injectManifest: {
           injectionPoint: 'self.__WB_MANIFEST'
         },
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg', 'logos/sps-logo-icon.png'],
         manifest: {
           name: 'SPS Corner Kantin Digital',
@@ -26,6 +30,7 @@ export default defineConfig(({mode}) => {
           theme_color: '#059669',
           background_color: '#ffffff',
           display: 'standalone',
+          start_url: '/',
           icons: [
             {
               src: '/logos/sps-logo-icon.png',

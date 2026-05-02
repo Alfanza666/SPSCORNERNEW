@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
 import Tutorial from './components/Tutorial';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
 // Lazy load components
 const Home = React.lazy(() => import('./pages/Home'));
@@ -165,6 +166,7 @@ export default function App() {
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <BrowserRouter>
         <Tutorial />
+        <PWAInstallPrompt />
         <Toaster 
           toastOptions={{
             className: 'text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-3',

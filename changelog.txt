@@ -1,5 +1,8 @@
 # Changelog & Error History
 
+## v4.5.4
+- **PWA Installation Fix:** Memperbaiki masalah PWA tidak bisa di-*install* dengan menambahkan `start_url` pada konfigurasi manifest Vite, serta membuat komponen `PWAInstallPrompt` kustom yang secara proaktif menangkap *event* `beforeinstallprompt` dan menampilkan spanduk ajakan instalasi (*Install App Banner*) ke pengguna agar lebih mudah di-*install* langsung dari browser. Mengaktifkan flag `devOptions` agar dapat diuji coba (*testable*) saat mode `dev`.
+
 ## v4.5.3
 - **UI/UX Enhancement:** Memperbarui gaya visual *icon* antarmuka (seperti Keranjang, Dashboard, dan Kategori PPOB) yang sebelumnya terkesan kaku menjadi lebih *vibrant* dan berdimensi (*3D-like*) menggunakan gradasi dan efek *shadow* tingkat lanjut, **tanpa** mengganggu logo PNG asli website.
 
