@@ -13,6 +13,7 @@ const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/auth/Register'));
 
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
+const AuthCallback = React.lazy(() => import('./pages/AuthCallback'));
 const KioskLayout = React.lazy(() => import('./pages/kiosk/KioskLayout'));
 const Catalog = React.lazy(() => import('./pages/kiosk/Catalog'));
 const Cart = React.lazy(() => import('./pages/kiosk/Cart'));
@@ -39,6 +40,12 @@ const AdminWithdrawals = React.lazy(() => import('./pages/dashboard/admin/AdminW
 const AdminSettings = React.lazy(() => import('./pages/dashboard/admin/AdminSettings'));
 const AdminReturns = React.lazy(() => import('./pages/dashboard/admin/AdminReturns'));
 const AdminStockRequests = React.lazy(() => import('./pages/dashboard/admin/AdminStockRequests'));
+const AdminReports = React.lazy(() => import('./pages/dashboard/admin/AdminReports'));
+const AdminPickup = React.lazy(() => import('./pages/dashboard/admin/AdminPickup'));
+const AdminStockOpname = React.lazy(() => import('./pages/dashboard/admin/AdminStockOpname'));
+const AdminPayments = React.lazy(() => import('./pages/dashboard/admin/AdminPayments'));
+const AdminLoyalty = React.lazy(() => import('./pages/dashboard/admin/AdminLoyalty'));
+const AdminStandbySchedule = React.lazy(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
 
 const SellerDashboard = React.lazy(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = React.lazy(() => import('./pages/dashboard/seller/SellerProducts'));
@@ -190,6 +197,8 @@ export default function App() {
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/refund" element={<RefundPolicy />} />
+            <Route path="/privacy" element={<RefundPolicy />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             
             {/* Kiosk Routes */}
             <Route path="/kiosk" element={<KioskLayout />}>
@@ -214,7 +223,13 @@ export default function App() {
               <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="admin/stock-requests" element={<AdminStockRequests />} />
               <Route path="admin/returns" element={<AdminReturns />} />
-              
+              <Route path="admin/reports" element={<AdminReports />} />
+              <Route path="admin/pickup" element={<AdminPickup />} />
+              <Route path="admin/stock-opname" element={<AdminStockOpname />} />
+              <Route path="admin/payments" element={<AdminPayments />} />
+              <Route path="admin/loyalty" element={<AdminLoyalty />} />
+              <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
+
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/products" element={<SellerProducts />} />
               <Route path="seller/withdrawals" element={<SellerWithdrawals />} />

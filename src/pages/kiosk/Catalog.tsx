@@ -191,13 +191,13 @@ export default function Catalog() {
           </div>
 
           {/* Categories */}
-          <div className="mt-3 sm:mt-4 flex gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 sm:pb-2 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 tour-categories">
+          <div className="mt-4 sm:mt-5 flex gap-2 sm:gap-3 overflow-x-auto pb-2 sm:pb-3 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 tour-categories">
             <button
               onClick={() => setActiveCategory('Semua')}
-              className={`whitespace-nowrap px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all ${
+              className={`whitespace-nowrap px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm ${
                 activeCategory === 'Semua'
-                  ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
-                  : 'bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                  ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                  : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
               }`}
             >
               Semua Menu
@@ -206,10 +206,10 @@ export default function Catalog() {
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`whitespace-nowrap px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg font-bold text-[8px] sm:text-[10px] transition-all flex items-center gap-1 sm:gap-1.5 ${
+                className={`whitespace-nowrap px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm ${
                   activeCategory === cat
-                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-sm'
-                    : 'bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                    : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
                 }`}
               >
                 {cat}
@@ -251,7 +251,9 @@ export default function Catalog() {
                       <img
                         src={product.image_url || 'https://picsum.photos/seed/bread/400/400'}
                         alt={product.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 no-download"
+                        draggable="false"
+                        onContextMenu={(e) => e.preventDefault()}
                         referrerPolicy="no-referrer"
                         loading={index < 8 ? "eager" : "lazy"}
                         decoding="async"
@@ -355,7 +357,140 @@ export default function Catalog() {
 
       {/* Product Detail Modal */}
       <AnimatePresence>
+        {selectedProduct && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSelectedProduct(null)}
+          >
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white dark:bg-zinc-900 w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl border border-zinc-100 dark:border-zinc-800 max-h-[90vh] overflow-y-auto"
+            >
+              {/* Drag handle (mobile) */}
+              <div className="flex justify-center pt-3 pb-1 sm:hidden">
+                <div className="w-10 h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-full" />
+              </div>
 
+              {/* Product Image */}
+              <div className="relative aspect-video sm:aspect-square overflow-hidden bg-zinc-50 dark:bg-zinc-800 mx-4 mt-2 rounded-2xl">
+                <img
+                  src={selectedProduct.image_url || 'https://picsum.photos/seed/bread/400/400'}
+                  alt={selectedProduct.name}
+                  className="w-full h-full object-cover no-download"
+                  draggable="false"
+                  onContextMenu={e => e.preventDefault()}
+                />
+                {selectedProduct.stock <= 5 && selectedProduct.stock > 0 && (
+                  <div className="absolute top-3 left-3 px-2.5 py-1 bg-amber-400/90 backdrop-blur-md text-amber-950 text-[10px] font-black rounded-lg uppercase tracking-wider">
+                    Sisa {selectedProduct.stock}
+                  </div>
+                )}
+                <button
+                  onClick={() => setSelectedProduct(null)}
+                  className="absolute top-3 right-3 w-8 h-8 bg-black/40 backdrop-blur-md text-white rounded-full flex items-center justify-center hover:bg-black/60 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Product Info */}
+              <div className="p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg sm:text-xl font-black text-zinc-900 dark:text-white tracking-tight leading-snug mb-1">
+                      {selectedProduct.name}
+                    </h2>
+                    {(selectedProduct as any).profiles?.name && (
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+                        Oleh: {(selectedProduct as any).profiles.name}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xl sm:text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight">
+                      {formatRupiah(selectedProduct.price)}
+                    </p>
+                    <p className="text-[10px] text-zinc-400 font-medium">per item</p>
+                  </div>
+                </div>
+
+                {selectedProduct.category && (
+                  <div className="mb-3">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                      <Tag className="w-3 h-3" />
+                      {selectedProduct.category}
+                    </span>
+                  </div>
+                )}
+
+                {(selectedProduct as any).description && (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl">
+                    {(selectedProduct as any).description}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500 font-medium mb-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                  <span>Stok tersedia</span>
+                  <span className={`font-black ${selectedProduct.stock < 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {selectedProduct.stock} pcs
+                  </span>
+                </div>
+
+                {/* Add to cart controls */}
+                {(() => {
+                  const cartItem = items.find(i => i.id === selectedProduct.id);
+                  const qty = cartItem?.quantity || 0;
+                  return qty > 0 ? (
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl p-2 flex-1">
+                        <button
+                          onClick={() => {
+                            if (qty === 1) removeItem(selectedProduct.id);
+                            else updateQuantity(selectedProduct.id, qty - 1);
+                          }}
+                          className="w-10 h-10 flex items-center justify-center bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 rounded-xl shadow-sm hover:scale-105 active:scale-95 transition-all"
+                        >
+                          <Minus className="w-5 h-5" strokeWidth={3} />
+                        </button>
+                        <span className="flex-1 text-center font-black text-lg text-blue-700 dark:text-blue-300">{qty}</span>
+                        <button
+                          onClick={() => { if (qty < selectedProduct.stock) updateQuantity(selectedProduct.id, qty + 1); }}
+                          disabled={qty >= selectedProduct.stock}
+                          className="w-10 h-10 flex items-center justify-center bg-blue-600 text-white rounded-xl shadow-sm hover:bg-blue-700 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                          <Plus className="w-5 h-5" strokeWidth={3} />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => navigate('/kiosk/cart')}
+                        className="h-14 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm flex items-center gap-2 transition-colors shadow-md shadow-emerald-600/20"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        Ke Keranjang
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { addItem(selectedProduct); }}
+                      disabled={selectedProduct.stock === 0}
+                      className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 active:scale-[0.98] transition-all disabled:opacity-50"
+                    >
+                      <Plus className="w-5 h-5" strokeWidth={3} />
+                      {selectedProduct.stock === 0 ? 'Stok Habis' : 'Tambah ke Keranjang'}
+                    </button>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

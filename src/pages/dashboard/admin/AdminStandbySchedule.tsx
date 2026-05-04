@@ -1,26 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Clock, Plus, Trash2, Loader2, Save, Calendar, Info } from 'lucide-react';
+import { Clock, Plus, Trash2, RefreshCw, Calendar, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
+import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'motion/react';
 
-const DAYS = [
-  'Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'
-];
+const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
 export default function AdminStandbySchedule() {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ day: 'Senin', time_start: '07:00', time_end: '16:00', officer_name: '', notes: '' });
   const [saving, setSaving] = useState(false);
-  const [newEntry, setNewEntry] = useState({
-    start_time: '08:00',
-    end_time: '17:00'
-  });
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // default Mon-Fri
 
-  useEffect(() => {
-    fetchSchedules();
-  }, []);
+  useEffect(() => { fetchSchedules(); }, []);
 
   const fetchSchedules = async () => {
     try {
@@ -28,229 +23,189 @@ export default function AdminStandbySchedule() {
       const { data, error } = await supabase
         .from('standby_schedules')
         .select('*')
-        .order('day_of_week', { ascending: true })
-        .order('start_time', { ascending: true });
-      
+        .order('created_at', { ascending: false });
       if (error) throw error;
       setSchedules(data || []);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-      toast.error('Gagal memuat jadwal');
+    } catch {
+      setSchedules([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleDay = (dayIndex: number) => {
-    if (selectedDays.includes(dayIndex)) {
-      setSelectedDays(selectedDays.filter(d => d !== dayIndex));
-    } else {
-      setSelectedDays([...selectedDays, dayIndex].sort());
-    }
-  };
-
-  const handleAddSchedule = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedDays.length === 0) {
-      toast.error('Pilih minimal satu hari!');
+  const handleSave = async () => {
+    if (!form.officer_name.trim()) {
+      toast.error('Nama petugas wajib diisi');
       return;
     }
-    setSaving(true);
     try {
-      const inserts = selectedDays.map(day => ({
-        day_of_week: day,
-        start_time: newEntry.start_time,
-        end_time: newEntry.end_time
-      }));
-
+      setSaving(true);
       const { error } = await supabase
         .from('standby_schedules')
-        .insert(inserts);
-      
+        .insert({ ...form, created_at: new Date().toISOString() });
       if (error) throw error;
-      
-      toast.success('Jadwal ditambahkan!');
+      toast.success('Jadwal berhasil ditambahkan');
+      setShowForm(false);
+      setForm({ day: 'Senin', time_start: '07:00', time_end: '16:00', officer_name: '', notes: '' });
       fetchSchedules();
-    } catch (error: any) {
-      toast.error(`Gagal: ${error.message}`);
+    } catch (err: any) {
+      toast.error('Gagal menyimpan: Pastikan tabel standby_schedules sudah ada di Supabase. ' + err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteSchedule = async (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Hapus jadwal ini?')) return;
     try {
-      const { error } = await supabase
-        .from('standby_schedules')
-        .delete()
-        .eq('id', id);
-      
+      const { error } = await supabase.from('standby_schedules').delete().eq('id', id);
       if (error) throw error;
-      
+      setSchedules(prev => prev.filter(s => s.id !== id));
       toast.success('Jadwal dihapus');
-      fetchSchedules();
-    } catch (error: any) {
-      toast.error(`Gagal: ${error.message}`);
+    } catch (err: any) {
+      toast.error('Gagal: ' + err.message);
     }
   };
 
-  const toggleActive = async (id: string, current: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('standby_schedules')
-        .update({ is_active: !current })
-        .eq('id', id);
-      
-      if (error) throw error;
-      fetchSchedules();
-    } catch (error: any) {
-      toast.error(`Gagal: ${error.message}`);
-    }
-  };
+  const todayName = DAYS[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+  const todaySchedules = schedules.filter(s => s.day === todayName);
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight mb-2">Jadwal Standby</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 font-medium">Atur waktu standby Anggota Koperasi untuk mengaktifkan fitur Restock Seller.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Jadwal Standby</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">
+            Atur jadwal petugas yang standby di Koperasi/Kiosk
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={fetchSchedules} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-colors shadow-sm">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition-colors shadow-md shadow-blue-600/20">
+            <Plus className="w-4 h-4" /> Tambah Jadwal
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Add Form */}
-        <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-xl h-fit">
-          <h2 className="text-xl font-black text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
-            <Plus className="w-5 h-5 text-blue-500" /> Tambah Jadwal
-          </h2>
-          <form onSubmit={handleAddSchedule} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Hari</label>
-              <div className="flex flex-wrap gap-2">
-                {DAYS.map((day, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => toggleDay(i)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                      selectedDays.includes(i)
-                        ? 'bg-blue-100 border-blue-500/30 text-blue-700 dark:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-300'
-                        : 'bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/80'
-                    }`}
-                  >
-                    {day}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Jam Mulai</label>
-                <div className="relative">
-                  <input 
-                    type="time" 
-                    value={newEntry.start_time}
-                    onChange={(e) => setNewEntry({...newEntry, start_time: e.target.value})}
-                    className="input-clay h-12 w-full appearance-none pr-4"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Jam Selesai</label>
-                <div className="relative">
-                  <input 
-                    type="time" 
-                    value={newEntry.end_time}
-                    onChange={(e) => setNewEntry({...newEntry, end_time: e.target.value})}
-                    className="input-clay h-12 w-full appearance-none pr-4"
-                  />
-                </div>
-              </div>
-            </div>
-            <button 
-              type="submit" 
-              disabled={saving}
-              className="btn-clay-primary w-full h-14 flex items-center justify-center gap-2"
-            >
-              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-              Tambah Jadwal
-            </button>
-          </form>
+      {/* Today's Schedule */}
+      <div className={`rounded-2xl p-5 border ${todaySchedules.length > 0 ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800'}`}>
+        <div className="flex items-center gap-3 mb-3">
+          {todaySchedules.length > 0 ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          )}
+          <h3 className={`font-black text-sm ${todaySchedules.length > 0 ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-800 dark:text-amber-200'}`}>
+            Hari Ini ({todayName}, {format(new Date(), 'dd MMM yyyy', { locale: id })})
+          </h3>
         </div>
-
-        {/* Schedule List */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-blue-50/50 dark:bg-blue-900/10 p-6 rounded-[2rem] border border-blue-100 dark:border-blue-900/30 flex items-start gap-4">
-            <Info className="w-6 h-6 text-blue-500 shrink-0 mt-1" />
-            <div className="space-y-1">
-              <p className="text-sm font-bold text-blue-900 dark:text-blue-200">Info Operasional Unmanned Kiosk</p>
-              <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
-                Fitur **Restock** di dashboard Seller hanya akan aktif pada rentang waktu yang Anda tentukan di bawah ini. Pastikan ada Anggota Koperasi yang bertugas di lokasi untuk melakukan verifikasi fisik saat Seller datang.
+        {todaySchedules.length > 0 ? (
+          <div className="space-y-2">
+            {todaySchedules.map(s => (
+              <p key={s.id} className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                {s.officer_name} · {s.time_start} – {s.time_end}
+                {s.notes && <span className="font-normal opacity-70"> ({s.notes})</span>}
               </p>
-            </div>
+            ))}
           </div>
-
-          <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest bg-zinc-50/50 dark:bg-zinc-800/50">
-                    <th className="p-6">Hari</th>
-                    <th className="p-6">Rentang Waktu</th>
-                    <th className="p-6 text-center">Status</th>
-                    <th className="p-6 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {schedules.map((s) => (
-                    <tr key={s.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group">
-                      <td className="p-6 font-bold text-zinc-900 dark:text-white">
-                        <div className="flex items-center gap-3">
-                          <Calendar className="w-4 h-4 text-blue-500" />
-                          {DAYS[s.day_of_week]}
-                        </div>
-                      </td>
-                      <td className="p-6">
-                        <div className="flex items-center gap-2 font-mono font-black text-sm text-zinc-600 dark:text-zinc-300">
-                          <Clock className="w-4 h-4 text-zinc-400" />
-                          {s.start_time.slice(0, 5)} - {s.end_time.slice(0, 5)}
-                        </div>
-                      </td>
-                      <td className="p-6 text-center">
-                        <button 
-                          onClick={() => toggleActive(s.id, s.is_active)}
-                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-                            s.is_active 
-                              ? 'bg-emerald-100 text-emerald-700' 
-                              : 'bg-zinc-100 text-zinc-400'
-                          }`}
-                        >
-                          {s.is_active ? 'Aktif' : 'Non-Aktif'}
-                        </button>
-                      </td>
-                      <td className="p-6 text-right">
-                        <button 
-                          onClick={() => handleDeleteSchedule(s.id)}
-                          className="w-10 h-10 clay-icon bg-white dark:bg-zinc-800 text-zinc-400 hover:text-red-600 transition-all"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {schedules.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="p-12 text-center text-zinc-400 font-medium italic">
-                        Belum ada jadwal standby yang diatur.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-amber-700 dark:text-amber-300 font-medium">
+            Belum ada petugas yang terjadwal hari ini. Kiosk menampilkan pesan "Restock Tutup Sementara" kepada pengguna.
+          </p>
+        )}
       </div>
+
+      {/* Add Form */}
+      {showForm && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 space-y-4">
+          <h3 className="font-black text-zinc-900 dark:text-white">Tambah Jadwal Baru</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-zinc-500 mb-1.5">Hari</label>
+              <select value={form.day} onChange={e => setForm(p => ({ ...p, day: e.target.value }))}
+                className="w-full border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-zinc-500 mb-1.5">Nama Petugas</label>
+              <input type="text" value={form.officer_name} onChange={e => setForm(p => ({ ...p, officer_name: e.target.value }))}
+                placeholder="Nama petugas standby"
+                className="w-full border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-zinc-500 mb-1.5">Jam Mulai</label>
+              <input type="time" value={form.time_start} onChange={e => setForm(p => ({ ...p, time_start: e.target.value }))}
+                className="w-full border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-zinc-500 mb-1.5">Jam Selesai</label>
+              <input type="time" value={form.time_end} onChange={e => setForm(p => ({ ...p, time_end: e.target.value }))}
+                className="w-full border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-zinc-500 mb-1.5">Catatan (opsional)</label>
+            <input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+              placeholder="Contoh: Lokasi kantin lantai 1"
+              className="w-full border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button onClick={handleSave} disabled={saving}
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Simpan
+            </button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-xl font-bold text-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+              Batal
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Schedule List */}
+      {loading ? (
+        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="bg-white dark:bg-zinc-900 rounded-2xl p-5 h-16 animate-pulse border border-zinc-100 dark:border-zinc-800" />)}</div>
+      ) : schedules.length === 0 ? (
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-12 text-center border border-zinc-100 dark:border-zinc-800">
+          <Calendar className="w-12 h-12 text-zinc-200 dark:text-zinc-700 mx-auto mb-3" />
+          <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-1">Belum ada jadwal</h3>
+          <p className="text-sm text-zinc-400 dark:text-zinc-500">Tambah jadwal petugas standby untuk mengaktifkan fitur restock.</p>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30">
+                {['Hari', 'Petugas', 'Jam', 'Catatan', ''].map(h => (
+                  <th key={h} className="text-left px-5 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-50 dark:divide-zinc-800">
+              {schedules.map(s => (
+                <tr key={s.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                  <td className="px-5 py-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${s.day === todayName ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                      {s.day}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-sm font-bold text-zinc-900 dark:text-white">{s.officer_name}</td>
+                  <td className="px-5 py-4 text-sm text-zinc-600 dark:text-zinc-400 font-medium">{s.time_start} – {s.time_end}</td>
+                  <td className="px-5 py-4 text-sm text-zinc-400 dark:text-zinc-500">{s.notes || '-'}</td>
+                  <td className="px-5 py-4 text-right">
+                    <button onClick={() => handleDelete(s.id)} className="p-1.5 text-zinc-300 hover:text-red-500 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

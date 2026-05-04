@@ -42,7 +42,9 @@ export default function SPSLogo({ className = "h-12", variant = 'wide', showText
     <img 
       src={src} 
       alt="SPS Corner Logo" 
-      className={`${className} object-contain`}
+      className={`${className} object-contain no-download`}
+      draggable="false"
+      onContextMenu={(e) => e.preventDefault()}
       referrerPolicy="no-referrer"
       onError={() => setHasError(true)}
     />

@@ -30,10 +30,17 @@ export default function Checkout() {
     redirect: true
   });
   const [guestPhone, setGuestPhone] = useState(sessionStorage.getItem('buyerPhone') || '');
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  const MDR_RATE = 0.007;
+  const mdrAmount = Math.ceil(getTotal() * MDR_RATE);
+  const totalWithMdr = getTotal() + mdrAmount;
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
   const saveGuestTransaction = (txId: string) => {
+    // Always save last transaction to sessionStorage for success page access (even for guests)
+    sessionStorage.setItem('lastTransactionId', txId);
     if (!user) {
       try {
         const history = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
@@ -102,6 +109,19 @@ export default function Checkout() {
     }
   }, [items, buyerName, navigate]);
 
+  // Countdown timer for QRIS payment (15 minutes)
+  useEffect(() => {
+    if (paymentStep !== 'ipaymu_direct') { setCountdown(null); return; }
+    const end = Date.now() + 15 * 60 * 1000;
+    setCountdown(15 * 60);
+    const tick = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((end - Date.now()) / 1000));
+      setCountdown(remaining);
+      if (remaining === 0) clearInterval(tick);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [paymentStep]);
+
   const handleBack = async () => {
     if (reservations.length > 0) {
       try {
@@ -128,7 +148,7 @@ export default function Checkout() {
         buyer_id: user?.id || null,
         buyer_phone: user?.phone || guestPhone || null,
         buyer_email: user?.email || null,
-        total_amount: getTotal(),
+        total_amount: method === 'qris' ? totalWithMdr : getTotal(),
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -198,7 +218,7 @@ export default function Checkout() {
         headers,
         body: JSON.stringify({
           transaction_id: tx.id,
-          amount: getTotal(),
+          amount: method === 'qris' ? totalWithMdr : getTotal(),
           buyer_name: cleanName,
           buyer_email: user?.email || dummyEmail,
           buyer_phone: dummyPhone,
@@ -661,7 +681,7 @@ export default function Checkout() {
                     </button>
                   )}
 
-                  {/* QRIS Option */}
+                  {/* QRIS (Otomatis) Option */}
                   {paymentSettings.qrisDynamic && (
                     <button
                       onClick={() => {
@@ -677,9 +697,23 @@ export default function Checkout() {
                       <div className="w-12 h-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 transition-colors">
                         <QrCode className="w-6 h-6 text-zinc-600 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0">
                         <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Otomatis)</p>
                         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Gopay, OVO, Dana, LinkAja</p>
+                        <div className="mt-1.5 text-[9px] font-medium text-zinc-400 dark:text-zinc-500 space-y-0.5">
+                          <div className="flex justify-between">
+                            <span>Subtotal</span>
+                            <span>{formatRupiah(getTotal())}</span>
+                          </div>
+                          <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                            <span>MDR QRIS (0.7%)</span>
+                            <span>+{formatRupiah(mdrAmount)}</span>
+                          </div>
+                          <div className="flex justify-between font-black text-zinc-700 dark:text-zinc-200 border-t border-zinc-100 dark:border-zinc-700 pt-0.5 mt-0.5">
+                            <span>Total Bayar</span>
+                            <span>{formatRupiah(totalWithMdr)}</span>
+                          </div>
+                        </div>
                       </div>
                     </button>
                   )}
@@ -863,6 +897,21 @@ export default function Checkout() {
         ) : (
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
+              {/* Countdown Timer */}
+              {countdown !== null && (
+                <div className={`mb-5 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black ${
+                  countdown < 60 
+                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800'
+                    : countdown < 300
+                    ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-800'
+                    : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800'
+                }`}>
+                  <Phone className="w-4 h-4" />
+                  Batas waktu bayar: {String(Math.floor(countdown / 60)).padStart(2,'0')}:{String(countdown % 60).padStart(2,'0')}
+                  {countdown === 0 && <span className="ml-2 font-normal text-xs">— Waktu habis, buat pesanan baru</span>}
+                </div>
+              )}
+
               {/* QRIS code display only */}
 
               {(() => {

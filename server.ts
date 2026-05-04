@@ -55,15 +55,96 @@ app.post("/api/push/subscribe", async (req, res) => {
   if (!user_id || !subscription) return res.status(400).json({ error: "Data tidak lengkap" });
 
   try {
-    await supabase.from("push_subscriptions").insert({
-      user_id,
-      subscription
-    });
+    // Upsert: use endpoint as unique key to avoid duplicates
+    const endpoint = subscription?.endpoint;
+    if (endpoint) {
+      const { data: existing } = await supabase
+        .from("push_subscriptions")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("subscription->endpoint", endpoint)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase.from("push_subscriptions").insert({ user_id, subscription });
+      }
+    } else {
+      await supabase.from("push_subscriptions").insert({ user_id, subscription });
+    }
     res.status(201).json({ success: true });
   } catch (error) {
+    console.error("Push subscribe error:", error);
     res.status(500).json({ error: "Gagal menyimpan langganan" });
   }
 });
+
+// ─── Helper: send push notification to all subscriptions of a user ────────────
+async function sendPushToUser(userId, title, body, url = "/", tag = "sps-notif") {
+  try {
+    const { data: subs } = await supabase
+      .from("push_subscriptions")
+      .select("subscription")
+      .eq("user_id", userId);
+
+    if (!subs || subs.length === 0) return;
+
+    const payload = JSON.stringify({ title, body, url, tag });
+    const results = await Promise.allSettled(
+      subs.map((row) => webpush.sendNotification(row.subscription, payload))
+    );
+
+    // Clean up expired/invalid subscriptions
+    results.forEach(async (result, idx) => {
+      if (result.status === "rejected") {
+        const statusCode = result.reason?.statusCode;
+        if (statusCode === 410 || statusCode === 404) {
+          // Subscription expired — remove it
+          await supabase
+            .from("push_subscriptions")
+            .delete()
+            .eq("user_id", userId)
+            .eq("subscription->endpoint", subs[idx].subscription?.endpoint);
+        }
+      }
+    });
+  } catch (e) {
+    console.error("sendPushToUser error:", e);
+  }
+}
+
+// ─── Helper: send push to all admins ─────────────────────────────────────────
+async function sendPushToAdmins(title, body, url = "/dashboard/admin") {
+  try {
+    const { data: admins } = await supabase
+      .from("profiles")
+      .select("id")
+      .in("role", ["admin", "superadmin"]);
+
+    if (!admins) return;
+    await Promise.all(admins.map((a) => sendPushToUser(a.id, title, body, url)));
+  } catch (e) {
+    console.error("sendPushToAdmins error:", e);
+  }
+}
+
+// ─── Insert notification helper (with specific path) ─────────────────────────
+async function createNotification(userId, type, title, message, path = "/") {
+  try {
+    await supabase.from("notifications").insert({
+      user_id: userId,
+      type,
+      title,
+      message,
+      path,
+      is_read: false
+    });
+    // Also send push
+    await sendPushToUser(userId, title, message, path);
+  } catch (e) {
+    console.error("createNotification error:", e);
+  }
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });

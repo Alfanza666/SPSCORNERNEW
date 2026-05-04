@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 
@@ -12,12 +13,54 @@ export interface NotificationItem {
   isRead: boolean;
 }
 
+/**
+ * Registers the service worker and returns the registration.
+ * Idempotent — safe to call multiple times.
+ */
+async function registerSW(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) return null;
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    return reg;
+  } catch (e) {
+    console.error('[SW] Registration failed:', e);
+    return null;
+  }
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
 export function useNotifications() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ── Register service worker and listen for navigate messages ──────────────
+  useEffect(() => {
+    registerSW();
+
+    if (!navigator.serviceWorker) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'NAVIGATE' && event.data?.url) {
+        navigate(event.data.url);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [navigate]);
+
+  // ── Fetch & Realtime notifications ────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
 
@@ -56,31 +99,49 @@ export function useNotifications() {
 
     fetchNotifications();
 
-    // Set up realtime subscriptions
+    // Realtime subscription
     const channelName = `notifs-${user.id}-${Date.now()}`;
     const notifSub = supabase.channel(channelName)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          // Attempt to show browser notification
+          const newNotif = payload.new;
+
+          // Show native browser notification (foreground - when app is open)
           if (Notification.permission === 'granted') {
             try {
-              new Notification(payload.new.title, {
-                body: payload.new.message,
-                icon: '/logos/sps-logo-icon.png'
-              });
+              // Use Service Worker notification if available (persists even when tab is minimized)
+              if (navigator.serviceWorker?.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                  type: 'SHOW_NOTIFICATION',
+                  title: newNotif.title,
+                  body: newNotif.message,
+                  url: newNotif.path || '/'
+                });
+              } else {
+                // Fallback to Notification API
+                new Notification(newNotif.title, {
+                  body: newNotif.message,
+                  icon: '/logos/sps-logo-icon.png',
+                  tag: newNotif.id,
+                  data: { url: newNotif.path || '/' }
+                });
+              }
             } catch (e) {
-              console.error('Failed to show push notification', e);
+              console.warn('[Notif] Failed to show notification:', e);
             }
           }
         }
         fetchNotifications();
       })
       .subscribe();
+
+    // Auto-subscribe to push when user is available
+    subscribeToWebPush();
 
     return () => {
       supabase.removeChannel(notifSub);
@@ -89,8 +150,7 @@ export function useNotifications() {
 
   const markAllAsRead = async () => {
     if (!user) return;
-    
-    // Optimistic update
+
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     setUnreadCount(0);
 
@@ -110,7 +170,6 @@ export function useNotifications() {
   const markOneAsRead = async (notificationId: string) => {
     if (!user) return;
 
-    // Optimistic update
     setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
 
@@ -126,46 +185,54 @@ export function useNotifications() {
   };
 
   const subscribeToWebPush = async () => {
-    if ('serviceWorker' in navigator && 'PushManager' in window && user) {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        
-        // Convert base64 to Uint8Array for applicationServerKey
-        const urlBase64ToUint8Array = (base64String: string) => {
-          const padding = '='.repeat((4 - base64String.length % 4) % 4);
-          const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
-          const rawData = window.atob(base64);
-          const outputArray = new Uint8Array(rawData.length);
-          for (let i = 0; i < rawData.length; ++i) {
-            outputArray[i] = rawData.charCodeAt(i);
-          }
-          return outputArray;
-        };
+    if (!user) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.warn('[Push] Not supported in this browser');
+      return;
+    }
 
-        const applicationServerKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-        if (!applicationServerKey) {
-          console.warn('VITE_VAPID_PUBLIC_KEY is missing');
-          return;
-        }
+    // Request permission first
+    if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        console.warn('[Push] Permission denied');
+        return;
+      }
+    }
 
-        const subscription = await registration.pushManager.subscribe({
+    if (Notification.permission !== 'granted') return;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const applicationServerKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      if (!applicationServerKey) {
+        console.warn('[Push] VITE_VAPID_PUBLIC_KEY is missing');
+        return;
+      }
+
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(applicationServerKey)
         });
-
-        await fetch('/api/push/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: user.id,
-            subscription: subscription
-          })
-        });
-        
-        console.log('Berhasil langganan push notifikasi latar belakang!');
-      } catch (error) {
-        console.error('Gagal langganan web push', error);
       }
+
+      // Save subscription to server
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ user_id: user.id, subscription })
+      });
+
+      console.log('[Push] Subscribed successfully!');
+    } catch (error) {
+      console.error('[Push] Subscription failed:', error);
     }
   };
 

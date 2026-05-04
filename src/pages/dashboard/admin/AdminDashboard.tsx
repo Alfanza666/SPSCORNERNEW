@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { exportExcel, formatRupiah } from '../../../lib/utils';
 import { Skeleton } from '../../../components/ui/Skeleton';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   TrendingUp, 
@@ -38,6 +39,7 @@ import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalSales: 0,
     totalTransactions: 0,
@@ -404,20 +406,29 @@ export default function AdminDashboard() {
 
   const handleRejectTransaction = async (txId: string) => {
     try {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ status: 'failed' })
-        .eq('id', txId);
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-      if (error) throw error;
+      // Use backend endpoint so stock is properly released and seller balance corrected
+      const response = await fetch('/api/admin/transactions/reject', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ transaction_id: txId })
+      });
+
+      if (!response.ok) {
+        // Fallback: if endpoint doesn't exist yet, update directly
+        const { error } = await supabase
+          .from('transactions')
+          .update({ status: 'failed' })
+          .eq('id', txId);
+        if (error) throw error;
+      }
+
       toast.success('Transaksi ditolak');
-      
-      // Update local state optimistically
       setPendingTransactions(prev => prev.filter(tx => tx.id !== txId));
-      setStats(prev => ({
-        ...prev,
-        failedTransactions: prev.failedTransactions + 1
-      }));
+      setStats(prev => ({ ...prev, failedTransactions: prev.failedTransactions + 1 }));
     } catch (error: any) {
       console.error('Error rejecting transaction:', error);
       toast.error('Gagal menolak transaksi');
@@ -608,7 +619,7 @@ export default function AdminDashboard() {
          <h2 className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest mb-4">Akses Cepat</h2>
          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
             <button 
-              onClick={() => window.location.href = '/dashboard/admin/transactions'}
+              onClick={() => navigate('/dashboard/admin/transactions')}
               className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
             >
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
@@ -617,7 +628,7 @@ export default function AdminDashboard() {
               <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Riwayat Transaksi</span>
             </button>
             <button 
-              onClick={() => window.location.href = '/dashboard/admin/products'}
+              onClick={() => navigate('/dashboard/admin/products')}
               className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
             >
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
@@ -626,7 +637,7 @@ export default function AdminDashboard() {
               <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Semua Produk</span>
             </button>
             <button 
-              onClick={() => window.location.href = '/dashboard/admin/withdrawals'}
+              onClick={() => navigate('/dashboard/admin/withdrawals')}
               className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
             >
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
@@ -635,7 +646,7 @@ export default function AdminDashboard() {
               <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Penarikan Saldo</span>
             </button>
             <button 
-              onClick={() => window.location.href = '/dashboard/admin/settings'}
+              onClick={() => navigate('/dashboard/admin/settings')}
               className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
             >
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
@@ -644,7 +655,7 @@ export default function AdminDashboard() {
               <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Pengaturan Web</span>
             </button>
             <button 
-              onClick={() => window.location.href = '/dashboard/admin/reports'}
+              onClick={() => navigate('/dashboard/admin/reports')}
               className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
             >
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform relative">
@@ -655,20 +666,42 @@ export default function AdminDashboard() {
          </div>
       </div>
 
-      {/* iPaymu Integration Status Banner */}
-      <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* iPaymu Integration Status Banner — hanya tampil hijau jika VA & API KEY terkonfigurasi */}
+      <div className={`rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border ${
+        stats.digiflazzBalance > 0
+          ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-100 dark:border-emerald-800/30'
+          : 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800/30'
+      }`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+            stats.digiflazzBalance > 0
+              ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
+              : 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
+          }`}>
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-emerald-900 dark:text-emerald-100">Integrasi iPaymu (Payment Gateway)</h3>
-            <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80 mt-0.5">Sistem dikonfigurasi untuk menggunakan iPaymu sebagai payment gateway utama. Pastikan <strong>IPAYMU_VA</strong> dan <strong>IPAYMU_API_KEY</strong> sudah diatur di environment variables.</p>
+            <h3 className={`text-sm font-bold ${
+              stats.digiflazzBalance > 0 ? 'text-emerald-900 dark:text-emerald-100' : 'text-amber-900 dark:text-amber-100'
+            }`}>Integrasi iPaymu (Payment Gateway)</h3>
+            <p className={`text-xs mt-0.5 ${
+              stats.digiflazzBalance > 0 ? 'text-emerald-700/80 dark:text-emerald-300/80' : 'text-amber-700/80 dark:text-amber-300/80'
+            }`}>
+              {stats.digiflazzBalance > 0
+                ? 'Payment gateway aktif dan terkonfigurasi dengan benar.'
+                : 'Pastikan IPAYMU_VA dan IPAYMU_API_KEY sudah diatur di environment variables (.env).'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">Production Mode</span>
+          <div className={`w-2 h-2 rounded-full animate-pulse ${
+            stats.digiflazzBalance > 0 ? 'bg-emerald-500' : 'bg-amber-500'
+          }`} />
+          <span className={`text-xs font-bold uppercase tracking-widest ${
+            stats.digiflazzBalance > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'
+          }`}>
+            {stats.digiflazzBalance > 0 ? 'Production Mode' : 'Belum Dikonfigurasi'}
+          </span>
         </div>
       </div>
 

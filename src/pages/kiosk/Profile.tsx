@@ -250,14 +250,18 @@ export default function Profile() {
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
               </Link>
-              <button className="w-full flex items-center justify-between p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg sm:rounded-xl text-blue-700 dark:text-blue-400 transition-all group shadow-inner border border-blue-100/50 dark:border-blue-800">
+              <button 
+                onClick={() => window.open('https://wa.me/62818222604', '_blank')}
+                className="w-full flex items-center justify-between p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg sm:rounded-xl text-blue-700 dark:text-blue-400 transition-all group shadow-inner border border-blue-100/50 dark:border-blue-800">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span className="font-bold text-[10px] sm:text-xs">Hubungi Admin (WhatsApp)</span>
                 </div>
                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
-              <button className="w-full flex items-center justify-between p-3 sm:p-4 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg sm:rounded-xl text-zinc-600 dark:text-zinc-400 transition-all group shadow-inner border border-zinc-100 dark:border-zinc-700">
+              <button 
+                onClick={() => navigate('/terms')}
+                className="w-full flex items-center justify-between p-3 sm:p-4 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg sm:rounded-xl text-zinc-600 dark:text-zinc-400 transition-all group shadow-inner border border-zinc-100 dark:border-zinc-700">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span className="font-bold text-[10px] sm:text-xs">Syarat & Ketentuan</span>

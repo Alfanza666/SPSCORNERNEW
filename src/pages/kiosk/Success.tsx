@@ -19,7 +19,9 @@ export default function Success() {
   const [currentTime] = useState(new Date());
   const [transaction, setTransaction] = useState<any>(null);
   const queryParams = new URLSearchParams(location.search);
-  const transactionId = location.state?.transactionId || queryParams.get('id');
+  const transactionId = location.state?.transactionId 
+    || queryParams.get('id') 
+    || sessionStorage.getItem('lastTransactionId');
 
   useEffect(() => {
     let pollTimeout: number | undefined;

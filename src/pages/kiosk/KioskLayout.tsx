@@ -10,6 +10,7 @@ import SPSLogo from '../../components/SPSLogo';
 
 import { useNotifications } from '../../hooks/useNotifications';
 import { motion, AnimatePresence } from 'motion/react';
+import ErrorReporter from '../../components/ErrorReporter';
 
 function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -20,7 +21,9 @@ function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, reset
         <Button onClick={resetErrorBoundary} className="w-full bg-red-600 hover:bg-red-700 text-white">
           Coba Lagi
         </Button>
-      </div>
+      </div>      {/* Global error reporter - auto captures crashes + manual report button */}
+      <ErrorReporter />
+
     </div>
   );
 }
@@ -355,6 +358,9 @@ export default function KioskLayout() {
           </div>
         </footer>
       )}
+
+      {/* Global error reporter: auto-captures crashes + manual bug report button */}
+      <ErrorReporter />
 
     </div>
   );

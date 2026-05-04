@@ -1,5 +1,52 @@
 # Changelog & Error History
 
+## v4.5.9 — Patch Kritis: OAuth, Notifikasi, QRIS MDR, Modal Produk, Error Reporter
+**Tanggal: 2026-05-05**
+
+### Bug Fix & Fitur Baru:
+- **[CRITICAL FIX] Google Login Blank Page:** Membuat `AuthCallback.tsx` dan route `/auth/callback` di `App.tsx`. Sebelumnya login Google redirect ke halaman yang tidak ada → blank page. Sekarang exchange token, ambil profil, dan redirect ke dashboard yang sesuai berdasarkan role.
+- **[CRITICAL FIX] Modal Produk Kiosk Kosong:** Implementasi modal slide-up lengkap di `AnimatePresence` `Catalog.tsx` yang sebelumnya kosong. Modal sekarang menampilkan gambar produk, nama, harga, stok, deskripsi, dan kontrol tambah ke keranjang.
+- **[CRITICAL FIX] Guest Digital Purchase → History Hilang:** `saveGuestTransaction()` di `Checkout.tsx` sekarang juga menyimpan `lastTransactionId` ke `sessionStorage`. `Success.tsx` membaca dari sessionStorage sebagai fallback — guest tidak lagi kehilangan struk setelah redirect pembayaran.
+- **[CRITICAL FIX] Push Notification Tidak Berfungsi:** Membuat `public/sw.js` (service worker baru) yang handle background push notification. Update `useNotifications.ts` untuk properly register SW, subscribe VAPID, dan navigate dari notifkick.
+- **[FEATURE] QRIS MDR 0.7% Transparency:** Tombol QRIS di checkout sekarang menampilkan breakdown biaya: Subtotal, Biaya MDR QRIS (0.7%), dan Total Bayar yang akurat. Total yang dikirim ke iPaymu juga diperbaiki.
+- **[FEATURE] QRIS Countdown Timer 15 Menit:** Setelah QRIS otomatis di-generate, timer countdown 15 menit muncul dengan warna adaptif (biru→amber→merah) sesuai urgency waktu.
+- **[FEATURE] Error Reporter Komponen:** Membuat `ErrorReporter.tsx` yang: (1) auto-capture JS crash ke tabel `reports`, (2) menyediakan floating button "Laporkan Masalah" untuk user, (3) terintegrasi di KioskLayout.
+- **[FEATURE] Push Notification Helpers di Server:** Menambahkan `sendPushToUser()`, `sendPushToAdmins()`, dan `createNotification()` di `server.ts` yang terstruktur dan bersih dengan auto-cleanup expired subscriptions.
+- **[FIX] .env Lengkap:** File `.env` diisi semua key yang dibutuhkan: Supabase, VAPID, iPaymu, Digiflazz, Gmail, Sariroti.
+- **[PERF] Push Subscribe Upsert:** Endpoint `/api/push/subscribe` sekarang melakukan upsert berdasarkan endpoint URL, mencegah duplikasi subscription di database.
+
+### Riwayat Error v4.5.9:
+- **ERROR Google OAuth:** Route `/auth/callback` tidak terdaftar di App.tsx → blank page saat redirect dari Google → FIXED dengan AuthCallback.tsx
+- **ERROR Modal Kiosk:** AnimatePresence kosong → klik card produk tidak ada reaksi → FIXED dengan implementasi modal lengkap
+- **ERROR Guest History:** sessionStorage tidak menyimpan transactionId → guest kehilangan struk → FIXED dengan lastTransactionId fallback
+
+## v4.5.8 — Audit Massal & Bug Fix Komprehensif
+- **[CRITICAL FIX] 5 Halaman Dashboard Blank:** Membuat 5 halaman baru yang selama ini tidak ada tapi sudah terdaftar di sidebar: `AdminReports.tsx` (Laporan & Bug), `AdminPickup.tsx` (Penyerahan Roti), `AdminStockOpname.tsx` (Stock Opname), `AdminPayments.tsx`, `AdminLoyalty.tsx`, `AdminStandbySchedule.tsx`. Semua route terkait ditambahkan di `App.tsx`.
+- **[CRITICAL FIX] Route `/privacy` Blank:** Menambahkan route `/privacy` di `App.tsx` yang mengarah ke `RefundPolicy` — sebelumnya klik "Kebijakan Privasi" di footer kiosk menghasilkan halaman putih kosong.
+- **[CRITICAL FIX] Reject Transaction Bypass Backend:** Memperbaiki `handleRejectTransaction` di `AdminDashboard.tsx` agar memanggil endpoint backend `/api/admin/transactions/reject` (bukan langsung update Supabase), sehingga stok produk dikembalikan dan saldo seller dikoreksi dengan benar.
+- **[BUG FIX] Quick Access Buttons (Hard Reload):** Mengganti semua `window.location.href` di tombol Akses Cepat `AdminDashboard.tsx` dengan `navigate()` dari React Router, menghindari full page reload yang menghancurkan state aplikasi.
+- **[BUG FIX] iPaymu Banner Menyesatkan:** Banner integrasi iPaymu sekarang menampilkan warna amber (peringatan) + teks "Belum Dikonfigurasi" saat Digiflazz balance = 0, bukan selalu hijau yang membuat admin mengira gateway sudah aktif.
+- **[BUG FIX] Tombol WhatsApp Admin di Profil:** Tombol "Hubungi Admin (WhatsApp)" di halaman profil kiosk kini berfungsi — membuka wa.me/62818222604.
+- **[BUG FIX] Tombol Syarat & Ketentuan di Profil:** Tombol "Syarat & Ketentuan" di profil kiosk kini berfungsi — navigate ke `/terms`.
+- **[UI FIX] Versi Tidak Sinkron:** Menyamakan versi di semua titik: `Home.tsx`, `DashboardLayout.tsx` (mobile sidebar), dan `package.json` kini menampilkan v4.5.8 yang konsisten.
+
+## Logika Cacat yang Ditemukan & Dilaporkan (Perlu Tindak Lanjut):
+- **Modal Produk Kiosk Kosong:** `AnimatePresence` di `Catalog.tsx` tidak memiliki konten — klik card produk tidak menghasilkan reaksi visual apapun. Perlu implementasi modal detail.
+- **Gemini AI di Frontend:** `Validate.tsx` memanggil Google Gemini API langsung dari browser via `process.env.GEMINI_API_KEY` yang tidak tersedia di browser. Perlu dipindahkan ke backend endpoint `/api/payment/manual/verify`.
+- **Notifikasi Path Generik:** Sistem notifikasi sudah bisa navigate ke `notif.path` saat diklik, tapi path yang tersimpan di database sering berupa `/` atau path umum, bukan URL spesifik sumber notifikasi (misal: `/dashboard/admin/transactions?id=xxx`). Perlu di-fix di server.ts saat membuat notifikasi.
+
+## Riwayat Error
+- **Error v4.5.8:** 5 halaman dashboard (reports, pickup, stock-opname, payments, loyalty, standby-schedule) blank total saat diklik dari sidebar → Fix: Buat file halaman dan daftarkan route di App.tsx.
+- **Error v4.5.8:** Route `/privacy` blank → Fix: Tambah route di App.tsx.
+- **Error v4.5.8:** Reject transaksi tidak mengembalikan stok → Fix: Panggil backend endpoint.
+- **Error v4.5.8:** iPaymu banner selalu hijau meski tidak dikonfigurasi → Fix: Kondisional berdasarkan Digiflazz balance.
+
+
+## v4.5.7
+- **Typography & Scale Fix:** Mengembalikan ukuran font di area Katalog (seperti tab kategori) yang sebelumnya terlalu kecil (`text-[8px]`) ke ukuran standar aplikasi mobile (`text-xs` hingga `text-sm`) agar lebih terbaca dan proporsional tanpa terlihat aneh saat di-zoom.
+- **Asset Protection:** Mengunci gambar produk dan logo aplikasi (`SPSLogo.tsx`) agar tidak bisa di-*download*, diseret (*drag*), atau di-klik kanan/ditahan (*long-press context menu*) menggunakan kombinasi atribut HTML `draggable="false"`, intervensi `onContextMenu`, dan *utility class* CSS khusus (`.no-download`).
+- **PWA Splash Screen Fix:** Mengubah atribut PWA Manifest `purpose: 'any maskable'` menjadi `purpose: 'any'` untuk mencegah sistem operasi Android/Chrome melakukan *auto-zoom* dan memotong tepi (crop) logo saat aplikasi pertama kali dibuka (Splash Screen).
+
 ## v4.5.6
 - **PWA Config Update:** Menonaktifkan `devOptions` PWA pada `vite.config.ts` agar simulasi Service Worker tidak mengganggu proses *development* lokal (`npm run dev`). PWA kini hanya aktif sepenuhnya pada *environment Production* atau saat di-*build*.
 

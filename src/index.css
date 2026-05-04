@@ -183,6 +183,18 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  /* Prevent image download/long-press on mobile */
+  .no-download {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    pointer-events: none;
+  }
 }
 
 .markdown-body {
