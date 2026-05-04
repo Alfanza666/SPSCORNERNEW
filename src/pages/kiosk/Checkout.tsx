@@ -32,9 +32,13 @@ export default function Checkout() {
   const [guestPhone, setGuestPhone] = useState(sessionStorage.getItem('buyerPhone') || '');
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const MDR_RATE = 0.007;
-  const mdrAmount = Math.ceil(getTotal() * MDR_RATE);
-  const totalWithMdr = getTotal() + mdrAmount;
+  // ── MDR QRIS 0.7% ────────────────────────────────────────────
+  // Berlaku untuk SEMUA metode QRIS (otomatis maupun manual/statis)
+  const MDR_RATE = 0.007; // 0.7%
+  const subtotal = getTotal();
+  const mdrFee = Math.ceil(subtotal * MDR_RATE);
+  const grandTotal = subtotal + mdrFee;  // Total yang dibayar user & disimpan ke DB
+  // ───────────────────────────────────────────────────
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
@@ -148,7 +152,7 @@ export default function Checkout() {
         buyer_id: user?.id || null,
         buyer_phone: user?.phone || guestPhone || null,
         buyer_email: user?.email || null,
-        total_amount: method === 'qris' ? totalWithMdr : getTotal(),
+        total_amount: grandTotal,  // Selalu gunakan grandTotal (subtotal + MDR 0.7%)
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -218,7 +222,7 @@ export default function Checkout() {
         headers,
         body: JSON.stringify({
           transaction_id: tx.id,
-          amount: method === 'qris' ? totalWithMdr : getTotal(),
+          amount: grandTotal,  // grandTotal = subtotal + MDR 0.7% (QRIS dinamis)
           buyer_name: cleanName,
           buyer_email: user?.email || dummyEmail,
           buyer_phone: dummyPhone,
@@ -271,7 +275,8 @@ export default function Checkout() {
         buyer_name: buyerName,
         buyer_id: user?.id || null,
         buyer_email: user?.email || null,
-        total_amount: getTotal(),
+        buyer_phone: user?.phone || guestPhone || null,  // [QA FIX] was missing buyer_phone
+        total_amount: grandTotal,  // QRIS manual juga kena MDR 0.7%
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -456,7 +461,7 @@ export default function Checkout() {
         body: JSON.stringify({
           transaction_id: transactionId,
           receipt_image: receiptImage,
-          expected_amount: getTotal()
+          expected_amount: grandTotal  // [QA FIX] was getTotal(), should match what user actually paid
         })
       });
 
@@ -647,8 +652,11 @@ export default function Checkout() {
 
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1 relative z-10">Total Tagihan</p>
                 <h2 className="text-3xl sm:text-4xl font-black tracking-tighter relative z-10 text-white drop-shadow-md">
-                  {formatRupiah(getTotal())}
+                  {formatRupiah(grandTotal)}
                 </h2>
+                <p className="text-zinc-500 text-[10px] font-medium relative z-10 mt-1">
+                  Subtotal {formatRupiah(subtotal)} + MDR QRIS {formatRupiah(mdrFee)}
+                </p>
               </div>
 
               <div className="p-6 sm:p-8">

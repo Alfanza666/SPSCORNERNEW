@@ -1,5 +1,68 @@
 # Changelog & Error History
 
+## v4.5.14 — QA/QC Audit: 5 Bug Kritis Ditemukan & Diperbaiki
+**Tanggal: 2026-05-05**
+
+### Bug yang Ditemukan oleh QA:
+
+- **[CRITICAL 🔴] ReferenceError di Checkout QRIS Dinamis:** Variabel `totalWithMdr` masih direferensikan di iPaymu API call (baris 225) setelah variabel tersebut dihapus di v4.5.13. Ini akan menyebabkan `ReferenceError` crash setiap kali QRIS dinamis dipilih. **FIXED** → ganti ke `grandTotal`.
+- **[HIGH 🟠] Data Salah — Receipt Verification:** `verifyReceipt` mengirim `expected_amount: getTotal()` (subtotal tanpa MDR) ke backend. Admin menerima nominal yang salah saat verifikasi bukti bayar QRIS manual. **FIXED** → ganti ke `grandTotal`.
+- **[HIGH 🟠] Data Hilang — buyer_phone di QRIS Manual:** `handleManualQris` tidak menyertakan `buyer_phone` di `txData`. Nomor HP pembeli tidak tersimpan ke database untuk transaksi QRIS manual. **FIXED** → tambah `buyer_phone: user?.phone || guestPhone || null`.
+- **[MEDIUM 🟡] Race Condition — Google Login Baru:** `AuthCallback.tsx` langsung melempar error jika profil belum ada, padahal trigger Supabase bisa saja butuh beberapa ms untuk membuat row profil baru. **FIXED** → retry 3x dengan jeda 1 detik, fallback auto-insert profil dasar jika masih gagal.
+- **[MEDIUM 🟡] Missing Field — email di AuthCallback Profile Fetch:** Query profile di `AuthCallback` tidak menyertakan kolom `email` di SELECT. Profil lama yang sudah punya email tidak akan terbaca. **FIXED** → tambah `email` ke SELECT query.
+
+### Root Cause QA:
+- Perubahan penamaan variabel (`totalWithMdr` → `grandTotal`) di v4.5.13 tidak dilakukan secara menyeluruh — ada referensi sisa yang terlewat.
+- AuthCallback dibuat tanpa retry mechanism, tidak memperhitungkan latency trigger DB Supabase.
+
+## v4.5.13 — Fix: MDR QRIS 0.7% Tampil di Halaman Cart & Berlaku Semua Metode QRIS
+**Tanggal: 2026-05-05**
+
+- **[CRITICAL FIX] MDR Salah Lokasi:** MDR 0.7% sebelumnya hanya ditampilkan di dalam card QRIS Otomatis (di halaman Checkout). Padahal seharusnya sudah tampil sejak halaman **Keranjang (Cart)** sebagai "Biaya Layanan", dan Total Bayar = Subtotal + MDR.
+- **[FIX] Cart.tsx — Biaya Layanan:** Baris "Biaya Layanan Rp 0" diganti menjadi breakdown: Subtotal + Biaya Layanan (MDR QRIS 0.7%) + Total Bayar yang akurat.
+- **[FIX] Checkout.tsx — Total Tagihan Header:** Angka besar "Total Tagihan" di header Checkout sekarang menampilkan `grandTotal` (bukan subtotal), disertai breakdown kecil "Subtotal X + MDR QRIS Y".
+- **[FIX] QRIS Manual (handleManualQris):** `total_amount` yang disimpan ke database sebelumnya menggunakan `getTotal()` tanpa MDR. Sekarang diubah ke `grandTotal` agar konsisten dengan QRIS otomatis.
+- **[FIX] handleDirectPayment — Semua Metode:** Kondisi `method === 'qris' ? totalWithMdr : getTotal()` dihapus. Sekarang **semua metode** menggunakan `grandTotal` (MDR berlaku universal untuk QRIS).
+- **[CONSISTENCY] Penamaan Variabel:** Variabel di Checkout.tsx diubah dari `mdrAmount/totalWithMdr` ke `mdrFee/grandTotal` agar seragam dengan Cart.tsx.
+
+### Riwayat Error v4.5.13:
+- **ERROR ROOT CAUSE:** MDR hanya teraplikasi untuk QRIS otomatis di UI (bukan semua QRIS) dan tidak tampil di Cart → user bingung kenapa tagihan berbeda saat bayar. FIXED menyeluruh.
+
+## v4.5.12 — Fix: Deteksi & Paksa Ganti Email Mock Seller
+**Tanggal: 2026-05-05**
+
+- **[FIX] Deteksi Email Mock `@sps.local`:** Kondisi `sellerNeedsProfile` diperbarui dengan helper `isMockEmail()` yang mendeteksi email kosong, string kosong, ATAU format `NIK@sps.local`. Sebelumnya modal tidak muncul karena seller sudah punya email (meski palsu).
+- **[UX] Form Email Kosong untuk Seller:** Saat modal muncul, kolom email dikosongkan (tidak pre-fill email mock) agar seller tidak salah kira email lama mereka sudah benar.
+- **[UX] Badge Peringatan Email Lama:** Jika seller punya email `@sps.local`, ditampilkan banner oranye dengan tulisan "Email sistem saat ini: NIK@sps.local (dicoret)" agar konteks jelas.
+- **[UX] Teks Header Adaptif:** Judul modal berganti antara "Email Anda adalah email sistem, harap ganti" vs "Harap lengkapi nomor HP" tergantung kondisi yang kurang.
+- **[VALIDATION] Blokir Submit Email Mock:** Validasi submission sekarang juga menolak jika seller mencoba submit email yang masih berformat `@sps.local` dengan pesan "Masukkan email nyata Anda, bukan email sistem".
+- **[UX] Email Field Conditional:** Field email hanya ditampilkan jika email saat ini mock/kosong. Jika hanya phone yang kurang, field email tidak muncul \u2014 lebih fokus.
+
+### Riwayat Error v4.5.12:
+- **ERROR:** Seller punya `14220207@sps.local` di kolom email → `!user?.email` false → modal tidak muncul → FIXED dengan `isMockEmail()` helper.
+
+## v4.5.11 — Feature: Wajib Isi Email & HP untuk Semua Seller
+**Tanggal: 2026-05-05**
+
+- **[FEATURE] Modal Kelengkapan Profil Seller:** Saat seller login ke dashboard, sistem otomatis mendeteksi apakah kolom `email` dan `phone` di profil sudah terisi. Jika belum, muncul modal **non-dismissible** (tidak bisa ditutup) yang meminta seller mengisi Email Aktif dan Nomor HP sebelum bisa mengakses dashboard.
+- **[EXCEPTION] Akun Sariroti Dikecualikan:** Akun `sales.adm.bjm@sariroti.com` tidak dikenakan kewajiban ini karena merupakan akun operasional khusus yang login dengan NIK/password internal.
+- **[FIX] Email Resolution di AuthStore:** `fetchProfile` di `useAuthStore.ts` diperbarui untuk membaca kolom `email` dari tabel `profiles` (email asli seller), bukan hanya dari `session.user.email` yang untuk user NIK/password berupa format palsu `NIK@sps.local`. Prioritas: `profiles.email` > `session.email` (jika bukan `@sps.local`).
+- **[UX] Modal Premium:** Modal dilengkapi header bergradien biru, badge info seller (nama + NIK), validasi per-field, disclaimer keamanan, dan loading state saat menyimpan.
+- **[SCOPE] One-time Only:** Modal hanya muncul sekali — setelah email dan HP diisi, login berikutnya langsung masuk ke dashboard.
+
+### Riwayat Error v4.5.11:
+- Tidak ada error baru. Ini adalah penambahan fitur compliance profil seller.
+
+## v4.5.10 — Feature: Kelengkapan Profil untuk Login Google
+**Tanggal: 2026-05-05**
+
+- **[FEATURE] Wajib Lengkapi Profil setelah Google Login:** `AuthCallback.tsx` kini mendeteksi apakah user baru via Google sudah memiliki `nik` dan `phone` di profil. Jika belum, ditampilkan form "Lengkapi Profil" inline (dengan field Nama Lengkap, NIK, Nomor HP) sebelum user bisa masuk ke kiosk/dashboard. Email Google sudah dikonfirmasi otomatis. NIK juga dicek duplikasinya sebelum disimpan.
+- **[UX] Tampilan Form Onboarding Premium:** Form dilengkapi badge "Akun Google Terverifikasi", validasi per-field dengan pesan error inline, dan disclaimer kerahasiaan data. Tombol submit berubah jadi loading state saat menyimpan.
+- **[FIX] Konsistensi Data Profil:** User yang sebelumnya masuk via Google tanpa NIK/phone kini akan diminta melengkapi data saat login berikutnya (one-time, tidak berulang).
+
+### Riwayat Error v4.5.10:
+- Tidak ada error baru. Ini adalah penambahan fitur onboarding profil.
+
 ## v4.5.9 — Patch Kritis: OAuth, Notifikasi, QRIS MDR, Modal Produk, Error Reporter
 **Tanggal: 2026-05-05**
 

@@ -16,6 +16,14 @@ export default function Cart() {
   const [buyerPhone, setBuyerPhone] = useState('');
   const [isReserving, setIsReserving] = useState(false);
 
+  // ── MDR QRIS 0.7% ────────────────────────────────────────────────
+  // Berlaku untuk semua transaksi QRIS (otomatis maupun manual/upload bukti)
+  const MDR_RATE = 0.007; // 0.7%
+  const subtotal = getTotal();
+  const mdrFee = Math.ceil(subtotal * MDR_RATE);
+  const grandTotal = subtotal + mdrFee;
+  // ──────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (user) {
       setBuyerName(user.name);
@@ -252,13 +260,24 @@ export default function Cart() {
                 </span>
               </div>
               <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">
-                <span>Biaya Layanan</span>
-                <span className="text-zinc-900 dark:text-white font-black">Rp 0</span>
+                <span>Subtotal</span>
+                <span className="text-zinc-900 dark:text-white font-black">
+                  {formatRupiah(subtotal)}
+                </span>
+              </div>
+              <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">
+                <span className="flex items-center gap-1">
+                  Biaya Layanan
+                  <span className="text-[8px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1 py-0.5 rounded font-black">
+                    MDR QRIS 0.7%
+                  </span>
+                </span>
+                <span className="text-amber-600 dark:text-amber-400 font-black">+{formatRupiah(mdrFee)}</span>
               </div>
               <div className="pt-3 sm:pt-4 border-t border-zinc-50 dark:border-zinc-800 flex justify-between items-end">
                 <span className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">Total Bayar</span>
                 <span className="text-lg sm:text-xl font-black text-blue-600 dark:text-blue-400 tracking-tighter">
-                  {formatRupiah(getTotal())}
+                  {formatRupiah(grandTotal)}
                 </span>
               </div>
             </div>

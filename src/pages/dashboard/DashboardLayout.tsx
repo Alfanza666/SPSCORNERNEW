@@ -2,6 +2,7 @@ import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
+import { supabase } from '../../lib/supabase';
 import { Dialog, Transition, Menu, Disclosure } from '@headlessui/react';
 import { 
   LogOut, 
@@ -26,12 +27,17 @@ import {
   Clock,
   ClipboardList,
   Bug,
-  ChevronDown
+  ChevronDown,
+  Phone,
+  Mail,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
 import SPSLogo from '../../components/SPSLogo';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
+import toast from 'react-hot-toast';
 
 function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -115,12 +121,89 @@ const NavGroup = ({ label, icon: Icon, defaultOpen, children }: { label: string,
 };
 
 export default function DashboardLayout() {
-  const { user, isLoading, signOut } = useAuthStore();
+  const { user, isLoading, signOut, fetchProfile } = useAuthStore();
   const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+
+  // ── Seller Profile Completion Modal ────────────────────────────────────────
+  // Helper: deteksi email mock/palsu yang dibuat otomatis saat registrasi NIK
+  const isMockEmail = (email?: string) =>
+    !email || email.trim() === '' || email.toLowerCase().endsWith('@sps.local');
+
+  // Akun Sariroti dikecualikan dari wajib isi profil
+  const SARIROTI_EMAILS = ['sales.adm.bjm@sariroti.com'];
+  const isSarirotiAccount = user?.email && SARIROTI_EMAILS.includes(user.email.toLowerCase());
+
+  // Trigger modal jika: seller + bukan Sariroti + (email mock/kosong ATAU phone kosong)
+  const sellerNeedsProfile =
+    user?.role === 'seller' &&
+    !isSarirotiAccount &&
+    (isMockEmail(user?.email) || !user?.phone);
+
+  const [showSellerProfileModal, setShowSellerProfileModal] = useState(false);
+  const [sellerEmail, setSellerEmail] = useState('');
+  const [sellerPhone, setSellerPhone] = useState(user?.phone || '');
+  const [sellerFieldErrors, setSellerFieldErrors] = useState<Record<string, string>>({});
+  const [sellerSaving, setSellerSaving] = useState(false);
+
+  useEffect(() => {
+    if (sellerNeedsProfile) {
+      setShowSellerProfileModal(true);
+      // Jangan pre-fill email mock — biarkan kosong agar seller sadar harus isi baru
+      setSellerEmail(isMockEmail(user?.email) ? '' : (user?.email || ''));
+      setSellerPhone(user?.phone || '');
+    } else {
+      setShowSellerProfileModal(false);
+    }
+  }, [user?.id, sellerNeedsProfile]);
+
+  const handleSaveSellerProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSellerFieldErrors({});
+
+    const errors: Record<string, string> = {};
+    const emailClean = sellerEmail.trim();
+    const phoneClean = sellerPhone.trim();
+
+    if (!emailClean || !emailClean.includes('@') || !emailClean.includes('.')) {
+      errors.email = 'Format email tidak valid';
+    } else if (emailClean.toLowerCase().endsWith('@sps.local')) {
+      errors.email = 'Masukkan email nyata Anda, bukan email sistem';
+    }
+    if (!phoneClean || phoneClean.replace(/\D/g, '').length < 10) {
+      errors.phone = 'Nomor HP tidak valid (minimal 10 digit)';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setSellerFieldErrors(errors);
+      return;
+    }
+
+    setSellerSaving(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ email: emailClean, phone: phoneClean })
+        .eq('id', user!.id);
+
+      if (updateError) throw updateError;
+
+      // Refresh profile in auth store
+      await fetchProfile(user!.id);
+
+      toast.success('Profil berhasil dilengkapi!');
+      setShowSellerProfileModal(false);
+    } catch (err: any) {
+      console.error('Seller profile save error:', err);
+      toast.error(err.message || 'Gagal menyimpan. Coba lagi.');
+    } finally {
+      setSellerSaving(false);
+    }
+  };
+  // ── End Seller Profile Modal ────────────────────────────────────────────────
   
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -512,7 +595,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v4.5.9
+                      v4.5.14
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
@@ -741,6 +824,142 @@ export default function DashboardLayout() {
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}
       />
+
+      {/* ── Seller Profile Completion Modal (non-dismissible) ── */}
+      <AnimatePresence>
+        {showSellerProfileModal && (
+          <motion.div
+            key="seller-profile-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', bounce: 0.3 }}
+              className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-br from-blue-600 to-blue-700 px-6 pt-8 pb-6 text-white text-center">
+                <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <UserIcon className="w-7 h-7 text-white" />
+                </div>
+                <h2 className="text-xl font-black tracking-tight mb-1">Update Kontak Anda</h2>
+                <p className="text-blue-100 text-xs font-medium leading-relaxed">
+                  {isMockEmail(user?.email)
+                    ? 'Email Anda saat ini adalah email sistem yang dibuat otomatis. Harap ganti dengan email aktif Anda.'
+                    : 'Harap lengkapi nomor HP Anda agar dapat menerima notifikasi transaksi & penarikan saldo.'}
+                </p>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSaveSellerProfile} className="p-6 space-y-4">
+
+                {/* Info seller */}
+                <div className="flex items-center gap-3 px-3 py-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700">
+                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-zinc-800 dark:text-white truncate">{user?.name}</p>
+                    <p className="text-[10px] text-zinc-400 font-medium">NIK: {user?.nik || '-'} · Seller</p>
+                  </div>
+                </div>
+
+                {/* Email field — only shown if email is mock/missing */}
+                {isMockEmail(user?.email) && (
+                <div>
+                  {/* Warning: current email is fake */}
+                  {user?.email && user.email.endsWith('@sps.local') && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/30 rounded-xl mb-2">
+                      <Mail className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                      <p className="text-[10px] text-orange-700 dark:text-orange-300 font-medium">
+                        Email sistem saat ini: <span className="font-black line-through opacity-60">{user.email}</span>
+                      </p>
+                    </div>
+                  )}
+                  <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
+                    Ganti dengan Email Aktif
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 dark:text-zinc-600" />
+                    <input
+                      id="seller-email"
+                      type="email"
+                      placeholder="nama@email.com (email aktif Anda)"
+                      value={sellerEmail}
+                      onChange={e => setSellerEmail(e.target.value)}
+                      autoComplete="email"
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:bg-white dark:focus:bg-zinc-700 transition-all ${
+                        sellerFieldErrors.email
+                          ? 'border-red-300 focus:ring-red-200'
+                          : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
+                      }`}
+                    />
+                  </div>
+                  {sellerFieldErrors.email && (
+                    <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{sellerFieldErrors.email}</p>
+                  )}
+                </div>
+                )}
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
+                    Nomor Handphone
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 dark:text-zinc-600" />
+                    <input
+                      id="seller-phone"
+                      type="tel"
+                      placeholder="Contoh: 08123456789"
+                      value={sellerPhone}
+                      onChange={e => setSellerPhone(e.target.value)}
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:bg-white dark:focus:bg-zinc-700 transition-all ${
+                        sellerFieldErrors.phone
+                          ? 'border-red-300 focus:ring-red-200'
+                          : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
+                      }`}
+                    />
+                  </div>
+                  {sellerFieldErrors.phone && (
+                    <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{sellerFieldErrors.phone}</p>
+                  )}
+                </div>
+
+                {/* Disclaimer */}
+                <div className="flex items-start gap-2.5 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 rounded-xl">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-[9px] text-amber-800 dark:text-amber-300 font-medium leading-relaxed">
+                    Data ini digunakan untuk notifikasi pesanan masuk, konfirmasi penarikan saldo, dan keamanan akun Anda di SPS Corner.
+                  </p>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={sellerSaving}
+                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/25 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
+                >
+                  {sellerSaving ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
+                  ) : (
+                    'Simpan & Lanjutkan'
+                  )}
+                </button>
+
+                <p className="text-center text-[10px] text-zinc-400 dark:text-zinc-500">
+                  Langkah ini wajib dilakukan sekali untuk keamanan transaksi.
+                </p>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
