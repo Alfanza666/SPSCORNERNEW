@@ -1,5 +1,26 @@
 # Changelog & Error History
 
+## v4.5.18 — HOTFIX: `mdrAmount is not defined` Crash di Halaman Checkout
+**Tanggal: 2026-05-05**
+
+### Root Cause:
+Saat rename variabel di v4.5.13 (`mdrAmount` → `mdrFee`, `totalWithMdr` → `grandTotal`), ada **2 referensi di bagian UI render** (baris 718 & 722) yang terlewat dari audit:
+- `formatRupiah(mdrAmount)` di label MDR QRIS card
+- `formatRupiah(totalWithMdr)` di label Total Bayar QRIS card
+
+Keduanya adalah variabel yang sudah tidak ada → `ReferenceError` → crash seluruh halaman Checkout saat user membuka halaman tersebut.
+
+### Fix:
+- `mdrAmount` → `mdrFee` (baris 718)
+- `totalWithMdr` → `grandTotal` (baris 722)
+
+### Hasil Full Scan Setelah Fix:
+- `grep mdrAmount src/` → **0 hasil** ✔
+- `grep totalWithMdr src/` → **0 hasil** ✔
+
+### Pelajaran QA:
+Setiap rename variabel WAJIB diikuti `grep` scan menyeluruh ke seluruh folder `src/` untuk memastikan tidak ada referensi yang tertinggal, termasuk di bagian JSX/template yang tidak selalu terdeteksi oleh TypeScript compiler sebelum build.
+
 ## v4.5.17 — CRITICAL FIX: ChunkLoadError "Failed to fetch dynamically imported module"
 **Tanggal: 2026-05-05**
 
@@ -95,6 +116,7 @@ Setiap kali ada deploy baru ke Vercel, Vite generate JS chunk files dengan **has
 - **[FIX] Email Resolution di AuthStore:** `fetchProfile` di `useAuthStore.ts` diperbarui untuk membaca kolom `email` dari tabel `profiles` (email asli seller), bukan hanya dari `session.user.email` yang untuk user NIK/password berupa format palsu `NIK@sps.local`. Prioritas: `profiles.email` > `session.email` (jika bukan `@sps.local`).
 - **[UX] Modal Premium:** Modal dilengkapi header bergradien biru, badge info seller (nama + NIK), validasi per-field, disclaimer keamanan, dan loading state saat menyimpan.
 - **[SCOPE] One-time Only:** Modal hanya muncul sekali — setelah email dan HP diisi, login berikutnya langsung masuk ke dashboard.
+- **[VERSION]** Bump to `4.5.18` in `package.json`.
 
 ### Riwayat Error v4.5.11:
 - Tidak ada error baru. Ini adalah penambahan fitur compliance profil seller.

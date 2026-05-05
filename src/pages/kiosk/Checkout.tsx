@@ -715,11 +715,11 @@ export default function Checkout() {
                           </div>
                           <div className="flex justify-between text-amber-600 dark:text-amber-400">
                             <span>MDR QRIS (0.7%)</span>
-                            <span>+{formatRupiah(mdrAmount)}</span>
+                            <span>+{formatRupiah(mdrFee)}</span>
                           </div>
                           <div className="flex justify-between font-black text-zinc-700 dark:text-zinc-200 border-t border-zinc-100 dark:border-zinc-700 pt-0.5 mt-0.5">
                             <span>Total Bayar</span>
-                            <span>{formatRupiah(totalWithMdr)}</span>
+                            <span>{formatRupiah(grandTotal)}</span>
                           </div>
                         </div>
                       </div>
