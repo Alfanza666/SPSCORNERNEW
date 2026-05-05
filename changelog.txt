@@ -1,5 +1,51 @@
 # Changelog & Error History
 
+## v4.5.17 — CRITICAL FIX: ChunkLoadError "Failed to fetch dynamically imported module"
+**Tanggal: 2026-05-05**
+
+### Root Cause:
+Setiap kali ada deploy baru ke Vercel, Vite generate JS chunk files dengan **hash baru** (misal `Cart-n6-dpCxa.js` → `Cart-BARU123.js`). User yang browser-nya masih cache `index.html` lama akan mencoba load chunk lama yang sudah tidak ada → **404 → Error "Failed to fetch dynamically imported module"**. Ini diperparah oleh Service Worker yang bisa cache `index.html` lama lebih lama.
+
+### Bug yang Diperbaiki:
+- **[CRITICAL 🔴] `App.tsx` — Semua `React.lazy()` tidak punya retry:** Saat chunk gagal dimuat, langsung crash ke ErrorBoundary tanpa mencoba ulang. **FIXED** → Dibuat helper `lazyWithRetry()` yang retry 3x dengan jeda 1-3 detik sebelum give up.
+- **[CRITICAL 🔴] ErrorBoundary — Tombol "Coba Lagi" tidak efektif:** `resetErrorBoundary()` hanya re-render React tree, tidak bisa memuat chunk yang sudah 404. **FIXED** → Tombol sekarang memanggil `window.location.reload()` (hard reload) agar browser fetch `index.html` terbaru.
+- **[FIX] Auto-reload untuk ChunkLoadError:** `ErrorFallback` sekarang mendeteksi ChunkLoadError dan **otomatis reload halaman sekali** (dengan flag `sessionStorage` untuk mencegah infinite reload loop).
+- **[UX] Pesan error lebih manusiawi:** Untuk ChunkLoadError, judul berubah menjadi "Versi Baru Tersedia" dengan pesan "Halaman akan dimuat ulang otomatis" — bukan lagi pesan teknis yang membingungkan user.
+
+### Catatan QA:
+- **Mengapa ini terlewat?** Error ini hanya terjadi di production setelah deployment — tidak bisa direproduksi di `localhost` karena chunk tidak pernah di-invalidate saat dev server berjalan. Ini adalah "deployment-time bug" yang memerlukan monitoring production aktif.
+- **Pelajaran:** Setiap implementasi `React.lazy()` WAJIB disertai `lazyWithRetry()` atau mekanisme serupa sejak awal.
+
+## v4.5.16 — SEO: vercel.json & robots.txt — Fix Redirect Issues
+**Tanggal: 2026-05-05**
+
+- **[FIX] 3XX Redirect Chains:** `vercel.json` ditambahkan `"cleanUrls": true` dan `"trailingSlash": false` — URL seperti `/refund/` otomatis di-redirect ke `/refund` dengan 301 permanent (tidak ada chain lagi).
+- **[FIX] Redirect Mapping:** Tambahkan redirect 301 dari URL lama (`/refund-policy`, `/privacy-policy`, `/help-center`) ke URL baru yang benar di React Router.
+- **[FIX] SPA Routing:** Rewrite pattern diperbaiki agar tidak mengganggu static files di `/logos/`, `/manifest.json`, `/sitemap.xml`, `/sw.js`, `/robots.txt`.
+- **[NEW] Security Headers:** Ditambahkan header keamanan di semua response: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy`.
+- **[NEW] Cache Headers:** Aset statis (`/logos/*`) di-cache 1 tahun (immutable). `sw.js` di-set no-cache agar Service Worker selalu up-to-date.
+- **[NEW] robots.txt:** Dibuat `public/robots.txt` — memandu crawler Google untuk tidak index area private (dashboard, checkout, auth). Referensi ke sitemap.xml untuk indexing lebih cepat.
+
+## v4.5.15 — SEO: Perbaikan Berdasarkan Ahrefs Site Audit (Health Score 83 → Target 95+)
+**Tanggal: 2026-05-05**
+
+### Isu Ahrefs yang Diperbaiki:
+- **[FIX] H1 Tag Missing:** Ditambahkan `<h1 class="sr-only">` di `Home.tsx` — visually hidden tapi terbaca crawler. SEO wajib ada tepat satu H1 per halaman.
+- **[FIX] Meta Description Too Short:** `index.html` description diubah dari 24 karakter menjadi 168 karakter yang deskriptif dan mengandung keyword.
+- **[FIX] Open Graph Tags Missing:** Ditambahkan tag `og:type`, `og:url`, `og:title`, `og:description`, `og:image`, `og:site_name`, `og:locale` di `index.html`.
+- **[FIX] X (Twitter) Card Missing:** Ditambahkan tag `twitter:card`, `twitter:title`, `twitter:description`, `twitter:image`.
+- **[FIX] Indexable Page Not in Sitemap:** Dibuat file `public/sitemap.xml` baru dengan 5 URL publik beserta priority dan changefreq.
+- **[FIX] Page Has No Outgoing Links:** Ditambahkan link eksternal ke `https://www.sariroti.com` di footer Home.tsx.
+- **[FIX] Low Word Count:** Deskripsi utama Home diperluas dengan konten yang lebih deskriptif.
+- **[FIX] Icon Path Broken:** Link `favicon` dan `apple-touch-icon` diperbarui dari `/src/components/ui/logo-icon.png` ke `/logos/sps-logo-icon.png` (public folder).
+- **[FIX] Manifest Link Missing:** Ditambahkan `<link rel="manifest" href="/manifest.json" />` yang sebelumnya tidak ada di `index.html`.
+- **[IMPROVEMENT] Canonical URL:** Ditambahkan `<link rel="canonical">` untuk menghindari duplikasi konten.
+
+### Isu yang Tidak Bisa Diperbaiki dari Kode (Server Config):
+- **3XX Redirect (3):** Perlu konfigurasi redirect di hosting/Vercel. Pastikan semua URL tanpa trailing slash di-redirect dengan 301 permanent.
+- **HTTP to HTTPS Redirect (2):** Vercel sudah handle otomatis. Jika masih muncul, pastikan domain custom sudah dikonfigurasi SSL.
+- **Redirected Page No Incoming Internal Links (1):** Audit internal link yang mengarah ke URL lama/yang di-redirect.
+
 ## v4.5.14 — QA/QC Audit: 5 Bug Kritis Ditemukan & Diperbaiki
 **Tanggal: 2026-05-05**
 

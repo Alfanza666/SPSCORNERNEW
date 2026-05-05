@@ -1,0 +1,15 @@
+# robots.txt — SPS Corner
+# https://sps-corner.vercel.app
+
+User-agent: *
+Allow: /
+
+# Larang crawler masuk ke area private/dashboard
+Disallow: /dashboard/
+Disallow: /kiosk/checkout
+Disallow: /kiosk/success
+Disallow: /kiosk/validate
+Disallow: /auth/
+
+# Sitemap location
+Sitemap: https://sps-corner.vercel.app/sitemap.xml

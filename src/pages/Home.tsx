@@ -23,6 +23,9 @@ export default function Home() {
         className="max-w-5xl w-full text-center z-10"
       >
         <div className="mb-10 sm:mb-16">
+          {/* H1 ─ SEO: visually hidden but present for crawlers */}
+          <h1 className="sr-only">SPS Corner — Platform Kantin Digital dan Koperasi Internal Karyawan Sariroti Banjarmasin</h1>
+
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -46,7 +49,7 @@ export default function Home() {
           </div>
 
           <p className="text-sm sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed px-4 font-medium tracking-tight transition-colors mt-6">
-            Solusi cerdas untuk transaksi berbagai kebutuhan, mulai dari produk digital, produk Sariroti, hingga makanan & minuman bagi seluruh karyawan.
+            Solusi cerdas untuk transaksi berbagai kebutuhan karyawan &mdash; mulai dari produk digital, produk roti Sariroti, hingga makanan &amp; minuman kantin. Didukung sistem QRIS dan pembayaran digital yang aman, cepat, dan terintegrasi penuh.
           </p>
         </div>
 
@@ -138,11 +141,20 @@ export default function Home() {
 
             <div className="flex flex-col items-center gap-1 mt-2">
               <div className="px-3 py-1 rounded-full bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-300/50 dark:border-zinc-700/50 backdrop-blur-sm">
-                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v4.5.14</p>
+                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v4.5.17</p>
               </div>
               <p className="text-[10px] sm:text-xs text-zinc-500 mt-2">
-                Ide & Dikembangkan oleh <span className="font-bold text-zinc-700 dark:text-zinc-300">Alif Irfansyah</span>
+                Ide &amp; Dikembangkan oleh <span className="font-bold text-zinc-700 dark:text-zinc-300">Alif Irfansyah</span>
               </p>
+              {/* Outgoing link ─ SEO: fixes 'page has no outgoing links' */}
+              <a
+                href="https://www.sariroti.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[9px] text-zinc-400 dark:text-zinc-600 hover:text-blue-500 transition-colors mt-1"
+              >
+                PT Nippon Indosari Corpindo Tbk (Sariroti)
+              </a>
             </div>
           </div>
         </motion.div>

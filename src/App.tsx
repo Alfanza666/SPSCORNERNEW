@@ -7,52 +7,87 @@ import { useAuthStore } from './store/useAuthStore';
 import Tutorial from './components/Tutorial';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 
-// Lazy load components
-const Home = React.lazy(() => import('./pages/Home'));
-const Login = React.lazy(() => import('./pages/Login'));
-const Register = React.lazy(() => import('./pages/auth/Register'));
+// ── Helper: Lazy load with automatic retry (fixes ChunkLoadError after new deploy) ──
+// Retries up to 3x with 1s delay before giving up and showing error
+function lazyWithRetry(importFn: () => Promise<any>) {
+  return React.lazy(() =>
+    importFn().catch(async (err) => {
+      // Only retry on chunk load errors (not code errors)
+      if (!err?.message?.includes('dynamically imported')) throw err;
+      for (let i = 0; i < 3; i++) {
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+        try { return await importFn(); } catch (_) {}
+      }
+      throw err;
+    })
+  );
+}
 
-const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
-const AuthCallback = React.lazy(() => import('./pages/AuthCallback'));
-const KioskLayout = React.lazy(() => import('./pages/kiosk/KioskLayout'));
-const Catalog = React.lazy(() => import('./pages/kiosk/Catalog'));
-const Cart = React.lazy(() => import('./pages/kiosk/Cart'));
-const Checkout = React.lazy(() => import('./pages/kiosk/Checkout'));
-const Validate = React.lazy(() => import('./pages/kiosk/Validate'));
-const Success = React.lazy(() => import('./pages/kiosk/Success'));
-const History = React.lazy(() => import('./pages/kiosk/History'));
-const Profile = React.lazy(() => import('./pages/kiosk/Profile'));
-const DigitalProducts = React.lazy(() => import('./pages/kiosk/DigitalProducts'));
-const Terms = React.lazy(() => import('./pages/Terms'));
-const Contact = React.lazy(() => import('./pages/Contact'));
-const HelpCenter = React.lazy(() => import('./pages/HelpCenter'));
-const FAQ = React.lazy(() => import('./pages/FAQ'));
-const RefundPolicy = React.lazy(() => import('./pages/RefundPolicy'));
+// Lazy load components (lazyWithRetry handles ChunkLoadError after new deployments)
+const Home = lazyWithRetry(() => import('./pages/Home'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const Register = lazyWithRetry(() => import('./pages/auth/Register'));
+
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
+const AuthCallback = lazyWithRetry(() => import('./pages/AuthCallback'));
+const KioskLayout = lazyWithRetry(() => import('./pages/kiosk/KioskLayout'));
+const Catalog = lazyWithRetry(() => import('./pages/kiosk/Catalog'));
+const Cart = lazyWithRetry(() => import('./pages/kiosk/Cart'));
+const Checkout = lazyWithRetry(() => import('./pages/kiosk/Checkout'));
+const Validate = lazyWithRetry(() => import('./pages/kiosk/Validate'));
+const Success = lazyWithRetry(() => import('./pages/kiosk/Success'));
+const History = lazyWithRetry(() => import('./pages/kiosk/History'));
+const Profile = lazyWithRetry(() => import('./pages/kiosk/Profile'));
+const DigitalProducts = lazyWithRetry(() => import('./pages/kiosk/DigitalProducts'));
+const Terms = lazyWithRetry(() => import('./pages/Terms'));
+const Contact = lazyWithRetry(() => import('./pages/Contact'));
+const HelpCenter = lazyWithRetry(() => import('./pages/HelpCenter'));
+const FAQ = lazyWithRetry(() => import('./pages/FAQ'));
+const RefundPolicy = lazyWithRetry(() => import('./pages/RefundPolicy'));
 
 
-const DashboardLayout = React.lazy(() => import('./pages/dashboard/DashboardLayout'));
-const AdminDashboard = React.lazy(() => import('./pages/dashboard/admin/AdminDashboard'));
-const AdminSellers = React.lazy(() => import('./pages/dashboard/admin/AdminSellers'));
-const AdminCategories = React.lazy(() => import('./pages/dashboard/admin/AdminCategories'));
-const AdminProducts = React.lazy(() => import('./pages/dashboard/admin/AdminProducts'));
-const AdminTransactions = React.lazy(() => import('./pages/dashboard/admin/AdminTransactions'));
-const AdminWithdrawals = React.lazy(() => import('./pages/dashboard/admin/AdminWithdrawals'));
-const AdminSettings = React.lazy(() => import('./pages/dashboard/admin/AdminSettings'));
-const AdminReturns = React.lazy(() => import('./pages/dashboard/admin/AdminReturns'));
-const AdminStockRequests = React.lazy(() => import('./pages/dashboard/admin/AdminStockRequests'));
-const AdminReports = React.lazy(() => import('./pages/dashboard/admin/AdminReports'));
-const AdminPickup = React.lazy(() => import('./pages/dashboard/admin/AdminPickup'));
-const AdminStockOpname = React.lazy(() => import('./pages/dashboard/admin/AdminStockOpname'));
-const AdminPayments = React.lazy(() => import('./pages/dashboard/admin/AdminPayments'));
-const AdminLoyalty = React.lazy(() => import('./pages/dashboard/admin/AdminLoyalty'));
-const AdminStandbySchedule = React.lazy(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
+const DashboardLayout = lazyWithRetry(() => import('./pages/dashboard/DashboardLayout'));
+const AdminDashboard = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDashboard'));
+const AdminSellers = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSellers'));
+const AdminCategories = lazyWithRetry(() => import('./pages/dashboard/admin/AdminCategories'));
+const AdminProducts = lazyWithRetry(() => import('./pages/dashboard/admin/AdminProducts'));
+const AdminTransactions = lazyWithRetry(() => import('./pages/dashboard/admin/AdminTransactions'));
+const AdminWithdrawals = lazyWithRetry(() => import('./pages/dashboard/admin/AdminWithdrawals'));
+const AdminSettings = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSettings'));
+const AdminReturns = lazyWithRetry(() => import('./pages/dashboard/admin/AdminReturns'));
+const AdminStockRequests = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockRequests'));
+const AdminReports = lazyWithRetry(() => import('./pages/dashboard/admin/AdminReports'));
+const AdminPickup = lazyWithRetry(() => import('./pages/dashboard/admin/AdminPickup'));
+const AdminStockOpname = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockOpname'));
+const AdminPayments = lazyWithRetry(() => import('./pages/dashboard/admin/AdminPayments'));
+const AdminLoyalty = lazyWithRetry(() => import('./pages/dashboard/admin/AdminLoyalty'));
+const AdminStandbySchedule = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
 
-const SellerDashboard = React.lazy(() => import('./pages/dashboard/seller/SellerDashboard'));
-const SellerProducts = React.lazy(() => import('./pages/dashboard/seller/SellerProducts'));
-const SellerWithdrawals = React.lazy(() => import('./pages/dashboard/seller/SellerWithdrawals'));
-const SellerTransactions = React.lazy(() => import('./pages/dashboard/seller/SellerTransactions'));
+const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/SellerDashboard'));
+const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/SellerProducts'));
+const SellerWithdrawals = lazyWithRetry(() => import('./pages/dashboard/seller/SellerWithdrawals'));
+const SellerTransactions = lazyWithRetry(() => import('./pages/dashboard/seller/SellerTransactions'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
+  // Detect ChunkLoadError: happens when a new deploy invalidates old cached JS chunks
+  const isChunkError = error?.message?.includes('dynamically imported') ||
+    error?.message?.includes('Loading chunk') ||
+    error?.name === 'ChunkLoadError';
+
+  // Auto-reload once for chunk errors (prevent infinite loop with sessionStorage flag)
+  React.useEffect(() => {
+    if (isChunkError) {
+      const alreadyReloaded = sessionStorage.getItem('chunk_reload_attempted');
+      if (!alreadyReloaded) {
+        sessionStorage.setItem('chunk_reload_attempted', '1');
+        window.location.reload();
+      } else {
+        // Second attempt failed — clear flag so next visit can try again
+        sessionStorage.removeItem('chunk_reload_attempted');
+      }
+    }
+  }, [isChunkError]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-zinc-950 p-4">
       <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-slate-100 dark:border-zinc-800">
@@ -61,27 +96,33 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetError
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
         </div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">Oops! Terjadi Kesalahan</h2>
+        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
+          {isChunkError ? 'Versi Baru Tersedia' : 'Oops! Terjadi Kesalahan'}
+        </h2>
         <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6 leading-relaxed">
-          Maaf, sistem mengalami gangguan sementara. Silakan muat ulang halaman atau kembali ke beranda.
+          {isChunkError
+            ? 'Aplikasi telah diperbarui. Halaman akan dimuat ulang otomatis untuk mendapatkan versi terbaru.'
+            : 'Maaf, sistem mengalami gangguan sementara. Silakan muat ulang halaman atau kembali ke beranda.'}
         </p>
-        <div className="bg-slate-50 dark:bg-zinc-950 p-4 rounded-xl mb-6 text-left overflow-auto max-h-32">
-          <p className="text-xs font-mono text-red-600 dark:text-red-400 break-words">
-            {error.message}
-          </p>
-        </div>
+        {!isChunkError && (
+          <div className="bg-slate-50 dark:bg-zinc-950 p-4 rounded-xl mb-6 text-left overflow-auto max-h-32">
+            <p className="text-xs font-mono text-red-600 dark:text-red-400 break-words">
+              {error.message}
+            </p>
+          </div>
+        )}
         <div className="flex gap-3">
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => { sessionStorage.removeItem('chunk_reload_attempted'); window.location.href = '/'; }}
             className="flex-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 px-4 py-3 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors text-sm"
           >
             Ke Beranda
           </button>
           <button
-            onClick={resetErrorBoundary}
+            onClick={() => { sessionStorage.removeItem('chunk_reload_attempted'); window.location.reload(); }}
             className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors text-sm shadow-lg shadow-blue-600/20"
           >
-            Coba Lagi
+            {isChunkError ? 'Muat Ulang' : 'Coba Lagi'}
           </button>
         </div>
       </div>
