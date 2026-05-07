@@ -22,7 +22,7 @@ export default function Cart() {
   const estimatedMdr = Math.ceil(subtotal * 0.007);
   const estimatedTotal = subtotal + estimatedMdr;
 
-  const grandTotal = subtotal; // Real base amount untuk backend & iPaymu
+  const grandTotal = estimatedTotal; // Real total amount including MDR
 
   useEffect(() => {
     if (user) {

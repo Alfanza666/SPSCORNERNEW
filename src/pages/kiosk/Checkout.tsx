@@ -38,7 +38,7 @@ export default function Checkout() {
   const estimatedMdr = Math.ceil(subtotal * 0.007);
   const estimatedTotal = subtotal + estimatedMdr;
 
-  const grandTotal = subtotal; // Real base amount untuk backend & iPaymu
+  const grandTotal = estimatedTotal; // Real total amount including MDR
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
@@ -498,7 +498,7 @@ export default function Checkout() {
         buyer_name: buyerName,
         buyer_id: user?.id || null,
         buyer_email: user?.email || null,
-        total_amount: getTotal(),
+        total_amount: grandTotal,
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -570,7 +570,7 @@ export default function Checkout() {
         headers,
         body: JSON.stringify({
           transaction_id: tx.id,
-          amount: getTotal(),
+          amount: grandTotal,
           buyer_name: cleanName,
           buyer_email: user?.email || dummyEmail,
           buyer_phone: dummyPhone,
