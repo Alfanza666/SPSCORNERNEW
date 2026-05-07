@@ -114,8 +114,8 @@ export default function AuthCallback() {
         } else {
           navigate('/kiosk', { replace: true });
         }
-      } catch (err: any) {
-        setErrorMsg(err.message || 'Terjadi kesalahan saat proses login.');
+      } catch (err: unknown) {
+        setErrorMsg(err instanceof Error ? err.message : 'Terjadi kesalahan saat proses login.');
         setStatus('error');
       }
     };

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/useAuthStore';
-import { Loader2, AlertCircle, User, Phone, CreditCard, ShieldCheck, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useAuthStore, type UserProfile } from '../store/useAuthStore';
+import { type User, type PostgrestError } from '@supabase/supabase-js';
+import { Loader2, AlertCircle, User as UserIcon, Phone, CreditCard, ShieldCheck, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SPSLogo from '../components/SPSLogo';
 import toast from 'react-hot-toast';
@@ -27,7 +28,7 @@ export default function AuthCallback() {
   const [errorMsg, setErrorMsg] = useState('');
 
   // Profile completion form state
-  const [sessionUser, setSessionUser] = useState<any>(null);
+  const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [name, setName] = useState('');
   const [nik, setNik] = useState('');
   const [phone, setPhone] = useState('');
@@ -62,8 +63,8 @@ export default function AuthCallback() {
 
         // Fetch the profile record (created by DB trigger on first Google sign-in)
         // [QA FIX] Retry up to 3x — trigger may have race condition on very first sign-in
-        let profile: any = null;
-        let profileError: any = null;
+        let profile: UserProfile | null = null;
+        let profileError: PostgrestError | null = null;
         for (let attempt = 0; attempt < 3; attempt++) {
           const result = await supabase
             .from('profiles')
@@ -120,9 +121,9 @@ export default function AuthCallback() {
         // Profile is complete — proceed with login
         await proceedWithLogin(session.user.id, profile.role);
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Auth callback error:', err);
-        setErrorMsg(err.message || 'Terjadi kesalahan saat proses login.');
+        setErrorMsg(err instanceof Error ? err.message : 'Terjadi kesalahan saat proses login.');
         setStep('error');
       }
     };
@@ -205,9 +206,9 @@ export default function AuthCallback() {
 
       await proceedWithLogin(sessionUser.id, updatedProfile?.role || 'buyer');
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Profile save error:', err);
-      toast.error(err.message || 'Gagal menyimpan profil. Coba lagi.');
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan profil. Coba lagi.');
     } finally {
       setSaving(false);
     }
@@ -316,7 +317,7 @@ export default function AuthCallback() {
                     Nama Lengkap
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
+                    <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300" />
                     <input
                       id="cb-name"
                       type="text"
