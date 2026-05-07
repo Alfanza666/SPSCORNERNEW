@@ -389,7 +389,7 @@ export default function AdminProducts() {
       }
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `${editingProduct.seller_id}/${fileName}`;
 
       setUploadingImage(true);

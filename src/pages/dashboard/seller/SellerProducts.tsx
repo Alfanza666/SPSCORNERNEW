@@ -113,7 +113,7 @@ export default function SellerProducts() {
       }
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `${user?.id}/${fileName}`;
 
       setUploadingImage(true);
