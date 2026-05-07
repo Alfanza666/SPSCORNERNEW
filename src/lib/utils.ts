@@ -3,16 +3,10 @@ import { twMerge } from 'tailwind-merge';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
+export * from './utils.pure.ts';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
-}
-
-export function formatRupiah(amount: number) {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-  }).format(amount);
 }
 
 /**
