@@ -491,21 +491,40 @@ const updateSellerBalances = __name(async (items) => {
 const checkLowStockAndNotify = __name(async (items) => {
   try {
     if (!items || items.length === 0) return;
-    for (const item of items) {
-      if (item.metadata?.is_digital) continue;
-      
-      const productId = item.product_id || item.products?.id;
-      if (!productId) continue;
-      
-      const { data: product } = await supabase
-        .from('products')
-        .select('name, stock, seller_id, profiles(name)')
-        .eq('id', productId)
-        .single();
+
+    const productIds = items
+      .filter(item => !item.metadata?.is_digital)
+      .map(item => item.product_id || item.products?.id)
+      .filter(id => !!id);
+
+    if (productIds.length === 0) return;
+
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('name, stock, seller_id, profiles(name)')
+      .in('id', productIds);
+
+    if (productsError) {
+      console.error("\u274C Error fetching products for stock check:", productsError);
+      return;
+    }
+
+    if (!products || products.length === 0) return;
+
+    const sellerEmailCache = new Map();
+
+    for (const product of products) {
+      if (product.stock < 5) {
+        let sellerEmail = sellerEmailCache.get(product.seller_id);
         
-      if (product && product.stock < 5) {
-        const { data: userAuth } = await supabase.auth.admin.getUserById(product.seller_id);
-        const sellerEmail = userAuth?.user?.email;
+        if (!sellerEmail) {
+          const { data: userAuth } = await supabase.auth.admin.getUserById(product.seller_id);
+          sellerEmail = userAuth?.user?.email;
+          if (sellerEmail) {
+            sellerEmailCache.set(product.seller_id, sellerEmail);
+          }
+        }
+
         if (sellerEmail) {
           const emailHtml = `
             <div style="font-family: sans-serif; padding: 20px; color: #333;">
