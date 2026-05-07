@@ -89,7 +89,7 @@ export default function AdminDashboard() {
       }
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `qris_${Math.random()}.${fileExt}`;
+      const fileName = `qris_${crypto.randomUUID()}.${fileExt}`;
       const filePath = `settings/${fileName}`;
 
       setUploadingQris(true);
