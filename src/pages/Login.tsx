@@ -109,7 +109,7 @@ export default function Login() {
         } else if (resolvedProfile!.role === 'seller') {
           navigate('/dashboard/seller');
         } else {
-          navigate('/kiosk');
+          navigate('/portal');
         }
       }
     } catch (err: any) {

@@ -14,16 +14,16 @@ export interface NotificationItem {
 }
 
 /**
- * Registers the service worker and returns the registration.
- * Idempotent — safe to call multiple times.
+ * Gets existing service worker registration.
+ * Uses the same SW registered by main.tsx via vite-plugin-pwa.
  */
-async function registerSW(): Promise<ServiceWorkerRegistration | null> {
+async function getSWRegistration(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null;
   try {
-    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    return reg;
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    return registrations[0] || null;
   } catch (e) {
-    console.error('[SW] Registration failed:', e);
+    console.error('[SW] Get registration failed:', e);
     return null;
   }
 }
@@ -44,9 +44,9 @@ export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ── Register service worker and listen for navigate messages ──────────────
+  // ── Get existing service worker and listen for navigate messages ──────────
   useEffect(() => {
-    registerSW();
+    getSWRegistration();
 
     if (!navigator.serviceWorker) return;
 

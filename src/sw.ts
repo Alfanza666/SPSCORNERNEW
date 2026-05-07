@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { clientsClaim } from 'workbox-core';
+import { clientsClaim, skipWaiting } from 'workbox-core';
 import { precacheAndRoute } from 'workbox-precaching';
 
 declare const self: ServiceWorkerGlobalScope;
@@ -10,7 +10,30 @@ clientsClaim();
 // Precache semua aset (Dibutuhkan oleh VitePWA injectManifest)
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Listener untuk menerima tembakan Web Push
+// ─────────────────────────────────────────────────────
+// Listener untuk menerima pesan dari halaman utama (foreground notification)
+// ─────────────────────────────────────────────────────
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+
+  if (event.data?.type === 'SHOW_NOTIFICATION') {
+    const { title, body, url } = event.data;
+    event.waitUntil(
+      self.registration.showNotification(title || 'SPS Corner', {
+        body: body || '',
+        icon: '/logos/sps-logo-icon.png',
+        badge: '/logos/sps-logo-icon.png',
+        tag: 'sps-notification',
+        data: { url: url || '/' }
+      })
+    );
+  }
+});
+
+// Listener untuk menerima tembakan Web Push (dari server - app tertutup)
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   const payload = event.data.json();

@@ -69,7 +69,7 @@ export default function KioskLayout() {
     if (user && user.role !== 'buyer') {
       navigate(`/dashboard/${user.role}`);
     } else {
-      navigate('/');
+      navigate('/portal');
     }
   };
 

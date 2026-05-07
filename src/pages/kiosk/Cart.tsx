@@ -16,13 +16,13 @@ export default function Cart() {
   const [buyerPhone, setBuyerPhone] = useState('');
   const [isReserving, setIsReserving] = useState(false);
 
-  // ── MDR QRIS 0.7% ────────────────────────────────────────────────
-  // Berlaku untuk semua transaksi QRIS (otomatis maupun manual/upload bukti)
-  const MDR_RATE = 0.007; // 0.7%
   const subtotal = getTotal();
-  const mdrFee = Math.ceil(subtotal * MDR_RATE);
-  const grandTotal = subtotal + mdrFee;
-  // ──────────────────────────────────────────────────────────
+  
+  // Estimasi MDR untuk tampilan UI (iPaymu menggunakan Math.ceil)
+  const estimatedMdr = Math.ceil(subtotal * 0.007);
+  const estimatedTotal = subtotal + estimatedMdr;
+
+  const grandTotal = subtotal; // Real base amount untuk backend & iPaymu
 
   useEffect(() => {
     if (user) {
@@ -265,19 +265,19 @@ export default function Cart() {
                   {formatRupiah(subtotal)}
                 </span>
               </div>
-              <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">
+              <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs mt-2">
                 <span className="flex items-center gap-1">
                   Biaya Layanan
                   <span className="text-[8px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1 py-0.5 rounded font-black">
-                    MDR QRIS 0.7%
+                    QRIS 0.7%
                   </span>
                 </span>
-                <span className="text-amber-600 dark:text-amber-400 font-black">+{formatRupiah(mdrFee)}</span>
+                <span className="text-amber-600 dark:text-amber-400 font-black">+{formatRupiah(estimatedMdr)}</span>
               </div>
-              <div className="pt-3 sm:pt-4 border-t border-zinc-50 dark:border-zinc-800 flex justify-between items-end">
-                <span className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">Total Bayar</span>
+              <div className="pt-3 sm:pt-4 border-t border-zinc-50 dark:border-zinc-800 flex justify-between items-end mt-3">
+                <span className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">Total Tagihan</span>
                 <span className="text-lg sm:text-xl font-black text-blue-600 dark:text-blue-400 tracking-tighter">
-                  {formatRupiah(grandTotal)}
+                  {formatRupiah(estimatedTotal)}
                 </span>
               </div>
             </div>

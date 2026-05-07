@@ -24,7 +24,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isLoading: true,
   setUser: (user) => set({ user, isLoading: false }),
-  fetchProfile: async (userId) => {
+  fetchProfile: async (userId: string) => {
     try {
       set({ isLoading: true });
       
@@ -34,22 +34,30 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role, name, nik, phone, email, balance, loyalty_points')
+        .select('id, role, name, nik, phone, balance, loyalty_points')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profile - details:', error);
+        throw error;
+      }
 
-      // Prioritize email stored in profiles table (real email),
-      // fall back to session email only if profiles.email is empty or fake
-      const profileEmail = data?.email;
+      if (!data) {
+        console.warn('Profile not found for userId:', userId);
+        set({ user: null, isLoading: false });
+        return;
+      }
+
+      // Use session email as fallback (profiles table does not have email column)
       const isFakeEmail = sessionEmail?.endsWith('@sps.local');
-      const resolvedEmail = profileEmail || (!isFakeEmail ? sessionEmail : undefined);
+      const resolvedEmail = !isFakeEmail ? sessionEmail : undefined;
 
       set({ user: { ...data, email: resolvedEmail } as UserProfile, isLoading: false });
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      set({ user: null, isLoading: false });
+    } catch (error: any) {
+      console.error('Error fetching profile:', error?.message || error);
+      // Don't set user to null on error - keep trying or let user retry
+      set({ isLoading: false });
     }
   },
   signOut: async () => {

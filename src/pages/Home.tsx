@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Store, UserCircle, ArrowRight, ShieldCheck, ShoppingCart, Sparkles, LayoutDashboard } from 'lucide-react';
+import { Store, UserCircle, ArrowRight, ShieldCheck, ShoppingCart, Sparkles, LayoutDashboard, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import Logo from '../components/ui/logo-utama.png';
 import { useAuthStore } from '../store/useAuthStore';
@@ -59,7 +59,7 @@ export default function Home() {
             whileTap={{ scale: 0.98 }}
             className="h-full"
           >
-            <Link to="/kiosk" className="group block h-full">
+<Link to="/kiosk" className="group block h-full" aria-label="Kiosk Kejujuran">
               <div className="bg-white dark:bg-zinc-900/40 rounded-3xl h-full p-6 sm:p-8 text-left transition-all duration-500 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-blue-500/30 dark:hover:border-blue-500/50 hover:shadow-[0_20px_40px_-15px_rgba(59,130,246,0.15)] dark:hover:shadow-[0_20px_40px_-15px_rgba(59,130,246,0.2)] relative overflow-hidden backdrop-blur-xl">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/0 group-hover:from-blue-50/50 dark:group-hover:from-blue-500/10 transition-colors duration-500 pointer-events-none" />
                 <div className="absolute -top-12 -right-12 w-40 h-40 bg-blue-500/10 dark:bg-blue-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -70,11 +70,37 @@ export default function Home() {
                 </div>
 
                 <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2 tracking-tight transition-colors relative z-10">
-                  Mode Kiosk
+                  Kantin Kejujuran
                   <ArrowRight className="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:translate-x-2 transition-transform duration-300" />
                 </h3>
                 <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base leading-relaxed font-medium transition-colors relative z-10">
                   Pesan makanan dan minuman favoritmu secara mandiri dengan sistem pembayaran yang mudah dan cepat.
+                </p>
+              </div>
+            </Link>
+          </motion.div>
+
+          <motion.div
+            whileHover={{ scale: 1.02, y: -4 }}
+            whileTap={{ scale: 0.98 }}
+            className="h-full"
+          >
+            <Link to="/portal" className="group block h-full" aria-label="Portal Karyawan">
+              <div className="bg-white dark:bg-zinc-900/40 rounded-3xl h-full p-6 sm:p-8 text-left transition-all duration-500 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-green-500/30 dark:hover:border-green-500/50 hover:shadow-[0_20px_40px_-15px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_20px_40px_-15px_rgba(34,197,94,0.2)] relative overflow-hidden backdrop-blur-xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/0 to-green-500/0 group-hover:from-green-50/50 dark:group-hover:from-green-500/10 transition-colors duration-500 pointer-events-none" />
+                <div className="absolute -top-12 -right-12 w-40 h-40 bg-green-500/10 dark:bg-green-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[1.5rem] bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center mb-5 sm:mb-6 relative z-10 shadow-[0_8px_20px_rgba(34,197,94,0.4),inset_0_2px_4px_rgba(255,255,255,0.4)] border border-green-300/50 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500 overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.3)_0%,transparent_60%)]" />
+                  <Users className="w-8 h-8 sm:w-10 sm:h-10 text-white drop-shadow-md relative z-10" strokeWidth={2.5} />
+                </div>
+
+                <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2 tracking-tight transition-colors relative z-10">
+                  Portal Karyawan
+                  <ArrowRight className="w-5 h-5 text-green-600 dark:text-green-400 group-hover:translate-x-2 transition-transform duration-300" />
+                </h3>
+                <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base leading-relaxed font-medium transition-colors relative z-10">
+                  Pengumuman, program serikat, kritik &amp; saran, dan info lainnya untuk karyawan.
                 </p>
               </div>
             </Link>
@@ -141,7 +167,7 @@ export default function Home() {
 
             <div className="flex flex-col items-center gap-1 mt-2">
               <div className="px-3 py-1 rounded-full bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-300/50 dark:border-zinc-700/50 backdrop-blur-sm">
-                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v4.5.18</p>
+                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v4.6.1</p>
               </div>
               <p className="text-[10px] sm:text-xs text-zinc-500 mt-2">
                 Ide &amp; Dikembangkan oleh <span className="font-bold text-zinc-700 dark:text-zinc-300">Alif Irfansyah</span>

@@ -62,11 +62,21 @@ const AdminStockOpname = lazyWithRetry(() => import('./pages/dashboard/admin/Adm
 const AdminPayments = lazyWithRetry(() => import('./pages/dashboard/admin/AdminPayments'));
 const AdminLoyalty = lazyWithRetry(() => import('./pages/dashboard/admin/AdminLoyalty'));
 const AdminStandbySchedule = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
+const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
+const AdminAnnouncements = lazyWithRetry(() => import('./pages/dashboard/admin/AdminAnnouncements'));
+const AdminFeedbacks = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFeedbacks'));
 
 const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/SellerProducts'));
 const SellerWithdrawals = lazyWithRetry(() => import('./pages/dashboard/seller/SellerWithdrawals'));
 const SellerTransactions = lazyWithRetry(() => import('./pages/dashboard/seller/SellerTransactions'));
+
+const PortalLayout = lazyWithRetry(() => import('./pages/portal/PortalLayout'));
+const PortalDashboard = lazyWithRetry(() => import('./pages/portal/PortalDashboard'));
+const PortalPengaduan = lazyWithRetry(() => import('./pages/portal/PortalPengaduan'));
+const PortalPengumuman = lazyWithRetry(() => import('./pages/portal/PortalPengumuman'));
+const PortalProgram = lazyWithRetry(() => import('./pages/portal/PortalProgram'));
+const PortalKritik = lazyWithRetry(() => import('./pages/portal/PortalKritik'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   // Detect ChunkLoadError: happens when a new deploy invalidates old cached JS chunks
@@ -150,19 +160,21 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         fetchProfile(session.user.id);
-      } else {
-        setUser(null);
       }
+      // Jangan set user null di awal - biarkan state existing tetap sampai yakin logout
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Hanya proses jika ada session baru, bukan saat session jadi null karena timeout/network
       if (session?.user) {
         fetchProfile(session.user.id);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
+        // Baru set null kalau benar2/sign out explicit
         setUser(null);
       }
+      // Abaikan event lain - mencegah auto logout karena token refresh
     });
 
     return () => subscription.unsubscribe();
@@ -241,6 +253,15 @@ export default function App() {
             <Route path="/privacy" element={<RefundPolicy />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             
+            {/* Portal Routes */}
+            <Route path="/portal" element={<PortalLayout />}>
+              <Route index element={<PortalDashboard />} />
+              <Route path="pengaduan" element={<PortalPengaduan />} />
+              <Route path="pengumuman" element={<PortalPengumuman />} />
+              <Route path="program" element={<PortalProgram />} />
+              <Route path="kritik" element={<PortalKritik />} />
+            </Route>
+
             {/* Kiosk Routes */}
             <Route path="/kiosk" element={<KioskLayout />}>
               <Route index element={<Catalog />} />
@@ -270,6 +291,9 @@ export default function App() {
               <Route path="admin/payments" element={<AdminPayments />} />
               <Route path="admin/loyalty" element={<AdminLoyalty />} />
               <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
+              <Route path="admin/union-programs" element={<AdminUnionPrograms />} />
+              <Route path="admin/announcements" element={<AdminAnnouncements />} />
+              <Route path="admin/feedbacks" element={<AdminFeedbacks />} />
 
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/products" element={<SellerProducts />} />

@@ -28,10 +28,12 @@ import {
   ClipboardList,
   Bug,
   ChevronDown,
+  Megaphone,
   Phone,
   Mail,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  MessageSquare
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -248,14 +250,8 @@ export default function DashboardLayout() {
   const isSeller = user.role === 'seller';
 
   if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
-    if (isAdmin) {
-      return <Navigate to="/dashboard/admin" replace />;
-    } else if (isSeller) {
-      return <Navigate to="/dashboard/seller" replace />;
-    } else {
-      return <Navigate to="/kiosk" replace />;
+      return <Navigate to="/portal" replace />;
     }
-  }
 
   const renderNavItems = () => (
 
@@ -395,6 +391,27 @@ export default function DashboardLayout() {
               label="Jadwal Standby" 
               isActive={location.pathname === "/dashboard/admin/standby-schedule"}
               onClick={() => { navigate("/dashboard/admin/standby-schedule"); setIsSidebarOpen(false); }}
+            />
+            <NavItem 
+              to="/dashboard/admin/union-programs" 
+              icon={Megaphone} 
+              label="Program Serikat" 
+              isActive={location.pathname === "/dashboard/admin/union-programs"}
+              onClick={() => { navigate("/dashboard/admin/union-programs"); setIsSidebarOpen(false); }}
+            />
+            <NavItem 
+              to="/dashboard/admin/announcements" 
+              icon={Megaphone} 
+              label="Pengumuman" 
+              isActive={location.pathname === "/dashboard/admin/announcements"}
+              onClick={() => { navigate("/dashboard/admin/announcements"); setIsSidebarOpen(false); }}
+            />
+            <NavItem 
+              to="/dashboard/admin/feedbacks" 
+              icon={MessageSquare} 
+              label="Kritik & Saran" 
+              isActive={location.pathname === "/dashboard/admin/feedbacks"}
+              onClick={() => { navigate("/dashboard/admin/feedbacks"); setIsSidebarOpen(false); }}
             />
             <NavItem 
               to="/help" 
@@ -595,7 +612,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v4.5.18
+                      v4.5.21
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"

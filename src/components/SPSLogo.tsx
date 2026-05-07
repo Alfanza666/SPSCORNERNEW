@@ -10,9 +10,8 @@ interface SPSLogoProps {
   showText?: boolean;
 }
 
-export default function SPSLogo({ className = "h-12", variant = 'wide', showText = true }: SPSLogoProps) {
+export default function SPSLogo({ className = "h-12", variant = 'wide', showText = false }: SPSLogoProps) {
   const [hasError, setHasError] = useState(false);
-  // Map legacy variants to new ones
   const effectiveVariant = variant === 'horizontal' ? 'wide' : variant === 'vertical' ? 'stack' : variant;
 
   let src = LogoUtama;
@@ -28,7 +27,7 @@ export default function SPSLogo({ className = "h-12", variant = 'wide', showText
     return (
       <div className={`${className} flex items-center justify-center font-black text-amber-600 gap-2 overflow-hidden`}>
         <ShieldCheck className="w-auto h-full max-h-8" />
-        {effectiveVariant !== 'icon' && (
+        {effectiveVariant !== 'icon' && showText && (
           <div className="flex flex-col items-start leading-none justify-center">
             <span className="text-xl -mb-1 tracking-tighter">SPS</span>
             <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Corner</span>

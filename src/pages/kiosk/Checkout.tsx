@@ -32,13 +32,13 @@ export default function Checkout() {
   const [guestPhone, setGuestPhone] = useState(sessionStorage.getItem('buyerPhone') || '');
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  // ── MDR QRIS 0.7% ────────────────────────────────────────────
-  // Berlaku untuk SEMUA metode QRIS (otomatis maupun manual/statis)
-  const MDR_RATE = 0.007; // 0.7%
   const subtotal = getTotal();
-  const mdrFee = Math.ceil(subtotal * MDR_RATE);
-  const grandTotal = subtotal + mdrFee;  // Total yang dibayar user & disimpan ke DB
-  // ───────────────────────────────────────────────────
+  
+  // Estimasi MDR untuk tampilan UI (iPaymu menggunakan Math.ceil)
+  const estimatedMdr = Math.ceil(subtotal * 0.007);
+  const estimatedTotal = subtotal + estimatedMdr;
+
+  const grandTotal = subtotal; // Real base amount untuk backend & iPaymu
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
 
@@ -152,7 +152,7 @@ export default function Checkout() {
         buyer_id: user?.id || null,
         buyer_phone: user?.phone || guestPhone || null,
         buyer_email: user?.email || null,
-        total_amount: grandTotal,  // Selalu gunakan grandTotal (subtotal + MDR 0.7%)
+        total_amount: grandTotal,
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -222,7 +222,7 @@ export default function Checkout() {
         headers,
         body: JSON.stringify({
           transaction_id: tx.id,
-          amount: grandTotal,  // grandTotal = subtotal + MDR 0.7% (QRIS dinamis)
+          amount: grandTotal,
           buyer_name: cleanName,
           buyer_email: user?.email || dummyEmail,
           buyer_phone: dummyPhone,
@@ -276,7 +276,7 @@ export default function Checkout() {
         buyer_id: user?.id || null,
         buyer_email: user?.email || null,
         buyer_phone: user?.phone || guestPhone || null,  // [QA FIX] was missing buyer_phone
-        total_amount: grandTotal,  // QRIS manual juga kena MDR 0.7%
+        total_amount: grandTotal, // Use same base amount for consistency
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -549,9 +549,11 @@ export default function Checkout() {
 
       // Use real user phone if available, otherwise use guest-entered phone
       const realPhone = user?.phone?.replace(/[^0-9]/g, '') || guestPhone.replace(/[^0-9]/g, '');
+      // Generate unique dummy phone using timestamp + random to avoid conflicts
+      const randomSuffix = Math.floor(Date.now() % 90000000) + 1000000;
       const dummyPhone = realPhone && realPhone.length >= 9
         ? realPhone
-        : '081200000000'; // Static fallback — no random generation
+        : ('0812' + randomSuffix.toString());
 
       // Clean up buyerName (remove numbers, special chars, ensure min length)
       let cleanName = (user?.name || buyerName).replace(/[^a-zA-Z\s]/g, '').trim();
@@ -652,10 +654,10 @@ export default function Checkout() {
 
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mb-1 relative z-10">Total Tagihan</p>
                 <h2 className="text-3xl sm:text-4xl font-black tracking-tighter relative z-10 text-white drop-shadow-md">
-                  {formatRupiah(grandTotal)}
+                  {formatRupiah(estimatedTotal)}
                 </h2>
                 <p className="text-zinc-500 text-[10px] font-medium relative z-10 mt-1">
-                  Subtotal {formatRupiah(subtotal)} + MDR QRIS {formatRupiah(mdrFee)}
+                  Subtotal {formatRupiah(subtotal)} + Biaya Layanan {formatRupiah(estimatedMdr)}
                 </p>
               </div>
 
@@ -708,20 +710,6 @@ export default function Checkout() {
                       <div className="flex-1 min-w-0">
                         <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Otomatis)</p>
                         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Gopay, OVO, Dana, LinkAja</p>
-                        <div className="mt-1.5 text-[9px] font-medium text-zinc-400 dark:text-zinc-500 space-y-0.5">
-                          <div className="flex justify-between">
-                            <span>Subtotal</span>
-                            <span>{formatRupiah(getTotal())}</span>
-                          </div>
-                          <div className="flex justify-between text-amber-600 dark:text-amber-400">
-                            <span>MDR QRIS (0.7%)</span>
-                            <span>+{formatRupiah(mdrFee)}</span>
-                          </div>
-                          <div className="flex justify-between font-black text-zinc-700 dark:text-zinc-200 border-t border-zinc-100 dark:border-zinc-700 pt-0.5 mt-0.5">
-                            <span>Total Bayar</span>
-                            <span>{formatRupiah(grandTotal)}</span>
-                          </div>
-                        </div>
                       </div>
                     </button>
                   )}
@@ -834,7 +822,7 @@ export default function Checkout() {
               <div className="space-y-2 mb-8">
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Total Bayar</p>
                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">
-                  {formatRupiah(getTotal())}
+                  {formatRupiah(estimatedTotal)}
                 </h2>
               </div>
 
@@ -842,7 +830,7 @@ export default function Checkout() {
                 <h4 className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">Instruksi:</h4>
                 <ol className="text-xs text-blue-600 dark:text-blue-300 space-y-1.5 list-decimal pl-4 font-medium">
                   <li>Scan kode QR di atas menggunakan aplikasi pembayaran Anda</li>
-                  <li>Masukkan nominal <strong>{formatRupiah(getTotal())}</strong></li>
+                  <li>Masukkan nominal <strong>{formatRupiah(estimatedTotal)}</strong></li>
                   <li>Selesaikan pembayaran</li>
                   <li>Screenshot bukti pembayaran dan upload di bawah ini</li>
                 </ol>
@@ -987,7 +975,7 @@ export default function Checkout() {
               <div className="space-y-2 mb-8">
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Total Bayar</p>
                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">
-                  {formatRupiah(getTotal())}
+                  {formatRupiah(estimatedTotal)}
                 </h2>
               </div>
 

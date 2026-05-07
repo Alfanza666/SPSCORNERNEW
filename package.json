@@ -1,7 +1,7 @@
 {
   "name": "sps-corner",
   "private": true,
-  "version": "4.5.18",
+  "version": "4.6.1",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -15,6 +15,7 @@
     "@google/genai": "^1.50.1",
     "@headlessui/react": "^2.2.10",
     "@supabase/supabase-js": "^2.104.1",
+    "@tabler/icons-react": "^3.43.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
@@ -41,6 +42,7 @@
     "react-router-dom": "^7.13.1",
     "react-webcam": "^7.2.0",
     "recharts": "^3.7.0",
+    "remixicon-react": "^1.0.0",
     "tailwind-merge": "^3.5.0",
     "tsx": "^4.21.0",
     "vite": "^6.2.0",

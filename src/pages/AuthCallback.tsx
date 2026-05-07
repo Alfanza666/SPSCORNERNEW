@@ -67,7 +67,7 @@ export default function AuthCallback() {
         for (let attempt = 0; attempt < 3; attempt++) {
           const result = await supabase
             .from('profiles')
-            .select('id, role, name, nik, phone, email, balance, loyalty_points')
+            .select('id, role, name, nik, phone, balance, loyalty_points')
             .eq('id', session.user.id)
             .single();
           if (!result.error && result.data) {
@@ -90,7 +90,7 @@ export default function AuthCallback() {
               balance: 0,
               loyalty_points: 0,
             })
-            .select('id, role, name, nik, phone, email, balance, loyalty_points')
+            .select('id, role, name, nik, phone, balance, loyalty_points')
             .single();
 
           if (insertError || !insertedProfile) {
@@ -144,7 +144,7 @@ export default function AuthCallback() {
     } else if (role === 'seller') {
       navigate('/dashboard/seller', { replace: true });
     } else {
-      navigate('/kiosk', { replace: true });
+      navigate('/portal', { replace: true });
     }
   };
 
