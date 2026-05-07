@@ -288,3 +288,7 @@ Setiap kali ada deploy baru ke Vercel, Vite generate JS chunk files dengan **has
     *   **Fix:** Menambahkan `status` dan `payment_method` dengan pencarian tipe data yang aman (menghindari undefined error pada tabel `failed_transactions`).
 *   **Error:** Supabase Query Image fetching bisa memberatkan jaringan untuk list yang sangat banyak.
     *   **Fix:** Menerapkan `select` fields spesifik ketimbang `*` (asterisk) serta native attributes `loading="lazy" decoding="async"` pada rendering DOM React image element.
+
+[2026-05-07] 🧪 Add tests for IpaymuSignature.verify
+- Added unit tests to `src/services/ipaymu/signature.test.ts` to ensure reliability of payment callback signature verification.
+- Covers valid/invalid signatures, unordered keys, and ensures the verification process is side-effect free.
