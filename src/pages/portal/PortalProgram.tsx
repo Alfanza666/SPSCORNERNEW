@@ -1,73 +1,57 @@
-import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
-import { Link } from 'react-router-dom';
-import SPSLogo from '../../components/SPSLogo';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
-import { 
-  Gift, Calendar, Users, QrCode, CheckCircle, XCircle, 
-  Plus, Search, Download, Copy, Loader2
-} from 'lucide-react';
-import { format } from 'date-fns';
+import { Gift, Calendar, Users, CheckCircle, Loader2, QrCode, XCircle } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
-import { exportExcel } from '../../lib/utils';
-
-interface UnionProgram {
-  id: string;
-  name: string;
-  description: string;
-  program_type: 'kupon' | 'kurban' | 'gathering' | 'attendance' | 'lainnya';
-  start_date: string;
-  end_date: string;
-  is_active: boolean;
-  created_at: string;
-}
-
-interface ProgramRegistration {
-  id: string;
-  program_id: string;
-  user_id: string;
-  status: string;
-  kupon_code: string;
-  profiles?: { name: string; nik: string };
-  registered_at: string;
-}
+import { format } from 'date-fns';
+import { Navigate } from 'react-router-dom';
 
 export default function PortalProgram() {
   const { user } = useAuthStore();
-  const [programs, setPrograms] = useState<UnionProgram[]>([]);
-  const [myRegistrations, setMyRegistrations] = useState<ProgramRegistration[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [myRegistrations, setMyRegistrations] = useState<any[]>([]);
+  const [whitelistMap, setWhitelistMap] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
-  const [selectedProgram, setSelectedProgram] = useState<UnionProgram | null>(null);
-  const [registeredMembers, setRegisteredMembers] = useState<ProgramRegistration[]>([]);
+
+  // For QR Code Modal
+  const [selectedQR, setSelectedQR] = useState<{ id: string, name: string, code: string } | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    fetchData();
+    if (user) {
+      fetchData();
+    }
   }, [user]);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
-      const [progRes, regRes] = await Promise.all([
+      setLoading(true);
+      const [progRes, regRes, whitelistRes] = await Promise.all([
         supabase
           .from('union_programs')
           .select('*')
           .eq('is_active', true)
-          .lte('start_date', new Date().toISOString().split('T')[0])
-          .gte('end_date', new Date().toISOString().split('T')[0])
           .order('created_at', { ascending: false }),
         supabase
           .from('program_registrations')
           .select('*, union_programs(name, program_type)')
-          .eq('user_id', user?.id)
+          .eq('user_id', user?.id),
+        supabase
+          .from('program_whitelist')
+          .select('program_id')
+          .eq('nik', user?.nik || '')
       ]);
 
       if (progRes.data) setPrograms(progRes.data);
       if (regRes.data) setMyRegistrations(regRes.data);
+      if (whitelistRes.data) {
+        const wMap: Record<string, boolean> = {};
+        whitelistRes.data.forEach((w) => { wMap[w.program_id] = true; });
+        setWhitelistMap(wMap);
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching programs:', error);
     } finally {
       setLoading(false);
     }
@@ -75,23 +59,28 @@ export default function PortalProgram() {
 
   const handleClaimProgram = async (programId: string) => {
     if (!user) return;
-    setClaiming(programId);
     try {
-      const kuponCode = `${programId.slice(0, 4).toUpperCase()}-${user.id.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+      setClaiming(programId);
+      const kuponCode = `${user.nik?.slice(-4) || '0000'}-${Math.random().toString(36).substring(2, 6).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('program_registrations')
         .insert({
           program_id: programId,
           user_id: user.id,
           status: 'terdaftar',
           kupon_code: kuponCode
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
       toast.success('Berhasil klaim program!');
       fetchData();
+
+      const programName = programs.find(p => p.id === programId)?.name || 'Program';
+      setSelectedQR({ id: data.id, name: programName, code: data.id });
     } catch (error: any) {
       console.error('Error claiming program:', error);
       if (error.message?.includes('duplicate')) {
@@ -104,206 +93,165 @@ export default function PortalProgram() {
     }
   };
 
-  const handleViewParticipants = async (programId: string) => {
-    try {
-      const { data } = await supabase
-        .from('program_registrations')
-        .select('*, profiles(name, nik)')
-        .eq('program_id', programId);
-
-      if (data) {
-        setRegisteredMembers(data);
-        const program = programs.find(p => p.id === programId);
-        setSelectedProgram(program || null);
-      }
-    } catch (error) {
-      console.error('Error fetching participants:', error);
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (registeredMembers.length === 0) {
-      toast.error('Belum ada peserta terdaftar');
-      return;
-    }
-
-    const headers = ['No', 'NIK', 'Nama Anggota', 'Kode Kupon', 'Status', 'Tanggal Daftar'];
-    const rows = registeredMembers.map((reg, idx) => [
-      idx + 1,
-      reg.profiles?.nik || '-',
-      reg.profiles?.name || '-',
-      reg.kupon_code || '-',
-      reg.status,
-      format(new Date(reg.registered_at), 'dd-MM-yyyy HH:mm')
-    ]);
-
-    exportExcel(headers, rows, `program_${selectedProgram?.name}_${format(new Date(), 'yyyyMMdd')}`, 'Peserta');
-    toast.success('Excel diunduh!');
-  };
-
   const getProgramIcon = (type: string) => {
     switch (type) {
-      case 'kupon': return <Gift className="w-8 h-8" />;
-      case 'kurban': return <Users className="w-8 h-8" />;
-      case 'gathering': return <Users className="w-8 h-8" />;
-      case 'attendance': return <Calendar className="w-8 h-8" />;
-      default: return <Gift className="w-8 h-8" />;
+      case 'kupon': return <Gift className="w-6 h-6" />;
+      case 'kurban': return <Users className="w-6 h-6" />;
+      case 'gathering': return <Users className="w-6 h-6" />;
+      case 'attendance': return <Calendar className="w-6 h-6" />;
+      default: return <Gift className="w-6 h-6" />;
     }
   };
 
   if (!user) return <Navigate to="/login" />;
 
   return (
-    <div className="min-h-screen bg-[#e8ebf2] dark:bg-zinc-950">
-      <div className="p-4 space-y-4">
-        {/* My Registrations */}
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 pb-20">
+      {/* Header - ONLY PAGE NAME */}
+      <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 p-4 sticky top-0 z-30">
+        <h1 className="text-xl font-black text-center text-zinc-900 dark:text-white">Klaim Program</h1>
+      </div>
+
+      <div className="p-4 space-y-6 max-w-lg mx-auto">
+        {/* My Registrations / Active Claims */}
         {myRegistrations.length > 0 && (
-          <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700">
-            <h3 className="font-bold text-zinc-900 dark:text-white mb-3">Program Saya</h3>
-            <div className="space-y-2">
-              {myRegistrations.map((reg) => (
-                <div key={reg.id} className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <div className="flex items-center justify-between">
+          <div className="space-y-3">
+            <h3 className="font-bold text-zinc-900 dark:text-white text-sm px-1">Klaim Aktif Saya</h3>
+            {myRegistrations.map((reg) => {
+              const programName = (reg as any).union_programs?.name || 'Program';
+              return (
+                <div key={reg.id} className="bg-white dark:bg-zinc-900 border border-green-200 dark:border-green-900/50 p-4 rounded-2xl shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="font-bold text-green-800 dark:text-green-200">
-                        {(reg as any).union_programs?.name || 'Program'}
+                      <p className="font-bold text-green-700 dark:text-green-400">
+                        {programName}
                       </p>
-                      <p className="text-xs text-green-600 dark:text-green-400 font-mono">{reg.kupon_code}</p>
+                      <p className="text-xs text-zinc-500 font-mono mt-0.5">Kode: {reg.kupon_code}</p>
                     </div>
                     <CheckCircle className="w-6 h-6 text-green-500" />
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Available Programs */}
-        <h3 className="font-bold text-zinc-700 dark:text-zinc-300">Program Tersedia</h3>
-        
-        {loading ? (
-          <div className="text-center py-8 text-zinc-400">Memuat...</div>
-        ) : programs.length === 0 ? (
-          <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-xl">
-            <Gift className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
-            <p className="text-zinc-500 text-sm">Tidak ada program tersedia saat ini</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {programs.map((program) => {
-              const isRegistered = myRegistrations.some(r => r.program_id === program.id);
-              return (
-                <div
-                  key={program.id}
-                  className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400">
-                      {getProgramIcon(program.program_type)}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-zinc-900 dark:text-white">{program.name}</h4>
-                      <p className="text-sm text-zinc-500 capitalize">{program.program_type}</p>
-                      {program.description && (
-                        <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{program.description}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-zinc-400">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {program.start_date && format(new Date(program.start_date), 'dd MMM')}
-                          {' - '}
-                          {program.end_date && format(new Date(program.end_date), 'dd MMM yyyy')}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex gap-2">
-                    {isRegistered ? (
-                      <button disabled className="flex-1 py-2 bg-green-500 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
-                        <CheckCircle className="w-4 h-4" />
-                        Sudah Terdaftar
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleClaimProgram(program.id)}
-                        disabled={claiming === program.id}
-                        className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2"
-                      >
-                        {claiming === program.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Gift className="w-4 h-4" />
-                            Klaim Program
-                          </>
-                        )}
-                      </button>
-                    )}
-                    {(user?.role === 'superadmin' || user?.role === 'admin') && (
-                      <button
-                        onClick={() => handleViewParticipants(program.id)}
-                        className="py-2 px-3 bg-blue-500 text-white rounded-lg font-bold text-sm"
-                      >
-                        <Users className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => setSelectedQR({ id: reg.id, name: programName, code: reg.id })}
+                    className="w-full py-2.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 font-bold rounded-xl flex items-center justify-center gap-2 text-sm hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    Tampilkan QR Code
+                  </button>
                 </div>
               );
             })}
           </div>
         )}
+
+        {/* Available Programs */}
+        <div className="space-y-3">
+          <h3 className="font-bold text-zinc-900 dark:text-white text-sm px-1">Program Tersedia</h3>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            </div>
+          ) : programs.length === 0 ? (
+            <div className="text-center py-12 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+              <Gift className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
+              <p className="text-zinc-500 text-sm font-medium">Tidak ada program saat ini</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {programs.map((program) => {
+                const isRegistered = myRegistrations.some(r => r.program_id === program.id);
+                // Can claim if the user's NIK is in the whitelist, OR if no whitelist policy is strictly enforced (but instruction said "Admin menentukan Whitelist", so we require whitelist Map to have it)
+                const canClaim = whitelistMap[program.id];
+
+                return (
+                  <div
+                    key={program.id}
+                    className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 shadow-sm"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 shrink-0 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400">
+                        {getProgramIcon(program.program_type)}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-zinc-900 dark:text-white leading-tight">{program.name}</h4>
+                        {program.description && (
+                          <p className="text-xs text-zinc-500 mt-1 line-clamp-2 leading-relaxed">{program.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-2 text-xs font-medium text-zinc-400">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>
+                            {program.start_date && format(new Date(program.start_date), 'dd MMM')}
+                            {' - '}
+                            {program.end_date && format(new Date(program.end_date), 'dd MMM yyyy')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                      {isRegistered ? (
+                        <div className="py-2.5 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 rounded-xl font-bold text-sm flex items-center justify-center gap-2">
+                          <CheckCircle className="w-4 h-4" />
+                          Terklaim
+                        </div>
+                      ) : canClaim ? (
+                        <button
+                          onClick={() => handleClaimProgram(program.id)}
+                          disabled={claiming === program.id}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-600/20"
+                        >
+                          {claiming === program.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Gift className="w-4 h-4" />
+                              Klaim Sekarang
+                            </>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="py-2.5 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-400 dark:text-zinc-500 rounded-xl font-medium text-sm flex items-center justify-center">
+                          Tidak Memenuhi Syarat Klaim
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Participants Modal (Admin Only) */}
-      {selectedProgram && (user?.role === 'superadmin' || user?.role === 'admin') && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => { setSelectedProgram(null); setRegisteredMembers([]); }}
-        >
-          <div 
-            className="bg-white dark:bg-zinc-900 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700 p-4 flex items-center justify-between">
-              <div>
-                <h2 className="font-black text-lg">{selectedProgram.name}</h2>
-                <p className="text-xs text-zinc-500">{registeredMembers.length} peserta terdaftar</p>
+      {/* QR Code Modal */}
+      {selectedQR && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl relative">
+            <button
+              onClick={() => setSelectedQR(null)}
+              className="absolute top-4 right-4 p-2 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+
+            <div className="p-6 pt-10 text-center">
+              <h3 className="font-black text-lg text-zinc-900 dark:text-white mb-1">{selectedQR.name}</h3>
+              <p className="text-xs text-zinc-500 mb-6">Tunjukkan QR Code ini kepada Admin</p>
+
+              <div className="bg-white p-4 rounded-2xl inline-block shadow-sm border border-zinc-100 mx-auto">
+                <QRCodeSVG
+                  value={selectedQR.code}
+                  size={200}
+                  level="H"
+                  includeMargin={false}
+                />
               </div>
-              <button 
-                onClick={() => { setSelectedProgram(null); setRegisteredMembers([]); }}
-                className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
-              >
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4 space-y-2">
-              {registeredMembers.map((reg) => (
-                <div key={reg.id} className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-sm">{reg.profiles?.name || 'Unknown'}</p>
-                    <p className="text-xs text-zinc-500">{reg.profiles?.nik || '-'}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono text-xs text-amber-600 dark:text-amber-400">{reg.kupon_code}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      reg.status === 'terdaftar' ? 'bg-green-100 text-green-700' :
-                      reg.status === 'hadir' ? 'bg-blue-100 text-blue-700' :
-                      'bg-zinc-100 text-zinc-700'
-                    }`}>
-                      {reg.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              <button
-                onClick={handleExportExcel}
-                className="w-full mt-4 py-3 bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Export Excel
-              </button>
+
+              <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                  Pastikan kecerahan layar Anda cukup untuk mempermudah proses scan.
+                </p>
+              </div>
             </div>
           </div>
         </div>
