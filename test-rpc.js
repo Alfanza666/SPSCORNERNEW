@@ -9,12 +9,12 @@ const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
-  const { data, error } = await supabase.from('auction_items').select('*').limit(1);
+  const { data, error } = await supabase.rpc('claim_auction_item', { p_item_id: '00000000-0000-0000-0000-000000000000' });
+  // It should fail with "Not authenticated" or something similar, which proves the RPC exists.
   if (error) {
-    console.error("Error accessing auction_items:", error);
-    process.exit(1);
+    console.log("RPC Error (expected):", error.message);
   } else {
-    console.log("Successfully accessed auction_items.");
+    console.log("RPC Data:", data);
   }
 }
 test();
