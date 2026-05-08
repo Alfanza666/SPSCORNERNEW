@@ -942,3 +942,28 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   RAISE LOG 'Error updating superadmin role: %', SQLERRM;
 END $$;
+-- 1. Create program_whitelist table
+CREATE TABLE IF NOT EXISTS public.program_whitelist (
+  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  program_id uuid NOT NULL REFERENCES public.union_programs(id) ON DELETE CASCADE,
+  nik text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
+  UNIQUE (program_id, nik)
+);
+
+ALTER TABLE public.program_whitelist ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='program_whitelist' AND policyname='program_whitelist_select') THEN
+    CREATE POLICY program_whitelist_select ON public.program_whitelist FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='program_whitelist' AND policyname='program_whitelist_admin') THEN
+    CREATE POLICY program_whitelist_admin ON public.program_whitelist FOR ALL USING (public.is_admin());
+  END IF;
+END $$;
+
+-- 2. Alter program_registrations to add new columns for attendance and claim
+ALTER TABLE public.program_registrations
+  ADD COLUMN IF NOT EXISTS is_attended boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS is_snack_claimed boolean DEFAULT false;

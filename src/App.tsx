@@ -77,6 +77,7 @@ const PortalPengaduan = lazyWithRetry(() => import('./pages/portal/PortalPengadu
 const PortalPengumuman = lazyWithRetry(() => import('./pages/portal/PortalPengumuman'));
 const PortalProgram = lazyWithRetry(() => import('./pages/portal/PortalProgram'));
 const PortalKritik = lazyWithRetry(() => import('./pages/portal/PortalKritik'));
+const PortalAdminScanner = lazyWithRetry(() => import('./pages/portal/PortalAdminScanner'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   // Detect ChunkLoadError: happens when a new deploy invalidates old cached JS chunks
@@ -260,6 +261,7 @@ export default function App() {
               <Route path="pengumuman" element={<PortalPengumuman />} />
               <Route path="program" element={<PortalProgram />} />
               <Route path="kritik" element={<PortalKritik />} />
+              <Route path="admin/scanner" element={<PortalAdminScanner />} />
             </Route>
 
             {/* Kiosk Routes */}
