@@ -1,0 +1,6 @@
+feat: add Lelang Aset (Flash Sale) module
+
+- Added `auction_items` and `auction_claims` tables via Supabase migration
+- Implemented `claim_auction_item` RPC for Concurrency Control with `FOR UPDATE` lock
+- Created `PortalLelang.tsx` with Tech Minimalist UI, countdown timer, and optimistic UI
+- Registered `/portal/lelang` route in App and configured `PortalLayout` title

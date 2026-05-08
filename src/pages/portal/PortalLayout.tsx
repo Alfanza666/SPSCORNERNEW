@@ -27,6 +27,7 @@ export default function PortalLayout() {
     if (path.includes('pengumuman')) return 'PENGUMUMAN SERIKAT';
     if (path.includes('program')) return 'PROGRAM SERIKAT';
     if (path.includes('kritik')) return 'KRITIK & SARAN';
+    if (path.includes('lelang')) return 'LELANG ASET';
     if (path.includes('kantin') || path.includes('kiosk')) return 'KIOSK';
     return '';
   };
