@@ -288,3 +288,5 @@ Setiap kali ada deploy baru ke Vercel, Vite generate JS chunk files dengan **has
     *   **Fix:** Menambahkan `status` dan `payment_method` dengan pencarian tipe data yang aman (menghindari undefined error pada tabel `failed_transactions`).
 *   **Error:** Supabase Query Image fetching bisa memberatkan jaringan untuk list yang sangat banyak.
     *   **Fix:** Menerapkan `select` fields spesifik ketimbang `*` (asterisk) serta native attributes `loading="lazy" decoding="async"` pada rendering DOM React image element.
+
+- **Optimization**: Mengubah loop berurutan untuk fungsi *cleanup* (N+1 query) di `server.ts` menjadi *bulk query* dan paralelisasi pemanggilan `increment_stock` dengan `Promise.all()`. Ini meningkatkan kinerja dan menyelesaikan masalah latensi ketika ada transaksi kadaluarsa yang memiliki banyak item.
