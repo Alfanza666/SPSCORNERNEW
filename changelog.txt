@@ -1,3 +1,13 @@
+## v4.6.1 — Penambahan Panduan AGENTS.md untuk Traceability
+**Tanggal: 2026-05-11**
+
+### Root Cause / Deskripsi:
+Kebutuhan untuk menjaga *traceability* dari setiap perubahan kode yang dilakukan oleh AI agen. Sebelumnya, agen tidak diwajibkan untuk mencatat perubahan yang mereka buat, sehingga sulit untuk melacak riwayat *update*.
+
+### Fix / Perubahan:
+- Menambahkan file `AGENTS.md` di *root directory*.
+- `AGENTS.md` berisi instruksi wajib bagi AI agen untuk selalu memperbarui file `changelog.txt` setiap kali ada perubahan pada *codebase*, menggunakan format Markdown yang telah ditentukan dan dalam bahasa Indonesia.
+
 # Changelog & Error History
 
 ## v4.5.18 — HOTFIX: `mdrAmount is not defined` Crash di Halaman Checkout
