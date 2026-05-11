@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
 import toast from 'react-hot-toast';
+import { Transaction } from '../../types/transaction';
 
 export default function Success() {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function Success() {
   const { user } = useAuthStore();
   const { clearCart } = useCartStore();
   const [currentTime] = useState(new Date());
-  const [transaction, setTransaction] = useState<any>(null);
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
   const queryParams = new URLSearchParams(location.search);
   const transactionId = location.state?.transactionId 
     || queryParams.get('id') 
