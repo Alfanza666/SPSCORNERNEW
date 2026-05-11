@@ -129,9 +129,7 @@ export default function Checkout() {
   const handleBack = async () => {
     if (reservations.length > 0) {
       try {
-        for (const resId of reservations) {
-          await supabase.rpc('release_stock', { p_reservation_id: resId });
-        }
+        await Promise.all(reservations.map(resId => supabase.rpc('release_stock', { p_reservation_id: resId })));
         setReservations([]);
       } catch (error) {
         console.error('Error releasing reservations on back:', error);
@@ -253,9 +251,7 @@ export default function Checkout() {
       setPaymentStep('ipaymu_direct');
 
       // 3. Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
+      await Promise.all(reservations.map(resId => supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId })));
 
     } catch (error: any) {
       console.error('Direct Payment error:', error);
@@ -327,9 +323,7 @@ export default function Checkout() {
       setPaymentStep('manual_qris');
 
       // 2. Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
+      await Promise.all(reservations.map(resId => supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId })));
 
     } catch (error: any) {
       console.error('Manual QRIS error:', error);
@@ -402,9 +396,7 @@ export default function Checkout() {
       setTransactionId(transaction.id);
 
       // Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
+      await Promise.all(reservations.map(resId => supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId })));
 
       // 2. Pay using points
       const payRes = await fetch('/api/payment/points/pay', {
@@ -602,9 +594,7 @@ export default function Checkout() {
       const { payment_url } = await ipaymuRes.json();
 
       // 3. Confirm reservations before redirecting
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
+      await Promise.all(reservations.map(resId => supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId })));
 
       // 4. Redirect to IPaymu
       window.location.href = payment_url;
