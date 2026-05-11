@@ -33,6 +33,29 @@ export default function Checkout() {
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const subtotal = getTotal();
+
+  const getValidPhone = () => {
+    // Return user.phone if valid, else guestPhone if valid, else null
+    let phoneStr = user?.phone || guestPhone;
+    if (!phoneStr) return null;
+
+    // Clean up non-digits
+    phoneStr = phoneStr.replace(/[^0-9]/g, '');
+
+    // Ensure it starts with 0 or 62 and has reasonable length
+    if (phoneStr.startsWith('62')) {
+      phoneStr = '0' + phoneStr.substring(2);
+    }
+
+    // Valid Indonesian mobile number rough check (9-13 digits, starts with 08)
+    if (phoneStr.startsWith('08') && phoneStr.length >= 9 && phoneStr.length <= 13) {
+      return phoneStr;
+    }
+
+    return null; // Invalid format
+  };
+
+
   
   // Estimasi MDR untuk tampilan UI (iPaymu menggunakan Math.ceil)
   const estimatedMdr = Math.ceil(subtotal * 0.007);
@@ -150,7 +173,7 @@ export default function Checkout() {
       const txData: any = {
         buyer_name: buyerName,
         buyer_id: user?.id || null,
-        buyer_phone: user?.phone || guestPhone || null,
+        buyer_phone: getValidPhone(),
         buyer_email: user?.email || null,
         total_amount: grandTotal,
         items: items.map(item => ({
@@ -275,7 +298,7 @@ export default function Checkout() {
         buyer_name: buyerName,
         buyer_id: user?.id || null,
         buyer_email: user?.email || null,
-        buyer_phone: user?.phone || guestPhone || null,  // [QA FIX] was missing buyer_phone
+        buyer_phone: getValidPhone(),  // [QA FIX] was missing buyer_phone
         total_amount: grandTotal, // Use same base amount for consistency
         items: items.map(item => ({
           id: item.id,
@@ -357,6 +380,7 @@ export default function Checkout() {
       const txData: any = {
         buyer_name: buyerName,
         buyer_id: user.id,
+        buyer_phone: getValidPhone(),
         buyer_email: user.email || null,
         total_amount: total,
         items: items.map(item => ({
@@ -497,6 +521,7 @@ export default function Checkout() {
       const txData: any = {
         buyer_name: buyerName,
         buyer_id: user?.id || null,
+        buyer_phone: getValidPhone(),
         buyer_email: user?.email || null,
         total_amount: getTotal(),
         items: items.map(item => ({
