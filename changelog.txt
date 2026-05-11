@@ -288,3 +288,6 @@ Setiap kali ada deploy baru ke Vercel, Vite generate JS chunk files dengan **has
     *   **Fix:** Menambahkan `status` dan `payment_method` dengan pencarian tipe data yang aman (menghindari undefined error pada tabel `failed_transactions`).
 *   **Error:** Supabase Query Image fetching bisa memberatkan jaringan untuk list yang sangat banyak.
     *   **Fix:** Menerapkan `select` fields spesifik ketimbang `*` (asterisk) serta native attributes `loading="lazy" decoding="async"` pada rendering DOM React image element.
+
+## v4.6.2 (Performance Optimization)
+- **Checkout RPC Parallelization:** Dioptimasi proses verifikasi/konfirmasi stock deduction pada file `src/pages/kiosk/Checkout.tsx` dengan menggunakan eksekusi asinkron secara paralel (Promise.all) alih-alih `for...of` secara sekuensial. Pembaruan ini secara dramatis meningkatkan kecepatan checkout (mengurangi beban blok I/O).
