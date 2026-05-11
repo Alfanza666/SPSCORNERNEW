@@ -9,6 +9,25 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useCartStore } from '../../store/useCartStore';
 import toast from 'react-hot-toast';
+interface DigitalProduct {
+  product_name: string;
+  brand: string;
+  price: number;
+  buyer_sku_code: string;
+  buyer_product_status: boolean;
+  seller_product_status: boolean;
+  desc: string;
+}
+
+interface InquiryResult {
+  name?: string;
+  customer_name?: string;
+  customer_no?: string;
+  segment_power?: string;
+  price?: number;
+  [key: string]: any;
+}
+
 
 interface DigitalCategory {
   id: string;
@@ -139,11 +158,11 @@ export default function DigitalProducts() {
   const [plnType, setPlnType] = useState<'prabayar' | 'pascabayar'>('prabayar');
   const [gameInputs, setGameInputs] = useState<Record<string, string>>({});
 
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<DigitalProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [inquiryResult, setInquiryResult] = useState<any>(null);
+  const [inquiryResult, setInquiryResult] = useState<InquiryResult | null>(null);
   const [inquiryLoading, setInquiryLoading] = useState(false);
 
   const fetchProducts = async (cat: DigitalCategory, type: 'prepaid' | 'postpaid' = 'prepaid') => {
@@ -155,21 +174,21 @@ export default function DigitalProducts() {
       });
       if (response.data.success) {
         const activeProducts = response.data.data
-          .filter((p: any) => p.buyer_product_status === true && p.seller_product_status === true)
-          .map((p: any) => ({
+          .filter((p: DigitalProduct) => p.buyer_product_status === true && p.seller_product_status === true)
+          .map((p: DigitalProduct) => ({
             ...p,
             // Tambahkan margin keuntungan Rp 2.000 untuk setiap produk prabayar
             price: type === 'prepaid' ? p.price + 2000 : p.price
           }))
-          .sort((a: any, b: any) => a.price - b.price);
+          .sort((a: DigitalProduct, b: DigitalProduct) => a.price - b.price);
         setProducts(activeProducts);
       } else {
         const errMsg = response.data.error || 'Gagal mengambil data produk dari server provider';
         toast.error(errMsg);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching digital products:', error);
-      const netErrMsg = error.response?.data?.error || error.message || 'Terjadi kesalahan jaringan saat mengambil data produk';
+      const netErrMsg = error instanceof Error ? (error as any).response?.data?.error || error.message : 'Terjadi kesalahan jaringan saat mengambil data produk';
       toast.error(netErrMsg);
     } finally {
       setLoading(false);
@@ -219,7 +238,7 @@ export default function DigitalProducts() {
     setInquiryResult(null);
     try {
       let endpoint = '/api/digital/inquiry-pasca';
-      let payload: any = { customer_no: targetNumber, buyer_sku_code: selectedBrand };
+      let payload: { customer_no: string; buyer_sku_code?: string | null } = { customer_no: targetNumber, buyer_sku_code: selectedBrand };
 
       if (selectedCategory?.id === 'pln') {
         endpoint = '/api/digital/inquiry-pln';
@@ -232,16 +251,16 @@ export default function DigitalProducts() {
       } else {
         toast.error(response.data.error || 'Data tagihan tidak ditemukan. Pastikan nomor/ID benar.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Inquiry error:', error);
-      const netErrMsg = error.response?.data?.error || error.message || 'Gagal melakukan pengecekan tagihan, silakan coba lagi.';
+      const netErrMsg = error instanceof Error ? (error as any).response?.data?.error || error.message : 'Gagal melakukan pengecekan tagihan, silakan coba lagi.';
       toast.error(netErrMsg);
     } finally {
       setInquiryLoading(false);
     }
   };
 
-  const handleBuyPrepaid = (product: any) => {
+  const handleBuyPrepaid = (product: DigitalProduct) => {
     let finalTarget = targetNumber;
     if (selectedCategory?.id === 'game' && selectedBrand) {
       finalTarget = getCombinedTargetNumber(selectedBrand, gameInputs);
