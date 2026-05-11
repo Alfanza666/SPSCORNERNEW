@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, RefreshCcw } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -122,7 +123,7 @@ export default function RefundPolicy() {
           
           <div 
             className="prose prose-zinc dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
           />
         </motion.div>
       </main>
