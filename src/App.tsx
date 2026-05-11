@@ -160,8 +160,9 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         fetchProfile(session.user.id);
+      } else {
+        setUser(null);
       }
-      // Jangan set user null di awal - biarkan state existing tetap sampai yakin logout
     });
 
     const {
