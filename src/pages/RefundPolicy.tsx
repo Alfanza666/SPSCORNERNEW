@@ -4,6 +4,7 @@ import { ArrowLeft, ShieldCheck, RefreshCcw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import Logo from '../components/ui/logo-utama.png';
+import DOMPurify from 'dompurify';
 
 export default function RefundPolicy() {
   const navigate = useNavigate();
@@ -122,7 +123,7 @@ export default function RefundPolicy() {
           
           <div 
             className="prose prose-zinc dark:prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: content }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }}
           />
         </motion.div>
       </main>
