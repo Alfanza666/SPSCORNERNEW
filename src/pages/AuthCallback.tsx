@@ -61,24 +61,14 @@ export default function AuthCallback() {
         setStatus('Memeriksa kelengkapan profil...');
 
         // Fetch the profile record (created by DB trigger on first Google sign-in)
-        // [QA FIX] Retry up to 3x — trigger may have race condition on very first sign-in
-        let profile: any = null;
-        let profileError: any = null;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const result = await supabase
-            .from('profiles')
-            .select('id, role, name, nik, phone, balance, loyalty_points')
-            .eq('id', session.user.id)
-            .single();
-          if (!result.error && result.data) {
-            profile = result.data;
-            break;
-          }
-          profileError = result.error;
-          if (attempt < 2) await new Promise(r => setTimeout(r, 1000)); // wait 1s before retry
-        }
+        let { data: profile } = await supabase
+          .from('profiles')
+          .select('id, role, name, nik, phone, balance, loyalty_points')
+          .eq('id', session.user.id)
+          .single();
 
-        // If still not found after retries, create a base profile so user isn't blocked
+        // If not found, attempt to insert a base profile so user isn't blocked.
+        // It's possible the trigger is delayed, so if insert fails, we try fetching again.
         if (!profile) {
           const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Pengguna Baru';
           const { data: insertedProfile, error: insertError } = await supabase
@@ -94,9 +84,20 @@ export default function AuthCallback() {
             .single();
 
           if (insertError || !insertedProfile) {
-            throw new Error('Gagal membuat profil. Silakan hubungi admin.');
+            // Trigger might have created it while we were trying to insert
+            const { data: retryProfile } = await supabase
+              .from('profiles')
+              .select('id, role, name, nik, phone, balance, loyalty_points')
+              .eq('id', session.user.id)
+              .single();
+
+            if (!retryProfile) {
+              throw new Error('Gagal membuat profil. Silakan hubungi admin.');
+            }
+            profile = retryProfile;
+          } else {
+            profile = insertedProfile;
           }
-          profile = insertedProfile;
         }
 
         // Pre-fill form from Google data
