@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '../../../lib/supabase';
 import { formatRupiah } from '../../../lib/utils';
 import { useAuthStore } from '../../../store/useAuthStore';
-import Papa from 'papaparse';
+import * as Papa from 'papaparse';
 import { 
   Package, 
   Trash2, 
@@ -25,14 +25,23 @@ import {
   Database
 } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, ProductSkeleton } from '../../../components/ui/Skeleton';
+import { Product } from '../../../store/useCartStore';
+
+interface Category {
+  id: string;
+  name: string;
+  is_digital?: boolean;
+  created_at?: string;
+}
+
 
 export default function AdminProducts() {
   const { user } = useAuthStore();
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [importingCSV, setImportingCSV] = useState(false);
@@ -48,7 +57,7 @@ export default function AdminProducts() {
       skipEmptyLines: true,
       complete: async (results) => {
         try {
-          const productsToInsert = results.data.map((row: any) => ({
+          const productsToInsert = results.data.map((row: Record<string, unknown>) => ({
             seller_id: user.id, // Admin acts as seller for these products
             name: row.name || row.Nama || row.Produk || '',
             description: row.description || row.Deskripsi || '',
@@ -57,7 +66,7 @@ export default function AdminProducts() {
             category: row.category || row.Kategori || 'Sariroti',
             image_url: row.image_url || row.Gambar || '',
             is_active: true
-          })).filter((p: any) => p.name && p.price > 0);
+          })).filter((p: { name: unknown; price: number }) => p.name && p.price > 0);
 
           if (productsToInsert.length === 0) {
             toast.error('Tidak ada data valid yang ditemukan di file CSV. Pastikan ada kolom name, price, stock, category.');
@@ -70,9 +79,9 @@ export default function AdminProducts() {
 
           toast.success(`Berhasil mengimpor ${productsToInsert.length} produk!`);
           fetchProducts();
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('Error importing CSV:', error);
-          toast.error(`Gagal mengimpor CSV: ${error.message}`);
+          toast.error(`Gagal mengimpor CSV: ${error instanceof Error ? error.message : "Unknown error"}`);
         } finally {
           setImportingCSV(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -215,9 +224,9 @@ export default function AdminProducts() {
 
       toast.success(`Berhasil menambahkan ${productsToInsert.length} produk Sariroti!`);
       fetchProducts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error seeding products:', error);
-      toast.error(`Gagal menambahkan produk: ${error.message}`);
+      toast.error(`Gagal menambahkan produk: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setLoading(false);
     }
@@ -268,19 +277,19 @@ export default function AdminProducts() {
       if (error) throw error;
       if (!data) return;
 
-      const uniqueProductsMap = new Map<string, any>();
+      const uniqueProductsMap = new Map<string, Product>();
       const idsToDelete: string[] = [];
 
       data.forEach(p => {
         const normalizedName = p.name.trim().toLowerCase();
         if (!uniqueProductsMap.has(normalizedName)) {
-          uniqueProductsMap.set(normalizedName, p);
+          uniqueProductsMap.set(normalizedName, p as Product);
         } else {
           const existing = uniqueProductsMap.get(normalizedName);
           // Keep the one with more stock, delete the other
           if (existing.stock < p.stock) {
             idsToDelete.push(existing.id);
-            uniqueProductsMap.set(normalizedName, p);
+            uniqueProductsMap.set(normalizedName, p as Product);
           } else {
             idsToDelete.push(p.id);
           }
@@ -299,9 +308,9 @@ export default function AdminProducts() {
       } else {
         toast.success('Tidak ada produk duplikat ditemukan.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error cleaning up duplicates:', error);
-      toast.error(`Gagal membersihkan duplikat: ${error.message}`);
+      toast.error(`Gagal membersihkan duplikat: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setLoading(false);
     }
@@ -351,9 +360,9 @@ export default function AdminProducts() {
       
       setEditingProduct(null);
       fetchProducts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating product:', error);
-      toast.error(`Gagal memperbarui produk: ${error.message}`);
+      toast.error(`Gagal memperbarui produk: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setLoading(false);
     }
@@ -382,7 +391,7 @@ export default function AdminProducts() {
 
       // Create local preview immediately
       const objectUrl = URL.createObjectURL(file);
-      setEditingProduct((prev: any) => ({ ...prev, image_url: objectUrl }));
+      setEditingProduct((prev: Product | null) => ({ ...prev, image_url: objectUrl }));
 
       if (file.size > 2 * 1024 * 1024) {
         throw new Error('Ukuran file terlalu besar. Maksimal 2MB.');
@@ -424,10 +433,10 @@ export default function AdminProducts() {
         .from('products')
         .getPublicUrl(filePath);
 
-      setEditingProduct((prev: any) => ({ ...prev, image_url: publicUrl }));
-    } catch (error: any) {
+      setEditingProduct((prev: Product | null) => ({ ...prev, image_url: publicUrl }));
+    } catch (error: unknown) {
       console.error('Error uploading image:', error);
-      setImageError(`Gagal mengunggah gambar: ${error.message}`);
+      setImageError(`Gagal mengunggah gambar: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setUploadingImage(false);
     }
@@ -444,9 +453,9 @@ export default function AdminProducts() {
       
       fetchProducts();
       toast.success('Produk berhasil dihapus');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting product:', error);
-      toast.error(`Gagal menghapus produk: ${error.message}`);
+      toast.error(`Gagal menghapus produk: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
