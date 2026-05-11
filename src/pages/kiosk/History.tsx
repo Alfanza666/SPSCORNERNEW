@@ -1,3 +1,4 @@
+import { Transaction, TransactionItem } from '../../types/transaction';
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -6,31 +7,6 @@ import { formatRupiah } from '../../lib/utils';
 import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCircle, ArrowLeft, Search, X, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-
-interface TransactionItem {
-  id: string;
-  product_id: string;
-  quantity: number;
-  price: number;
-  subtotal: number;
-  status?: string;
-  metadata?: any;
-  products: {
-    name: string;
-    image_url: string;
-    category: string;
-  };
-}
-
-interface Transaction {
-  id: string;
-  created_at: string;
-  total_amount: number;
-  status: string;
-  receipt_image: string;
-  pickup_code?: string;
-  transaction_items: TransactionItem[];
-}
 
 export default function History() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
