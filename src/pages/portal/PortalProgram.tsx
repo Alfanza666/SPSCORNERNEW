@@ -211,4 +211,83 @@ export default function PortalProgram() {
             return (
               <div key={program.id} className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex
+                  <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-600">
+                    {program.is_targeted ? <Users className="w-6 h-6"/> : <Calendar className="w-6 h-6"/>}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-zinc-900 dark:text-white">{program.name}</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{program.description}</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  {isRegistered ? (
+                    <button disabled className="w-full py-2 bg-green-500 text-white rounded-lg font-bold flex items-center justify-center gap-2 opacity-80 cursor-not-allowed">
+                      <CheckCircle className="w-4 h-4" /> Sudah Terdaftar
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleOpenForm(program)}
+                      disabled={claiming === program.id}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                    >
+                      {claiming === program.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Daftar Sekarang"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* MODAL: FORMULIR DINAMIS */}
+      {activeFormProgram && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="font-black text-lg mb-2">{activeFormProgram.name}</h2>
+            <p className="text-xs text-zinc-500 mb-6">Harap isi formulir berikut untuk menyelesaikan pendaftaran.</p>
+            
+            <form onSubmit={(e) => { e.preventDefault(); executeClaim(activeFormProgram.id, formAnswers, extraFamily); }} className="space-y-4">
+              
+              {/* Loop Pertanyaan dari Admin */}
+              {activeFormProgram.form_config?.map((field: any) => (
+                <div key={field.id}>
+                  <label className="block text-xs font-bold mb-1">
+                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                  </label>
+                  {renderDynamicField(field)}
+                </div>
+              ))}
+
+              {/* Opsi Tambahan Keluarga */}
+              <div className="p-4 mt-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                <label className="block text-xs font-bold text-amber-800 dark:text-amber-300 mb-2">
+                  Bawa Anggota Keluarga Tambahan? (Biaya: Rp 50.000 / orang)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="number" min="0" value={extraFamily} 
+                    onChange={(e) => setExtraFamily(parseInt(e.target.value) || 0)}
+                    className="w-24 p-2 rounded-lg border text-center dark:bg-zinc-900 dark:border-amber-800"
+                  />
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                    Total: Rp {(extraFamily * 50000).toLocaleString('id-ID')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button type="button" onClick={() => setActiveFormProgram(null)} className="flex-1 py-3 bg-zinc-200 dark:bg-zinc-800 font-bold rounded-xl text-zinc-700 dark:text-zinc-300">
+                  Batal
+                </button>
+                <button type="submit" disabled={claiming !== null} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl flex justify-center items-center">
+                  {claiming ? <Loader2 className="w-5 h-5 animate-spin"/> : "Submit"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
