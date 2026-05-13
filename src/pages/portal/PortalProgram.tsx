@@ -146,16 +146,17 @@ export default function PortalProgram() {
   if (!user) return <Navigate to="/login" />;
 
   return (
-    <div className="min-h-screen bg-[#e8ebf2] dark:bg-zinc-950 p-4">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-4 pb-8">
+      <div className="max-w-md mx-auto space-y-4">
 
       {myRegistrations.length > 0 && (
-        <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 mb-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800 shadow-sm">
           <h3 className="font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
             <QrCode className="w-5 h-5 text-blue-600" /> Tiket & Tanda Terima
           </h3>
           <div className="space-y-3">
             {myRegistrations.map((reg) => (
-              <div key={reg.id} className="p-4 bg-gradient-to-r from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10 rounded-xl border border-blue-100 dark:border-blue-900/30">
+              <div key={reg.id} className="p-4 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-xl border border-blue-100 dark:border-blue-900/30">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-black text-blue-900 dark:text-blue-100 text-lg">
@@ -163,7 +164,7 @@ export default function PortalProgram() {
                     </p>
                     <p className="text-sm font-medium text-blue-700 dark:text-blue-300">NIK: {profile?.nik}</p>
                   </div>
-                  <div className="text-center bg-white dark:bg-zinc-950 px-4 py-2 rounded-lg border border-blue-200 dark:border-blue-800 shadow-inner">
+                  <div className="text-center bg-zinc-50 dark:bg-zinc-800 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700">
                     <p className="text-[10px] uppercase font-bold text-zinc-500">Kode Scan</p>
                     <p className="font-mono font-black text-blue-600 dark:text-blue-400">{reg.kupon_code}</p>
                   </div>
@@ -193,9 +194,9 @@ export default function PortalProgram() {
           {programs.map((program) => {
             const isRegistered = myRegistrations.some(r => r.program_id === program.id);
             return (
-              <div key={program.id} className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800">
+              <div key={program.id} className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
                 <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-600">
+                  <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center text-amber-600">
                     {program.is_targeted ? <Users className="w-6 h-6" /> : <Calendar className="w-6 h-6" />}
                   </div>
                   <div className="flex-1">
@@ -212,7 +213,7 @@ export default function PortalProgram() {
                     <button
                       onClick={() => handleOpenForm(program)}
                       disabled={claiming === program.id}
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                      className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl font-bold flex items-center justify-center gap-2"
                     >
                       {claiming === program.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ikuti Program"}
                     </button>

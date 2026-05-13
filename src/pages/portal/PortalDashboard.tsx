@@ -16,13 +16,52 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface PortalStats {
   totalMembers: number;
   activePrograms: number;
   pendingFeedback: number;
 }
+
+const MENU_ITEMS = [
+  {
+    id: 'pengaduan',
+    title: 'Pengaduan & Pembelaan',
+    description: 'Sampaikan masalah dengan aman',
+    icon: Shield,
+    color: 'from-red-500 to-red-600',
+    href: '/portal/pengaduan',
+    available: true
+  },
+  {
+    id: 'pengumuman',
+    title: 'Pengumuman Serikat',
+    description: 'Info terbaru dari manajemen',
+    icon: Megaphone,
+    color: 'from-blue-500 to-blue-600',
+    href: '/portal/pengumuman',
+    available: true
+  },
+  {
+    id: 'program',
+    title: 'Program Serikat',
+    description: 'Kupon, Kurban, Gathering',
+    icon: Gift,
+    color: 'from-amber-500 to-amber-600',
+    href: '/portal/program',
+    available: true
+  },
+  {
+    id: 'kritik',
+    title: 'Kritik & Saran',
+    description: 'Untuk meeting bipartit',
+    icon: MessageSquare,
+    color: 'from-purple-500 to-purple-600',
+    href: '/portal/kritik',
+    available: true
+  }
+];
 
 export default function PortalDashboard() {
   const { user } = useAuthStore();
@@ -54,12 +93,10 @@ export default function PortalDashboard() {
     navigate(path);
   };
 
-  // [FIX] Jangan redirect saat auth masih loading — tunggu session Supabase selesai
-  // Cek isLoading dari store untuk mencegah flicker / false redirect
   const { isLoading } = useAuthStore();
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -69,217 +106,206 @@ export default function PortalDashboard() {
     return <Navigate to="/login" replace />;
   }
 
-  const menuItems = [
-    {
-      id: 'pengaduan',
-      title: 'Pengaduan & Pembelaan',
-      description: 'Sampaikan masalah dengan aman',
-      icon: Shield,
-      color: 'bg-red-500',
-      href: '/portal/pengaduan',
-      available: true
-    },
-    {
-      id: 'pengumuman',
-      title: 'Pengumuman Serikat',
-      description: 'Info terbaru dari manajemen',
-      icon: Megaphone,
-      color: 'bg-blue-500',
-      href: '/portal/pengumuman',
-      available: true
-    },
-    {
-      id: 'program',
-      title: 'Program Serikat',
-      description: 'Kupon, Kurban, Gathering',
-      icon: Gift,
-      color: 'bg-amber-500',
-      href: '/portal/program',
-      available: true
-    },
-    {
-      id: 'kritik',
-      title: 'Kritik & Saran',
-      description: 'Untuk meeting bipartit',
-      icon: MessageSquare,
-      color: 'bg-purple-500',
-      href: '/portal/kritik',
-      available: true
-    }
-  ];
-
   return (
-    <div className="bg-[#e8ebf0] dark:bg-zinc-950 pb-8">
-      {/* BANNER - Judul Page (PORTAL SERIKAT) + Bell + Profile */}
-      <div className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800">
-        <div className="px-4 py-3">
+    <div className="bg-zinc-50 dark:bg-zinc-950 pb-8">
+      {/* HEADER */}
+      <div className="bg-zinc-900 dark:bg-zinc-900 border-b border-zinc-800">
+        <div className="max-w-md mx-auto px-4 py-3">
           <div className="flex items-center justify-between relative">
+            <h1 className="text-lg font-black text-white uppercase tracking-widest">
+              Portal Serikat
+            </h1>
 
-            {/* JUDUL PAGE MENGGANTIKAN POSISI LOGO */}
-            <div className="flex items-center pointer-events-none">
-              <h1 className="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-widest">
-                PORTAL SERIKAT
-              </h1>
-            </div>
-
-            {/* Kontrol Notifikasi & Profil */}
             <div className="flex items-center gap-2">
               <div className="relative">
-                <button 
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleBellClick}
-                  className="relative p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800"
+                  className="relative p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-colors"
                 >
-                  <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
+                  <Bell className="w-5 h-5 text-zinc-400" />
                   {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                       {unreadCount}
                     </span>
                   )}
-                </button>
+                </motion.button>
 
-{/* Notification Dropdown - sama pattern dg KioskLayout */}
-                {showNotifMenu && (
-                  <div className="absolute right-0 top-12 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 z-[100] overflow-hidden">
-                    <div className="p-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                      <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Notifikasi</p>
-                      {unreadCount > 0 && (
-                        <button 
-                          onClick={markAllAsRead}
-                          className="text-[10px] font-black text-blue-600 hover:text-blue-700"
-                        >
-                          Tandai Semua Dibaca
-                        </button>
-                      )}
-                    </div>
-                    <div className="max-h-72 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <p className="text-center text-zinc-400 text-xs font-medium py-6">Tidak ada notifikasi baru</p>
-                      ) : (
-                        notifications.filter(n => !n.isRead).slice(0, 10).map(n => (
+                <AnimatePresence>
+                  {showNotifMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 z-[100] overflow-hidden"
+                    >
+                      <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                        <p className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Notifikasi</p>
+                        {unreadCount > 0 && (
                           <button
-                            key={n.id}
-                            onClick={() => handleNotifClick(n.path)}
-                            className="w-full text-left p-3 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-l-4 bg-zinc-50 dark:bg-zinc-800/50 border-l-zinc-300 dark:border-l-zinc-600"
+                            onClick={markAllAsRead}
+                            className="text-xs font-bold text-blue-600 hover:text-blue-700"
                           >
-                            <p className="text-xs font-black text-zinc-900 dark:text-white leading-snug">{n.title}</p>
-                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{n.message}</p>
+                            Tandai Semua Dibaca
                           </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+                        )}
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <p className="text-center text-zinc-400 text-xs font-medium py-8">Tidak ada notifikasi</p>
+                        ) : (
+                          notifications.filter(n => !n.isRead).slice(0, 10).map(n => (
+                            <motion.button
+                              key={n.id}
+                              initial={{ x: -10, opacity: 0 }}
+                              animate={{ x: 0, opacity: 1 }}
+                              onClick={() => handleNotifClick(n.path)}
+                              className="w-full text-left p-4 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors border-l-4 bg-zinc-50/50 dark:bg-zinc-800/30 border-l-blue-400"
+                            >
+                              <p className="text-sm font-bold text-zinc-900 dark:text-white leading-snug">{n.title}</p>
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{n.message}</p>
+                              <p className="text-[10px] text-zinc-400 mt-1">{n.created_at ? format(new Date(n.created_at), 'dd MMM, HH:mm') : ''}</p>
+                            </motion.button>
+                          ))
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <button
+              <motion.button
+                whileTap={{ scale: 0.95 }}
                 onClick={() => { setShowProfileMenu(!showProfileMenu); setShowNotifMenu(false); }}
-                className="flex items-center gap-2 p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800"
+                className="flex items-center gap-2 p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-colors"
               >
-                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <UserIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  <UserIcon className="w-4 h-4 text-white" />
                 </div>
                 <ChevronRight className={`w-4 h-4 text-zinc-400 transition-transform ${showProfileMenu ? 'rotate-90' : ''}`} />
-              </button>
+              </motion.button>
             </div>
 
-            {/* Profile Dropdown */}
-            {showProfileMenu && (
-              <div className="absolute right-0 top-[60px] bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 p-2 z-50 min-w-[200px]">
-                <div className="p-3 border-b border-zinc-100 dark:border-zinc-700">
-                  <p className="font-bold text-zinc-900 dark:text-white">{user.name}</p>
-                  <p className="text-xs text-zinc-500">{user.nik || '-'}</p>
-                  <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-full capitalize">
-                    {user.role}
-                  </span>
-                </div>
-                <button
-                  onClick={() => { handleSignOut(); setShowProfileMenu(false); }}
-                  className="w-full p-3 text-left hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-bold text-red-600"
+            <AnimatePresence>
+              {showProfileMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute right-0 top-[60px] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 z-50 min-w-[220px] overflow-hidden"
                 >
-                  <LogOut className="w-4 h-4 inline mr-2" />
-                  Keluar
-                </button>
-              </div>
-            )}
+                  <div className="p-4 border-b border-zinc-100 dark:border-zinc-800">
+                    <p className="font-bold text-zinc-900 dark:text-white">{user.name}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{user.nik || '-'}</p>
+                    <span className="inline-block mt-2 px-2.5 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-xl capitalize">
+                      {user.role}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { handleSignOut(); setShowProfileMenu(false); }}
+                    className="w-full p-4 text-left hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-bold text-red-600 flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Keluar
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
 
-      {/* Main Dashboard Content */}
-      <div className="p-4 space-y-4">
+      {/* Main Content */}
+      <div className="max-w-md mx-auto px-4 pt-4 space-y-4">
         {/* Welcome Card */}
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-5 text-white">
-          <h2 className="text-xl font-black mb-1">Selamat Datang, {user.name.split(' ')[0]}! 👋</h2>
-          <p className="text-blue-100 text-sm">Pilih menu di bawah untuk memulai</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring' }}
+            className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mb-4"
+          >
+            <Shield className="w-7 h-7 text-white" />
+          </motion.div>
+          <h2 className="text-2xl font-black mb-2">Selamat Datang, {user.name.split(' ')[0]}!</h2>
+          <p className="text-blue-100 text-sm">Pilih menu di bawah untuk mengakses layanan Serikat</p>
+        </motion.div>
 
         {/* Stats Row */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 text-center">
-            <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{stats.totalMembers}</p>
-            <p className="text-xs text-zinc-500 font-bold">Anggota</p>
-          </div>
-          <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 text-center">
-            <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{stats.activePrograms}</p>
-            <p className="text-xs text-zinc-500 font-bold">Program Aktif</p>
-          </div>
-          <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 text-center">
-            <p className="text-2xl font-black text-purple-600 dark:text-purple-400">{stats.pendingFeedback}</p>
-            <p className="text-xs text-zinc-500 font-bold">Feedback Baru</p>
-          </div>
+          {[
+            { label: 'Anggota', value: stats.totalMembers, color: 'from-blue-500 to-blue-600' },
+            { label: 'Program Aktif', value: stats.activePrograms, color: 'from-amber-500 to-amber-600' },
+            { label: 'Feedback Baru', value: stats.pendingFeedback, color: 'from-purple-500 to-purple-600' }
+          ].map((stat, idx) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className="bg-white dark:bg-zinc-900 rounded-2xl p-4 text-center shadow-sm border border-zinc-100 dark:border-zinc-800"
+            >
+              <p className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{stat.value}</p>
+              <p className="text-xs text-zinc-500 font-semibold mt-1">{stat.label}</p>
+            </motion.div>
+          ))}
         </div>
 
         {/* Menu Grid */}
         <div className="grid grid-cols-2 gap-4">
-          {menuItems.map((item) => (
+          {MENU_ITEMS.map((item, idx) => (
             <motion.button
               key={item.id}
-              onClick={() => navigate(item.href)}
-              whileHover={{ scale: 1.02 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl p-5 text-left shadow-sm border border-zinc-100 dark:border-zinc-800 hover:shadow-md transition-all group"
+              onClick={() => navigate(item.href)}
+              className="bg-white dark:bg-zinc-900 rounded-3xl p-5 text-left shadow-sm border border-zinc-100 dark:border-zinc-800 hover:shadow-xl hover:shadow-blue-500/10 transition-all group relative overflow-hidden"
             >
-              <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                <item.icon className="w-6 h-6 text-white" />
+              <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-5 transition-opacity`} />
+              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500`}>
+                <item.icon className="w-7 h-7 text-white" />
               </div>
-              <h3 className="font-black text-zinc-900 dark:text-white mb-1">{item.title}</h3>
+              <h3 className="font-black text-zinc-900 dark:text-white mb-1 text-sm">{item.title}</h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{item.description}</p>
-              {item.id === 'program' && stats.activePrograms > 0 && (
-                <span className="inline-block mt-2 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
-                  {stats.activePrograms} Program Aktif
-                </span>
-              )}
-              {item.id === 'kritik' && stats.pendingFeedback > 0 && (
-                <span className="inline-block mt-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
-                  {stats.pendingFeedback} Belum Diproses
-                </span>
-              )}
             </motion.button>
           ))}
         </div>
 
         {/* Quick Actions */}
         {(user.role === 'superadmin' || user.role === 'admin') && (
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-700">
-            <h3 className="font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-zinc-500" />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800"
+          >
+            <h3 className="font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2 text-sm">
+              <AlertCircle className="w-4 h-4 text-amber-500" />
               Akses Cepat Admin
             </h3>
             <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => navigate('/dashboard/admin')}
-                className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-              >
-                Dashboard Admin
-              </button>
-              <button
-                onClick={() => navigate('/dashboard/admin/union-programs')}
-                className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-              >
-                Program Serikat
-              </button>
+              {[
+                { label: 'Dashboard Admin', href: '/dashboard/admin' },
+                { label: 'Program Serikat', href: '/dashboard/admin/union-programs' }
+              ].map(action => (
+                <motion.button
+                  key={action.href}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate(action.href)}
+                  className="px-4 py-2.5 bg-gradient-to-r from-zinc-100 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:from-blue-100 hover:to-indigo-50 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/20 transition-all border border-zinc-200 dark:border-zinc-700"
+                >
+                  {action.label}
+                </motion.button>
+              ))}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

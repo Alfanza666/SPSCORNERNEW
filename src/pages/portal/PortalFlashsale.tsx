@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Zap, Tag, Loader2, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { motion } from 'motion/react';
 
 export default function PortalFlashsale() {
   const { user } = useAuthStore();
@@ -47,11 +48,16 @@ export default function PortalFlashsale() {
   };
 
   return (
-    <div className="min-h-screen bg-[#e8ebf2] dark:bg-zinc-950 p-4">
-      <div className="bg-red-600 rounded-2xl p-6 text-white mb-6 shadow-lg shadow-red-600/30">
-        <h2 className="font-black text-2xl flex items-center gap-2"><Zap className="fill-white"/> SPS Flashsale Aset</h2>
-        <p className="text-sm text-red-100">Lelang aset perusahaan. Siapa Cepat, Dia Dapat!</p>
-      </div>
+    <div className="bg-zinc-50 dark:bg-zinc-950 p-4 pb-8">
+      <div className="max-w-md mx-auto space-y-4">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-red-600 to-red-700 rounded-3xl p-6 text-white shadow-xl shadow-red-500/30"
+        >
+          <h2 className="font-black text-2xl flex items-center gap-3"><Zap className="fill-white"/> SPS Flashsale Aset</h2>
+          <p className="text-sm text-red-100 mt-1">Lelang aset perusahaan. Siapa Cepat, Dia Dapat!</p>
+        </motion.div>
 
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-red-500"/></div>

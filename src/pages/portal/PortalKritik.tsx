@@ -127,92 +127,102 @@ export default function PortalKritik() {
   if (!user) return <Navigate to="/login" />;
 
   return (
-    <div className="min-h-screen bg-[#e8ebf2] dark:bg-zinc-950">
-      <div className="p-4 space-y-4">
+    <div className="bg-zinc-50 dark:bg-zinc-950">
+      <div className="max-w-md mx-auto p-4 pb-8 space-y-4">
         {/* Submit Form */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700">
-          <h3 className="font-bold text-zinc-900 dark:text-white mb-3">Kirim Kritik/Saran</h3>
-          <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 shadow-sm">
+          <h3 className="font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-purple-600" />
+            Kirim Kritik/Saran
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-zinc-500 mb-1">Jenis</label>
-              <div className="flex gap-2">
+              <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2">Jenis</label>
+              <div className="grid grid-cols-2 gap-2">
                 {(['saran', 'kritik'] as const).map((type) => (
-                  <button
+                  <motion.button
                     key={type}
+                    whileTap={{ scale: 0.95 }}
                     type="button"
                     onClick={() => setFormData({ ...formData, type })}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${
+                    className={`py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
                       formData.type === type
-                        ? 'bg-purple-600 text-white'
-                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg'
+                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                     }`}
                   >
                     {getTypeIcon(type)}
-                    <span className="ml-1">{getTypeLabel(type)}</span>
-                  </button>
+                    <span>{getTypeLabel(type)}</span>
+                  </motion.button>
                 ))}
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-zinc-500 mb-1">Judul</label>
+              <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2">Judul</label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="input-clay w-full"
+                className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
                 placeholder="Ringkasan kritik/saran Anda"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-zinc-500 mb-1">Detail</label>
+              <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2">Detail</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="input-clay w-full h-24"
+                className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-sm focus:ring-2 focus:ring-purple-500 outline-none h-28 resize-none"
                 placeholder="Jelaskan detail kritik/saran Anda secara lengkap..."
                 required
               />
             </div>
 
-            <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg">
-              <p className="text-xs text-purple-700 dark:text-purple-300">
+            <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10 p-4 rounded-xl">
+              <p className="text-xs text-purple-700 dark:text-purple-300 leading-relaxed">
                 <strong>Catatan:</strong> Kritik dan saran Anda akan diproses oleh manajemen untuk perbaikan di meeting bipartit berikutnya. Identitas Anda akan dirahasiakan.
               </p>
             </div>
 
-            <button
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={submitting}
-              className="btn-clay-primary w-full"
+              className="w-full py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50"
             >
               {submitting ? (
-                <Loader2 className="w-4 h-4 inline mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Send className="w-4 h-4 inline mr-2" />
+                <Send className="w-4 h-4" />
               )}
               Kirim Kritik/Saran
-            </button>
+            </motion.button>
           </form>
         </div>
 
         {/* My Feedback History */}
-        <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700">
-          <h3 className="font-bold text-zinc-900 dark:text-white mb-3">Riwayat Kritik/Saran</h3>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800 shadow-sm">
+          <h3 className="font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-zinc-500" />
+            Riwayat Kritik/Saran
+          </h3>
           
           {loading ? (
-            <div className="text-center py-4 text-zinc-400">Memuat...</div>
+            <div className="flex justify-center py-6">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+            </div>
           ) : feedbacks.length === 0 ? (
-            <div className="text-center py-4 text-zinc-400 text-sm">
+            <div className="text-center py-6 text-zinc-400 font-medium">
               Anda belum pernah mengirim kritik/saran
             </div>
           ) : (
             <div className="space-y-3">
               {feedbacks.map((feedback) => (
-                <div key={feedback.id} className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                <div key={feedback.id} className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                  <div className="flex items-start justify-between gap-2 mb-3">
                     <div className="flex items-center gap-2">
                       {getTypeIcon(feedback.type)}
                       <span className="font-bold text-sm text-zinc-900 dark:text-white">
@@ -222,19 +232,17 @@ export default function PortalKritik() {
                     {getStatusBadge(feedback.status)}
                   </div>
                   <h4 className="font-bold text-sm text-zinc-800 dark:text-zinc-200">{feedback.title}</h4>
-                  <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{feedback.description}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{feedback.description}</p>
                   
-                  <div className="flex items-center justify-between mt-2 text-xs text-zinc-400">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {format(new Date(feedback.created_at), 'dd MMM yyyy')}
-                    </span>
+                  <div className="flex items-center mt-3 text-xs text-zinc-400">
+                    <Clock className="w-3.5 h-3.5 mr-1" />
+                    {format(new Date(feedback.created_at), 'dd MMM yyyy')}
                   </div>
 
                   {feedback.response && (
-                    <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                    <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
                       <p className="text-xs font-bold text-green-600 dark:text-green-400">Respons:</p>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-300">{feedback.response}</p>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-300 mt-1">{feedback.response}</p>
                     </div>
                   )}
                 </div>

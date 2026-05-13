@@ -1,11 +1,17 @@
 # Changelog & Error History
 
-## v4.6.7 — MINOR: Documentation Revision & Default Page Adjustment
+## v4.6.7 — MINOR: UI/UX Enhancement, Interactive Guide & Portal Consistency
 **Tanggal: 2026-05-14**
 
-### Perubahan UI Kiosk:
-- **[UPDATE] Katalog Tabs:** Tab menu di `/kiosk` disesuaikan dengan kebutuhan operasional (nama tab bisa berbeda dari default).
-- **[UPDATE] Default Page:** Kantin menjadi halaman default saat membuka Kiosk.
+### Perubahan UI/UX:
+- **[ENHANCEMENT] InteractiveGuide.tsx:** Upgrade dengan animasi spotlight, pulse effect, hand pointer animation, gradient tooltip, progress bar visual.
+- **[ENHANCEMENT] PortalDashboard.tsx:** Rapiarkan struktur, tambahkan gradient welcome card, responsive stats grid, motion animations.
+- **[ENHANCEMENT] PortalLayout.tsx:** konsistensi dengan main app, motion animations, dropdown menu dengan backdrop.
+- **[ENHANCEMENT] PortalProgram.tsx:** Design consistency (rounded-2xl, shadow-sm, gradient backgrounds).
+- **[ENHANCEMENT] PortalPengumuman.tsx:** Motion animations, modal upgrade dengan backdrop blur, empty state improvement.
+- **[ENHANCEMENT] PortalKritik.tsx:** Design consistency, motion buttons, gradient accents, responsive spacing.
+- **[ENHANCEMENT] PortalPengaduan.tsx:** Design consistency, motion buttons, gradient info box.
+- **[ENHANCEMENT] PortalFlashsale.tsx:** Motion animation wrapper, max-width container.
 
 ### Dokumentasi (PANDUAN_SPS_CORNER.md):
 - **[UPDATE] Terminologi:** Semua "Kopi" diganti menjadi "Koperasi" (merujuk pada produk Sariroti/bengkel roti, bukan kopi minuman).
