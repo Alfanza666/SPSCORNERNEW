@@ -1,308 +1,263 @@
-import React, { useEffect, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ErrorBoundary } from 'react-error-boundary';
-import { Toaster } from 'react-hot-toast';
-import { supabase } from './lib/supabase';
-import { useAuthStore } from './store/useAuthStore';
-import Tutorial from './components/Tutorial';
-import PWAInstallPrompt from './components/PWAInstallPrompt';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+import { Plus, Trash2, Loader2, ListPlus } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-// ── Helper: Lazy load with automatic retry (fixes ChunkLoadError after new deploy) ──
-function lazyWithRetry(importFn: () => Promise<any>) {
-  return React.lazy(() =>
-    importFn().catch(async (err) => {
-      if (!err?.message?.includes('dynamically imported')) throw err;
-      for (let i = 0; i < 3; i++) {
-        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-        try { return await importFn(); } catch (_) { }
-      }
-      throw err;
-    })
-  );
+interface FormField {
+  id: number;
+  label: string;
+  type: 'text' | 'select' | 'number';
+  options: string;
+  required: boolean;
 }
 
-// ==========================================
-// KUMPULAN HALAMAN LAMA (ASLI DARI ANDA)
-// ==========================================
-const Home = lazyWithRetry(() => import('./pages/Home'));
-const Login = lazyWithRetry(() => import('./pages/Login'));
-const Register = lazyWithRetry(() => import('./pages/auth/Register'));
-const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
-const AuthCallback = lazyWithRetry(() => import('./pages/AuthCallback'));
+export default function AdminUnionPrograms() {
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-// Kiosk
-const KioskLayout = lazyWithRetry(() => import('./pages/kiosk/KioskLayout'));
-const Catalog = lazyWithRetry(() => import('./pages/kiosk/Catalog'));
-const Cart = lazyWithRetry(() => import('./pages/kiosk/Cart'));
-const Checkout = lazyWithRetry(() => import('./pages/kiosk/Checkout'));
-const Validate = lazyWithRetry(() => import('./pages/kiosk/Validate'));
-const Success = lazyWithRetry(() => import('./pages/kiosk/Success'));
-const History = lazyWithRetry(() => import('./pages/kiosk/History'));
-const Profile = lazyWithRetry(() => import('./pages/kiosk/Profile'));
-const DigitalProducts = lazyWithRetry(() => import('./pages/kiosk/DigitalProducts'));
+  // Form State
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    program_type: 'gathering',
+    start_date: '',
+    end_date: '',
+    is_active: true,
+    is_targeted: false,
+  });
 
-// Halaman Info
-const Terms = lazyWithRetry(() => import('./pages/Terms'));
-const Contact = lazyWithRetry(() => import('./pages/Contact'));
-const HelpCenter = lazyWithRetry(() => import('./pages/HelpCenter'));
-const FAQ = lazyWithRetry(() => import('./pages/FAQ'));
-const RefundPolicy = lazyWithRetry(() => import('./pages/RefundPolicy'));
-
-// Dashboard & Admin Lama
-const DashboardLayout = lazyWithRetry(() => import('./pages/dashboard/DashboardLayout'));
-const AdminDashboard = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDashboard'));
-const AdminSellers = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSellers'));
-const AdminCategories = lazyWithRetry(() => import('./pages/dashboard/admin/AdminCategories'));
-const AdminProducts = lazyWithRetry(() => import('./pages/dashboard/admin/AdminProducts'));
-const AdminTransactions = lazyWithRetry(() => import('./pages/dashboard/admin/AdminTransactions'));
-const AdminWithdrawals = lazyWithRetry(() => import('./pages/dashboard/admin/AdminWithdrawals'));
-const AdminSettings = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSettings'));
-const AdminReturns = lazyWithRetry(() => import('./pages/dashboard/admin/AdminReturns'));
-const AdminStockRequests = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockRequests'));
-const AdminReports = lazyWithRetry(() => import('./pages/dashboard/admin/AdminReports'));
-const AdminPickup = lazyWithRetry(() => import('./pages/dashboard/admin/AdminPickup'));
-const AdminStockOpname = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockOpname'));
-const AdminPayments = lazyWithRetry(() => import('./pages/dashboard/admin/AdminPayments'));
-const AdminLoyalty = lazyWithRetry(() => import('./pages/dashboard/admin/AdminLoyalty'));
-const AdminStandbySchedule = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
-
-// Seller
-const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/SellerDashboard'));
-const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/SellerProducts'));
-const SellerWithdrawals = lazyWithRetry(() => import('./pages/dashboard/seller/SellerWithdrawals'));
-const SellerTransactions = lazyWithRetry(() => import('./pages/dashboard/seller/SellerTransactions'));
-
-// ==========================================
-// TAMBAHAN HALAMAN PORTAL & ADMIN BARU
-// ==========================================
-const PortalLayout = lazyWithRetry(() => import('./pages/dashboard/PortalLayout'));
-const PortalDashboard = lazyWithRetry(() => import('./pages/portal/PortalDashboard'));
-const PortalProgram = lazyWithRetry(() => import('./pages/portal/PortalProgram'));
-const PortalFlashsale = lazyWithRetry(() => import('./pages/portal/PortalFlashsale'));
-const PortalPengumuman = lazyWithRetry(() => import('./pages/portal/PortalPengumuman'));
-const PortalPengaduan = lazyWithRetry(() => import('./pages/portal/PortalPengaduan'));
-
-const AdminScanner = lazyWithRetry(() => import('./pages/dashboard/admin/AdminScanner'));
-const AdminFlashsale = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFlashsale'));
-const AdminGathering = lazyWithRetry(() => import('./pages/dashboard/admin/AdminGathering'));
-const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
-
-// --- Error Fallback ASLI ---
-function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
-  const isChunkError = error?.message?.includes('dynamically imported') ||
-    error?.message?.includes('Loading chunk') ||
-    error?.name === 'ChunkLoadError';
-
-  React.useEffect(() => {
-    if (isChunkError) {
-      const alreadyReloaded = sessionStorage.getItem('chunk_reload_attempted');
-      if (!alreadyReloaded) {
-        sessionStorage.setItem('chunk_reload_attempted', '1');
-        window.location.reload();
-      } else {
-        sessionStorage.removeItem('chunk_reload_attempted');
-      }
-    }
-  }, [isChunkError]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-zinc-950 p-4">
-      <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-slate-100 dark:border-zinc-800">
-        <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <svg className="w-8 h-8 text-red-600 dark:text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2 tracking-tight">
-          {isChunkError ? 'Versi Baru Tersedia' : 'Oops! Terjadi Kesalahan'}
-        </h2>
-        <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6 leading-relaxed">
-          {isChunkError
-            ? 'Aplikasi telah diperbarui. Halaman akan dimuat ulang otomatis untuk mendapatkan versi terbaru.'
-            : 'Maaf, sistem mengalami gangguan sementara. Silakan muat ulang halaman atau kembali ke beranda.'}
-        </p>
-        {!isChunkError && (
-          <div className="bg-slate-50 dark:bg-zinc-950 p-4 rounded-xl mb-6 text-left overflow-auto max-h-32">
-            <p className="text-xs font-mono text-red-600 dark:text-red-400 break-words">
-              {error.message}
-            </p>
-          </div>
-        )}
-        <div className="flex gap-3">
-          <button
-            onClick={() => { sessionStorage.removeItem('chunk_reload_attempted'); window.location.href = '/'; }}
-            className="flex-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 px-4 py-3 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors text-sm"
-          >
-            Ke Beranda
-          </button>
-          <button
-            onClick={() => { sessionStorage.removeItem('chunk_reload_attempted'); window.location.reload(); }}
-            className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors text-sm shadow-lg shadow-blue-600/20"
-          >
-            {isChunkError ? 'Muat Ulang' : 'Coba Lagi'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Loading Fallback ASLI ---
-function LoadingFallback() {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-zinc-950 gap-4">
-      <div className="relative w-16 h-16">
-        <div className="absolute inset-0 border-4 border-slate-200 dark:border-zinc-800 rounded-full"></div>
-        <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
-      </div>
-      <p className="text-sm font-bold text-slate-400 dark:text-zinc-500 animate-pulse tracking-widest uppercase">Memuat...</p>
-    </div>
-  );
-}
-
-export default function App() {
-  const { fetchProfile, setUser } = useAuthStore();
+  const [formConfig, setFormConfig] = useState<FormField[]>([]);
+  const [targetNiks, setTargetNiks] = useState('');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setUser(null);
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [fetchProfile, setUser]);
-
-  // Dark mode ASLI: system preference > localStorage > time-based fallback
-  useEffect(() => {
-    const applyDarkMode = () => {
-      const savedTheme = localStorage.getItem('theme');
-      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-      if (savedTheme === 'dark' || savedTheme === 'light') {
-        document.documentElement.classList.toggle('dark', savedTheme === 'dark');
-      } else if (systemPrefersDark) {
-        document.documentElement.classList.add('dark');
-      } else {
-        const hour = new Date().getHours();
-        const isNight = hour >= 18 || hour < 6;
-        document.documentElement.classList.toggle('dark', isNight);
-      }
-    };
-
-    applyDarkMode();
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (!localStorage.getItem('theme')) applyDarkMode();
-    };
-    mediaQuery.addEventListener('change', handleChange);
-
-    const interval = setInterval(() => {
-      if (!localStorage.getItem('theme') && !window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        applyDarkMode();
-      }
-    }, 60000);
-
-    return () => {
-      mediaQuery.removeEventListener('change', handleChange);
-      clearInterval(interval);
-    };
+    fetchPrograms();
   }, []);
 
+  const fetchPrograms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('union_programs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      if (data) setPrograms(data);
+    } catch (error) {
+      toast.error('Gagal memuat program');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '', description: '', program_type: 'gathering',
+      start_date: '', end_date: '', is_active: true, is_targeted: false
+    });
+    setFormConfig([]);
+    setTargetNiks('');
+    setIsModalOpen(false);
+  };
+
+  // --- LOGIKA FORM BUILDER ---
+  const addQuestion = () => {
+    setFormConfig([...formConfig, { id: Date.now(), label: '', type: 'text', options: '', required: true }]);
+  };
+
+  const updateQuestion = (id: number, key: string, value: any) => {
+    setFormConfig(formConfig.map(f => f.id === id ? { ...f, [key]: value } : f));
+  };
+
+  const removeQuestion = (id: number) => {
+    setFormConfig(formConfig.filter(f => f.id !== id));
+  };
+  // ---------------------------
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      // 1. Simpan Program Beserta Konfigurasi Form-nya
+      const { data: newProgram, error: progError } = await supabase
+        .from('union_programs')
+        .insert([{
+          ...formData,
+          form_config: formConfig
+        }])
+        .select()
+        .single();
+
+      if (progError) throw progError;
+
+      // 2. Jika Program Targeted (Misal Kurban), Simpan NIK yang berhak
+      if (formData.is_targeted && targetNiks.trim() !== '') {
+        const nikArray = targetNiks.split(',').map(nik => nik.trim()).filter(nik => nik.length > 0);
+        const eligibilityData = nikArray.map(nik => ({
+          program_id: newProgram.id,
+          nik: nik
+        }));
+
+        if (eligibilityData.length > 0) {
+          const { error: eligError } = await supabase.from('program_eligibility').insert(eligibilityData);
+          if (eligError) throw eligError;
+        }
+      }
+
+      toast.success('Program & Formulir berhasil dibuat!');
+      resetForm();
+      fetchPrograms();
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal menyimpan program');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <BrowserRouter>
-        <Tutorial />
-        <PWAInstallPrompt />
-        <Toaster
-          toastOptions={{
-            className: 'text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-3',
-            style: { maxWidth: '90vw', borderRadius: '12px' }
-          }}
-        />
+    <div className="p-4 md:p-8">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-black text-zinc-900 dark:text-white">Manajemen Program</h1>
+          <p className="text-sm text-zinc-500">Buat program dan desain formulir pendaftaran.</p>
+        </div>
+        <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2">
+          <Plus className="w-5 h-5" /> Buat Program Baru
+        </button>
+      </div>
 
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
-            {/* ROUTE ASLI */}
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/help" element={<HelpCenter />} />
-            <Route path="/faq" element={<FAQ />} />
-            <Route path="/refund" element={<RefundPolicy />} />
-            <Route path="/privacy" element={<RefundPolicy />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
+      {loading ? <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-600" /> : (
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-zinc-50 dark:bg-zinc-950 text-xs uppercase font-bold text-zinc-500 border-b border-zinc-200 dark:border-zinc-800">
+                <tr>
+                  <th className="px-6 py-4">Nama Program</th>
+                  <th className="px-6 py-4">Tipe</th>
+                  <th className="px-6 py-4">Targeting</th>
+                  <th className="px-6 py-4">Pertanyaan Form</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {programs.map((prog) => (
+                  <tr key={prog.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                    <td className="px-6 py-4 font-bold text-blue-600">{prog.name}</td>
+                    <td className="px-6 py-4 uppercase text-xs font-bold">{prog.program_type}</td>
+                    <td className="px-6 py-4">
+                      {prog.is_targeted ? <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-bold">Khusus NIK</span> : <span className="text-zinc-500 text-xs">Umum</span>}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-xs">{prog.form_config?.length || 0} Pertanyaan</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 text-[10px] font-bold rounded-lg ${prog.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {prog.is_active ? 'AKTIF' : 'NONAKTIF'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-            {/* ROUTE PORTAL (BARU) */}
-            <Route path="/portal" element={<PortalLayout />}>
-              <Route index element={<PortalDashboard />} />
-              <Route path="program" element={<PortalProgram />} />
-              <Route path="flashsale" element={<PortalFlashsale />} />
-              <Route path="pengumuman" element={<PortalPengumuman />} />
-              <Route path="pengaduan" element={<PortalPengaduan />} />
-            </Route>
+      {/* MODAL PEMBUATAN PROGRAM & FORMULIR */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-zinc-200 dark:border-zinc-800">
+            <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center sticky top-0 bg-white dark:bg-zinc-900 z-10">
+              <h2 className="font-black text-xl">Buat Program Baru</h2>
+              <button onClick={resetForm} className="text-zinc-400 hover:text-red-500 font-bold text-xl">✕</button>
+            </div>
 
-            {/* ROUTE KIOSK ASLI */}
-            <Route path="/kiosk" element={<KioskLayout />}>
-              <Route index element={<Catalog />} />
-              <Route path="cart" element={<Cart />} />
-              <Route path="checkout" element={<Checkout />} />
-              <Route path="validate" element={<Validate />} />
-              <Route path="success" element={<Success />} />
-              <Route path="history" element={<History />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="digital" element={<DigitalProducts />} />
-            </Route>
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Info Dasar Program */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold mb-1">Nama Program</label>
+                  <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full p-3 border rounded-xl dark:bg-zinc-950 dark:border-zinc-800 text-sm" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold mb-1">Deskripsi</label>
+                  <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full p-3 border rounded-xl dark:bg-zinc-950 dark:border-zinc-800 text-sm" rows={2} />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Tanggal Mulai</label>
+                  <input type="date" required value={formData.start_date} onChange={e => setFormData({ ...formData, start_date: e.target.value })} className="w-full p-3 border rounded-xl dark:bg-zinc-950 dark:border-zinc-800 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold mb-1">Tanggal Selesai</label>
+                  <input type="date" required value={formData.end_date} onChange={e => setFormData({ ...formData, end_date: e.target.value })} className="w-full p-3 border rounded-xl dark:bg-zinc-950 dark:border-zinc-800 text-sm" />
+                </div>
+              </div>
 
-            {/* ROUTE DASHBOARD (ASLI + BARU) */}
-            <Route path="/dashboard" element={<DashboardLayout />}>
-              {/* ADMIN ASLI */}
-              <Route path="admin" element={<AdminDashboard />} />
-              <Route path="admin/sellers" element={<AdminSellers />} />
-              <Route path="admin/categories" element={<AdminCategories />} />
-              <Route path="admin/products" element={<AdminProducts />} />
-              <Route path="admin/transactions" element={<AdminTransactions />} />
-              <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
-              <Route path="admin/stock-requests" element={<AdminStockRequests />} />
-              <Route path="admin/returns" element={<AdminReturns />} />
-              <Route path="admin/reports" element={<AdminReports />} />
-              <Route path="admin/pickup" element={<AdminPickup />} />
-              <Route path="admin/stock-opname" element={<AdminStockOpname />} />
-              <Route path="admin/payments" element={<AdminPayments />} />
-              <Route path="admin/loyalty" element={<AdminLoyalty />} />
-              <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
+              {/* Targeting NIK */}
+              <div className="p-4 bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800/30 rounded-xl space-y-3">
+                <label className="flex items-center gap-2 font-bold text-sm text-purple-900 dark:text-purple-100 cursor-pointer">
+                  <input type="checkbox" checked={formData.is_targeted} onChange={e => setFormData({ ...formData, is_targeted: e.target.checked })} className="w-5 h-5 rounded border-purple-300 text-purple-600 focus:ring-purple-500" />
+                  Program Khusus (Target NIK Tertentu)
+                </label>
+                {formData.is_targeted && (
+                  <div>
+                    <p className="text-xs text-purple-700 dark:text-purple-300 mb-2">Masukkan NIK Karyawan yang berhak (pisahkan dengan koma). Contoh: 1011, 1012, 1013</p>
+                    <textarea
+                      value={targetNiks} onChange={e => setTargetNiks(e.target.value)}
+                      placeholder="1011, 1012, 1013..."
+                      className="w-full p-3 border rounded-xl dark:bg-zinc-950 dark:border-purple-800/50 text-sm" rows={3}
+                    />
+                  </div>
+                )}
+              </div>
 
-              {/* ADMIN BARU (TAMBAHAN) */}
-              <Route path="admin/scanner" element={<AdminScanner />} />
-              <Route path="admin/flashsale" element={<AdminFlashsale />} />
-              <Route path="admin/gathering" element={<AdminGathering />} />
-              <Route path="admin/programs" element={<AdminUnionPrograms />} />
+              {/* FORM BUILDER */}
+              <div className="p-5 bg-zinc-50 dark:bg-zinc-800/30 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-sm flex items-center gap-2"><ListPlus className="w-5 h-5 text-blue-500" /> Desain Formulir Kustom</h3>
+                    <p className="text-xs text-zinc-500 mt-1">Buat pertanyaan spesifik untuk diisi karyawan.</p>
+                  </div>
+                  <button type="button" onClick={addQuestion} className="text-xs bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-4 py-2 rounded-xl font-bold hover:opacity-80 transition-opacity">
+                    + Tambah Pertanyaan
+                  </button>
+                </div>
 
-              {/* SELLER ASLI */}
-              <Route path="seller" element={<SellerDashboard />} />
-              <Route path="seller/products" element={<SellerProducts />} />
-              <Route path="seller/withdrawals" element={<SellerWithdrawals />} />
-              <Route path="seller/transactions" element={<SellerTransactions />} />
-            </Route>
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </ErrorBoundary>
+                <div className="space-y-3">
+                  {formConfig.map((field, idx) => (
+                    <div key={field.id} className="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex items-center justify-center w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full font-black text-xs shrink-0 mt-1.5">
+                          {idx + 1}
+                        </div>
+                        <input placeholder="Tulis Pertanyaan (Misal: Ukuran Baju)" value={field.label} onChange={(e) => updateQuestion(field.id, 'label', e.target.value)} className="flex-1 p-2 border rounded-lg text-sm dark:bg-zinc-950 dark:border-zinc-800" required />
+                        <select value={field.type} onChange={(e) => updateQuestion(field.id, 'type', e.target.value)} className="p-2 border rounded-lg text-sm dark:bg-zinc-950 dark:border-zinc-800 w-full sm:w-40 shrink-0">
+                          <option value="text">Teks Singkat</option>
+                          <option value="select">Pilihan Ganda</option>
+                          <option value="number">Angka</option>
+                        </select>
+                        <button type="button" onClick={() => removeQuestion(field.id)} className="text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg shrink-0 flex items-center justify-center">
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                      {field.type === 'select' && (
+                        <div className="mt-3 ml-0 sm:ml-9">
+                          <input placeholder="Masukkan opsi pilihan, pisahkan dengan koma (Contoh: S, M, L, XL)" value={field.options} onChange={(e) => updateQuestion(field.id, 'options', e.target.value)} className="w-full p-2 border border-blue-200 dark:border-blue-800 rounded-lg text-xs bg-blue-50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-300 placeholder-blue-300 dark:placeholder-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6 mt-6">
+                <button type="submit" disabled={saving} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98]">
+                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Simpan Program & Formulir"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
