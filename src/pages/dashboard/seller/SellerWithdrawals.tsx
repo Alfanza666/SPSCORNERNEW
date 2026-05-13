@@ -84,6 +84,20 @@ export default function SellerWithdrawals() {
       return;
     }
 
+    // Validasi nomor rekening / nomor HP
+    const cleanAccNum = accountNumber.replace(/\s/g, '');
+    if (cleanAccNum.length < 8 || cleanAccNum.length > 20 || !/^\d+$/.test(cleanAccNum)) {
+      toast.error('Nomor rekening/HP tidak valid. Masukkan angka 8-20 digit.');
+      return;
+    }
+
+    // Validasi nama pemilik rekening
+    const cleanAccName = accountName.trim();
+    if (cleanAccName.length < 3) {
+      toast.error('Nama pemilik rekening minimal 3 karakter.');
+      return;
+    }
+
     try {
       setIsRequesting(true);
       
@@ -276,15 +290,34 @@ export default function SellerWithdrawals() {
                   >
                     <div className="bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-2xl border border-zinc-100 dark:border-zinc-800 space-y-3 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)]">
                       <div className="flex justify-between text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-                        <span>Kotor</span>
+                        <span>Jumlah Kotor</span>
                         <span>{formatRupiah(Number(amount))}</span>
                       </div>
-                      <div className="flex justify-between text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-widest">
-                        <span>Biaya (8%)</span>
+                      {/* Breakdown rinci biaya 8% */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] text-zinc-400 dark:text-zinc-500">
+                          <span>├ Biaya transfer antar bank</span>
+                          <span>2.5%</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-zinc-400 dark:text-zinc-500">
+                          <span>├ Biaya operasional platform</span>
+                          <span>3.0%</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-zinc-400 dark:text-zinc-500">
+                          <span>├ Cadangan dana darurat koperasi</span>
+                          <span>1.5%</span>
+                        </div>
+                        <div className="flex justify-between text-[10px] text-zinc-400 dark:text-zinc-500">
+                          <span>└ Biaya maintenance & domain web</span>
+                          <span>1.0%</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-widest border-t border-zinc-200 dark:border-zinc-700 pt-2">
+                        <span>Total Biaya (8%)</span>
                         <span>-{formatRupiah(feePreview)}</span>
                       </div>
-                      <div className="pt-3 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-end">
-                        <span className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-widest">Bersih</span>
+                      <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-end">
+                        <span className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-widest">Dana Diterima</span>
                         <span className="text-xl font-black text-blue-600 dark:text-blue-400 tracking-tight">{formatRupiah(netPreview)}</span>
                       </div>
                     </div>
@@ -292,11 +325,22 @@ export default function SellerWithdrawals() {
                 )}
               </AnimatePresence>
 
-              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/30 flex gap-3 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.02)] dark:shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]">
-                <Info className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0" />
-                <p className="text-[10px] text-amber-800 dark:text-amber-200 font-bold uppercase tracking-wider leading-relaxed">
-                  Proses penarikan membutuhkan waktu 1-3 hari kerja untuk verifikasi admin.
-                </p>
+              <div className="space-y-2">
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30 flex gap-3">
+                  <Info className="w-5 h-5 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-blue-800 dark:text-blue-200 font-black uppercase tracking-wider">Rincian Biaya Penarikan 8%</p>
+                    <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                      Biaya 8% mencakup: biaya transfer antarbank (2.5%), operasional platform SPS Corner (3%), cadangan dana darurat koperasi (1.5%), dan biaya maintenance web + domain (1%). Biaya ini mendukung keberlangsungan platform dan koperasi.
+                    </p>
+                  </div>
+                </div>
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/30 flex gap-3">
+                  <Info className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0" />
+                  <p className="text-[10px] text-amber-800 dark:text-amber-200 font-bold uppercase tracking-wider leading-relaxed">
+                    Proses pencairan 1–3 hari kerja. Konfirmasi akan dikirim ke email Anda saat transfer selesai.
+                  </p>
+                </div>
               </div>
 
               <button 

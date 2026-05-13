@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 var __defProp = Object.defineProperty;
 var __name = (target, value) =>
   __defProp(target, "name", { value, configurable: true });
@@ -13,6 +13,8 @@ import crypto from "crypto";
 import fs from "fs";
 import nodemailer from "nodemailer";
 import webpush from "web-push";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { IpaymuClient } from "./src/services/ipaymu/client.js";
 dotenv.config();
 const envUrl = process.env.VITE_SUPABASE_URL;
@@ -39,6 +41,29 @@ app.use(
   }),
 );
 app.use(express.urlencoded({ extended: true }));
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // disabled karena CSP di-handle Vercel headers
+  crossOriginEmbedderPolicy: false,
+}));
+
+// Rate limiting — cegah spam/brute force
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 menit
+  max: 10, // max 10 request pembayaran per menit per IP
+  message: { error: 'Terlalu banyak request pembayaran. Coba lagi dalam 1 menit.' },
+  standardHeaders: true,
+});
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 menit
+  max: 20,
+  message: { error: 'Terlalu banyak percobaan login. Coba lagi dalam 15 menit.' },
+  standardHeaders: true,
+});
+// Terapkan rate limiter ke endpoint sensitif
+app.use('/api/payment', paymentLimiter);
+app.use('/api/auth', authLimiter);
 
 try {
   webpush.setVapidDetails(
@@ -1718,6 +1743,20 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
         message: `Pesanan Anda #${transaction_id.slice(0, 8)} telah diverifikasi oleh admin. Terima kasih!`,
         path: `/kiosk/history?id=${transaction_id}`,
       });
+    }
+
+    // Kirim email konfirmasi ke buyer jika ada email
+    const buyerEmail = transaction.buyer_email;
+    if (buyerEmail && buyerEmail.includes("@")) {
+      const txItems = transaction.transaction_items || [];
+      const itemRows = txItems.map((it) => `<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${it.name||"Produk"}</td><td style="padding:8px 12px;text-align:center;">${it.quantity||1}</td><td style="padding:8px 12px;text-align:right;">Rp ${((it.price||0)*(it.quantity||1)).toLocaleString("id-ID")}</td></tr>`).join("");
+      const witaTime = new Date().toLocaleString("id-ID",{timeZone:"Asia/Makassar",dateStyle:"long",timeStyle:"short"});
+      const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;"><div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);padding:32px 24px;text-align:center;border-radius:12px 12px 0 0;"><h1 style="color:white;margin:0;">&#x2705; Pembayaran Dikonfirmasi</h1><p style="color:#bfdbfe;margin:8px 0 0;">SPS Corner</p></div><div style="padding:24px;background:#f9fafb;border-radius:0 0 12px 12px;"><p>Halo, <strong>${transaction.buyer_name}</strong>! Pembayaran Anda telah dikonfirmasi.</p><table style="width:100%;border-collapse:collapse;background:white;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:16px;"><thead><tr style="background:#eff6ff;"><th style="padding:10px 12px;text-align:left;font-size:12px;color:#1d4ed8;">Produk</th><th style="padding:10px 12px;text-align:center;font-size:12px;color:#1d4ed8;">Qty</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#1d4ed8;">Subtotal</th></tr></thead><tbody>${itemRows}</tbody><tfoot><tr style="background:#f3f4f6;"><td colspan="2" style="padding:12px;font-weight:700;">Total</td><td style="padding:12px;text-align:right;font-weight:700;color:#1d4ed8;">Rp ${(transaction.total_amount||0).toLocaleString("id-ID")}</td></tr></tfoot></table><p style="font-size:12px;color:#6b7280;">ID: #${transaction_id.slice(0,8).toUpperCase()} &bull; ${witaTime} WITA</p><p style="font-size:12px;color:#6b7280;text-align:center;">Pertanyaan? <a href="https://wa.me/62818222604" style="color:#1d4ed8;">WhatsApp Admin</a></p></div></div>`;
+      sendSarirotiEmailInternal(
+        buyerEmail,
+        `Pembayaran Dikonfirmasi - #${transaction_id.slice(0,8).toUpperCase()} | SPS Corner`,
+        emailHtml
+      ).then(() => console.log(`[Email] Konfirmasi terkirim ke ${buyerEmail}`)).catch(e => console.warn("[Email] Gagal:", e.message));
     }
     const uniqueSellers = [
       ...new Set(transaction.transaction_items.map((item) => item.seller_id)),

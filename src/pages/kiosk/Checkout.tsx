@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
@@ -31,6 +31,8 @@ export default function Checkout() {
   });
   const [guestPhone, setGuestPhone] = useState(sessionStorage.getItem('buyerPhone') || '');
   const [countdown, setCountdown] = useState<number | null>(null);
+  // Ref untuk mencegah pembuatan transaksi duplikat
+  const txIdRef = useRef<string | null>(null);
 
   const subtotal = getTotal();
   
@@ -495,6 +497,15 @@ export default function Checkout() {
     try {
       let tx: any = null;
 
+      // Build auth headers once — dipakai di semua fetch di bawah
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       if (!txIdRef.current) {
         // 1. Create transaction record via backend API to bypass RLS
         const txData: any = {
@@ -514,14 +525,6 @@ export default function Checkout() {
             metadata: item.metadata
           }))
         };
-
-        const { data: { session } } = await supabase.auth.getSession();
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-        };
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
-        }
 
         const createRes = await fetch('/api/transactions/create', {
           method: 'POST',
