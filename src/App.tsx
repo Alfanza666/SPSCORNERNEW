@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/useAuthStore';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from 'react-lucide';
 
 // Layouts
 import PortalLayout from './pages/dashboard/PortalLayout';
@@ -12,6 +12,10 @@ import DashboardLayout from './pages/dashboard/DashboardLayout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
+
+// ---- KIOSK (Pastikan path import ini sesuai dengan file asli Anda) ----
+import Kiosk from './pages/dashboard/Kiosk';
+// Jika Kiosk Anda ada di folder pages langsung, ubah menjadi: import Kiosk from './pages/Kiosk';
 
 // Portal Pages
 import PortalDashboard from './pages/portal/PortalDashboard';
@@ -27,19 +31,38 @@ import AdminFlashsale from './pages/dashboard/admin/AdminFlashsale';
 import AdminGathering from './pages/dashboard/admin/AdminGathering';
 
 export default function App() {
-  // Ambil state auth dengan cara yang lebih aman
   const authState = useAuthStore();
   const user = authState.user;
   const loading = authState.loading;
 
   useEffect(() => {
-    // PROTEKSI UTAMA: Cek apakah fungsi initialize benar-benar ada sebelum dipanggil
+    // 1. Inisialisasi Auth
     if (typeof authState.initialize === 'function') {
       authState.initialize();
     }
-  }, []); // Hapus array dependency agar tidak re-render berlebihan
 
-  // Tampilkan loading screen dengan pengecekan aman
+    // 2. Fitur Auto Dark Mode (Jika Malam)
+    const applyTheme = () => {
+      const currentHour = new Date().getHours();
+      // Anggap malam adalah jam 18:00 sampai 05:59 pagi
+      const isNightTime = currentHour >= 18 || currentHour < 6;
+
+      if (isNightTime) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+
+    // Jalankan saat pertama kali dibuka
+    applyTheme();
+
+    // Opsional: Cek pergantian jam setiap 1 jam sekali agar berubah otomatis tanpa perlu refresh
+    const themeInterval = setInterval(applyTheme, 3600000);
+
+    return () => clearInterval(themeInterval);
+  }, []);
+
   if (loading === true) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#e8ebf2] dark:bg-zinc-950">
@@ -65,12 +88,19 @@ export default function App() {
           <Route path="pengaduan" element={<PortalPengaduan />} />
         </Route>
 
-        {/* ADMIN DASHBOARD ROUTES */}
-        <Route path="/dashboard/admin" element={user ? <DashboardLayout /> : <Navigate to="/login" />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="scanner" element={<AdminScanner />} />
-          <Route path="flashsale" element={<AdminFlashsale />} />
-          <Route path="gathering" element={<AdminGathering />} />
+        {/* DASHBOARD & KIOSK ROUTES */}
+        <Route path="/dashboard" element={user ? <DashboardLayout /> : <Navigate to="/login" />}>
+          {/* Default dashboard dilempar ke Kiosk (atau sesuaikan dengan kebutuhan Anda) */}
+          <Route index element={<Navigate to="kiosk" />} />
+
+          {/* RUTE KIOSK DIKEMBALIKAN */}
+          <Route path="kiosk" element={<Kiosk />} />
+
+          {/* ADMIN ROUTES */}
+          <Route path="admin" element={<AdminDashboard />} />
+          <Route path="admin/scanner" element={<AdminScanner />} />
+          <Route path="admin/flashsale" element={<AdminFlashsale />} />
+          <Route path="admin/gathering" element={<AdminGathering />} />
         </Route>
 
         {/* FALLBACK ROUTE */}
