@@ -159,7 +159,7 @@ export default function Cart() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="clay-card p-3 sm:p-4 flex flex-row items-center gap-3 sm:gap-4 group"
+                className="clay-card p-3 sm:p-4 flex flex-row items-center gap-3 sm:gap-4 group guide-cart-item"
               >
                 <div className="w-12 h-12 sm:w-14 sm:h-14 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg sm:rounded-xl overflow-hidden flex-shrink-0 shadow-inner dark:shadow-none border border-zinc-50 dark:border-zinc-800">
                   {item.image_url ? (
@@ -252,7 +252,7 @@ export default function Cart() {
               Ringkasan
             </h2>
             
-            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 tour-buyer-name">
+            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 guide-cart-buyer-info">
               <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">
                 <span>Total Item</span>
                 <span className="text-zinc-900 dark:text-white font-black">
@@ -282,7 +282,7 @@ export default function Cart() {
               </div>
             </div>
 
-            <div className="space-y-4 mb-4 sm:mb-6 tour-buyer-name">
+            <div className="space-y-4 mb-4 sm:mb-6 guide-cart-summary">
               <div>
                 <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 mb-2 uppercase tracking-widest">
                   <User className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
@@ -329,7 +329,7 @@ export default function Cart() {
             <button
               onClick={handleCheckout}
               disabled={!buyerName.trim() || isReserving}
-              className="btn-clay-primary w-full h-10 sm:h-12 text-xs sm:text-sm group flex items-center justify-center gap-1.5 sm:gap-2 tour-checkout-button"
+              className="btn-clay-primary w-full h-10 sm:h-12 text-xs sm:text-sm group flex items-center justify-center gap-1.5 sm:gap-2 guide-cart-checkout-btn"
             >
               {isReserving ? (
                 <>

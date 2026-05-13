@@ -754,13 +754,13 @@ export default function DigitalProducts() {
 
         <AnimatePresence mode="wait">
           {!selectedCategory ? (
-            <motion.div
-              key="categories"
-              initial={{ opacity: 0, y: 20 }}
+<motion.div
+              key="list"
+              initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"
-            >
+              className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 guide-digital-categories"
+>
               {categories.map((cat) => (
                 <button
                   key={cat.id}
@@ -799,7 +799,7 @@ export default function DigitalProducts() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2rem] shadow-sm">
+              <div className="bg-white dark:bg-zinc-900 p-6 md:p-8 rounded-[2rem] shadow-sm guide-digital-input">
                 {renderInputSection()}
               </div>
               {renderProductsSection()}

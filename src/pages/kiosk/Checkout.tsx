@@ -657,7 +657,7 @@ export default function Checkout() {
 
         {paymentStep === 'summary' ? (
           <>
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden mb-6 tour-checkout-methods">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden mb-6 guide-payment-methods">
               <div className="bg-zinc-900 dark:bg-zinc-950 text-white p-6 text-center relative overflow-hidden">
                 <div className="absolute inset-0 opacity-20 pointer-events-none">
                   <div className="absolute top-0 left-0 w-full h-full" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />

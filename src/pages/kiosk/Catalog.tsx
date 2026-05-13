@@ -12,7 +12,7 @@ export default function Catalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('Semua');
-  const [storeType, setStoreType] = useState<'kantin' | 'koperasi' | 'digital'>('koperasi');
+  const [storeType, setStoreType] = useState<'kantin' | 'koperasi' | 'digital'>('kantin');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -51,7 +51,7 @@ export default function Catalog() {
             let newCategory = p.category;
             const name = p.name.toLowerCase();
             const cat = (p.category || '').toLowerCase();
-            
+
             if (name.includes('tawar') || cat.includes('tawar') || name.includes('milky soft')) {
               newCategory = 'Roti Tawar';
             } else if (name.includes('sandwich') || cat.includes('sandwich')) {
@@ -78,7 +78,7 @@ export default function Catalog() {
   };
 
   // Filter products by store type first
-  const storeProducts = products.filter(p => 
+  const storeProducts = products.filter(p =>
     storeType === 'koperasi' ? isKoperasiProduct(p) : !isKoperasiProduct(p)
   );
 
@@ -141,37 +141,34 @@ export default function Catalog() {
               </h1>
               <p className="text-zinc-400 dark:text-zinc-500 text-[10px] sm:text-xs font-bold tracking-tight">Pusat Belanja & Kantin</p>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-3 items-center">
               {/* Store Type Toggle */}
-              <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl w-full sm:w-auto transition-colors tour-store-type">
+              <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl w-full sm:w-auto transition-colors guide-store-toggle">
                 <button
                   onClick={() => setStoreType('kantin')}
-                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all tour-kiosk-kantin ${
-                    storeType === 'kantin' 
-                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' 
-                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
-                  }`}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${storeType === 'kantin'
+                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                    }`}
                 >
                   Kantin
                 </button>
                 <button
                   onClick={() => setStoreType('koperasi')}
-                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all tour-kiosk-koperasi ${
-                    storeType === 'koperasi' 
-                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' 
-                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
-                  }`}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${storeType === 'koperasi'
+                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                    }`}
                 >
                   Koperasi
                 </button>
                 <button
                   onClick={() => navigate('/kiosk/digital')}
-                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all tour-kiosk-digital ${
-                    storeType === 'digital' 
-                      ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm' 
-                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
-                  }`}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${storeType === 'digital'
+                    ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                    }`}
                 >
                   Digital
                 </button>
@@ -183,7 +180,7 @@ export default function Catalog() {
                 </button>
               </div>
 
-              <div className="relative w-full sm:w-64 tour-search">
+              <div className="relative w-full sm:w-64 guide-search">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-400 dark:text-zinc-500" />
                 <input
                   type="text"
@@ -196,15 +193,13 @@ export default function Catalog() {
             </div>
           </div>
 
-          {/* Categories */}
-          <div className="mt-4 sm:mt-5 flex gap-2 sm:gap-3 overflow-x-auto pb-2 sm:pb-3 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 tour-categories">
+          <div className="mt-4 sm:mt-5 flex gap-2 sm:gap-3 overflow-x-auto pb-2 sm:pb-3 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 guide-category-filters">
             <button
               onClick={() => setActiveCategory('Semua')}
-              className={`whitespace-nowrap px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm ${
-                activeCategory === 'Semua'
-                  ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                  : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
-              }`}
+              className={`whitespace-nowrap px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm ${activeCategory === 'Semua'
+                ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                }`}
             >
               Semua Menu
             </button>
@@ -212,11 +207,10 @@ export default function Catalog() {
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`whitespace-nowrap px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm ${
-                  activeCategory === cat
-                    ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                    : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
-                }`}
+                className={`whitespace-nowrap px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm ${activeCategory === cat
+                  ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                  : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                  }`}
               >
                 {cat}
               </button>
@@ -226,7 +220,7 @@ export default function Catalog() {
       </div>
 
       {/* Product Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6 tour-product-grid">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-4 sm:mt-6 guide-product-grid">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-8 sm:py-12">
             <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-600 dark:text-blue-400 mb-2 sm:mb-3" />
@@ -250,7 +244,7 @@ export default function Catalog() {
                   animate={{ opacity: 1, scale: 1 }}
                   whileHover={{ y: -4 }}
                   onClick={() => setSelectedProduct(product)}
-                  className={`bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-100/80 dark:border-zinc-800 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:shadow-none group overflow-hidden flex flex-col h-full cursor-pointer tour-product-card-${index} transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]`}
+                  className={`bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-100/80 dark:border-zinc-800 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:shadow-none group overflow-hidden flex flex-col h-full cursor-pointer ${index === 0 ? 'guide-product-card' : ''} transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]`}
                 >
                   <div className="p-2 sm:p-2.5 pb-0">
                     <div className="relative aspect-[4/3] sm:aspect-square overflow-hidden bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl">
@@ -281,7 +275,7 @@ export default function Catalog() {
                   <div className="p-3 sm:p-4 flex flex-col flex-1">
                     <h3 className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-1 tracking-tight line-clamp-2 leading-snug">{product.name}</h3>
                     <p className="text-blue-600 dark:text-blue-400 text-sm sm:text-base font-black mb-3 sm:mb-4 tracking-tight">{formatRupiah(product.price)}</p>
-                    
+
                     <div className="mt-auto" onClick={(e) => e.stopPropagation()}>
                       {quantity > 0 ? (
                         <div className="flex items-center justify-between bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl p-1 shadow-sm">
@@ -311,7 +305,7 @@ export default function Catalog() {
                         <button
                           onClick={() => addItem(product)}
                           disabled={product.stock === 0}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:hover:bg-blue-600"
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:hover:bg-blue-600 guide-product-add"
                         >
                           <Plus className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
                           Tambah
@@ -348,7 +342,7 @@ export default function Catalog() {
                   <p className="text-sm sm:text-base font-black text-white tracking-tighter">{formatRupiah(totalAmount)}</p>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => navigate('/kiosk/cart')}
                 className="btn-clay-secondary px-2.5 py-1 sm:px-4 sm:py-1.5 text-[8px] sm:text-[10px] flex items-center gap-1 sm:gap-1.5 shadow-sm"
@@ -501,3 +495,8 @@ export default function Catalog() {
     </div>
   );
 }
+
+
+
+
+

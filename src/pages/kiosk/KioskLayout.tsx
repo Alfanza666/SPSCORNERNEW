@@ -179,7 +179,7 @@ export default function KioskLayout() {
                   </button>
                   <button
                     onClick={() => navigate('/kiosk/history')}
-                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 overflow-hidden tour-kiosk-history"
+                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 overflow-hidden guide-history-btn"
                     title="Riwayat Pesanan"
                   >
                     <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -188,11 +188,11 @@ export default function KioskLayout() {
                     <>
                       {/* Notification Bell */}
                       <div className="relative">
-                        <button
-                          onClick={() => { setShowNotifDropdown(v => !v); }}
-                          className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 relative"
-                          title="Notifikasi"
-                        >
+<button
+                            onClick={() => { setShowNotifDropdown(v => !v); }}
+                            className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 relative guide-notif-btn"
+                            title="Notifikasi"
+                          >
                           <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                           {unreadCount > 0 && (
                             <span className="absolute -top-1 -right-1 bg-red-500 text-white w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold border border-white dark:border-zinc-800">
@@ -246,7 +246,7 @@ export default function KioskLayout() {
                       {/* Profile button */}
                       <button
                         onClick={() => navigate('/kiosk/profile')}
-                        className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
+                        className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 guide-profile-btn"
                         title="Profil & Keamanan"
                       >
                         <User className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -255,7 +255,7 @@ export default function KioskLayout() {
                   )}
                   <button
                     onClick={() => navigate('/kiosk/cart')}
-                    className="relative clay-icon-amber h-7 w-7 sm:h-8 sm:w-auto sm:px-3 group tour-kiosk-cart"
+                    className="relative clay-icon-amber h-7 w-7 sm:h-8 sm:w-auto sm:px-3 group guide-cart-btn"
                   >
                     <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-1.5" />
                     <span className="hidden sm:inline text-[10px] font-bold">Keranjang</span>

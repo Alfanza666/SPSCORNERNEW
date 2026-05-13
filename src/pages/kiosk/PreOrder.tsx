@@ -148,7 +148,7 @@ export default function PreOrder() {
               <h1 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tracking-tighter mb-0.5">
                 Produk <span className="text-amber-500">Pre-Order</span>
               </h1>
-              <p className="text-zinc-400 dark:text-zinc-500 text-[10px] sm:text-xs font-bold tracking-tight">Pesan sekarang, ambil sesuai jadwal</p>
+              <p className="text-zinc-400 dark:text-zinc-500 text-[10px] sm:text-xs font-bold tracking-tight">Pesan dulu, ambil sesuai jadwal kesiapan seller</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 items-center">
               <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl w-full sm:w-auto transition-colors">

@@ -206,7 +206,7 @@ Sistem SPS Corner`);
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', bounce: 0.3, duration: 0.8 }}
-        className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-xl border border-zinc-200 dark:border-zinc-800"
+        className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-xl border border-zinc-200 dark:border-zinc-800 guide-success-summary"
       >
         {/* Top Header Card */}
         <div className={`relative p-8 text-center ${transaction?.status === 'pending' ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20'}`}>
@@ -264,10 +264,10 @@ Sistem SPS Corner`);
                 Cek lagi statusnya
               </button>
             ) : (
-              <button
-                onClick={() => navigate('/kiosk')}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-12 rounded-full font-bold transition-colors text-sm"
-              >
+<button
+                          onClick={() => navigate('/kiosk')}
+                          className="btn-clay-secondary w-full py-2.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 group guide-success-continue"
+                        >
                 Kembali ke beranda
               </button>
             )}
@@ -280,7 +280,7 @@ Sistem SPS Corner`);
           </div>
 
         {digitalItems && digitalItems.length > 0 && (
-          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-zinc-100 dark:border-zinc-800 border-dashed text-left">
+          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-zinc-100 dark:border-zinc-800 border-dashed text-left guide-success-digital">
             <p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-3 text-center">Status Produk Digital</p>
             <div className="space-y-3">
               {digitalItems.map((item: any, idx: number) => {
@@ -341,15 +341,15 @@ Sistem SPS Corner`);
         )}
 
         {hasSariroti && (
-          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-zinc-100 dark:border-zinc-800 border-dashed">
+          <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-zinc-100 dark:border-zinc-800 border-dashed guide-success-sariroti">
             <p className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-3">Pesanan Sariroti Anda</p>
             <div className="grid sm:grid-cols-2 gap-2 sm:gap-3">
               <button
                 onClick={handlePrintNota}
-                className="btn-clay-secondary bg-amber-50 dark:bg-amber-900/30 border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 h-10 sm:h-12 text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2"
+                className="btn-clay-secondary bg-amber-50 dark:bg-amber-900/30 border-amber-100 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 h-10 sm:h-12 text-[10px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2 guide-success-print-delivery"
               >
                 <Printer className="w-3 h-3 sm:w-4 sm:h-4" />
-                Cetak Nota Klaim
+                Cetak Delivery Note
               </button>
               <button
                 onClick={handlePrint}
