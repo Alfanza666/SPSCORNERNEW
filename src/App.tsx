@@ -4,13 +4,11 @@ import { useAuthStore } from './store/useAuthStore';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// Layouts - Sesuai struktur folder asli Anda
-import PortalLayout from './pages/dashboard/PortalLayout'; 
+// Layouts
+import PortalLayout from './pages/dashboard/PortalLayout';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 
-// ==========================================
-// STANDARD IMPORTS (Aman dari error 'n is not a function')
-// ==========================================
+// Pages Dasar
 import Home from './pages/Home';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
@@ -27,22 +25,28 @@ import AdminDashboard from './pages/dashboard/admin/AdminDashboard';
 import AdminScanner from './pages/dashboard/admin/AdminScanner';
 import AdminFlashsale from './pages/dashboard/admin/AdminFlashsale';
 import AdminGathering from './pages/dashboard/admin/AdminGathering';
-// Jika Anda punya rute admin lain (seperti AdminUnionPrograms), silakan import di bawah ini
-// import AdminUnionPrograms from './pages/dashboard/admin/AdminUnionPrograms';
 
 export default function App() {
-  const { user, loading, initialize } = useAuthStore();
+  // Ambil state auth dengan cara yang lebih aman
+  const authState = useAuthStore();
+  const user = authState.user;
+  const loading = authState.loading;
 
   useEffect(() => {
-    initialize();
-  }, [initialize]);
+    // PROTEKSI UTAMA: Cek apakah fungsi initialize benar-benar ada sebelum dipanggil
+    if (typeof authState.initialize === 'function') {
+      authState.initialize();
+    }
+  }, []); // Hapus array dependency agar tidak re-render berlebihan
 
-  // Loading Screen Global saat inisialisasi sesi
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#e8ebf2] dark:bg-zinc-950">
-      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-    </div>
-  );
+  // Tampilkan loading screen dengan pengecekan aman
+  if (loading === true) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#e8ebf2] dark:bg-zinc-950">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
@@ -67,14 +71,12 @@ export default function App() {
           <Route path="scanner" element={<AdminScanner />} />
           <Route path="flashsale" element={<AdminFlashsale />} />
           <Route path="gathering" element={<AdminGathering />} />
-          {/* Tambahkan route admin lain yang sudah ada sebelumnya di sini */}
-          {/* <Route path="programs" element={<AdminUnionPrograms />} /> */}
         </Route>
 
         {/* FALLBACK ROUTE */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-      
+
       <Toaster position="top-center" />
     </BrowserRouter>
   );
