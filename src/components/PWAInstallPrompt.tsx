@@ -1,47 +1,97 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import toast from 'react-hot-toast';
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    const handler = (e: any) => {
-      // Prevent Chrome 67 and earlier from automatically showing the prompt
+    const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      // Stash the event so it can be triggered later.
+      console.log('[PWA] beforeinstallprompt event fired');
       setDeferredPrompt(e);
-      // Update UI to notify the user they can add to home screen
       setShowPrompt(true);
     };
 
-    window.addEventListener('beforeinstallprompt', handler);
-
-    // If already installed, don't show
-    window.addEventListener('appinstalled', () => {
+    const handleAppInstalled = () => {
+      console.log('[PWA] App installed');
       setShowPrompt(false);
       setDeferredPrompt(null);
-    });
+      setIsInstalled(true);
+    };
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      toast.error('Install prompt tidak tersedia. Coba buka via HTTPS atau refresh halaman.');
+      return;
+    }
     
-    // Show the install prompt
     deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
+    console.log('[PWA] Install outcome:', outcome);
     
-    // We've used the prompt, and can't use it again, throw it away
     setDeferredPrompt(null);
     setShowPrompt(false);
   };
 
-  if (!showPrompt) return null;
+  const triggerManualInstall = () => {
+    console.log('[PWA] Manual trigger - checking prompt availability');
+    if (deferredPrompt) {
+      handleInstallClick();
+    } else {
+      toast.error('beforeinstallprompt belum tersedia. Pastikan: 1) HTTPS, 2) Sudah interaksi user, 3) Belum terinstall');
+    }
+  };
+
+  if (isInstalled) return null;
+
+  // Debug: Log PWA status to console
+  useEffect(() => {
+    console.log('[PWA Debug]', {
+      deferredPromptAvailable: !!deferredPrompt,
+      showPrompt,
+      isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+      userAgent: navigator.userAgent
+    });
+  }, [deferredPrompt, showPrompt]);
+
+  // Auto-show after 5 seconds if prompt available but not showing
+  useEffect(() => {
+    if (deferredPrompt && !showPrompt) {
+      const timer = setTimeout(() => {
+        console.log('[PWA] Auto-showing install prompt after delay');
+        setShowPrompt(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [deferredPrompt, showPrompt]);
+
+  if (!showPrompt) {
+    // Debug button (can be removed in production)
+    return (
+      <div className="fixed bottom-4 right-4 z-[9999]">
+        <button
+          onClick={triggerManualInstall}
+          className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+        >
+          <Download className="w-4 h-4" />
+          Install App (Debug)
+        </button>
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence>
