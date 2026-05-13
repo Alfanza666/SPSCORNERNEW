@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { X, ChevronRight, ChevronLeft, Check, HelpCircle, RotateCcw, Eye, EyeOff, BookOpen, Sparkles, HandPointer, MousePointer2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, HelpCircle, RotateCcw, Eye, EyeOff, BookOpen, Sparkles, MousePointer2, Hand } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getGuideForPage, resetAllGuides, GuideStep } from './guideData';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -14,7 +14,6 @@ interface Props {
 const STEP_ICONS: Record<string, React.ReactNode> = {
   welcome: <Sparkles className="w-4 h-4" />,
   click: <MousePointer2 className="w-4 h-4" />,
-  tap: <HandPointer className="w-4 h-4" />,
   info: <BookOpen className="w-4 h-4" />,
 };
 
@@ -252,7 +251,7 @@ export default function InteractiveGuide({ userId, role, onRequestRestart }: Pro
                   left: tooltipAnchor.x + tooltipAnchor.w + 10,
                 }}
               >
-                <HandPointer className="w-8 h-8 text-blue-400 drop-shadow-lg" />
+                <Hand className="w-8 h-8 text-blue-400 drop-shadow-lg" />
               </motion.div>
             )}
           </>
