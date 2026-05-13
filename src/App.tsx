@@ -39,6 +39,7 @@ const Success = lazyWithRetry(() => import('./pages/kiosk/Success'));
 const History = lazyWithRetry(() => import('./pages/kiosk/History'));
 const Profile = lazyWithRetry(() => import('./pages/kiosk/Profile'));
 const DigitalProducts = lazyWithRetry(() => import('./pages/kiosk/DigitalProducts'));
+const PreOrder = lazyWithRetry(() => import('./pages/kiosk/PreOrder'));
 const Terms = lazyWithRetry(() => import('./pages/Terms'));
 const Contact = lazyWithRetry(() => import('./pages/Contact'));
 const HelpCenter = lazyWithRetry(() => import('./pages/HelpCenter'));
@@ -161,8 +162,9 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         fetchProfile(session.user.id);
+      } else {
+        setUser(null); // Penting: mematikan state isLoading jika belum login
       }
-      // Jangan set user null di awal - biarkan state existing tetap sampai yakin logout
     });
 
     const {
@@ -273,6 +275,7 @@ export default function App() {
               <Route path="history" element={<History />} />
               <Route path="profile" element={<Profile />} />
               <Route path="digital" element={<DigitalProducts />} />
+              <Route path="preorder" element={<PreOrder />} />
             </Route>
 
             {/* Dashboard Routes */}

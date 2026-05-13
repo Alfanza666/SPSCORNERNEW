@@ -1,5 +1,25 @@
 # Changelog & Error History
 
+## v4.6.3 — PATCH: Implementasi UI Pre-Order Pembeli & Portal Fix
+**Tanggal: 2026-05-13**
+
+### Root Cause Fixes:
+- **[CRITICAL FIX] Vercel 404 pada /auth/callback:** Masalah error `404: NOT_FOUND` setelah login menggunakan Google diakibatkan oleh konfigurasi `vercel.json` menggunakan syntax *Negative Lookahead* Regex `(?!...)` yang tidak didukung oleh *engine* RE2 milik Vercel. Akibatnya, *rule rewrite* diabaikan, dan Vercel mencari file `/auth/callback` secara harfiah (yang tentu tidak ada). FIXED: Menyederhanakan aturan rewrite SPA menjadi `/(.*) -> /index.html`.
+- **[FIX] Portal Infinite Loading:** Memperbaiki logika guard otentikasi di `App.tsx`. Sebelumnya jika `session` null saat aplikasi dimuat, `useAuthStore` tidak pernah mendapatkan pembaruan state `isLoading` menjadi `false`, sehingga pengguna terjebak loading. FIXED: Memanggil `setUser(null)` secara eksplisit saat session kosong.
+
+### Fitur Baru:
+- **[FEATURE] Kiosk Pre-Order (Buyer Side):** 
+  - Membuat antarmuka baru `src/pages/kiosk/PreOrder.tsx` khusus untuk menampilkan produk makanan basah/PO dari seller.
+  - Pembeli dapat melihat hari pengambilan dan *cutoff time* PO.
+  - Alur *checkout* PO langsung tanpa masuk ke Cart regular (langsung membuat data transaksi dan tagihan IPaymu).
+  - Menambahkan menu tab "Pre-Order" di `Catalog.tsx`.
+
+### Repo Cleanup (Lanjutan):
+- **[CLEANUP] Dead Code:** Menghapus `src/pages/kiosk/Contact.tsx` dan `src/pages/kiosk/ProductDetailModal.tsx` yang sudah tidak terpakai/usang dari *codebase* utama, meringankan bundle size.
+
+### Riwayat Error:
+- **ERROR (Portal):** Stuck pada indikator loading saat mencoba mengakses halaman yang dilindungi saat tidak terotentikasi. → FIXED
+
 ## v4.6.2 — PATCH: Critical Blank Page Fix + Security + Email Notifikasi
 **Tanggal: 2026-05-13**
 

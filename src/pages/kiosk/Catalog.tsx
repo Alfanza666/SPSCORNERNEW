@@ -175,6 +175,12 @@ export default function Catalog() {
                 >
                   Digital
                 </button>
+                <button
+                  onClick={() => navigate('/kiosk/preorder')}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
+                >
+                  Pre-Order
+                </button>
               </div>
 
               <div className="relative w-full sm:w-64 tour-search">
