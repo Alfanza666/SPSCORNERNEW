@@ -1,6 +1,33 @@
 # Changelog & Error History
 
-## v4.6.0 — MINOR: Seller Pre-Order System + Critical iPaymu Proxy Fix + Repo Cleanup
+## v4.6.2 — PATCH: Critical Blank Page Fix + Security + Email Notifikasi
+**Tanggal: 2026-05-13**
+
+### Root Cause — Blank Page:
+`Checkout.tsx` menggunakan `txIdRef.current` tanpa pernah mendeklarasikan `txIdRef` sebagai `useRef`. TypeScript melaporkan error `Cannot find name 'txIdRef'` (TS2304) dan `No value exists in scope for 'headers'` (TS18004). Akibatnya Vite **gagal build** dan browser mendapat bundle yang crash → halaman putih total.
+
+### Fix:
+- Tambahkan `import { useRef }` dan `const txIdRef = useRef<string | null>(null)` di `Checkout.tsx`
+- Pindahkan deklarasi `headers` ke scope luar fungsi `handlePayment` agar tidak undefined saat `txIdRef.current` sudah terisi
+
+### Security Hardening:
+- `server.ts`: Install + konfigurasi `helmet` (security HTTP headers: X-Frame-Options, XSS-Protection, dll)
+- `server.ts`: `express-rate-limit` — max 10 request payment/menit, max 20 request auth/15 menit per IP
+
+### Email Notifikasi Buyer:
+- Saat admin approve transaksi, sistem otomatis kirim email HTML ke buyer (jika ada email)
+- Template email: header gradien biru, tabel item, total, ID transaksi, waktu WITA, link WA admin
+- Non-blocking (`.catch()` agar tidak crash flow approve jika SMTP gagal)
+
+### SellerWithdrawals:
+- Breakdown biaya 8% dirinci: Transfer antar bank (2.5%) + Operasional platform (3%) + Cadangan koperasi (1.5%) + Maintenance & domain web (1%)
+- Info box biru yang menjelaskan tujuan biaya secara transparan
+- Validasi nomor rekening (8-20 digit angka) dan nama pemilik (min 3 karakter)
+
+### Riwayat Error:
+- **ERROR KRITIS [v4.6.2]**: Blank white page setelah deploy — `txIdRef` tidak dideklarasikan → TS error → Vite build crash → FIXED
+
+
 **Tanggal: 2026-05-13**
 
 ### Root Cause Fixes:
