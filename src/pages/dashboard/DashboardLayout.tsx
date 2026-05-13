@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment } from 'react';
+﻿import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -453,6 +453,15 @@ export default function DashboardLayout() {
               onClick={() => { navigate("/dashboard/seller/transactions"); setIsSidebarOpen(false); }}
             />
           </div>
+          <div>
+            <NavItem
+              to="/dashboard/seller/pre-orders"
+              icon={ClipboardList}
+              label="Pre-Order (PO)"
+              isActive={location.pathname === "/dashboard/seller/pre-orders"}
+              onClick={() => { navigate("/dashboard/seller/pre-orders"); setIsSidebarOpen(false); }}
+            />
+          </div>
           <div className="tour-seller-sidebar-withdrawals">
             <NavItem 
               to="/dashboard/seller/withdrawals" 
@@ -612,7 +621,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v4.5.21
+                      v4.6.0
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"

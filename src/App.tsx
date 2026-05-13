@@ -70,6 +70,7 @@ const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/Sel
 const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/SellerProducts'));
 const SellerWithdrawals = lazyWithRetry(() => import('./pages/dashboard/seller/SellerWithdrawals'));
 const SellerTransactions = lazyWithRetry(() => import('./pages/dashboard/seller/SellerTransactions'));
+const SellerPreOrders = lazyWithRetry(() => import('./pages/dashboard/seller/SellerPreOrders'));
 
 const PortalLayout = lazyWithRetry(() => import('./pages/portal/PortalLayout'));
 const PortalDashboard = lazyWithRetry(() => import('./pages/portal/PortalDashboard'));
@@ -299,6 +300,7 @@ export default function App() {
               <Route path="seller/products" element={<SellerProducts />} />
               <Route path="seller/withdrawals" element={<SellerWithdrawals />} />
               <Route path="seller/transactions" element={<SellerTransactions />} />
+              <Route path="seller/pre-orders" element={<SellerPreOrders />} />
             </Route>
           </Routes>
         </Suspense>

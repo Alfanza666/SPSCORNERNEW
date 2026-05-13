@@ -493,59 +493,67 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      // 1. Create transaction record via backend API to bypass RLS
-      const txData: any = {
-        buyer_name: buyerName,
-        buyer_id: user?.id || null,
-        buyer_email: user?.email || null,
-        total_amount: getTotal(),
-        items: items.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          is_digital: item.is_digital,
-          sku: item.sku,
-          target_number: item.target_number,
-          seller_id: item.seller_id,
-          metadata: item.metadata
-        }))
-      };
+      let tx: any = null;
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
+      if (!txIdRef.current) {
+        // 1. Create transaction record via backend API to bypass RLS
+        const txData: any = {
+          buyer_name: buyerName,
+          buyer_id: user?.id || null,
+          buyer_email: user?.email || null,
+          total_amount: grandTotal,
+          items: items.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            is_digital: item.is_digital,
+            sku: item.sku,
+            target_number: item.target_number,
+            seller_id: item.seller_id,
+            metadata: item.metadata
+          }))
+        };
 
-      const createRes = await fetch('/api/transactions/create', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(txData)
-      });
-
-      if (!createRes.ok) {
-        let errorMessage = 'Failed to create transaction';
-        try {
-          const text = await createRes.text();
-          try {
-            const errorData = JSON.parse(text);
-            errorMessage = errorData?.error || errorMessage;
-          } catch (e) {
-            console.error('Non-JSON error response from create:', text);
-            errorMessage = `Server error (${createRes.status}): ${text.slice(0, 100)}`;
-          }
-        } catch (e) {
-          console.error('Failed to read error response:', e);
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
         }
-        throw new Error(errorMessage);
-      }
 
-      const { transaction: tx } = await createRes.json();
-      setTransactionId(tx.id);
-      saveGuestTransaction(tx.id);
+        const createRes = await fetch('/api/transactions/create', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(txData)
+        });
+
+        if (!createRes.ok) {
+          let errorMessage = 'Failed to create transaction';
+          try {
+            const text = await createRes.text();
+            try {
+              const errorData = JSON.parse(text);
+              errorMessage = errorData?.error || errorMessage;
+            } catch (e) {
+              console.error('Non-JSON error response from create:', text);
+              errorMessage = `Server error (${createRes.status}): ${text.slice(0, 100)}`;
+            }
+          } catch (e) {
+            console.error('Failed to read error response:', e);
+          }
+          throw new Error(errorMessage);
+        }
+
+        const createData = await createRes.json();
+        tx = createData.transaction;
+        setTransactionId(tx.id);
+        saveGuestTransaction(tx.id);
+        txIdRef.current = tx.id;
+      } else {
+        tx = { id: txIdRef.current };
+      }
 
       // Use real user phone if available, otherwise use guest-entered phone
       const realPhone = user?.phone?.replace(/[^0-9]/g, '') || guestPhone.replace(/[^0-9]/g, '');
@@ -788,7 +796,13 @@ export default function Checkout() {
                   <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
                     <div className="relative">
                       <button
-                        onClick={handlePayment}
+                        onClick={() => {
+                          if (!user && !guestPhone) {
+                            toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                            return;
+                          }
+                          handlePayment();
+                        }}
                         disabled={loading}
                         className="btn-clay-secondary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white"
                       >

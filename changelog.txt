@@ -1,6 +1,32 @@
 # Changelog & Error History
 
-## v4.5.18 — HOTFIX: `mdrAmount is not defined` Crash di Halaman Checkout
+## v4.6.0 — MINOR: Seller Pre-Order System + Critical iPaymu Proxy Fix + Repo Cleanup
+**Tanggal: 2026-05-13**
+
+### Root Cause Fixes:
+- **[CRITICAL FIX] iPaymu "Invalid IP":** Akar masalah: `FIXIE_URL` tidak ter-set di environment server sehingga request iPaymu keluar dari IP acak (bukan IP Fixie yang di-whitelist). FIXED: (1) Pisahkan `getIpaymuAxiosConfig()` dari `getDigiflazzAxiosConfig()`, (2) `IPAYMU_PRODUCTION` sekarang bisa di-override via env (`IPAYMU_PRODUCTION=false` untuk sandbox), (3) Log status proxy aktif/tidak setiap startup server, (4) Tambahkan placeholder `FIXIE_URL=` ke `.env`.
+- **[FIX] Portal Race Condition:** `PortalDashboard.tsx` redirect ke `/login` sebelum Supabase session selesai di-restore (kondisi `user === null` sementara). FIXED: Tambahkan check `isLoading` dari `useAuthStore` sebelum guard redirect.
+
+### Fitur Baru:
+- **[FEATURE] Seller Pre-Order (PO) System:** Seller sekarang bisa mengatur mekanisme PO untuk produk basah/custom. Fitur meliputi:
+  - Konfigurasi jadwal ambil: Hari Ini, Besok, atau Custom (X hari kemudian)
+  - Batas waktu pemesanan (cutoff time) per produk
+  - Pilih hari buka PO (Senin-Minggu toggleable)
+  - Stok PO terpisah dari stok regular, min/max order
+  - Catatan pengambilan untuk buyer
+  - Manajemen status pesanan: Pending → Konfirmasi → Siap Ambil → Sudah Diambil
+  - Database: tabel `pre_order_configs` + `pre_orders` dengan RLS lengkap
+  - Route baru: `/dashboard/seller/pre-orders`
+  - Menu baru di sidebar seller: "Pre-Order (PO)"
+
+### Repo Cleanup:
+- **[CLEANUP] Hapus 55 file dead weight:** Semua skrip debug, test, dan file tidak berguna dihapus dari root project. Termasuk: `test_*.js`, `fetch_*.ts`, `ipaymu-test.cjs`, `postman_collection.json`, `signature.pdf`, 2 file video MP4 tidak terpakai, 3 logo duplikat, `index.ts` (root, bukan entry point), `app/`, `ipaymu/`, `ipaymu-payment-v2-sample-nodejs-main/` folders.
+
+### Riwayat Error:
+- **ERROR (iPaymu): Invalid IP** — `FIXIE_URL` kosong di env → server kirim request dari IP dinamis → iPaymu menolak → FIXED
+- **ERROR (Portal): Redirect ke /login meski sudah login** — Race condition auth loading — FIXED
+
+
 **Tanggal: 2026-05-05**
 
 ### Root Cause:

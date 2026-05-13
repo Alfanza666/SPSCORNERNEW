@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 var __defProp = Object.defineProperty;
 var __name = (target, value) =>
   __defProp(target, "name", { value, configurable: true });
@@ -209,11 +209,26 @@ const getDigiflazzAxiosConfig = __name(() => {
   }
   return config;
 }, "getDigiflazzAxiosConfig");
+const getIpaymuAxiosConfig = __name(() => {
+  const config = {};
+  if (FIXIE_URL) {
+    try {
+      config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
+      config.proxy = false;
+      console.log("[iPaymu] Routing via Fixie static IP - OK");
+    } catch (e) {
+      console.error("[iPaymu] Invalid FIXIE_URL:", e.message);
+    }
+  } else {
+    console.warn("[iPaymu] No Fixie proxy - ensure server IP is whitelisted in iPaymu dashboard.");
+  }
+  return config;
+}, "getIpaymuAxiosConfig");
 const IPAYMU_VA = (process.env.IPAYMU_VA || "").replace(/['"]/g, "").trim();
 const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || "")
   .replace(/['"]/g, "")
   .trim();
-const IPAYMU_PRODUCTION = true;
+const IPAYMU_PRODUCTION = process.env.IPAYMU_PRODUCTION !== "false";
 if (!IPAYMU_VA || !IPAYMU_API_KEY) {
   console.warn("\u26A0\uFE0F IPAYMU_VA or IPAYMU_API_KEY not configured");
 }
@@ -221,7 +236,7 @@ const ipaymuClient = new IpaymuClient(
   IPAYMU_VA,
   IPAYMU_API_KEY,
   IPAYMU_PRODUCTION,
-  getDigiflazzAxiosConfig(),
+  getIpaymuAxiosConfig(),
 );
 console.log("\u{1F4B3} Ipaymu Config:", {
   va: IPAYMU_VA ? "\u2713 Set" : "\u2717 Not Set",

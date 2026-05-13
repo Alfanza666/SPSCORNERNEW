@@ -54,6 +54,17 @@ export default function PortalDashboard() {
     navigate(path);
   };
 
+  // [FIX] Jangan redirect saat auth masih loading — tunggu session Supabase selesai
+  // Cek isLoading dari store untuk mencegah flicker / false redirect
+  const { isLoading } = useAuthStore();
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
