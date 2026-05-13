@@ -843,7 +843,7 @@ const sendBuyerReceiptEmail = __name(
                   </tr>
                   <tr>
                     <td style="padding-bottom: 8px; color: #6b7280;">Tanggal Konfirmasi</td>
-                    <td style="padding-bottom: 8px; color: #111827; font-weight: 600;">${currentDate}, ${currentTime} WIB</td>
+                    <td style="padding-bottom: 8px; color: #111827; font-weight: 600;">${currentDate}, ${currentTime} WITA</td>
                   </tr>
                   <tr>
                     <td style="color: #6b7280;">Status Pembayaran</td>

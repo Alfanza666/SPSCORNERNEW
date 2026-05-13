@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../../lib/supabase';
@@ -51,7 +51,7 @@ export default function SellerPreOrders() {
     po_stock: 20,
     min_order: 1,
     max_order: 20,
-    pickup_notes: 'Ambil di loket Koperasi SPS, jam 07.00–11.00 WIB',
+    pickup_notes: 'Ambil di loket Koperasi SPS, jam 07.00–11.00 WITA',
     open_days: [1, 2, 3, 4, 5],
   });
 
@@ -91,7 +91,7 @@ export default function SellerPreOrders() {
         open_days: existing.open_days || [1,2,3,4,5],
       });
     } else {
-      setConfigForm({ pickup_type: 'next_day', custom_days: 1, order_cutoff_time: '10:00', po_stock: 20, min_order: 1, max_order: 20, pickup_notes: 'Ambil di loket Koperasi SPS, jam 07.00–11.00 WIB', open_days: [1,2,3,4,5] });
+      setConfigForm({ pickup_type: 'next_day', custom_days: 1, order_cutoff_time: '10:00', po_stock: 20, min_order: 1, max_order: 20, pickup_notes: 'Ambil di loket Koperasi SPS, jam 07.00–11.00 WITA', open_days: [1,2,3,4,5] });
     }
     setSelectedProduct(product);
     setShowConfigForm(true);
@@ -315,7 +315,7 @@ export default function SellerPreOrders() {
                     {cfg ? (
                       <div className="text-xs text-zinc-500 dark:text-zinc-400 space-y-1 mb-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-3">
                         <p><span className="font-bold">Jadwal ambil:</span> {PICKUP_TYPE_LABELS[cfg.pickup_type]}</p>
-                        <p><span className="font-bold">Cutoff order:</span> {cfg.order_cutoff_time?.slice(0,5)} WIB</p>
+                        <p><span className="font-bold">Cutoff order:</span> {cfg.order_cutoff_time?.slice(0,5)} WITA</p>
                         <p><span className="font-bold">Stok PO:</span> {cfg.po_stock} pcs</p>
                         <p><span className="font-bold">Catatan:</span> {cfg.pickup_notes || '-'}</p>
                       </div>
@@ -372,7 +372,7 @@ export default function SellerPreOrders() {
 
                 {/* Cutoff time */}
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Batas Waktu Pemesanan (WIB)</label>
+                  <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Batas Waktu Pemesanan (WITA)</label>
                   <input type="time" value={configForm.order_cutoff_time}
                     onChange={e => setConfigForm(p => ({ ...p, order_cutoff_time: e.target.value }))}
                     className="input-clay" />
@@ -409,7 +409,7 @@ export default function SellerPreOrders() {
                   <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Catatan Pengambilan</label>
                   <textarea value={configForm.pickup_notes}
                     onChange={e => setConfigForm(p => ({ ...p, pickup_notes: e.target.value }))}
-                    placeholder="Contoh: Ambil di loket Koperasi SPS, jam 07.00–11.00 WIB"
+                    placeholder="Contoh: Ambil di loket Koperasi SPS, jam 07.00–11.00 WITA"
                     className="input-clay min-h-[80px] py-3" />
                 </div>
 

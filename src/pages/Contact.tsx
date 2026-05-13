@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, Mail, Phone, MapPin, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -94,7 +94,7 @@ export default function Contact() {
                 <div>
                   <h3 className="font-black text-zinc-900 dark:text-white mb-1">Telepon / WhatsApp</h3>
                   <p className="text-zinc-600 dark:text-zinc-400 font-medium">{contactInfo.phone}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">Senin - Jumat, 08:00 - 17:00 WIB</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">Senin - Jumat, 08:00 - 17:00 WITA</p>
                 </div>
               </div>
 

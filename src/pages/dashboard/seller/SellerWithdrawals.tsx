@@ -4,6 +4,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { toWITADate } from '../../../lib/timezone';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -332,8 +333,8 @@ export default function SellerWithdrawals() {
                   {withdrawals.map((w) => (
                     <tr key={w.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group">
                       <td className="p-6">
-                        <p className="font-bold text-zinc-900 dark:text-white">{format(new Date(w.created_at), 'dd MMM yyyy', { locale: id })}</p>
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">{format(new Date(w.created_at), 'HH:mm', { locale: id })} WIB</p>
+                        <p className="font-bold text-zinc-900 dark:text-white">{format(toWITADate(w.created_at), 'dd MMM yyyy', { locale: id })}</p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">{format(toWITADate(w.created_at), 'HH:mm', { locale: id })} WITA</p>
                       </td>
                       <td className="p-6 text-sm font-bold text-zinc-600 dark:text-zinc-400">{formatRupiah(w.amount)}</td>
                       <td className="p-6 text-sm font-bold text-red-500 dark:text-red-400">-{formatRupiah(w.fee)}</td>
@@ -385,7 +386,7 @@ export default function SellerWithdrawals() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-bold text-sm text-zinc-900 dark:text-white">{format(new Date(w.created_at), 'dd MMM yyyy', { locale: id })}</p>
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">{format(new Date(w.created_at), 'HH:mm', { locale: id })} WIB</p>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">{format(new Date(w.created_at), 'HH:mm', { locale: id })} WITA</p>
                     </div>
                     <div className="text-right">
                       <p className="font-black text-blue-600 dark:text-blue-400 text-lg tracking-tight">{formatRupiah(w.net_amount)}</p>
