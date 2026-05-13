@@ -4,7 +4,7 @@ import { useAuthStore } from './store/useAuthStore';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// Layouts
+// Layouts Utama
 import PortalLayout from './pages/dashboard/PortalLayout';
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 
@@ -13,9 +13,17 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 
-// ---- KIOSK (Pastikan path import ini sesuai dengan file asli Anda) ----
-import Kiosk from './pages/dashboard/Kiosk';
-// Jika Kiosk Anda ada di folder pages langsung, ubah menjadi: import Kiosk from './pages/Kiosk';
+// ==========================================
+// IMPORT KIOSK (Sesuai Gambar Struktur Folder)
+// ==========================================
+import KioskLayout from './pages/kiosk/KioskLayout';
+import Catalog from './pages/kiosk/Catalog';
+import Cart from './pages/kiosk/Cart';
+import Checkout from './pages/kiosk/Checkout';
+import History from './pages/kiosk/History';
+import Profile from './pages/kiosk/Profile';
+import PreOrder from './pages/kiosk/PreOrder';
+import DigitalProducts from './pages/kiosk/DigitalProducts';
 
 // Portal Pages
 import PortalDashboard from './pages/portal/PortalDashboard';
@@ -36,15 +44,14 @@ export default function App() {
   const loading = authState.loading;
 
   useEffect(() => {
-    // 1. Inisialisasi Auth
+    // 1. Inisialisasi Auth secara aman
     if (typeof authState.initialize === 'function') {
       authState.initialize();
     }
 
-    // 2. Fitur Auto Dark Mode (Jika Malam)
+    // 2. Fitur Auto Dark Mode (Jam 18:00 - 05:59)
     const applyTheme = () => {
       const currentHour = new Date().getHours();
-      // Anggap malam adalah jam 18:00 sampai 05:59 pagi
       const isNightTime = currentHour >= 18 || currentHour < 6;
 
       if (isNightTime) {
@@ -54,11 +61,8 @@ export default function App() {
       }
     };
 
-    // Jalankan saat pertama kali dibuka
-    applyTheme();
-
-    // Opsional: Cek pergantian jam setiap 1 jam sekali agar berubah otomatis tanpa perlu refresh
-    const themeInterval = setInterval(applyTheme, 3600000);
+    applyTheme(); // Terapkan saat web dibuka
+    const themeInterval = setInterval(applyTheme, 3600000); // Cek tiap 1 jam
 
     return () => clearInterval(themeInterval);
   }, []);
@@ -88,13 +92,20 @@ export default function App() {
           <Route path="pengaduan" element={<PortalPengaduan />} />
         </Route>
 
-        {/* DASHBOARD & KIOSK ROUTES */}
+        {/* DASHBOARD UMUM */}
         <Route path="/dashboard" element={user ? <DashboardLayout /> : <Navigate to="/login" />}>
-          {/* Default dashboard dilempar ke Kiosk (atau sesuaikan dengan kebutuhan Anda) */}
           <Route index element={<Navigate to="kiosk" />} />
 
-          {/* RUTE KIOSK DIKEMBALIKAN */}
-          <Route path="kiosk" element={<Kiosk />} />
+          {/* EKOSISTEM KIOSK LENGKAP */}
+          <Route path="kiosk" element={<KioskLayout />}>
+            <Route index element={<Catalog />} />
+            <Route path="cart" element={<Cart />} />
+            <Route path="checkout" element={<Checkout />} />
+            <Route path="history" element={<History />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="preorder" element={<PreOrder />} />
+            <Route path="digital" element={<DigitalProducts />} />
+          </Route>
 
           {/* ADMIN ROUTES */}
           <Route path="admin" element={<AdminDashboard />} />
