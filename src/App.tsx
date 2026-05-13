@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/useAuthStore';
 import { useEffect } from 'react';
-import { Loader2 } from 'react-lucide';
+import { Loader2 } from 'lucide-react';
 
 // Layouts
 import PortalLayout from './pages/dashboard/PortalLayout';
