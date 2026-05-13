@@ -82,6 +82,7 @@ const AdminScanner = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSc
 const AdminFlashsale = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFlashsale'));
 const AdminGathering = lazyWithRetry(() => import('./pages/dashboard/admin/AdminGathering'));
 const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
+const AdminDoorprize = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprize'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   const isChunkError = error?.message?.includes('dynamically imported') ||
@@ -207,6 +208,7 @@ export default function App() {
               <Route path="admin/flashsale" element={<AdminFlashsale />} />
               <Route path="admin/gathering" element={<AdminGathering />} />
               <Route path="admin/programs" element={<AdminUnionPrograms />} />
+              <Route path="admin/doorprize" element={<AdminDoorprize />} />
 
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/products" element={<SellerProducts />} />

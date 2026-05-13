@@ -1,5 +1,25 @@
 # Changelog & Error History
 
+## v4.6.5 — MINOR: Implementasi Modul Employee Portal & Fitur Kesejahteraan
+**Tanggal: 2026-05-13**
+
+### Fitur Baru (Portal Karyawan):
+- **[FEATURE] Union Program Registration (`PortalProgram.tsx`):** 
+  - Karyawan kini dapat mendaftar program kesejahteraan/acara serikat secara langsung.
+  - Mendukung **Dynamic Forms**: Admin bisa menentukan pertanyaan kustom (Text, Number, Select) per program.
+  - **Digital Ticket/Coupon**: Mengenerate kode unik otomatis setelah mendaftar sebagai bukti kehadiran.
+  - **Targeting NIK**: Program tertentu hanya muncul untuk karyawan yang NIK-nya terdaftar (Eligibility Check).
+
+### Fitur Baru (Dashboard Admin):
+- **[FEATURE] Doorprize Picker (`AdminDoorprize.tsx`):** Alat pengacak pemenang doorprize real-time dari daftar peserta yang sudah melakukan scan kehadiran (check-in). Dilengkapi animasi spinning dan Trophy display.
+- **[FEATURE] Survey & Form Monitor (`AdminGathering.tsx`):** Monitoring jawaban formulir dinamis dari karyawan. Mendukung **Smart Excel Export** (Header kolom Excel otomatis menyesuaikan dengan pertanyaan formulir yang dibuat).
+- **[FEATURE] Flashsale / Asset Auction (`AdminFlashsale.tsx`):** Manajemen penjualan aset perusahaan (laptop, motor, dll) kepada karyawan. Sistem *First Come First Served* (FCFS) dengan manajemen pemenang oleh admin.
+
+### Infrastruktur & Routing:
+- **[FIX] Route Registration (`App.tsx`):** Mendaftarkan semua route baru untuk modul Portal dan Admin: `/admin/programs`, `/admin/doorprize`, `/admin/gathering`, `/admin/flashsale`, `/admin/scanner`.
+
+---
+
 ## v4.6.4 — PATCH: Critical Build Fix — AdminUnionPrograms.tsx Truncated File
 **Tanggal: 2026-05-13**
 

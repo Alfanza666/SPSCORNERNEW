@@ -15,7 +15,6 @@ export default function PortalProgram() {
   // State untuk Modal Formulir Dinamis
   const [activeFormProgram, setActiveFormProgram] = useState<any | null>(null);
   const [formAnswers, setFormAnswers] = useState<Record<string, string>>({});
-  const [extraFamily, setExtraFamily] = useState(0);
 
   useEffect(() => {
     if (!user || !profile) return;
@@ -25,14 +24,12 @@ export default function PortalProgram() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Ambil semua program aktif
       const { data: allPrograms } = await supabase
         .from('union_programs')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      // 2. Ambil pendaftaran saya untuk QR Code
       const { data: myRegs } = await supabase
         .from('program_registrations')
         .select('*, union_programs!inner(name, program_type)')
@@ -40,19 +37,17 @@ export default function PortalProgram() {
 
       if (myRegs) setMyRegistrations(myRegs);
 
-      // 3. Filter Program (Berdasarkan Target NIK)
       if (allPrograms && profile) {
         const validPrograms = await Promise.all(allPrograms.map(async (prog) => {
-          if (!prog.is_targeted) return prog; // Jika untuk umum, loloskan
-          
-          // Jika targeted, cek tabel eligibility
+          if (!prog.is_targeted) return prog;
+
           const { data: isEligible } = await supabase
             .from('program_eligibility')
             .select('id')
             .eq('program_id', prog.id)
             .eq('nik', profile.nik)
             .maybeSingle();
-            
+
           return isEligible ? prog : null;
         }));
         setPrograms(validPrograms.filter(p => p !== null));
@@ -65,41 +60,33 @@ export default function PortalProgram() {
   };
 
   const handleOpenForm = (program: any) => {
-    // Periksa apakah program ini punya pertanyaan kustom
     if (program.form_config && program.form_config.length > 0) {
       setActiveFormProgram(program);
       setFormAnswers({});
-      setExtraFamily(0);
     } else {
-      // Jika tidak ada form khusus (misal Kurban biasa), langsung klaim
-      executeClaim(program.id, {}, 0);
+      // Jika tidak ada form khusus, langsung daftar
+      executeClaim(program.id, {});
     }
   };
 
-  const executeClaim = async (programId: string, answers = {}, extraFam = 0) => {
+  const executeClaim = async (programId: string, answers = {}) => {
     if (!user) return;
     setClaiming(programId);
     try {
-      // Generate Kode Unik untuk Tanda Terima (QR)
+      // Generate Kode Unik Kupon (QR)
       const kuponCode = `${programId.slice(0, 4).toUpperCase()}-${user.id.slice(0, 5).toUpperCase()}-${Math.floor(Math.random() * 10000)}`;
 
-      // Jika ada jawaban form dinamis, simpan ke program_responses
-      if (Object.keys(answers).length > 0 || extraFam > 0) {
-        const feePerFamily = 50000; // Hardcode biaya tambahan keluarga, bisa disesuaikan
-        const totalFee = extraFam * feePerFamily;
-        
+      // Jika program ini punya form kustom, simpan jawabannya
+      if (Object.keys(answers).length > 0) {
         const { error: respError } = await supabase.from('program_responses').insert({
           program_id: programId,
           user_id: user.id,
-          answers: answers,
-          additional_family: extraFam,
-          total_fee: totalFee,
-          payment_status: totalFee > 0 ? 'pending' : 'free'
+          answers: answers
         });
         if (respError) throw respError;
       }
 
-      // Selalu simpan pendaftaran utama untuk memunculkan QR Code Tanda Terima
+      // Terbitkan Tanda Terima (Kupon)
       const { error: regError } = await supabase.from('program_registrations').insert({
         program_id: programId,
         user_id: user.id,
@@ -108,7 +95,7 @@ export default function PortalProgram() {
       });
       if (regError) throw regError;
 
-      toast.success('Pendaftaran Berhasil!');
+      toast.success('Pendaftaran Berhasil! Kupon Anda telah terbit.');
       setActiveFormProgram(null);
       fetchData();
     } catch (error: any) {
@@ -118,14 +105,13 @@ export default function PortalProgram() {
     }
   };
 
-  // --- LOGIKA RENDER INPUT DINAMIS ---
   const renderDynamicField = (field: any) => {
     switch (field.type) {
       case 'select':
         return (
-          <select 
+          <select
             className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            onChange={(e) => setFormAnswers({...formAnswers, [field.label]: e.target.value})}
+            onChange={(e) => setFormAnswers({ ...formAnswers, [field.label]: e.target.value })}
             required={field.required}
           >
             <option value="">-- Pilih {field.label} --</option>
@@ -136,21 +122,21 @@ export default function PortalProgram() {
         );
       case 'number':
         return (
-          <input 
+          <input
             type="number"
             placeholder={`Masukkan ${field.label}...`}
             className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            onChange={(e) => setFormAnswers({...formAnswers, [field.label]: e.target.value})}
+            onChange={(e) => setFormAnswers({ ...formAnswers, [field.label]: e.target.value })}
             required={field.required}
           />
         );
       default:
         return (
-          <input 
+          <input
             type="text"
             placeholder={`Tulis ${field.label}...`}
             className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            onChange={(e) => setFormAnswers({...formAnswers, [field.label]: e.target.value})}
+            onChange={(e) => setFormAnswers({ ...formAnswers, [field.label]: e.target.value })}
             required={field.required}
           />
         );
@@ -161,12 +147,11 @@ export default function PortalProgram() {
 
   return (
     <div className="min-h-screen bg-[#e8ebf2] dark:bg-zinc-950 p-4">
-      
-      {/* SECTION: TANDA TERIMA (QR CODE) */}
+
       {myRegistrations.length > 0 && (
         <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 mb-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
           <h3 className="font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-            <QrCode className="w-5 h-5 text-blue-600"/> Tanda Terima Anda
+            <QrCode className="w-5 h-5 text-blue-600" /> Tiket & Tanda Terima
           </h3>
           <div className="space-y-3">
             {myRegistrations.map((reg) => (
@@ -185,9 +170,9 @@ export default function PortalProgram() {
                 </div>
                 <div className="mt-3 pt-3 border-t border-blue-200/50 dark:border-blue-800/50 flex justify-between items-center">
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${reg.status === 'diambil' ? 'bg-green-200 text-green-800' : 'bg-blue-200 text-blue-800'}`}>
-                    Status: {reg.status.toUpperCase()}
+                    Status: {reg.status === 'diambil' ? 'HADIR / DIAMBIL' : 'TERDAFTAR'}
                   </span>
-                  <span className="text-xs text-blue-600 dark:text-blue-400">Tunjukkan ke Pengurus SPS</span>
+                  <span className="text-xs text-blue-600 dark:text-blue-400">Tunjukkan ke Panitia</span>
                 </div>
               </div>
             ))}
@@ -195,10 +180,9 @@ export default function PortalProgram() {
         </div>
       )}
 
-      {/* SECTION: DAFTAR PROGRAM TERSEDIA */}
       <h3 className="font-bold text-zinc-700 dark:text-zinc-300 mb-3">Program Berlangsung</h3>
       {loading ? (
-        <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-blue-500"/></div>
+        <div className="flex justify-center p-8"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>
       ) : programs.length === 0 ? (
         <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-xl">
           <Gift className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
@@ -212,7 +196,7 @@ export default function PortalProgram() {
               <div key={program.id} className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-600">
-                    {program.is_targeted ? <Users className="w-6 h-6"/> : <Calendar className="w-6 h-6"/>}
+                    {program.is_targeted ? <Users className="w-6 h-6" /> : <Calendar className="w-6 h-6" />}
                   </div>
                   <div className="flex-1">
                     <h4 className="font-bold text-zinc-900 dark:text-white">{program.name}</h4>
@@ -222,7 +206,7 @@ export default function PortalProgram() {
                 <div className="mt-4">
                   {isRegistered ? (
                     <button disabled className="w-full py-2 bg-green-500 text-white rounded-lg font-bold flex items-center justify-center gap-2 opacity-80 cursor-not-allowed">
-                      <CheckCircle className="w-4 h-4" /> Sudah Terdaftar
+                      <CheckCircle className="w-4 h-4" /> Kupon Dimiliki
                     </button>
                   ) : (
                     <button
@@ -230,7 +214,7 @@ export default function PortalProgram() {
                       disabled={claiming === program.id}
                       className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-2"
                     >
-                      {claiming === program.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Daftar Sekarang"}
+                      {claiming === program.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ikuti Program"}
                     </button>
                   )}
                 </div>
@@ -245,11 +229,9 @@ export default function PortalProgram() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="font-black text-lg mb-2">{activeFormProgram.name}</h2>
-            <p className="text-xs text-zinc-500 mb-6">Harap isi formulir berikut untuk menyelesaikan pendaftaran.</p>
-            
-            <form onSubmit={(e) => { e.preventDefault(); executeClaim(activeFormProgram.id, formAnswers, extraFamily); }} className="space-y-4">
-              
-              {/* Loop Pertanyaan dari Admin */}
+            <p className="text-xs text-zinc-500 mb-6">Silakan lengkapi data berikut.</p>
+
+            <form onSubmit={(e) => { e.preventDefault(); executeClaim(activeFormProgram.id, formAnswers); }} className="space-y-4">
               {activeFormProgram.form_config?.map((field: any) => (
                 <div key={field.id}>
                   <label className="block text-xs font-bold mb-1">
@@ -258,30 +240,12 @@ export default function PortalProgram() {
                   {renderDynamicField(field)}
                 </div>
               ))}
-
-              {/* Opsi Tambahan Keluarga */}
-              <div className="p-4 mt-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
-                <label className="block text-xs font-bold text-amber-800 dark:text-amber-300 mb-2">
-                  Bawa Anggota Keluarga Tambahan? (Biaya: Rp 50.000 / orang)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input 
-                    type="number" min="0" value={extraFamily} 
-                    onChange={(e) => setExtraFamily(parseInt(e.target.value) || 0)}
-                    className="w-24 p-2 rounded-lg border text-center dark:bg-zinc-900 dark:border-amber-800"
-                  />
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                    Total: Rp {(extraFamily * 50000).toLocaleString('id-ID')}
-                  </span>
-                </div>
-              </div>
-
               <div className="flex gap-2 mt-6">
                 <button type="button" onClick={() => setActiveFormProgram(null)} className="flex-1 py-3 bg-zinc-200 dark:bg-zinc-800 font-bold rounded-xl text-zinc-700 dark:text-zinc-300">
                   Batal
                 </button>
                 <button type="submit" disabled={claiming !== null} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl flex justify-center items-center">
-                  {claiming ? <Loader2 className="w-5 h-5 animate-spin"/> : "Submit"}
+                  {claiming ? <Loader2 className="w-5 h-5 animate-spin" /> : "Kirim Data"}
                 </button>
               </div>
             </form>
