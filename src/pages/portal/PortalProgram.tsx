@@ -223,7 +223,7 @@ export default function PortalProgram() {
             );
           })}
         </div>
-      )}
+      </div>
 
       {/* MODAL: FORMULIR DINAMIS */}
       {activeFormProgram && (
