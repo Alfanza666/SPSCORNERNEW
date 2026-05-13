@@ -4,8 +4,8 @@ import { Link } from 'react-router-dom';
 import SPSLogo from '../../components/SPSLogo';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
-import { 
-  Gift, Calendar, Users, QrCode, CheckCircle, XCircle, 
+import {
+  Gift, Calendar, Users, QrCode, CheckCircle, XCircle,
   Plus, Search, Download, Copy, Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -58,9 +58,10 @@ export default function PortalProgram() {
           .lte('start_date', new Date().toISOString().split('T')[0])
           .gte('end_date', new Date().toISOString().split('T')[0])
           .order('created_at', { ascending: false }),
+        // Trik !inner: Jika program master sudah dihapus/hilang, pendaftaran otomatis tidak ditampilkan (gak nyangkut)
         supabase
           .from('program_registrations')
-          .select('*, union_programs(name, program_type)')
+          .select('*, union_programs!inner(name, program_type)')
           .eq('user_id', user?.id)
       ]);
 
@@ -158,7 +159,7 @@ export default function PortalProgram() {
       <div className="p-4 space-y-4">
         {/* My Registrations */}
         {myRegistrations.length > 0 && (
-          <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800">
             <h3 className="font-bold text-zinc-900 dark:text-white mb-3">Program Saya</h3>
             <div className="space-y-2">
               {myRegistrations.map((reg) => (
@@ -180,13 +181,13 @@ export default function PortalProgram() {
 
         {/* Available Programs */}
         <h3 className="font-bold text-zinc-700 dark:text-zinc-300">Program Tersedia</h3>
-        
+
         {loading ? (
-          <div className="text-center py-8 text-zinc-400">Memuat...</div>
+          <div className="text-center py-8 text-zinc-400 dark:text-zinc-500">Memuat...</div>
         ) : programs.length === 0 ? (
-          <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-xl">
-            <Gift className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
-            <p className="text-zinc-500 text-sm">Tidak ada program tersedia saat ini</p>
+          <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <Gift className="w-12 h-12 text-zinc-300 dark:text-zinc-700 mx-auto mb-3" />
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm">Tidak ada program tersedia saat ini</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -195,7 +196,7 @@ export default function PortalProgram() {
               return (
                 <div
                   key={program.id}
-                  className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700"
+                  className="bg-white dark:bg-zinc-900 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800"
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400">
@@ -203,11 +204,11 @@ export default function PortalProgram() {
                     </div>
                     <div className="flex-1">
                       <h4 className="font-bold text-zinc-900 dark:text-white">{program.name}</h4>
-                      <p className="text-sm text-zinc-500 capitalize">{program.program_type}</p>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400 capitalize">{program.program_type}</p>
                       {program.description && (
-                        <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{program.description}</p>
+                        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 line-clamp-2">{program.description}</p>
                       )}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-zinc-400">
+                      <div className="flex items-center gap-3 mt-2 text-xs text-zinc-400 dark:text-zinc-500">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {program.start_date && format(new Date(program.start_date), 'dd MMM')}
@@ -220,7 +221,7 @@ export default function PortalProgram() {
 
                   <div className="mt-3 flex gap-2">
                     {isRegistered ? (
-                      <button disabled className="flex-1 py-2 bg-green-500 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed">
+                      <button disabled className="flex-1 py-2 bg-green-500 dark:bg-green-600 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed opacity-80">
                         <CheckCircle className="w-4 h-4" />
                         Sudah Terdaftar
                       </button>
@@ -243,7 +244,7 @@ export default function PortalProgram() {
                     {(user?.role === 'superadmin' || user?.role === 'admin') && (
                       <button
                         onClick={() => handleViewParticipants(program.id)}
-                        className="py-2 px-3 bg-blue-500 text-white rounded-lg font-bold text-sm"
+                        className="py-2 px-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold text-sm"
                       >
                         <Users className="w-4 h-4" />
                       </button>
@@ -258,40 +259,39 @@ export default function PortalProgram() {
 
       {/* Participants Modal (Admin Only) */}
       {selectedProgram && (user?.role === 'superadmin' || user?.role === 'admin') && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => { setSelectedProgram(null); setRegisteredMembers([]); }}
         >
-          <div 
-            className="bg-white dark:bg-zinc-900 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto"
+          <div
+            className="bg-white dark:bg-zinc-900 rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto border border-zinc-100 dark:border-zinc-800 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700 p-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between z-10">
               <div>
-                <h2 className="font-black text-lg">{selectedProgram.name}</h2>
-                <p className="text-xs text-zinc-500">{registeredMembers.length} peserta terdaftar</p>
+                <h2 className="font-black text-lg text-zinc-900 dark:text-white">{selectedProgram.name}</h2>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">{registeredMembers.length} peserta terdaftar</p>
               </div>
-              <button 
+              <button
                 onClick={() => { setSelectedProgram(null); setRegisteredMembers([]); }}
-                className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
+                className="p-1.5 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg transition-colors"
               >
-                <XCircle className="w-5 h-5" />
+                <XCircle className="w-6 h-6" />
               </button>
             </div>
             <div className="p-4 space-y-2">
               {registeredMembers.map((reg) => (
-                <div key={reg.id} className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg flex items-center justify-between">
+                <div key={reg.id} className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl flex items-center justify-between border border-zinc-100 dark:border-zinc-800">
                   <div>
-                    <p className="font-bold text-sm">{reg.profiles?.name || 'Unknown'}</p>
-                    <p className="text-xs text-zinc-500">{reg.profiles?.nik || '-'}</p>
+                    <p className="font-bold text-sm text-zinc-900 dark:text-white">{reg.profiles?.name || 'Unknown'}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{reg.profiles?.nik || '-'}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono text-xs text-amber-600 dark:text-amber-400">{reg.kupon_code}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      reg.status === 'terdaftar' ? 'bg-green-100 text-green-700' :
-                      reg.status === 'hadir' ? 'bg-blue-100 text-blue-700' :
-                      'bg-zinc-100 text-zinc-700'
-                    }`}>
+                    <p className="font-mono text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">{reg.kupon_code}</p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${reg.status === 'terdaftar' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                        reg.status === 'hadir' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                          'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300'
+                      }`}>
                       {reg.status}
                     </span>
                   </div>
@@ -299,10 +299,10 @@ export default function PortalProgram() {
               ))}
               <button
                 onClick={handleExportExcel}
-                className="w-full mt-4 py-3 bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+                className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
               >
                 <Download className="w-4 h-4" />
-                Export Excel
+                Export Data Excel
               </button>
             </div>
           </div>
