@@ -1,5 +1,26 @@
 # Changelog & Error History
 
+## v4.6.4 — PATCH: Critical Build Fix — AdminUnionPrograms.tsx Truncated File
+**Tanggal: 2026-05-13**
+
+### Root Cause:
+`AdminUnionPrograms.tsx` mengalami **file truncation** — file terpotong secara tiba-tiba di tengah atribut JSX `<td className="px-6 py-4` (baris 144). Hal ini menyebabkan error **Unexpected end of file** dari esbuild (vite-plugin-pwa:build) saat proses `npm run build`, menghentikan seluruh proses deploy ke Vercel.
+
+### Fix:
+- **FIXED** `src/pages/dashboard/admin/AdminUnionPrograms.tsx`: Merekonstruksi seluruh JSX yang hilang (±240 baris), meliputi:
+  - Baris-baris `<td>` tabel program (nama, tipe, targeting, jumlah pertanyaan form, status)
+  - Empty state row jika belum ada program
+  - Modal overlay lengkap untuk membuat program baru
+  - Form builder dinamis: input nama, deskripsi, tipe, tanggal mulai/selesai, toggle aktif & targeted
+  - Section input NIK targeted (conditional, muncul hanya jika `is_targeted = true`)
+  - Pertanyaan formulir dinamis (tambah/hapus, pilihan tipe: Teks/Angka/Pilihan Ganda, opsi, wajib)
+  - Tombol submit dengan loading state
+
+### Riwayat Error:
+- **ERROR [v4.6.4] BUILD GAGAL (Vercel):** `AdminUnionPrograms.tsx:145:0 — Unexpected end of file` — File terpotong di tengah atribut JSX → deploy crash → FIXED dengan rekonstruksi penuh file.
+
+---
+
 ## v4.6.3 — PATCH: Implementasi UI Pre-Order Pembeli & Portal Fix
 **Tanggal: 2026-05-13**
 
