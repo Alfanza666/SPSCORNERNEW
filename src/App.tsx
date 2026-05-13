@@ -1,39 +1,34 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/useAuthStore';
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// Layouts - Path disesuaikan dengan struktur folder asli Anda
+// Layouts - Sesuai struktur folder asli Anda
 import PortalLayout from './pages/dashboard/PortalLayout'; 
 import DashboardLayout from './pages/dashboard/DashboardLayout';
 
-// Pages - Lazy Load untuk Performa
-const Home = lazy(() => import('./pages/Home'));
-const Login = lazy(() => import('./pages/Login'));
-// Menggunakan AuthCallback yang ada di root pages
-const AuthCallback = lazy(() => import('./pages/AuthCallback')); 
+// ==========================================
+// STANDARD IMPORTS (Aman dari error 'n is not a function')
+// ==========================================
+import Home from './pages/Home';
+import Login from './pages/Login';
+import AuthCallback from './pages/AuthCallback';
 
 // Portal Pages
-const PortalDashboard = lazy(() => import('./pages/portal/PortalDashboard'));
-const PortalProgram = lazy(() => import('./pages/portal/PortalProgram'));
-const PortalFlashsale = lazy(() => import('./pages/portal/PortalFlashsale')); // Route Flashsale
-const PortalPengumuman = lazy(() => import('./pages/portal/PortalPengumuman'));
-const PortalPengaduan = lazy(() => import('./pages/portal/PortalPengaduan'));
+import PortalDashboard from './pages/portal/PortalDashboard';
+import PortalProgram from './pages/portal/PortalProgram';
+import PortalFlashsale from './pages/portal/PortalFlashsale';
+import PortalPengumuman from './pages/portal/PortalPengumuman';
+import PortalPengaduan from './pages/portal/PortalPengaduan';
 
 // Admin Pages
-const AdminDashboard = lazy(() => import('./pages/dashboard/admin/AdminDashboard'));
-const AdminScanner = lazy(() => import('./pages/dashboard/admin/AdminScanner')); // Route Scanner
-
-// (Tambahkan lazy load untuk halaman admin/seller lainnya di sini jika diperlukan, 
-//  tapi biarkan yang ini dulu untuk memastikan routing utama berjalan)
-
-// Loading Screen Component saat Pindah Halaman
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-[#e8ebf2] dark:bg-zinc-950">
-    <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-  </div>
-);
+import AdminDashboard from './pages/dashboard/admin/AdminDashboard';
+import AdminScanner from './pages/dashboard/admin/AdminScanner';
+import AdminFlashsale from './pages/dashboard/admin/AdminFlashsale';
+import AdminGathering from './pages/dashboard/admin/AdminGathering';
+// Jika Anda punya rute admin lain (seperti AdminUnionPrograms), silakan import di bawah ini
+// import AdminUnionPrograms from './pages/dashboard/admin/AdminUnionPrograms';
 
 export default function App() {
   const { user, loading, initialize } = useAuthStore();
@@ -42,37 +37,44 @@ export default function App() {
     initialize();
   }, [initialize]);
 
-  if (loading) return <PageLoader />;
+  // Loading Screen Global saat inisialisasi sesi
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#e8ebf2] dark:bg-zinc-950">
+      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+    </div>
+  );
 
   return (
     <BrowserRouter>
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          {/* PUBLIC ROUTES */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={!user ? <Login /> : <Navigate to="/portal" />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
+      <Routes>
+        {/* PUBLIC ROUTES */}
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/portal" />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* PORTAL SPS ROUTES */}
-          <Route path="/portal" element={user ? <PortalLayout /> : <Navigate to="/login" />}>
-            <Route index element={<PortalDashboard />} />
-            <Route path="program" element={<PortalProgram />} />
-            <Route path="flashsale" element={<PortalFlashsale />} />
-            <Route path="pengumuman" element={<PortalPengumuman />} />
-            <Route path="pengaduan" element={<PortalPengaduan />} />
-          </Route>
+        {/* PORTAL SPS ROUTES */}
+        <Route path="/portal" element={user ? <PortalLayout /> : <Navigate to="/login" />}>
+          <Route index element={<PortalDashboard />} />
+          <Route path="program" element={<PortalProgram />} />
+          <Route path="flashsale" element={<PortalFlashsale />} />
+          <Route path="pengumuman" element={<PortalPengumuman />} />
+          <Route path="pengaduan" element={<PortalPengaduan />} />
+        </Route>
 
-          {/* ADMIN DASHBOARD ROUTES */}
-          <Route path="/dashboard/admin" element={user ? <DashboardLayout /> : <Navigate to="/login" />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="scanner" element={<AdminScanner />} />
-            {/* Jika Anda punya route admin lain, pastikan ditambahkan di bawah sini */}
-          </Route>
+        {/* ADMIN DASHBOARD ROUTES */}
+        <Route path="/dashboard/admin" element={user ? <DashboardLayout /> : <Navigate to="/login" />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="scanner" element={<AdminScanner />} />
+          <Route path="flashsale" element={<AdminFlashsale />} />
+          <Route path="gathering" element={<AdminGathering />} />
+          {/* Tambahkan route admin lain yang sudah ada sebelumnya di sini */}
+          {/* <Route path="programs" element={<AdminUnionPrograms />} /> */}
+        </Route>
 
-          {/* FALLBACK ROUTE (Jika URL tidak ditemukan) */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-      </Suspense>
+        {/* FALLBACK ROUTE */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+      
       <Toaster position="top-center" />
     </BrowserRouter>
   );
