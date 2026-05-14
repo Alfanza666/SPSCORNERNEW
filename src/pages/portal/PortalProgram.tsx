@@ -188,7 +188,7 @@ export default function PortalProgram() {
               {myRegistrations.length} Tiket
             </span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {myRegistrations.map((reg) => (
               <div
                 key={reg.id}
@@ -241,7 +241,7 @@ export default function PortalProgram() {
             <p className="text-sm text-zinc-400">Program dari Serikat akan muncul di sini</p>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {programs.map((program, idx) => {
               const isRegistered = myRegistrations.some((r) => r.program_id === program.id);
               return (

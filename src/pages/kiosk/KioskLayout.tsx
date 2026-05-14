@@ -314,17 +314,17 @@ export default function KioskLayout() {
                     const isPast = index < currentStepIndex;
                     
                     return (
-                      <div key={step.path} className="flex flex-col items-center gap-1">
+                      <div key={step.path} className="flex flex-col items-center gap-1.5 sm:gap-1">
                         <div 
-                          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[8px] sm:text-[10px] font-bold transition-all duration-300 ${
+                          className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold transition-all duration-300 ${
                             isActive ? 'bg-blue-600 text-white shadow-sm scale-110' : 
                             isPast ? 'bg-blue-500 text-white' : 
                             'bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700'
                           }`}
                         >
-                          {isPast ? <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : index + 1}
+                          {isPast ? <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : index + 1}
                         </div>
-                        <span className={`text-[6px] sm:text-[8px] font-bold uppercase tracking-wider ${isActive ? 'text-blue-700 dark:text-blue-400' : isPast ? 'text-zinc-500 dark:text-zinc-400' : 'text-zinc-400 dark:text-zinc-600'}`}>
+                        <span className={`text-[8px] sm:text-[10px] font-bold uppercase tracking-wider ${isActive ? 'text-blue-700 dark:text-blue-400' : isPast ? 'text-zinc-500 dark:text-zinc-400' : 'text-zinc-400 dark:text-zinc-600'}`}>
                           {step.label}
                         </span>
                       </div>

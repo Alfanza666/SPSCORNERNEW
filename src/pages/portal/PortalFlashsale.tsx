@@ -68,16 +68,16 @@ export default function PortalFlashsale() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-gradient-to-br from-red-600 to-red-700 rounded-3xl p-8 shadow-xl shadow-red-500/20"
+        className="relative overflow-hidden bg-gradient-to-br from-red-600 to-red-700 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-xl shadow-red-500/20"
       >
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-30" />
-        <div className="relative flex items-center gap-6">
-          <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-            <Zap className="w-10 h-10 text-white fill-white" />
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+            <Zap className="w-8 h-8 sm:w-10 sm:h-10 text-white fill-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-white mb-1">SPS Flashsale Aset</h2>
-            <p className="text-red-100 text-lg">Lelang aset perusahaan. Siapa Cepat, Dia Dapat!</p>
+            <h2 className="text-lg sm:text-2xl font-black text-white mb-1">SPS Flashsale Aset</h2>
+            <p className="text-red-100 text-sm sm:text-lg">Lelang aset perusahaan. Siapa Cepat, Dia Dapat!</p>
           </div>
         </div>
       </motion.div>
@@ -104,7 +104,7 @@ export default function PortalFlashsale() {
           <p className="text-sm text-zinc-400">Aset yang dilelang akan muncul di sini</p>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {assets.map((asset, idx) => {
             const myBooking = asset.asset_bookings?.find((b: any) => b.user_id === user?.id);
             const totalBookings = asset.asset_bookings?.length || 0;
