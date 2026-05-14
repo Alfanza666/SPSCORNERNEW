@@ -123,7 +123,7 @@ export default function PortalLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex overflow-hidden transition-colors duration-300">
+    <div className="app-shell flex overflow-hidden">
       {/* Sidebar Desktop */}
       <aside className="w-80 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden lg:flex relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.4)] transition-colors duration-300">
         <div className="h-32 flex flex-col items-center justify-center px-6 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-zinc-800/50 dark:to-zinc-900/50">
