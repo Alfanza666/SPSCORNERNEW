@@ -1,325 +1,486 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  ShoppingBag, 
-  Megaphone, 
-  Gift, 
-  MessageSquare,
+import { Dialog, Transition, Menu } from '@headlessui/react';
+import {
   LogOut,
+  LayoutDashboard,
+  Shield,
   Bell,
+  Search,
   User as UserIcon,
+  KeyRound,
+  Settings,
+  Megaphone,
+  Gift,
+  MessageSquare,
+  AlertTriangle,
+  Menu as MenuIcon,
+  X,
+  Home,
   ChevronRight,
+  ChevronDown,
   Loader2,
-  Store,
-  Calendar,
-  AlertCircle,
-  QrCode,
-  Shield
+  Pin
 } from 'lucide-react';
-import { format } from 'date-fns';
+import SPSLogo from '../../components/SPSLogo';
+import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'motion/react';
 
-interface PortalStats {
-  totalMembers: number;
-  activePrograms: number;
-  pendingFeedback: number;
+const NAV_ITEMS = [
+  { path: '/portal', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { path: '/portal/pengaduan', label: 'Pengaduan & Pembelaan', icon: AlertTriangle, color: 'red' },
+  { path: '/portal/pengumuman', label: 'Pengumuman Serikat', icon: Megaphone, color: 'blue' },
+  { path: '/portal/program', label: 'Program Serikat', icon: Gift, color: 'amber' },
+  { path: '/portal/kritik', label: 'Kritik & Saran', icon: MessageSquare, color: 'purple' },
+];
+
+interface NavItemProps {
+  to: string;
+  icon: any;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+  color?: string;
 }
 
+const NavItem = ({ to, icon: Icon, label, isActive, onClick, color }: NavItemProps) => {
+  const colorClasses: Record<string, string> = {
+    red: 'text-red-600 dark:text-red-400',
+    blue: 'text-blue-600 dark:text-blue-400',
+    amber: 'text-amber-600 dark:text-amber-400',
+    purple: 'text-purple-600 dark:text-purple-400',
+    default: 'text-zinc-600 dark:text-zinc-400'
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${
+        isActive
+          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-[inset_2px_2px_4px_rgba(59,130,246,0.1)] dark:shadow-[inset_2px_2px_4px_rgba(59,130,246,0.2)]'
+          : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white'
+      }`}
+    >
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 overflow-hidden ${
+        isActive ? 'clay-icon-blue' : 'bg-white dark:bg-zinc-800 clay-icon group-hover:scale-110'
+      }`}>
+        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : colorClasses[color || 'default']}`} />
+      </div>
+      <span className="flex-1 text-left">{label}</span>
+      {isActive && (
+        <motion.div layoutId="active-nav-portal" className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 shrink-0" />
+      )}
+    </button>
+  );
+};
+
 export default function PortalLayout() {
-  const { user, signOut, isLoading } = useAuthStore();
+  const { user, isLoading, signOut } = useAuthStore();
+  const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
-  const { notifications, unreadCount } = useNotifications();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [stats, setStats] = useState<PortalStats>({
-    totalMembers: 0,
-    activePrograms: 0,
-    pendingFeedback: 0
-  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    } else {
-      fetchStats();
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
     }
-  }, [user]);
+  }, []);
 
-  if (!user) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-zinc-500">Mengalihkan ke login...</p>
+      <div className="min-h-screen flex items-center justify-center bg-[#e8ebf0] dark:bg-zinc-950">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-ping" />
+          </div>
         </div>
       </div>
     );
   }
 
-  const fetchStats = async () => {
-    try {
-      const [membersRes, programsRes, feedbackRes] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('union_programs').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('feedbacks').select('id', { count: 'exact', head: true }).eq('status', 'pending')
-      ]);
-      
-      setStats({
-        totalMembers: membersRes.count || 0,
-        activePrograms: programsRes.count || 0,
-        pendingFeedback: feedbackRes.count || 0
-      });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  };
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
 
-const menuItems = [
-  {
-    id: 'pengaduan',
-    title: 'Pengaduan & Pembelaan',
-    description: 'Sampaikan masalah dengan aman',
-    icon: Shield,
-    color: 'bg-red-500',
-    href: '/portal/pengaduan',
-    available: true
-  },
-  {
-    id: 'pengumuman',
-    title: 'Pengumuman Serikat',
-    description: 'Info terbaru dari manajemen',
-    icon: Megaphone,
-    color: 'bg-blue-500',
-    href: '/portal/pengumuman',
-    available: true
-  },
-  {
-    id: 'program',
-    title: 'Program Serikat',
-    description: 'Kupon, Kurban, Gathering',
-    icon: Gift,
-    color: 'bg-amber-500',
-    href: '/portal/program',
-    available: stats.activePrograms > 0
-  },
-  {
-    id: 'kritik',
-    title: 'Kritik & Saran',
-    description: 'Untuk meeting bipartit',
-    icon: MessageSquare,
-    color: 'bg-purple-500',
-    href: '/portal/kritik',
-    available: stats.pendingFeedback > 0 || true
-  }
-];
-
-  if (!user) return null;
+  const isActivePath = (path: string, exact?: boolean) => {
+    if (exact) {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
+  };
 
   return (
-    <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950">
-      {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
-                <span className="text-white font-black text-lg">SPS</span>
-              </div>
-              <div>
-                <h1 className="text-lg font-black text-zinc-900 dark:text-white">SPS Corner</h1>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Portal Serikat Pekerja</p>
-              </div>
+    <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex overflow-hidden transition-colors duration-300">
+      {/* Sidebar Desktop */}
+      <aside className="w-80 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden lg:flex relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.4)] transition-colors duration-300">
+        <div className="h-28 flex items-center px-10 border-b border-zinc-100 dark:border-zinc-800">
+          <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate('/')}>
+            <SPSLogo variant="wide" className="h-16 drop-shadow-md transition-transform hover:scale-105" />
+          </div>
+        </div>
+
+        <div className="flex-1 py-6 px-6 space-y-8 overflow-y-auto custom-scrollbar">
+          <div>
+            <div className="px-4 py-2 mb-4 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
+              Portal Serikat
             </div>
-            
-            <div className="flex items-center gap-2">
+            <div className="space-y-2">
+              {NAV_ITEMS.map((item) => (
+                <NavItem
+                  to={item.path}
+                  icon={item.icon}
+                  label={item.label}
+                  isActive={isActivePath(item.path, item.exact)}
+                  onClick={() => navigate(item.path)}
+                  color={item.color}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="px-4 py-2 mb-4 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
+              Akses Cepat
+            </div>
+            <div className="space-y-2">
               <button
-                onClick={() => navigate('/portal/notifications')}
-                className="relative p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800"
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                onClick={() => navigate('/dashboard/admin')}
               >
-                <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              
-              <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center gap-2 p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800"
-              >
-                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <UserIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                  <Settings className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
                 </div>
-                <ChevronRight className={`w-4 h-4 text-zinc-400 transition-transform ${showProfileMenu ? 'rotate-90' : ''}`} />
+                Dashboard Admin
               </button>
+              {(user.role === 'superadmin' || user.role === 'admin') && (
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                  onClick={() => navigate('/portal/flashsale')}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                    <Shield className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                  </div>
+                  Flashsale Aset
+                </button>
+              )}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Profile Dropdown */}
-      <AnimatePresence>
-        {showProfileMenu && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute right-4 top-16 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 p-2 z-50 min-w-[200px]"
-          >
-            <div className="p-3 border-b border-zinc-100 dark:border-zinc-700">
-              <p className="font-bold text-zinc-900 dark:text-white">{user.name}</p>
-              <p className="text-xs text-zinc-500">{user.nik || '-'}</p>
-              <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-full capitalize">
-                {user.role}
-              </span>
+        <div className="p-8 border-t border-zinc-100 dark:border-zinc-800">
+          <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[2rem] border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
+            <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl flex items-center justify-center overflow-hidden">
+              <UserIcon className="w-6 h-6 text-white" />
             </div>
-            <button
-              onClick={() => { navigate('/portal/profile'); setShowProfileMenu(false); }}
-              className="w-full p-3 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-sm font-bold text-zinc-700 dark:text-zinc-300"
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-zinc-900 dark:text-white truncate">
+                {user.name}
+              </p>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider">{user.role}</p>
+            </div>
+          </div>
+
+          <button
+            className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-black text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
+            onClick={handleSignOut}
+          >
+            <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+              <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+            </div>
+            Keluar Akun
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile Sidebar */}
+      <Transition.Root show={isSidebarOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50 lg:hidden" onClose={setIsSidebarOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="transition-opacity ease-linear duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="transition-opacity ease-linear duration-300"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-zinc-900/80 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 flex">
+            <Transition.Child
+              as={Fragment}
+              enter="transition ease-in-out duration-300 transform"
+              enterFrom="-translate-x-full"
+              enterTo="translate-x-0"
+              leave="transition ease-in-out duration-300 transform"
+              leaveFrom="translate-x-0"
+              leaveTo="-translate-x-full"
             >
-              Profil Saya
-            </button>
+              <Dialog.Panel className="relative mr-16 flex w-full max-w-[320px] flex-1">
+                <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-black">
+                  <div className="flex h-20 shrink-0 items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
+                      <SPSLogo variant="wide" className="h-10" />
+                    </div>
+                    <button type="button" onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none">
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-6 py-6 pb-24 space-y-6 custom-scrollbar">
+                    <div>
+                      <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
+                        Portal Serikat
+                      </div>
+                      <div className="space-y-1.5 focus:outline-none">
+                        {NAV_ITEMS.map((item) => (
+                          <NavItem
+                            to={item.path}
+                            icon={item.icon}
+                            label={item.label}
+                            isActive={isActivePath(item.path, item.exact)}
+                            onClick={() => { navigate(item.path); setIsSidebarOpen(false); }}
+                            color={item.color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[1.5rem] border-2 border-white dark:border-zinc-700">
+                      <div className="w-10 h-10 rounded-xl clay-icon-blue font-black flex items-center justify-center overflow-hidden">
+                        <UserIcon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-zinc-900 dark:text-white truncate">
+                          {user.name}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider">{user.role}</p>
+                      </div>
+                    </div>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
+                      onClick={handleSignOut}
+                    >
+                      <LogOut className="w-5 h-5" />
+                      Keluar Akun
+                    </button>
+                  </div>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition.Root>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Top Header */}
+        <header className="h-24 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-6 lg:px-12 sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-colors duration-300">
+          <div className="flex items-center gap-6">
             <button
-              onClick={handleSignOut}
-              className="w-full p-3 text-left hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-bold text-red-600"
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden clay-icon w-12 h-12 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400"
             >
-              <LogOut className="w-4 h-4 inline mr-2" />
-              Keluar
+              <MenuIcon className="w-6 h-6" />
             </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="hidden md:flex items-center gap-4 bg-zinc-50 dark:bg-zinc-800/50 px-6 py-3 rounded-2xl border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)] group focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-4 focus-within:ring-blue-500/10 dark:focus-within:ring-blue-500/20 transition-all">
+              <Search className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400" />
+              <input
+                type="text"
+                placeholder="Cari di portal..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none outline-none text-sm font-bold text-zinc-900 dark:text-white w-48 xl:w-80 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+              />
+            </div>
+          </div>
 
-       {/* Main Content - Conditional Rendering */}
-       <div className="max-w-4xl mx-auto p-4 space-y-4">
-         {location.pathname === '/portal' ? (
-           <>
-             {/* Welcome Card */}
-             <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl p-5 text-white">
-               <h2 className="text-xl font-black mb-1">Selamat Datang, {user.name.split(' ')[0]}! 👋</h2>
-               <p className="text-blue-100 text-sm">Pilih menu di bawah untuk memulai</p>
-             </div>
+          <div className="flex items-center gap-4 md:gap-8">
+            <Menu as="div" className="relative">
+              <Menu.Button className="relative clay-icon w-12 h-12 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none">
+                <Bell className="w-6 h-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 shadow-sm" />
+                )}
+              </Menu.Button>
 
-             {/* Stats Row */}
-             <div className="grid grid-cols-3 gap-3">
-               <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 text-center">
-                 <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{stats.totalMembers}</p>
-                 <p className="text-xs text-zinc-500 font-bold">Anggota</p>
-               </div>
-               <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 text-center">
-                 <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{stats.activePrograms}</p>
-                 <p className="text-xs text-zinc-500 font-bold">Program Aktif</p>
-               </div>
-               <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 text-center">
-                 <p className="text-2xl font-black text-purple-600 dark:text-purple-400">{stats.pendingFeedback}</p>
-                 <p className="text-xs text-zinc-500 font-bold">Feedback Baru</p>
-               </div>
-             </div>
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-200"
+                enterFrom="transform opacity-0 scale-95 y-2"
+                enterTo="transform opacity-100 scale-100 y-0"
+                leave="transition ease-in duration-150"
+                leaveFrom="transform opacity-100 scale-100 y-0"
+                leaveTo="transform opacity-0 scale-95 y-2"
+              >
+                <Menu.Items className="absolute right-[-60px] sm:right-0 mt-4 w-[320px] sm:w-96 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl dark:shadow-black border border-zinc-100 dark:border-zinc-800 overflow-hidden z-50 focus:outline-none">
+                  <div className="p-4 sm:p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
+                    <h3 className="font-black text-zinc-900 dark:text-white">Notifikasi</h3>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full shadow-sm">
+                        {unreadCount} Baru
+                      </span>
+                    )}
+                  </div>
+                  <div className="max-h-[32rem] overflow-y-auto custom-scrollbar">
+                    {notifications.filter(n => !n.isRead).length === 0 ? (
+                      <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+                        <Bell className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-medium">Belum ada notifikasi baru</p>
+                      </div>
+                    ) : (
+                      notifications.filter(n => !n.isRead).map((notif) => (
+                        <Menu.Item key={notif.id}>
+                          {({ active }) => (
+                            <div
+                              className={`m-3 p-4 sm:p-5 rounded-2xl cursor-pointer group transition-all shadow-sm ${
+                                active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900' : ''
+                              } bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700`}
+                              onClick={() => {
+                                markOneAsRead(notif.id);
+                                navigate(notif.path);
+                              }}
+                            >
+                              <div className="flex gap-3 sm:gap-4">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 group-hover:scale-105 transition-transform shadow-sm">
+                                  <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <p className="text-sm font-black text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                      {notif.title}
+                                    </p>
+                                    {!notif.isRead && (
+                                      <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 mt-1.5 shadow-sm" />
+                                    )}
+                                  </div>
+                                  <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 sm:mt-1.5 leading-relaxed font-medium">{notif.message}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </Menu.Item>
+                      ))
+                    )}
+                  </div>
+                  {unreadCount > 0 && (
+                    <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 text-center bg-zinc-50/30 dark:bg-zinc-800/30">
+                      <Menu.Item>
+                        <button
+                          onClick={markAllAsRead}
+                          className="text-xs font-black text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 uppercase tracking-widest outline-none w-full text-center"
+                        >
+                          Tandai semua dibaca
+                        </button>
+                      </Menu.Item>
+                    </div>
+                  )}
+                </Menu.Items>
+              </Transition>
+            </Menu>
 
-             {/* Menu Grid */}
-             <div className="grid grid-cols-2 gap-4">
-               {menuItems.map((item) => (
-                 <motion.button
-                   key={item.id}
-                   onClick={() => navigate(item.href)}
-                   whileHover={{ scale: 1.02 }}
-                   whileTap={{ scale: 0.98 }}
-                   className="bg-white dark:bg-zinc-900 rounded-2xl p-5 text-left shadow-sm border border-zinc-100 dark:border-zinc-800 hover:shadow-md transition-all group"
-                 >
-                   <div className={`w-12 h-12 rounded-xl ${item.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                     <item.icon className="w-6 h-6 text-white" />
-                   </div>
-                   <h3 className="font-black text-zinc-900 dark:text-white mb-1">{item.title}</h3>
-                   <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{item.description}</p>
-                   {item.id === 'program' && stats.activePrograms > 0 && (
-                     <span className="inline-block mt-2 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">
-                       {stats.activePrograms} Program Aktif
-                     </span>
-                   )}
-                   {item.id === 'kritik' && stats.pendingFeedback > 0 && (
-                     <span className="inline-block mt-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
-                       {stats.pendingFeedback} Belum Diproses
-                     </span>
-                   )}
-                 </motion.button>
-               ))}
-             </div>
+            <div className="h-10 w-1 bg-zinc-100 dark:bg-zinc-800 rounded-full hidden md:block" />
 
-             {/* Quick Actions */}
-             {(user.role === 'superadmin' || user.role === 'admin') && (
-               <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-700">
-                 <h3 className="font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-                   <AlertCircle className="w-4 h-4 text-zinc-500" />
-                   Akses Cepat Admin
-                 </h3>
-                 <div className="flex flex-wrap gap-2">
-                   <button
-                     onClick={() => navigate('/dashboard/admin')}
-                     className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                   >
-                     Dashboard Admin
-                   </button>
-                   <button
-                     onClick={() => navigate('/dashboard/admin/union-programs')}
-                     className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                   >
-                     Program Serikat
-                   </button>
-                   <button
-                     onClick={() => navigate('#')}
-                     className="px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                   >
-                     Scan QR Member
-                   </button>
-                 </div>
-               </div>
-             )}
+            <Menu as="div" className="relative">
+              <Menu.Button className="flex items-center gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 p-2 rounded-[1.5rem] transition-all text-left group focus:outline-none">
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-black text-zinc-900 dark:text-white leading-none mb-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{user.name}</p>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">{user.role}</p>
+                </div>
+                <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
+                  <UserIcon className="w-6 h-6 text-white" />
+                </div>
+              </Menu.Button>
 
-             {/* Recent Notifications */}
-             {notifications.slice(0, 3).length > 0 && (
-               <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-700">
-                 <h3 className="font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-                   <Bell className="w-4 h-4 text-zinc-500" />
-                   Notifikasi Terbaru
-                 </h3>
-                 <div className="space-y-2">
-                   {notifications.slice(0, 3).map((notif) => (
-                     <div
-                       key={notif.id}
-                       onClick={() => navigate(notif.path)}
-                       className={`p-3 rounded-xl cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 ${
-                         !notif.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                       }`}
-                     >
-                       <p className="font-bold text-sm text-zinc-900 dark:text-white">{notif.title}</p>
-                       <p className="text-xs text-zinc-500 line-clamp-1">{notif.message}</p>
-                       <p className="text-xs text-zinc-400 mt-1">{format(new Date(notif.time), 'dd MMM HH:mm')}</p>
-                     </div>
-                   ))}
-                 </div>
-               </div>
-             )}
-           </>
-         ) : (
-           <Outlet />
-         )}
-       </div>
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-200"
+                enterFrom="transform opacity-0 scale-95 y-2"
+                enterTo="transform opacity-100 scale-100 y-0"
+                leave="transition ease-in duration-150"
+                leaveFrom="transform opacity-100 scale-100 y-0"
+                leaveTo="transform opacity-0 scale-95 y-2"
+              >
+                <Menu.Items className="absolute right-0 mt-4 w-64 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl dark:shadow-black border border-zinc-100 dark:border-zinc-800 overflow-hidden z-50 focus:outline-none">
+                  <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 sm:hidden bg-zinc-50/50 dark:bg-zinc-800/50">
+                    <p className="text-sm font-black text-zinc-900 dark:text-white truncate">{user.name}</p>
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">{user.role}</p>
+                  </div>
+                  <div className="p-3">
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          onClick={() => setIsChangePasswordModalOpen(true)}
+                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${
+                            active ? 'bg-zinc-50 dark:bg-zinc-800/50 text-blue-600 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+                            <KeyRound className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+                          </div>
+                          Ganti Password
+                        </button>
+                      )}
+                    </Menu.Item>
+                    <div className="h-1 bg-zinc-50 dark:bg-zinc-800 my-2 mx-4 rounded-full" />
+                    <Menu.Item>
+                      {({ active }) => (
+                        <button
+                          onClick={handleSignOut}
+                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${
+                            active ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400' : 'text-red-600 dark:text-red-500'
+                          }`}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+                            <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+                          </div>
+                          Keluar Akun
+                        </button>
+                      )}
+                    </Menu.Item>
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </Menu>
+          </div>
+        </header>
 
-      {/* Footer */}
-      <div className="text-center py-6 text-xs text-zinc-400">
-        <p>SPS Corner v4.6.0 • Portal Serikat Pekerja</p>
-        <p className="mt-1">© 2026 SPS Corner • Banjarmasin</p>
-      </div>
+        {/* Content Viewport */}
+        <div className="flex-1 overflow-auto bg-transparent">
+          <div className="max-w-7xl mx-auto p-4 md:p-10">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+      </main>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
+      />
     </div>
   );
 }

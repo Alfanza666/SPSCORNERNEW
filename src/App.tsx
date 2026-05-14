@@ -80,6 +80,7 @@ const PortalProgram = lazyWithRetry(() => import('./pages/portal/PortalProgram')
 const PortalFlashsale = lazyWithRetry(() => import('./pages/portal/PortalFlashsale'));
 const PortalPengumuman = lazyWithRetry(() => import('./pages/portal/PortalPengumuman'));
 const PortalPengaduan = lazyWithRetry(() => import('./pages/portal/PortalPengaduan'));
+const PortalKritik = lazyWithRetry(() => import('./pages/portal/PortalKritik'));
 
 const AdminScanner = lazyWithRetry(() => import('./pages/dashboard/admin/AdminScanner'));
 const AdminFlashsale = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFlashsale'));
@@ -178,6 +179,7 @@ export default function App() {
               <Route path="flashsale" element={<PortalFlashsale />} />
               <Route path="pengumuman" element={<PortalPengumuman />} />
               <Route path="pengaduan" element={<PortalPengaduan />} />
+              <Route path="kritik" element={<PortalKritik />} />
             </Route>
 
             <Route path="/kiosk" element={<KioskLayout />}>
