@@ -59,7 +59,7 @@ export default function PortalFlashsale() {
           <p className="text-sm text-red-100 mt-1">Lelang aset perusahaan. Siapa Cepat, Dia Dapat!</p>
         </motion.div>
 
-      {loading ? (
+        {loading ? (
         <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 animate-spin text-red-500"/></div>
       ) : (
         <div className="space-y-4">
@@ -104,6 +104,7 @@ export default function PortalFlashsale() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }
