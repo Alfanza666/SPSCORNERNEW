@@ -1,5 +1,26 @@
 # Changelog & Error History
 
+## v4.6.8 — MINOR: Admin Routes Fix, Loyalty Page Redesign & Bug Fixes
+**Tanggal: 2026-05-14**
+
+### Perbaikan Bug:
+- **[FIX] Admin Routes:** Tambahkan route untuk `/dashboard/admin/announcements` dan `/dashboard/admin/feedbacks` yang sebelumnya tidak ada.
+- **[FIX] AdminUnionPrograms:** Perbaiki route path dari `/admin/programs` menjadi `/admin/union-programs` agar konsisten dengan sidebar menu.
+- **[FIX] PWAInstallPrompt.tsx:** Ganti import `HandPointer` dengan `Hand` karena icon tidak tersedia di versi lucide-react yang digunakan.
+- **[FIX] DigitalProducts.tsx:** Hapus duplicate block `{categories.map}` yang menyebabkan error build.
+
+### Redesign Admin:
+- **[REDESIGN] AdminLoyalty.tsx:** Halaman dedicated untuk Loyalty Point dengan desain baru. Hanya berisi toggle on/off untuk activate/deactivate program loyalty point.
+- **[UPDATE] AdminSettings.tsx:** Hapus section Loyalty yang duplicate dan tidak fokus. Ganti dengan info box yang link ke halaman `/dashboard/admin/loyalty`.
+
+### Dokumentasi (PANDUAN_SPS_CORNER.md):
+- **[UPDATE] Terminologi:** Semua "Kopi" diganti menjadi "Koperasi" (merujuk pada produk Sariroti/bengkel roti, bukan kopi minuman).
+- **[UPDATE] Pre-Order Flow:** Hapus duplikasi "FLOW PRE-ORDER ROTI" (sudah tercakup di Flow Pre-Order umum).
+- **[UPDATE] Referensi tab:** Update nama tab di berbagai section (Flow Sariroti, Buyer guide, dll).
+- **[UPDATE] Fee withdrawal:** Hapus kata "kopi" di deskripsi dana darurat.
+
+---
+
 ## v4.6.7 — MINOR: UI/UX Enhancement, Interactive Guide & Portal Consistency
 **Tanggal: 2026-05-14**
 
@@ -13,21 +34,7 @@
 - **[ENHANCEMENT] PortalPengaduan.tsx:** Design consistency, motion buttons, gradient info box.
 - **[ENHANCEMENT] PortalFlashsale.tsx:** Motion animation wrapper, max-width container.
 
-### Dokumentasi (PANDUAN_SPS_CORNER.md):
-- **[UPDATE] Terminologi:** Semua "Kopi" diganti menjadi "Koperasi" (merujuk pada produk Sariroti/bengkel roti, bukan kopi minuman).
-- **[UPDATE] Pre-Order Flow:** Hapus duplikasi "FLOW PRE-ORDER ROTI" (sudah tercakup di Flow Pre-Order umum).
-- **[UPDATE] Referensi tab:** Update nama tab di berbagai section (Flow Sariroti, Buyer guide, dll).
-- **[UPDATE] Fee withdrawal:** Hapus kata "kopi" di deskripsi dana darurat.
-
 ---
-
-## v4.6.6 — MINOR: Interactive In-App Guide & Documentation Revamp
-**Tanggal: 2026-05-14**
-
-### Fitur Baru (User Experience):
-- **[FEATURE] Interactive In-App Guide (`Tutorial.tsx`):**
-  - Implementasi panduan interaktif step-by-step untuk membantu pengguna baru (Buyer & Seller).
-  - Menggunakan overlay premium dengan fitur highlight elemen UI secara spesifik.
   - Data panduan mencakup alur checkout Kiosk, pendaftaran Portal Program, hingga manajemen pesanan Seller.
   - Tombol "Bantuan" (Restart Guide) tersedia di berbagai titik untuk memicu panduan kembali.
 

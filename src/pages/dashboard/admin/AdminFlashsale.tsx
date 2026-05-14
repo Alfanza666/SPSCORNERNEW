@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Tag, Plus, Users, CheckCircle, Loader2, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';

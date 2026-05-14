@@ -63,6 +63,8 @@ const AdminStockOpname = lazyWithRetry(() => import('./pages/dashboard/admin/Adm
 const AdminPayments = lazyWithRetry(() => import('./pages/dashboard/admin/AdminPayments'));
 const AdminLoyalty = lazyWithRetry(() => import('./pages/dashboard/admin/AdminLoyalty'));
 const AdminStandbySchedule = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
+const AdminAnnouncements = lazyWithRetry(() => import('./pages/dashboard/admin/AdminAnnouncements'));
+const AdminFeedbacks = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFeedbacks'));
 
 const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/SellerProducts'));

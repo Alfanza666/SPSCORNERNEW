@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { motion } from 'motion/react';
 
 interface Feedback {
   id: string;

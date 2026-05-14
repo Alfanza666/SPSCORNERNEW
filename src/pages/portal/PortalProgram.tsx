@@ -6,7 +6,7 @@ import { Gift, Calendar, Users, CheckCircle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function PortalProgram() {
-  const { user, profile } = useAuthStore();
+  const { user } = useAuthStore();
   const [programs, setPrograms] = useState<any[]>([]);
   const [myRegistrations, setMyRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,9 +15,9 @@ export default function PortalProgram() {
   const [formAnswers, setFormAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!user || !profile) return;
+    if (!user) return;
     fetchData();
-  }, [user, profile]);
+  }, [user]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -35,14 +35,14 @@ export default function PortalProgram() {
 
       if (myRegs) setMyRegistrations(myRegs);
 
-      if (allPrograms && profile) {
+      if (allPrograms && user) {
         const validPrograms = await Promise.all(allPrograms.map(async (prog) => {
           if (!prog.is_targeted) return prog;
           const { data: isEligible } = await supabase
             .from('program_eligibility')
             .select('id')
             .eq('program_id', prog.id)
-            .eq('nik', profile.nik)
+            .eq('nik', user.nik)
             .maybeSingle();
           return isEligible ? prog : null;
         }));
@@ -131,7 +131,7 @@ export default function PortalProgram() {
         ...myRegistrations.map((reg) =>
           React.createElement('div', { key: reg.id, className: 'p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-900/30 mb-3' },
             React.createElement('p', { className: 'font-black text-blue-900 dark:text-blue-100' }, reg.union_programs?.name),
-            React.createElement('p', { className: 'text-sm text-blue-700 dark:text-blue-300' }, 'NIK: ' + profile?.nik),
+            React.createElement('p', { className: 'text-sm text-blue-700 dark:text-blue-300' }, 'NIK: ' + user?.nik),
             React.createElement('p', { className: 'text-xs font-bold text-blue-600 dark:text-blue-400 mt-2' }, reg.kupon_code)
           )
         )
@@ -173,10 +173,9 @@ export default function PortalProgram() {
                       'Ikuti Program'
                     )
                 )
-              );
+              )
             })
-          )
-    ),
+          ),
     activeFormProgram && React.createElement('div', { className: 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4' },
       React.createElement('div', { className: 'bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto shadow-2xl' },
         React.createElement('h2', { className: 'font-black text-lg mb-2' }, activeFormProgram.name),
@@ -203,7 +202,7 @@ export default function PortalProgram() {
               type: 'submit',
               disabled: claiming !== null,
               className: 'flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl'
-            }, claiming ? React.createElement(Loader2, { className: 'w-5 h-5 animate-spin inline' }) : 'Kirim Data')
+            }, claiming ? React.createElement(Loader2, { className: 'w-5 h-5 animate-spin inline' }) : 'Kirim Data'))
           )
         )
       )

@@ -10,6 +10,10 @@ export interface UserProfile {
   phone?: string;
   balance: number;
   loyalty_points?: number;
+  profile?: {
+    name: string;
+    nik?: string;
+  };
 }
 
 interface AuthState {

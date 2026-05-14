@@ -2,7 +2,7 @@ import { X, ChevronRight, ChevronLeft, Check, HelpCircle, RotateCcw } from 'luci
 import { motion, AnimatePresence } from 'motion/react';
 import { useEffect, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export interface GuideStep {
   selector: string;

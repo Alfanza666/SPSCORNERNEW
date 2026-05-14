@@ -26,7 +26,7 @@ export default function AdminLoyalty() {
 
       if (error) throw error;
 
-      const loyaltyData = data?.find(d => d.key === 'loyalty_enabled');
+      const loyaltyData = data?.find((d: { key: string; value: any }) => d.key === 'loyalty_enabled');
       if (loyaltyData) {
         setLoyaltyEnabled(loyaltyData.value === 'true');
       }
