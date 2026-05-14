@@ -150,13 +150,21 @@ export default function PortalProgram() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg">
-          <Gift className="w-7 h-7 text-white" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg overflow-hidden">
+            <SPSLogo variant="icon" className="w-8 h-8" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight flex items-center gap-2">
+              Program Serikat
+              <span className="text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">SPS</span>
+            </h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Kupon, Kurban, Gathering & lainnya</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Program Serikat</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Kupon, Kurban, Gathering & lainnya</p>
+        <div className="hidden lg:block">
+          <SPSLogo variant="stack" className="h-10" />
         </div>
       </div>
 

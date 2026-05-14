@@ -8,6 +8,7 @@ import {
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import SPSLogo from '../../components/SPSLogo';
 
 interface Feedback {
   id: string;
@@ -128,13 +129,21 @@ export default function PortalKritik() {
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3 md:gap-4">
-        <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg">
-          <MessageSquare className="w-6 h-6 md:w-7 md:h-7 text-white" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-lg overflow-hidden">
+            <SPSLogo variant="icon" className="w-7 h-7 md:w-8 md:h-8" />
+          </div>
+          <div>
+            <h1 className="text-lg md:text-2xl font-black text-zinc-900 dark:text-white tracking-tight flex items-center gap-2">
+              Kritik & Saran
+              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">SPS</span>
+            </h1>
+            <p className="text-xs md:text-sm text-zinc-500 dark:text-zinc-400">Untuk meeting bipartit</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-lg md:text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Kritik & Saran</h1>
-          <p className="text-xs md:text-sm text-zinc-500 dark:text-zinc-400">Untuk meeting bipartit</p>
+        <div className="hidden md:block">
+          <SPSLogo variant="stack" className="h-10" />
         </div>
       </div>
 
