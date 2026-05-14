@@ -176,7 +176,6 @@ export default function PortalProgram() {
               );
             })
           )
-      )
     ),
     activeFormProgram && React.createElement('div', { className: 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4' },
       React.createElement('div', { className: 'bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto shadow-2xl' },
