@@ -485,7 +485,7 @@ export default function DashboardLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex overflow-hidden transition-colors duration-300">
+    <div className="app-shell flex overflow-hidden">
       {/* Sidebar Desktop */}
       <aside className="w-80 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden lg:flex relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.4)] transition-colors duration-300">
         <div className="h-28 flex items-center px-10 border-b border-zinc-100 dark:border-zinc-800">
