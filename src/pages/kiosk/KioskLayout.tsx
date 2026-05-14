@@ -146,11 +146,11 @@ export default function KioskLayout() {
   }, [navigate, clearCart, isSuccess, reservations, setReservations]);
 
   return (
-    <div className="app-shell flex flex-col font-sans">
+    <div className="min-h-screen bg-[#f0f2f5] dark:bg-zinc-950 flex flex-col font-sans transition-colors duration-300">
       {/* Header */}
       {!isSuccess && (
-        <header className="app-header shadow-sm dark:shadow-black/20">
-          <div className="section-wrap h-14 sm:h-16 flex items-center justify-between">
+        <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-100/50 dark:border-zinc-800 sticky top-0 z-50 shadow-sm dark:shadow-black/20 transition-colors duration-300">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
               {!isCatalog && (
                 <button
