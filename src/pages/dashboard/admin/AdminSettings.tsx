@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
-import { Save, Plus, Trash2, Edit2, Check, X, ShieldAlert } from 'lucide-react';
+import { Save, Plus, Trash2, Edit2, Check, X, ShieldAlert, Info } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 
 export default function AdminSettings() {
@@ -357,38 +357,12 @@ export default function AdminSettings() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-               <ShieldAlert className="w-24 h-24 text-amber-500" />
-            </div>
-            <div className="flex items-center justify-between mb-6 relative z-10">
-            <div>
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                Program Loyalty (Superadmin)
-              </h2>
-              <p className="text-xs text-zinc-500 mt-1 max-w-xl">
-                Fitur eksklusif untuk memberikan loyalty points untuk transaksi karyawan (dapat ditukar merchandise).
-              </p>
-            </div>
-            
-            <button
-              onClick={() => {
-                setLoyaltyEnabled(!loyaltyEnabled);
-                handleSave('loyalty_enabled', (!loyaltyEnabled).toString());
-              }}
-              disabled={saving}
-              className={`px-4 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-xl transition-all shadow-sm ${loyaltyEnabled ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' : 'btn-clay-primary'}`}
-            >
-              <Save className="w-4 h-4" /> {loyaltyEnabled ? 'Nonaktifkan Program' : 'Aktifkan Program'}
-            </button>
-          </div>
-          
-            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 relative z-10 flex gap-4">
-               <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
-               <div className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
-                 <strong>Perhatian:</strong> Menyimpan perubahan ini akan langsung mengaktifkan fitur pencatatan dan penggunaan poin loyalty (Points) Kiosk bagi pegawai internal. Jangan aktifkan jika skema basis data <code>loyalty_points</code> belum ter-migrasi secara penuh di Supabase. (Hanya Anda sebagai Superadmin yang dapat melihat pengaturan ini).
-               </div>
-            </div>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-900/30">
+            <p className="text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
+              <Info className="w-4 h-4 shrink-0" />
+              Pengaturan Loyalty Point tersedia di menu{" "}
+              <a href="/dashboard/admin/loyalty" className="font-bold underline hover:no-underline">Loyalty Point</a>
+            </p>
           </div>
         </>
       )}

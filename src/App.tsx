@@ -204,6 +204,9 @@ export default function App() {
               <Route path="admin/stock-opname" element={<AdminStockOpname />} />
               <Route path="admin/payments" element={<AdminPayments />} />
               <Route path="admin/loyalty" element={<AdminLoyalty />} />
+              <Route path="admin/announcements" element={<AdminAnnouncements />} />
+              <Route path="admin/feedbacks" element={<AdminFeedbacks />} />
+              <Route path="admin/union-programs" element={<AdminUnionPrograms />} />
               <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
 
               <Route path="admin/scanner" element={<AdminScanner />} />
