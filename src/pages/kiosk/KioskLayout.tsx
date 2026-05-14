@@ -146,11 +146,11 @@ export default function KioskLayout() {
   }, [navigate, clearCart, isSuccess, reservations, setReservations]);
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5] dark:bg-zinc-950 flex flex-col font-sans transition-colors duration-300">
+    <div className="app-shell flex flex-col font-sans bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.7),transparent_45%)] dark:bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.45),transparent_55%)]">
       {/* Header */}
       {!isSuccess && (
-        <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-100/50 dark:border-zinc-800 sticky top-0 z-50 shadow-sm dark:shadow-black/20 transition-colors duration-300">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+        <header className="app-header shadow-[0_6px_24px_rgba(15,23,42,0.08)] dark:shadow-[0_6px_24px_rgba(0,0,0,0.35)]">
+          <div className="section-wrap h-16 sm:h-[4.5rem] flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
               {!isCatalog && (
                 <button
@@ -300,8 +300,8 @@ export default function KioskLayout() {
           
           {/* Stepper Indicator */}
           {currentStepIndex >= 0 && currentStepIndex < STEPS.length - 1 && (
-            <div className="bg-zinc-50/50 dark:bg-zinc-900/50 border-t border-zinc-100 dark:border-zinc-800 px-4 py-2 sm:py-3">
-              <div className="max-w-2xl mx-auto">
+            <div className="bg-white/70 dark:bg-zinc-900/70 border-t border-zinc-200/70 dark:border-zinc-800/80 px-4 py-3 sm:py-3.5 backdrop-blur">
+              <div className="max-w-3xl mx-auto">
                 <div className="flex items-center justify-between relative">
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 sm:h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full -z-10"></div>
                   <div 
@@ -316,7 +316,7 @@ export default function KioskLayout() {
                     return (
                       <div key={step.path} className="flex flex-col items-center gap-1.5 sm:gap-1">
                         <div 
-                          className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold transition-all duration-300 ${
+                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold transition-all duration-300 ${
                             isActive ? 'bg-blue-600 text-white shadow-sm scale-110' : 
                             isPast ? 'bg-blue-500 text-white' : 
                             'bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-700'
