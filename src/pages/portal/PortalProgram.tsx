@@ -1,17 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
+import SPSLogo from '../../components/SPSLogo';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Gift, Calendar, Users, CheckCircle, Loader2 } from 'lucide-react';
+import { Gift, Calendar, Users, CheckCircle, Loader2, Ticket, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { motion } from 'motion/react';
+
+interface ProgramRegistration {
+  id: string;
+  program_id: string;
+  user_id: string;
+  status: string;
+  kupon_code: string;
+  union_programs?: {
+    name: string;
+    program_type: string;
+  };
+}
+
+interface Program {
+  id: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+  is_targeted: boolean;
+  form_config: any[];
+}
 
 export default function PortalProgram() {
   const { user } = useAuthStore();
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [myRegistrations, setMyRegistrations] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [myRegistrations, setMyRegistrations] = useState<ProgramRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
-  const [activeFormProgram, setActiveFormProgram] = useState<any | null>(null);
+  const [activeFormProgram, setActiveFormProgram] = useState<Program | null>(null);
   const [formAnswers, setFormAnswers] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -55,7 +78,7 @@ export default function PortalProgram() {
     }
   };
 
-  const handleOpenForm = (program: any) => {
+  const handleOpenForm = (program: Program) => {
     if (program.form_config && program.form_config.length > 0) {
       setActiveFormProgram(program);
       setFormAnswers({});
@@ -97,7 +120,7 @@ export default function PortalProgram() {
   const renderDynamicField = (field: any) => {
     if (field.type === 'select') {
       return React.createElement('select', {
-        className: 'w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700 text-sm',
+        className: 'w-full p-4 rounded-2xl border-2 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 text-sm focus:border-amber-400 focus:ring-0 outline-none transition-all',
         onChange: (e: any) => setFormAnswers({ ...formAnswers, [field.label]: e.target.value }),
       },
         React.createElement('option', { value: '' }, '-- Pilih ' + field.label + ' --'),
@@ -110,99 +133,205 @@ export default function PortalProgram() {
       return React.createElement('input', {
         type: 'number',
         placeholder: 'Masukkan ' + field.label,
-        className: 'w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700 text-sm',
+        className: 'w-full p-4 rounded-2xl border-2 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 text-sm focus:border-amber-400 focus:ring-0 outline-none transition-all',
         onChange: (e: any) => setFormAnswers({ ...formAnswers, [field.label]: e.target.value }),
       });
     }
     return React.createElement('input', {
       type: 'text',
       placeholder: 'Tulis ' + field.label,
-      className: 'w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700 text-sm',
+      className: 'w-full p-4 rounded-2xl border-2 border-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 text-sm focus:border-amber-400 focus:ring-0 outline-none transition-all',
       onChange: (e: any) => setFormAnswers({ ...formAnswers, [field.label]: e.target.value }),
     });
   };
 
   if (!user) return React.createElement(Navigate, { to: '/login' });
 
-  return React.createElement('div', { className: 'bg-zinc-50 dark:bg-zinc-950 p-4 pb-8' },
-    React.createElement('div', { className: 'max-w-md mx-auto space-y-4' },
-      myRegistrations.length > 0 && React.createElement('div', { className: 'bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800 shadow-sm' },
-        React.createElement('h3', { className: 'font-bold text-zinc-900 dark:text-white mb-3' }, 'Tiket Pendaftaran'),
-        ...myRegistrations.map((reg) =>
-          React.createElement('div', { key: reg.id, className: 'p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-900/30 mb-3' },
-            React.createElement('p', { className: 'font-black text-blue-900 dark:text-blue-100' }, reg.union_programs?.name),
-            React.createElement('p', { className: 'text-sm text-blue-700 dark:text-blue-300' }, 'NIK: ' + user?.nik),
-            React.createElement('p', { className: 'text-xs font-bold text-blue-600 dark:text-blue-400 mt-2' }, reg.kupon_code)
-          )
-        )
-      ),
-      React.createElement('h3', { className: 'font-bold text-zinc-700 dark:text-zinc-300' }, 'Program Berlangsung'),
-      loading ?
-        React.createElement('div', { className: 'flex justify-center p-8' },
-          React.createElement(Loader2, { className: 'w-8 h-8 animate-spin text-blue-500' })
-        ) :
-        programs.length === 0 ?
-          React.createElement('div', { className: 'text-center py-8 bg-white dark:bg-zinc-900 rounded-2xl' },
-            React.createElement(Gift, { className: 'w-12 h-12 text-zinc-300 mx-auto mb-3' }),
-            React.createElement('p', { className: 'text-zinc-500 text-sm' }, 'Belum ada program untuk Anda saat ini.')
-          ) :
-          React.createElement('div', { className: 'space-y-3' },
-            ...programs.map((program) => {
-              const isRegistered = myRegistrations.some((r: any) => r.program_id === program.id);
-              return React.createElement('div', { key: program.id, className: 'bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800' },
-                React.createElement('div', { className: 'flex items-start gap-3' },
-                  React.createElement('div', { className: 'w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center text-amber-600' },
-                    program.is_targeted ? React.createElement(Users, { className: 'w-6 h-6' }) : React.createElement(Calendar, { className: 'w-6 h-6' })
-                  ),
-                  React.createElement('div', { className: 'flex-1' },
-                    React.createElement('h4', { className: 'font-bold text-zinc-900 dark:text-white' }, program.name),
-                    React.createElement('p', { className: 'text-xs text-zinc-500 dark:text-zinc-400 mt-1' }, program.description)
-                  )
-                ),
-                React.createElement('div', { className: 'mt-4' },
-                  isRegistered ?
-                    React.createElement('button', { disabled: true, className: 'w-full py-2.5 bg-green-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 opacity-80' },
-                      React.createElement(CheckCircle, { className: 'w-4 h-4' }), 'Kupon Dimiliki'
-                    ) :
-                    React.createElement('button', {
-                      onClick: () => handleOpenForm(program),
-                      disabled: claiming === program.id,
-                      className: 'w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold'
-                    }, claiming === program.id ?
-                      React.createElement(Loader2, { className: 'w-4 h-4 animate-spin inline' }) :
-                      'Ikuti Program'
-                    )
-                )
-              )
-            })
-          ),
-    activeFormProgram && React.createElement('div', { className: 'fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4' },
-      React.createElement('div', { className: 'bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto shadow-2xl' },
-        React.createElement('h2', { className: 'font-black text-lg mb-2' }, activeFormProgram.name),
-        React.createElement('p', { className: 'text-xs text-zinc-500 mb-6' }, 'Silakan lengkapi data berikut.'),
-        React.createElement('form', {
-          onSubmit: (e: any) => { e.preventDefault(); executeClaim(activeFormProgram.id, formAnswers); },
-          className: 'space-y-4'
+  return (
+    React.createElement('div', { className: 'pb-8' },
+      React.createElement('div', { className: 'max-w-md mx-auto px-4 pt-4 space-y-5' },
+        
+        React.createElement(motion.div, {
+          initial: { opacity: 0, y: 20 },
+          animate: { opacity: 1, y: 0 },
+          className: 'bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 rounded-3xl p-5 shadow-xl shadow-amber-500/20'
         },
-          ...(activeFormProgram.form_config || []).map((field: any) =>
-            React.createElement('div', { key: field.id },
-              React.createElement('label', { className: 'block text-xs font-bold mb-1' },
-                field.label, field.required && React.createElement('span', { className: 'text-red-500' }, ' *')
-              ),
-              renderDynamicField(field)
+          React.createElement('div', { className: 'flex items-center gap-4 mb-4' },
+            React.createElement('div', { className: 'w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center' },
+              React.createElement(Gift, { className: 'w-7 h-7 text-white' })
+            ),
+            React.createElement('div', null,
+              React.createElement('h2', { className: 'text-lg font-black text-white' }, 'Program Serikat'),
+              React.createElement('p', { className: 'text-sm text-white/80' }, 'Kupon, Kurban, Gathering & lainnya')
             )
           ),
-          React.createElement('div', { className: 'flex gap-2 mt-6' },
-            React.createElement('button', {
-              type: 'button',
-              onClick: () => setActiveFormProgram(null),
-              className: 'flex-1 py-3 bg-zinc-200 dark:bg-zinc-800 font-bold rounded-xl text-zinc-700 dark:text-zinc-300'
-            }, 'Batal'),
-            React.createElement('button', {
-              type: 'submit',
-              disabled: claiming !== null,
-              className: 'flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl'
-            }, claiming ? React.createElement(Loader2, { className: 'w-5 h-5 animate-spin inline' }) : 'Kirim Data'))
+          React.createElement('div', { className: 'flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-xl p-3' },
+            React.createElement(Sparkles, { className: 'w-4 h-4 text-white/80' }),
+            React.createElement('p', { className: 'text-xs text-white/90' }, 'Ikuti program untuk mendapatkan berbagai benefit dari Serikat Pekerja')
+          )
+        ),
+
+        myRegistrations.length > 0 && React.createElement(motion.div, {
+          initial: { opacity: 0, y: 20 },
+          animate: { opacity: 1, y: 0 },
+          transition: { delay: 0.1 },
+          className: 'bg-white dark:bg-zinc-900 rounded-3xl p-5 border border-zinc-100 dark:border-zinc-800 shadow-lg'
+        },
+          React.createElement('div', { className: 'flex items-center justify-between mb-5' },
+            React.createElement('h3', { className: 'font-bold text-zinc-900 dark:text-white flex items-center gap-2' },
+              React.createElement(Ticket, { className: 'w-5 h-5 text-amber-500' }),
+              'Tiket Pendaftaran'
+            ),
+            React.createElement('span', { className: 'text-xs font-medium text-zinc-500 bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-xl' },
+              myRegistrations.length + ' Tiket'
+            )
+          ),
+          React.createElement('div', { className: 'space-y-3' },
+            ...myRegistrations.map((reg) =>
+              React.createElement('div', {
+                key: reg.id,
+                className: 'p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/20 rounded-2xl border border-amber-100 dark:border-amber-800/50'
+              },
+                React.createElement('div', { className: 'flex items-start justify-between gap-3' },
+                  React.createElement('div', null,
+                    React.createElement('p', { className: 'font-black text-amber-900 dark:text-amber-100' }, reg.union_programs?.name),
+                    React.createElement('p', { className: 'text-xs text-amber-600 dark:text-amber-400 mt-1' }, 'NIK: ' + user?.nik)
+                  ),
+                  React.createElement('div', { className: 'w-8 h-8 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center' },
+                    React.createElement(CheckCircle, { className: 'w-4 h-4 text-green-600' })
+                  )
+                ),
+                React.createElement('div', { className: 'mt-3 p-3 bg-white/60 dark:bg-zinc-800/60 rounded-xl' },
+                  React.createElement('p', { className: 'text-xs text-zinc-500 dark:text-zinc-400 mb-1' }, 'Kode Kupon'),
+                  React.createElement('p', { className: 'font-black text-lg text-amber-700 dark:text-amber-400 tracking-wider' }, reg.kupon_code)
+                )
+              )
+            )
+          )
+        ),
+
+        React.createElement('div', { className: 'flex items-center justify-between' },
+          React.createElement('h3', { className: 'text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider' }, 'Program Berlangsung'),
+          React.createElement('span', { className: 'text-xs font-medium text-zinc-400' }, programs.length + ' Program')
+        ),
+
+        loading ?
+          React.createElement('div', { className: 'flex justify-center py-12' },
+            React.createElement(motion.div, {
+              animate: { rotate: 360 },
+              transition: { duration: 1, repeat: Infinity, ease: 'linear' },
+              className: 'w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full'
+            })
+          ) :
+          programs.length === 0 ?
+            React.createElement(motion.div, {
+              initial: { opacity: 0, scale: 0.9 },
+              animate: { opacity: 1, scale: 1 },
+              className: 'text-center py-12 bg-white dark:bg-zinc-900 rounded-3xl shadow-lg'
+            },
+              React.createElement('div', { className: 'w-20 h-20 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-4' },
+                React.createElement(Gift, { className: 'w-10 h-10 text-zinc-400' })
+              ),
+              React.createElement('p', { className: 'text-zinc-500 font-bold text-lg' }, 'Belum Ada Program'),
+              React.createElement('p', { className: 'text-xs text-zinc-400 mt-2' }, 'Program dari Serikat akan muncul di sini')
+            ) :
+            React.createElement('div', { className: 'space-y-4' },
+              ...programs.map((program, idx) => {
+                const isRegistered = myRegistrations.some((r) => r.program_id === program.id);
+                return React.createElement(motion.div, {
+                  key: program.id,
+                  initial: { opacity: 0, y: 20 },
+                  animate: { opacity: 1, y: 0 },
+                  transition: { delay: idx * 0.05 },
+                  className: 'bg-white dark:bg-zinc-900 rounded-3xl p-5 border border-zinc-100 dark:border-zinc-800 shadow-lg'
+                },
+                  React.createElement('div', { className: 'flex items-start gap-4' },
+                    React.createElement('div', { className: `w-14 h-14 rounded-2xl flex items-center justify-center ${
+                      program.is_targeted 
+                        ? 'bg-gradient-to-br from-purple-500 to-pink-600' 
+                        : 'bg-gradient-to-br from-amber-500 to-orange-600'
+                    }` },
+                      program.is_targeted 
+                        ? React.createElement(Users, { className: 'w-7 h-7 text-white' }) 
+                        : React.createElement(Calendar, { className: 'w-7 h-7 text-white' })
+                    ),
+                    React.createElement('div', { className: 'flex-1' },
+                      React.createElement('h4', { className: 'font-bold text-zinc-900 dark:text-white text-lg' }, program.name),
+                      React.createElement('p', { className: 'text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed' }, program.description),
+                      program.is_targeted && React.createElement('span', { className: 'inline-block mt-2 px-2.5 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs font-bold rounded-lg' },
+                        'Undangan Eksklusif'
+                      )
+                    )
+                  ),
+                  React.createElement('div', { className: 'mt-5' },
+                    isRegistered ?
+                      React.createElement('button', {
+                        disabled: true,
+                        className: 'w-full py-3.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg'
+                      },
+                        React.createElement(CheckCircle, { className: 'w-5 h-5' }),
+                        'Kupon Dimiliki'
+                      ) :
+                      React.createElement('button', {
+                        onClick: () => handleOpenForm(program),
+                        disabled: claiming === program.id,
+                        className: 'w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white rounded-2xl font-bold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2'
+                      },
+                        claiming === program.id ?
+                          React.createElement(Loader2, { className: 'w-5 h-5 animate-spin' }) :
+                          React.createElement(React.Fragment, null,
+                            React.createElement(Gift, { className: 'w-5 h-5' }),
+                            'Ikuti Program'
+                          )
+                      )
+                  )
+                );
+              })
+            ),
+
+        activeFormProgram && React.createElement('div', { className: 'fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4' },
+          React.createElement(motion.div, {
+            initial: { scale: 0.9, opacity: 0, y: 20 },
+            animate: { scale: 1, opacity: 1, y: 0 },
+            className: 'bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto shadow-2xl'
+          },
+            React.createElement('div', { className: 'flex items-center justify-between mb-6' },
+              React.createElement('div', null,
+                React.createElement('h2', { className: 'font-black text-xl text-zinc-900 dark:text-white' }, activeFormProgram.name),
+                React.createElement('p', { className: 'text-xs text-zinc-500 mt-1' }, 'Silakan lengkapi data berikut')
+              ),
+              React.createElement('div', { className: 'w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center' },
+                React.createElement(Gift, { className: 'w-6 h-6 text-white' })
+              )
+            ),
+            React.createElement('form', {
+              onSubmit: (e: any) => { e.preventDefault(); executeClaim(activeFormProgram.id, formAnswers); },
+              className: 'space-y-4'
+            },
+              ...(activeFormProgram.form_config || []).map((field: any) =>
+                React.createElement('div', { key: field.id },
+                  React.createElement('label', { className: 'block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider' },
+                    field.label,
+                    field.required && React.createElement('span', { className: 'text-red-500 ml-1' }, '*')
+                  ),
+                  renderDynamicField(field)
+                )
+              ),
+              React.createElement('div', { className: 'flex gap-3 mt-6' },
+                React.createElement('button', {
+                  type: 'button',
+                  onClick: () => setActiveFormProgram(null),
+                  className: 'flex-1 py-3.5 bg-zinc-100 dark:bg-zinc-800 font-bold rounded-2xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors'
+                }, 'Batal'),
+                React.createElement('button', {
+                  type: 'submit',
+                  disabled: claiming !== null,
+                  className: 'flex-1 py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all'
+                },
+                  claiming ? React.createElement(Loader2, { className: 'w-5 h-5 animate-spin inline' }) : 'Kirim Data'
+                )
+              )
+            )
           )
         )
       )
