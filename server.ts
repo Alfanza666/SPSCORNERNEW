@@ -2875,21 +2875,25 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
         expired.map((tx) => tx.id),
       );
     if (updateError) throw updateError;
-    for (const tx of expired) {
-      const { data: items } = await supabase
-        .from("transaction_items")
-        .select("product_id, quantity")
-        .eq("transaction_id", tx.id);
-      if (items) {
-        for (const item of items) {
-          if (item.product_id) {
-            await supabase.rpc("increment_stock", {
+    const txIds = expired.map((tx) => tx.id);
+    const { data: allItems } = await supabase
+      .from("transaction_items")
+      .select("product_id, quantity")
+      .in("transaction_id", txIds);
+
+    if (allItems) {
+      const incrementPromises = [];
+      for (const item of allItems) {
+        if (item.product_id) {
+          incrementPromises.push(
+            supabase.rpc("increment_stock", {
               p_id: item.product_id,
               p_amount: item.quantity,
-            });
-          }
+            })
+          );
         }
       }
+      await Promise.all(incrementPromises);
     }
     res.json({ success: true, count: expired.length });
   } catch (error) {
