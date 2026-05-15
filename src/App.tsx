@@ -81,12 +81,16 @@ const PortalFlashsale = lazyWithRetry(() => import('./pages/portal/PortalFlashsa
 const PortalPengumuman = lazyWithRetry(() => import('./pages/portal/PortalPengumuman'));
 const PortalPengaduan = lazyWithRetry(() => import('./pages/portal/PortalPengaduan'));
 const PortalKritik = lazyWithRetry(() => import('./pages/portal/PortalKritik'));
+const PortalProfile = lazyWithRetry(() => import('./pages/portal/PortalProfile'));
+const PortalFormView = lazyWithRetry(() => import('./pages/portal/PortalFormView'));
+const PortalFormList = lazyWithRetry(() => import('./pages/portal/PortalFormList'));
 
 const AdminScanner = lazyWithRetry(() => import('./pages/dashboard/admin/AdminScanner'));
 const AdminFlashsale = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFlashsale'));
 const AdminGathering = lazyWithRetry(() => import('./pages/dashboard/admin/AdminGathering'));
 const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
 const AdminDoorprize = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprize'));
+const AdminFormBuilder = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormBuilder'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   const isChunkError = error?.message?.includes('dynamically imported') ||
@@ -180,6 +184,9 @@ export default function App() {
               <Route path="pengumuman" element={<PortalPengumuman />} />
               <Route path="pengaduan" element={<PortalPengaduan />} />
               <Route path="kritik" element={<PortalKritik />} />
+               <Route path="profile" element={<PortalProfile />} />
+              <Route path="forms" element={<PortalFormList />} />
+              <Route path="forms/:formId" element={<PortalFormView />} />
             </Route>
 
             <Route path="/kiosk" element={<KioskLayout />}>
@@ -212,6 +219,7 @@ export default function App() {
               <Route path="admin/feedbacks" element={<AdminFeedbacks />} />
               <Route path="admin/union-programs" element={<AdminUnionPrograms />} />
               <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
+              <Route path="admin/forms" element={<AdminFormBuilder />} />
 
               <Route path="admin/scanner" element={<AdminScanner />} />
               <Route path="admin/flashsale" element={<AdminFlashsale />} />

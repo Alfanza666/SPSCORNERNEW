@@ -324,18 +324,24 @@ export const BUYER_GUIDES: PageGuide[] = [
     ],
   },
   {
-    page: '/kiosk/profile',
+    page: '/portal/profile',
     steps: [
       {
         selector: 'body',
         title: 'Profil & Pengaturan',
-        content: 'Halaman untuk melihat dan mengelola data akun Anda. Termasuk informasi pribadi, saldo points, dan preferensi tampilan.',
+        content: 'Halaman untuk melihat dan mengelola data akun Anda. Sekarang terpusat di Portal untuk memudahkan pengaturan keamanan dan data diri.',
         placement: 'center',
       },
       {
         selector: '.guide-profile-info',
         title: 'Informasi Akun',
-        content: 'Lihat data diri: Nama, NIK, Email, dan Nomor HP. Data ini digunakan untuk login dan notifikasi. Hubungi admin jika ingin mengubah data.',
+        content: 'Lihat data diri: Nama, NIK, Email, dan Nomor HP. Data ini digunakan untuk login dan notifikasi. Anda bisa mengubah nama dan WhatsApp di sini.',
+        placement: 'top',
+      },
+      {
+        selector: '.guide-profile-security',
+        title: 'Keamanan Akun',
+        content: 'Bagian untuk mengganti password Anda secara berkala demi keamanan akun anggota.',
         placement: 'top',
       },
       {
@@ -355,12 +361,6 @@ export const BUYER_GUIDES: PageGuide[] = [
         title: 'Panduan Interaktif',
         content: 'Klik tombol ini untuk memulai ulang Panduan Interaktif. Berguna jika Anda ingin mempelajari ulang cara penggunaan aplikasi.',
         placement: 'top',
-      },
-      {
-        selector: '.guide-profile-logout',
-        title: 'Keluar Akun',
-        content: 'Klik "Keluar" untuk logout dari akun Anda. Keranjang akan dikosongkan dan Anda akan diarahkan ke halaman utama.',
-        placement: 'bottom',
       },
     ],
   },

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Zap, Tag, Loader2, CheckCircle, Shield } from 'lucide-react';
-import SPSLogo from '../../components/SPSLogo';
+import { Zap, Tag, Loader2, CheckCircle, Shield, ChevronLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 
 export default function PortalFlashsale() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [bookingId, setBookingId] = useState<string | null>(null);
@@ -56,19 +56,21 @@ export default function PortalFlashsale() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg overflow-hidden">
-            <SPSLogo variant="icon" className="w-8 h-8" />
-          </div>
+          <button
+            onClick={() => navigate('/portal')}
+            className="w-10 h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group shadow-sm"
+          >
+            <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+          </button>
           <div>
-            <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight">
               Flashsale Aset SPS
-              <span className="text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/30 px-2 py-0.5 rounded-full">SPS</span>
             </h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Lelang aset perusahaan</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium mt-1">Lelang aset perusahaan</p>
           </div>
         </div>
         <div className="hidden lg:block">
-          <SPSLogo variant="stack" className="h-10" />
+          {/* Logo stack removed for professional look */}
         </div>
       </div>
 

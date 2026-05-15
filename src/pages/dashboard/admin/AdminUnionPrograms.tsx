@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -16,6 +16,7 @@ interface FormField {
 
 export default function AdminUnionPrograms() {
   const [programs, setPrograms] = useState<any[]>([]);
+  const [dynamicForms, setDynamicForms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProgram, setEditingProgram] = useState<any>(null);
@@ -31,6 +32,7 @@ export default function AdminUnionPrograms() {
     end_date: '',
     is_active: true,
     is_targeted: false,
+    dynamic_form_id: '',
   });
 
   const [formConfig, setFormConfig] = useState<FormField[]>([]);
@@ -41,6 +43,7 @@ export default function AdminUnionPrograms() {
 
   useEffect(() => {
     fetchPrograms();
+    fetchDynamicForms();
     if (formData.is_targeted) {
       fetchEligibleUsers();
     }
@@ -70,10 +73,23 @@ export default function AdminUnionPrograms() {
     }
   };
 
+  const fetchDynamicForms = async () => {
+    try {
+      const { data } = await supabase
+        .from('dynamic_forms')
+        .select('id, title')
+        .eq('is_active', true);
+      if (data) setDynamicForms(data);
+    } catch (error) {
+      console.error('Error fetching forms:', error);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: '', description: '', program_type: 'gathering',
-      start_date: '', end_date: '', is_active: true, is_targeted: false
+      start_date: '', end_date: '', is_active: true, is_targeted: false,
+      dynamic_form_id: ''
     });
     setFormConfig([]);
     setTargetNiks('');
@@ -94,6 +110,7 @@ export default function AdminUnionPrograms() {
       end_date: program.end_date || '',
       is_active: program.is_active,
       is_targeted: program.is_targeted,
+      dynamic_form_id: program.dynamic_form_id || '',
     });
     setFormConfig(program.form_config || []);
     setIsModalOpen(true);
@@ -475,6 +492,35 @@ export default function AdminUnionPrograms() {
                         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Aktif</span>
                       </label>
                     </div>
+                  </div>
+                  
+                  {/* Dynamic Form Link */}
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700">
+                    <div className="flex items-center gap-3 mb-4">
+                      <ClipboardList className="w-5 h-5 text-blue-500" />
+                      <div>
+                        <p className="font-bold text-zinc-900 dark:text-white">Link ke Formulir Dinamis</p>
+                        <p className="text-xs text-zinc-500">Opsional: Gunakan formulir dari Form Builder sebagai ganti form pendaftaran bawaan.</p>
+                      </div>
+                    </div>
+                    <select
+                      value={formData.dynamic_form_id}
+                      onChange={e => setFormData({ ...formData, dynamic_form_id: e.target.value })}
+                      className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">-- Gunakan Form Pendaftaran Bawaan --</option>
+                      {dynamicForms.map(form => (
+                        <option key={form.id} value={form.id}>{form.title}</option>
+                      ))}
+                    </select>
+                    {formData.dynamic_form_id && (
+                      <div className="mt-3 flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                        <p className="text-[10px] md:text-xs text-amber-700 dark:text-amber-400 font-medium">
+                          Perhatian: Menggunakan formulir dinamis akan menonaktifkan "Formulir Pendaftaran" bawaan di bawah.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

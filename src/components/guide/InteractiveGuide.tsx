@@ -436,7 +436,7 @@ export function RestartGuideButton() {
             <div className="border-t border-zinc-100 dark:border-zinc-800">
               {user.role === 'buyer' || user.role === undefined ? (
                 <>
-                  {['/kiosk', '/kiosk/cart', '/kiosk/checkout', '/kiosk/digital', '/kiosk/preorder', '/kiosk/profile'].map((page, idx) => (
+                  {['/kiosk', '/kiosk/cart', '/kiosk/checkout', '/kiosk/digital', '/kiosk/preorder', '/portal/profile'].map((page, idx) => (
                     <motion.button
                       key={page}
                       initial={{ x: -10, opacity: 0 }}
@@ -453,7 +453,7 @@ export function RestartGuideButton() {
                        page === '/kiosk/checkout' ? 'Checkout' :
                        page === '/kiosk/digital' ? 'Digital' :
                        page === '/kiosk/preorder' ? 'Pre-Order' :
-                       page === '/kiosk/profile' ? 'Profil' : page}
+                       page === '/portal/profile' ? 'Profil' : page}
                     </motion.button>
                   ))}
                 </>

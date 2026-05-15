@@ -23,7 +23,8 @@ import {
   ChevronRight,
   ChevronDown,
   Loader2,
-  Pin
+  Pin,
+  ClipboardList
 } from 'lucide-react';
 import SPSLogo from '../../components/SPSLogo';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
@@ -35,7 +36,9 @@ const NAV_ITEMS = [
   { path: '/portal/pengaduan', label: 'Pengaduan & Pembelaan', icon: AlertTriangle, color: 'red' },
   { path: '/portal/pengumuman', label: 'Pengumuman Serikat', icon: Megaphone, color: 'blue' },
   { path: '/portal/program', label: 'Program Serikat', icon: Gift, color: 'amber' },
+  { path: '/portal/forms', label: 'Daftar Formulir', icon: ClipboardList, color: 'blue' },
   { path: '/portal/kritik', label: 'Kritik & Saran', icon: MessageSquare, color: 'purple' },
+  { path: '/portal/profile', label: 'Profil Saya', icon: UserIcon, color: 'default' },
 ];
 
 interface NavItemProps {
@@ -45,6 +48,7 @@ interface NavItemProps {
   isActive: boolean;
   onClick: () => void;
   color?: string;
+  key?: string | number;
 }
 
 const NavItem = ({ to, icon: Icon, label, isActive, onClick, color }: NavItemProps) => {
@@ -122,17 +126,16 @@ export default function PortalLayout() {
     return location.pathname.startsWith(path);
   };
 
+  const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+  const isSeller = user.role === 'seller';
+
   return (
     <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex overflow-hidden transition-colors duration-300">
       {/* Sidebar Desktop */}
       <aside className="w-80 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden lg:flex relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.4)] transition-colors duration-300">
         <div className="h-32 flex flex-col items-center justify-center px-6 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-zinc-800/50 dark:to-zinc-900/50">
-          <div className="flex items-center gap-3 cursor-pointer group mb-2" onClick={() => navigate('/')}>
-            <div className="relative">
-              <SPSLogo variant="icon" className="h-14 w-14 drop-shadow-md transition-transform hover:scale-105" />
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-zinc-900" />
-            </div>
-            <SPSLogo variant="stack" className="h-10" />
+          <div className="cursor-pointer group mb-2" onClick={() => navigate('/')}>
+            <SPSLogo variant="stack" className="h-12 drop-shadow-sm transition-transform hover:scale-105" />
           </div>
           <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Portal Serikat Pekerja</p>
         </div>
@@ -145,6 +148,7 @@ export default function PortalLayout() {
             <div className="space-y-2">
               {NAV_ITEMS.map((item) => (
                 <NavItem
+                  key={item.path}
                   to={item.path}
                   icon={item.icon}
                   label={item.label}
@@ -161,16 +165,29 @@ export default function PortalLayout() {
               Akses Cepat
             </div>
             <div className="space-y-2">
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
-                onClick={() => navigate('/dashboard/admin')}
-              >
-                <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
-                  <Settings className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
-                </div>
-                Dashboard Admin
-              </button>
-              {(user.role === 'superadmin' || user.role === 'admin') && (
+              {isAdmin && (
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                  onClick={() => navigate('/dashboard/admin')}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                    <Settings className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                  </div>
+                  Dashboard Admin
+                </button>
+              )}
+              {isSeller && (
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                  onClick={() => navigate('/dashboard/seller')}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                    <LayoutDashboard className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                  </div>
+                  Dashboard Seller
+                </button>
+              )}
+              {(isAdmin) && (
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
                   onClick={() => navigate('/portal/flashsale')}
@@ -239,11 +256,7 @@ export default function PortalLayout() {
                 <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-black">
                   <div className="flex h-24 shrink-0 items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-zinc-800/50 dark:to-zinc-900/50">
                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
-                      <div className="relative">
-                        <SPSLogo variant="icon" className="h-12 w-12" />
-                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-zinc-900" />
-                      </div>
-                      <SPSLogo variant="stack" className="h-9" />
+                      <SPSLogo variant="stack" className="h-10" />
                     </div>
                     <button type="button" onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none">
                       <X className="w-6 h-6" />
@@ -257,6 +270,7 @@ export default function PortalLayout() {
                       <div className="space-y-1.5 focus:outline-none">
                         {NAV_ITEMS.map((item) => (
                           <NavItem
+                            key={item.path}
                             to={item.path}
                             icon={item.icon}
                             label={item.label}
@@ -433,15 +447,15 @@ export default function PortalLayout() {
                     <Menu.Item>
                       {({ active }) => (
                         <button
-                          onClick={() => setIsChangePasswordModalOpen(true)}
+                          onClick={() => navigate('/portal/profile')}
                           className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${
                             active ? 'bg-zinc-50 dark:bg-zinc-800/50 text-blue-600 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'
                           }`}
                         >
                           <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
-                            <KeyRound className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+                            <UserIcon className="w-5 h-5 opacity-70 group-hover:opacity-100" />
                           </div>
-                          Ganti Password
+                          Profil Saya
                         </button>
                       )}
                     </Menu.Item>

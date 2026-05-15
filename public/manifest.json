@@ -8,12 +8,6 @@
   "start_url": "/",
   "icons": [
     {
-      "src": "/logos/sps-logo-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
       "src": "/logos/sps-logo-icon.png",
       "sizes": "192x192",
       "type": "image/png"

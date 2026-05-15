@@ -8,6 +8,7 @@ export interface UserProfile {
   email?: string;
   nik?: string;
   phone?: string;
+  avatar_url?: string;
   balance: number;
   loyalty_points?: number;
   profile?: {
@@ -38,18 +39,23 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, role, name, nik, phone, balance, loyalty_points')
+        .select('id, role, name, nik, phone, avatar_url, balance, loyalty_points')
         .eq('id', userId)
         .single();
 
       if (error) {
         console.error('Error fetching profile - details:', error);
-        throw error;
-      }
-
-      if (!data) {
-        console.warn('Profile not found for userId:', userId);
-        set({ user: null, isLoading: false });
+        
+        // For OAuth users without a profile yet, provide a default profile to avoid redirect loops
+        const defaultUser: UserProfile = {
+          id: userId,
+          role: 'buyer',
+          name: session?.user?.user_metadata?.full_name || 'User',
+          email: sessionEmail?.endsWith('@sps.local') ? undefined : sessionEmail,
+          balance: 0,
+          loyalty_points: 0
+        };
+        set({ user: defaultUser, isLoading: false });
         return;
       }
 

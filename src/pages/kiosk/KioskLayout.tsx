@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Home, LogOut, User, Check, Clock, HelpCircle, Bell } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Home, Check, Clock, HelpCircle, Bell } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
@@ -21,9 +21,8 @@ function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, reset
         <Button onClick={resetErrorBoundary} className="w-full bg-red-600 hover:bg-red-700 text-white">
           Coba Lagi
         </Button>
-      </div>      {/* Global error reporter - auto captures crashes + manual report button */}
+      </div>
       <ErrorReporter />
-
     </div>
   );
 }
@@ -44,25 +43,21 @@ export default function KioskLayout() {
   const isCatalog = location.pathname === '/kiosk';
   const isSuccess = location.pathname === '/kiosk/success';
 
-  // Show phone modal if user is logged in via Google but has no phone
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
     if (user && isCatalog && !user.phone) {
-      // Small delay to avoid jarring the user immediately
       const t = setTimeout(() => setShowPhoneModal(true), 1500);
       return () => clearTimeout(t);
     }
   }, [user, isCatalog]);
 
-  // Notification bell for logged-in buyers
   const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   const currentStepIndex = STEPS.findIndex(step => step.path === location.pathname);
-
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleHomeClick = () => {
@@ -73,15 +68,7 @@ export default function KioskLayout() {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    clearCart();
-    sessionStorage.removeItem('buyerName');
-    navigate('/');
-  };
-
   const handleBack = async () => {
-    // If we are on checkout and going back to cart, we should release reservations
     if (location.pathname === '/kiosk/checkout' && reservations.length > 0) {
       try {
         for (const resId of reservations) {
@@ -93,7 +80,6 @@ export default function KioskLayout() {
       }
     }
     
-    // Custom back navigation based on current step
     if (currentStepIndex > 0) {
       navigate(STEPS[currentStepIndex - 1].path);
     } else {
@@ -101,16 +87,14 @@ export default function KioskLayout() {
     }
   };
 
-  // Idle timeout (2 minutes)
   useEffect(() => {
-    if (isSuccess) return; // Don't timeout on success page
+    if (isSuccess) return;
 
     let timeoutId: NodeJS.Timeout;
 
     const resetTimeout = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(async () => {
-        // Release any active reservations
         if (reservations.length > 0) {
           try {
             for (const resId of reservations) {
@@ -124,181 +108,159 @@ export default function KioskLayout() {
         clearCart();
         sessionStorage.removeItem('buyerName');
         navigate('/kiosk');
-      }, 2 * 60 * 1000); // 2 minutes
+      }, 2 * 60 * 1000);
     };
 
-    // Events to listen for activity
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-    
-    events.forEach(event => {
-      document.addEventListener(event, resetTimeout);
-    });
-
-    // Initial setup
+    events.forEach(event => document.addEventListener(event, resetTimeout));
     resetTimeout();
 
     return () => {
       clearTimeout(timeoutId);
-      events.forEach(event => {
-        document.removeEventListener(event, resetTimeout);
-      });
+      events.forEach(event => document.removeEventListener(event, resetTimeout));
     };
   }, [navigate, clearCart, isSuccess, reservations, setReservations]);
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] dark:bg-zinc-950 flex flex-col font-sans transition-colors duration-300">
-      {/* Header */}
       {!isSuccess && (
         <header className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-100/50 dark:border-zinc-800 sticky top-0 z-50 shadow-sm dark:shadow-black/20 transition-colors duration-300">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
               {!isCatalog && (
                 <button
                   onClick={handleBack}
-                  className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-200/50 dark:border-zinc-700/50 text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 shadow-sm"
                 >
-                  <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               )}
               <div className="flex items-center gap-2 cursor-pointer group" onClick={handleHomeClick}>
-                <div className="relative">
-                  <SPSLogo variant="wide" className="h-10 sm:h-14 transition-transform hover:scale-110 hover:rotate-3" />
-                </div>
+                <SPSLogo variant="wide" className="h-8 sm:h-14 transition-transform hover:scale-105" />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3 flex-1 justify-end">
               {isCatalog && (
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <button
                     onClick={() => window.dispatchEvent(new Event('start-tutorial'))}
-                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group shadow-sm"
                     title="Bantuan / Tutorial"
                   >
-                    <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
                   </button>
                   <button
                     onClick={() => navigate('/kiosk/history')}
-                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 overflow-hidden guide-history-btn"
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group shadow-sm guide-history-btn"
                     title="Riwayat Pesanan"
                   >
-                    <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
                   </button>
+                  
                   {user && (
-                    <>
-                      {/* Notification Bell */}
-                      <div className="relative">
-<button
-                            onClick={() => { setShowNotifDropdown(v => !v); }}
-                            className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 relative guide-notif-btn"
-                            title="Notifikasi"
-                          >
-                          <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                          {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold border border-white dark:border-zinc-800">
-                              {unreadCount > 9 ? '9+' : unreadCount}
-                            </span>
-                          )}
-                        </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowNotifDropdown(v => !v)}
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group relative guide-notif-btn shadow-sm"
+                        title="Notifikasi"
+                      >
+                        <Bell className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                        {unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold border-2 border-white dark:border-zinc-900 shadow-sm">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        )}
+                      </button>
+                      
+                      <AnimatePresence>
                         {showNotifDropdown && (
-                          <div className="absolute right-0 top-12 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 z-[100] overflow-hidden">
-                            <div className="p-3 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                          <motion.div 
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute right-0 top-12 w-72 max-w-[calc(100vw-2rem)] bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-100 dark:border-zinc-800 z-[100] overflow-hidden"
+                          >
+                            <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/30">
                               <p className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Notifikasi</p>
                               {unreadCount > 0 && (
                                 <button 
                                   onClick={() => markAllAsRead()}
-                                  className="text-[10px] font-black text-blue-600 hover:text-blue-700"
+                                  className="text-[10px] font-black text-blue-600 hover:text-blue-700 transition-colors"
                                 >
                                   Tandai Semua Dibaca
                                 </button>
                               )}
                             </div>
-                            <div className="max-h-72 overflow-y-auto">
-                              <AnimatePresence>
-                                {notifications.filter(n => !n.isRead).length === 0 ? (
-                                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-zinc-400 text-xs font-medium py-6">Tidak ada notifikasi baru</motion.p>
-                                ) : (
-                                  notifications.filter(n => !n.isRead).slice(0, 10).map(n => (
-                                    <motion.button
-                                      initial={{ opacity: 0, scale: 0.95 }}
-                                      animate={{ opacity: 1, scale: 1 }}
-                                      exit={{ opacity: 0, scale: 0.95 }}
-                                      transition={{ duration: 0.2 }}
-                                      key={n.id}
-                                      role="alert"
-                                      onClick={() => { markOneAsRead(n.id); navigate(n.path); setShowNotifDropdown(false); }}
-                                      className={`w-full text-left p-3 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-l-4 ${
-                                        n.type === 'transaction' ? 'bg-blue-50/50 dark:bg-blue-900/10 border-l-blue-500' :
-                                        n.type === 'withdrawal' ? 'bg-amber-50/50 dark:bg-amber-900/10 border-l-amber-500' :
-                                        'bg-zinc-50 dark:bg-zinc-800/50 border-l-zinc-300 dark:border-l-zinc-600'
-                                      }`}
-                                    >
-                                      <p className="text-xs font-black text-zinc-900 dark:text-white leading-snug">{n.title}</p>
-                                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 font-medium">{n.message}</p>
-                                    </motion.button>
-                                  ))
-                                )}
-                              </AnimatePresence>
+                            <div className="max-h-80 overflow-y-auto">
+                              {notifications.filter(n => !n.isRead).length === 0 ? (
+                                <div className="py-10 px-6 text-center">
+                                  <Bell className="w-8 h-8 text-zinc-200 dark:text-zinc-800 mx-auto mb-2" />
+                                  <p className="text-zinc-400 text-xs font-bold italic">Tidak ada notifikasi baru</p>
+                                </div>
+                              ) : (
+                                notifications.filter(n => !n.isRead).slice(0, 10).map(n => (
+                                  <button
+                                    key={n.id}
+                                    onClick={() => { markOneAsRead(n.id); navigate(n.path); setShowNotifDropdown(false); }}
+                                    className={`w-full text-left p-4 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all border-l-4 ${
+                                      n.type === 'transaction' ? 'bg-blue-50/30 dark:bg-blue-900/10 border-l-blue-500' :
+                                      n.type === 'withdrawal' ? 'bg-amber-50/30 dark:bg-amber-900/10 border-l-amber-500' :
+                                      'bg-zinc-50/50 dark:bg-zinc-800/50 border-l-zinc-300 dark:border-l-zinc-600'
+                                    }`}
+                                  >
+                                    <p className="text-xs font-black text-zinc-900 dark:text-white leading-snug">{n.title}</p>
+                                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2 font-bold leading-relaxed">{n.message}</p>
+                                  </button>
+                                ))
+                              )}
                             </div>
-                          </div>
+                          </motion.div>
                         )}
-                      </div>
-                      {/* Profile button */}
-                      <button
-                        onClick={() => navigate('/kiosk/profile')}
-                        className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 guide-profile-btn"
-                        title="Profil & Keamanan"
-                      >
-                        <User className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                    </>
+                      </AnimatePresence>
+                    </div>
                   )}
+
                   <button
                     onClick={() => navigate('/kiosk/cart')}
-                    className="relative clay-icon-amber h-7 w-7 sm:h-8 sm:w-auto sm:px-3 group guide-cart-btn"
+                    className="relative w-8 h-8 sm:w-auto sm:h-10 sm:px-4 rounded-xl flex items-center justify-center bg-amber-400 dark:bg-amber-500 text-amber-950 border border-amber-300 dark:border-amber-400 shadow-sm transition-all active:scale-95 group guide-cart-btn"
                   >
-                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-1.5" />
-                    <span className="hidden sm:inline text-[10px] font-bold">Keranjang</span>
+                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-1.5 transition-transform group-hover:scale-110" />
+                    <span className="hidden sm:inline text-xs font-bold">Keranjang</span>
                     {totalItems > 0 && (
-                        <div
-                          className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 bg-red-500 text-white w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center text-[6px] sm:text-[8px] font-bold shadow-sm border border-white dark:border-zinc-800"
-                        >
-                          {totalItems}
-                        </div>
-                      )}
+                      <div className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shadow-lg border-2 border-white dark:border-zinc-900">
+                        {totalItems}
+                      </div>
+                    )}
                   </button>
                 </div>
               )}
 
               {user ? (
                 <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 border-l border-zinc-200 dark:border-zinc-800">
-                  <div 
-                    className="text-right hidden lg:block cursor-pointer hover:opacity-70 transition-opacity"
-                    onClick={() => navigate('/kiosk/profile')}
-                  >
-                    <p className="text-[10px] sm:text-xs font-bold text-zinc-900 dark:text-white leading-none">{user.name}</p>
-                    <p className="text-[6px] sm:text-[8px] text-zinc-400 dark:text-zinc-500 font-bold mt-0.5 uppercase tracking-wider">{user.nik || user.role}</p>
+                  <div className="text-right hidden sm:block">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-0.5">Anggota</p>
+                    <p className="text-xs font-black text-zinc-900 dark:text-white truncate max-w-[100px] leading-none">{user.name?.split(' ')[0]}</p>
                   </div>
                   <button
-                    onClick={handleSignOut}
-                    className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400"
-                    title="Keluar"
+                    onClick={() => navigate('/portal')}
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group shadow-sm"
+                    title="Kembali ke Portal"
                   >
-                    <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <Home className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
                   </button>
                 </div>
               ) : (
                 <button
-                  onClick={() => navigate('/login')}
-                  className="clay-icon w-7 h-7 sm:w-8 sm:h-8 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400"
+                  onClick={() => navigate('/auth')}
+                  className="px-4 py-2 bg-blue-600 text-white text-[10px] sm:text-xs font-black rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all hover:bg-blue-700"
                 >
-                  <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  LOGIN
                 </button>
               )}
             </div>
           </div>
           
-          {/* Stepper Indicator */}
           {currentStepIndex >= 0 && currentStepIndex < STEPS.length - 1 && (
             <div className="bg-zinc-50/50 dark:bg-zinc-900/50 border-t border-zinc-100 dark:border-zinc-800 px-4 py-2 sm:py-3">
               <div className="max-w-2xl mx-auto">
@@ -337,14 +299,12 @@ export default function KioskLayout() {
         </header>
       )}
 
-      {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full p-3 sm:p-4">
         <ErrorBoundary FallbackComponent={KioskErrorFallback} onReset={() => navigate('/kiosk')}>
           <Outlet />
         </ErrorBoundary>
       </main>
 
-      {/* Footer */}
       {!isSuccess && (
         <footer className="bg-transparent py-4 mt-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
@@ -359,9 +319,7 @@ export default function KioskLayout() {
         </footer>
       )}
 
-      {/* Global error reporter: auto-captures crashes + manual bug report button */}
       <ErrorReporter />
-
     </div>
   );
 }

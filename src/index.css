@@ -148,9 +148,7 @@
   /* Clean Icons */
   .clay-icon {
     @apply rounded-xl flex items-center justify-center transition-all duration-300 bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 shadow-sm;
-    /* Minimum touch target */
-    min-width: 44px;
-    min-height: 44px;
+    /* Removed strict min-width to allow more flexibility */
   }
 
   .dark .clay-icon {

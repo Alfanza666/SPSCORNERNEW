@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Store, ShoppingBag, ArrowRight, Search, X, Package, Plus, Minus, ShoppingCart } from 'lucide-react';
+import { Store, ShoppingBag, ArrowRight, Search, X, Package, Plus, Minus, ShoppingCart, ChevronLeft } from 'lucide-react';
 import { formatRupiah } from '../../lib/utils';
 import toast from 'react-hot-toast';
 
@@ -109,9 +109,17 @@ export default function PortalKantin() {
       {/* Header */}
       <div className="bg-green-600 dark:bg-green-700 px-4 py-4 sticky top-0 z-20">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-black text-white">Kiosk</h1>
-            <p className="text-green-100 text-xs">Belanja kebutuhan harian</p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/portal')}
+              className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/20 hover:bg-white/30 text-white transition-all active:scale-95 group"
+            >
+              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+            </button>
+            <div>
+              <h1 className="text-xl font-black text-white">Kiosk</h1>
+              <p className="text-green-100 text-xs">Belanja kebutuhan harian</p>
+            </div>
           </div>
           <button 
             onClick={() => navigate('/kiosk')}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -398,6 +398,13 @@ export default function DashboardLayout() {
               label="Program Serikat" 
               isActive={location.pathname === "/dashboard/admin/union-programs"}
               onClick={() => { navigate("/dashboard/admin/union-programs"); setIsSidebarOpen(false); }}
+            />
+            <NavItem 
+              to="/dashboard/admin/forms" 
+              icon={ClipboardList} 
+              label="Form Builder" 
+              isActive={location.pathname === "/dashboard/admin/forms"}
+              onClick={() => { navigate("/dashboard/admin/forms"); setIsSidebarOpen(false); }}
             />
             <NavItem 
               to="/dashboard/admin/announcements" 
