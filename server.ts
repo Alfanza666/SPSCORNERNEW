@@ -2769,17 +2769,23 @@ app.post("/api/transactions/create", async (req, res) => {
       .insert(txItems)
       .select();
     if (itemsError) throw itemsError;
-    for (const item of items) {
-      if (!item.is_digital && item.id) {
+    const stockDecrementPromises = items
+      .filter((item) => !item.is_digital && item.id)
+      .map(async (item) => {
         const { error: stockErr } = await supabase.rpc("decrement_stock", {
           p_id: item.id,
           p_amount: item.quantity,
         });
         if (stockErr) {
-          await supabase.from("transactions").delete().eq("id", tx.id);
           throw new Error(`Stok tidak mencukupi untuk ${item.name}`);
         }
-      }
+      });
+
+    try {
+      await Promise.all(stockDecrementPromises);
+    } catch (error) {
+      await supabase.from("transactions").delete().eq("id", tx.id);
+      throw error;
     }
     if (tx.status === "paid" || tx.status === "success") {
       if (insertedItems && insertedItems.length > 0) {

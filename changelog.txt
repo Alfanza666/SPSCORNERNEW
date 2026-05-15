@@ -449,3 +449,6 @@ Setiap kali ada deploy baru ke Vercel, Vite generate JS chunk files dengan **has
     *   **Fix:** Menambahkan `status` dan `payment_method` dengan pencarian tipe data yang aman (menghindari undefined error pada tabel `failed_transactions`).
 *   **Error:** Supabase Query Image fetching bisa memberatkan jaringan untuk list yang sangat banyak.
     *   **Fix:** Menerapkan `select` fields spesifik ketimbang `*` (asterisk) serta native attributes `loading="lazy" decoding="async"` pada rendering DOM React image element.
+
+* 2024-05-11: Optimize stock decrement RPC calls using Promise.all - Jules
+  - Mengoptimalkan proses pengurangan stok di `server.ts` dengan menggunakan `Promise.all` untuk mengeksekusi panggilan RPC `decrement_stock` secara bersamaan (concurrently) bukan sekuensial (N+1). Ini akan mengurangi waktu yang dibutuhkan secara signifikan saat memproses banyak item non-digital sekaligus.
