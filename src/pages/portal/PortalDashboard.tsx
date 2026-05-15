@@ -14,6 +14,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import FederasiLogo from '../../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
 
 export default function PortalDashboard() {
   const { user, isLoading: isAuthLoading } = useAuthStore();
@@ -135,7 +136,7 @@ export default function PortalDashboard() {
         <div className="relative p-5 md:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-8">
           <div className="w-16 h-16 md:w-28 md:h-28 flex items-center justify-center shrink-0">
             <img 
-              src="/src/components/ui/FEDERASI RIKAT PEKERJ SUKSES.png" 
+              src={FederasiLogo} 
               alt="Federasi Logo"
               className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
             />
