@@ -1,32 +1,25 @@
-# Changelog & Error History
+v4.7.1 - Excel File Import & Enhanced Bulk Tools
+--------------------------------------------------
+### Fitur Baru & Optimasi:
+- **[NEW] Direct Excel Import (.xlsx):** Admin kini bisa mengunggah file spreadsheet secara langsung. Sistem akan membaca seluruh baris data dan memprosesnya secara otomatis menggunakan library `xlsx`.
+- **[NEW] Hybrid Bulk Interface:** Peningkatan modal Bulk Import yang menawarkan dua opsi: "Upload File" (untuk data resmi) atau "Paste Data" (untuk pembaruan cepat).
 
-## v4.8.0 — MINOR: Dynamic Form Portal & Advanced Form Builder
-**Tanggal: 2026-05-17**
+v4.7.0 - Flash Sale Transformation & Scheduling
+--------------------------------------------------
+### Fitur Baru & Optimasi:
+- **[NEW] Scheduled Flash Sale:** Menambahkan sistem penjadwalan (`start_time`). Tombol booking sekarang terkunci otomatis hingga waktu lelang dimulai.
+- **[NEW] Real-time Countdown:** Portal buyer kini menampilkan hitung mundur (Hari/Jam/Menit/Detik) untuk aset yang akan datang.
+- **[NEW] Admin CRUD Assets:** Admin kini memiliki kendali penuh untuk Menambah, Mengedit, dan Menghapus aset lelang secara langsung dari dashboard.
+- **[NEW] Bulk Import Excel (Paste):** Fitur impor data masal menggunakan teknik Paste dari Excel. Otomatis memetakan kolom ItemName, AssetCode, SerialNo, Spek, dan Kelengkapan.
+- **[NEW] Auto Brand Detection:** Sistem otomatis memberikan gambar generic berkualitas tinggi untuk produk Dell dan Lenovo jika foto manual tidak disediakan.
+- **[ENHANCEMENT] Database Stabilization:** Pembaruan skema `sps_assets` untuk mendukung `start_time`, `final_price`, dan `winner_id` dengan kebijakan RLS yang lebih aman.
 
+v4.6.1 - Admin Form Builder & Export Excel
+--------------------------------------------------
 ### Fitur Baru & UI:
-- **[NEW] Portal Daftar Formulir:** Menambahkan halaman `/portal/forms` sebagai pusat akses formulir dinamis bagi anggota. Memungkinkan akses survei/pendaftaran mandiri tanpa harus melalui halaman program.
-- **[NEW] Form Context Integration:** Portal kini menampilkan informasi jika sebuah formulir terkait dengan program tertentu (misal: Gathering/Family Day).
-- **[ENHANCEMENT] Admin Form Builder (Google Forms-Style):**
-  - **Inline Header Editing:** Edit judul dan deskripsi formulir langsung di canvas.
-  - **Active Field Highlighting:** Penanda visual (blue border & left indicator) pada pertanyaan yang sedang diedit.
-  - **Field Duplication:** Tombol sekali klik untuk menduplikasi pertanyaan yang sudah ada.
-  - **Improved Option Management:** UI baru untuk menambah/menghapus opsi pada pilihan ganda (radio/checkbox/dropdown) secara individual (bukan lagi comma-separated).
-  - **Shareable Links:** Fitur "Salin Link" di Dashboard Admin untuk mempermudah distribusi formulir mandiri.
-- **[UI] Portal Navigation:** Menambahkan menu "Daftar Formulir" pada sidebar portal anggota untuk akses cepat.
-
-### Perbaikan Sistem:
-- **[FIX] Redirect Logic:** Memperbaiki alur navigasi pasca-submit formulir; pengguna akan dikembalikan ke daftar program jika mengisi pendaftaran program, atau kembali ke daftar formulir jika mengisi survei mandiri.
-- **[FIX] Announcement Images:** Integrasi penuh Supabase Storage untuk upload poster pengumuman dari sisi Admin dan tampilan di Portal.
-
----
-
-## v4.7.6 — MINOR: Centralized Profile & Kiosk Refinement (Final)
-**Tanggal: 2026-05-16**
-
-### Fitur & UI:
-- **[FINAL] Centralized Profile:** Menghapus seluruh akses profil dari Kiosk Header untuk memusatkan manajemen akun di `/portal/profile`.
-- **[UI] Kiosk Standard Icons:** Menggunakan gaya `clay-icon` yang konsisten untuk semua tombol navigasi di Header Kiosk.
-- **[GUIDE] Path Migration:** Mengalihkan navigasi "Profil" di Panduan Interaktif dari Kiosk ke Portal.
-- **[SUPPORT] WhatsApp Integration:** Menambahkan link bantuan WhatsApp langsung di halaman Lupa Password untuk kemudahan anggota.
-
----
+- **[NEW] Admin Form Responses:** Halaman khusus untuk melihat hasil respon formulir dinamis. Dilengkapi dengan tabel pencarian (Nama/NIK) dan modal detail untuk melihat jawaban lengkap anggota.
+- **[NEW] Export to Excel:** Fitur ekspor data respon ke format `.xlsx` menggunakan library `xlsx`. Output dilengkapi dengan penyesuaian lebar kolom otomatis (auto-width), header yang rapi, dan penanggalan format lokal Indonesia.
+- **[ENHANCEMENT] Google Forms-like UX:**
+  - **Reordering Control:** Menambahkan ikon "Grip" dan tombol pindah (Up/Down) yang selalu terlihat untuk memudahkan penyusunan pertanyaan.
+  - **Visual Feedback:** Peningkatan indikator fokus pada pertanyaan yang sedang diedit.
+- **[FIX] Routing Admin:** Perbaikan 404 pada AdminFormBuilder yang disebabkan oleh ketidakkonsistenan case-sensitive pada path file.

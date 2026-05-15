@@ -91,6 +91,7 @@ const AdminGathering = lazyWithRetry(() => import('./pages/dashboard/admin/Admin
 const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
 const AdminDoorprize = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprize'));
 const AdminFormBuilder = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormBuilder'));
+const AdminFormResponses = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormResponses'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   const isChunkError = error?.message?.includes('dynamically imported') ||
@@ -220,8 +221,9 @@ export default function App() {
               <Route path="admin/union-programs" element={<AdminUnionPrograms />} />
               <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
               <Route path="admin/forms" element={<AdminFormBuilder />} />
+              <Route path="admin/forms/responses/:formId" element={<AdminFormResponses />} />
 
-              <Route path="admin/scanner" element={<AdminScanner />} />
+              <Route path="scanner" element={<AdminScanner />} />
               <Route path="admin/flashsale" element={<AdminFlashsale />} />
               <Route path="admin/gathering" element={<AdminGathering />} />
               <Route path="admin/programs" element={<AdminUnionPrograms />} />

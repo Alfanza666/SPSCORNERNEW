@@ -33,7 +33,8 @@ import {
   Mail,
   Loader2,
   CheckCircle2,
-  MessageSquare
+  MessageSquare,
+  Zap
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -101,7 +102,7 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick, badge }: NavItemPro
   );
 };
 
-const NavGroup = ({ label, icon: Icon, defaultOpen, children }: { label: string, icon: any, defaultOpen?: boolean, children: React.ReactNode }) => {
+const NavGroup = ({ label, icon: Icon, defaultOpen, children }: { label: string, icon: any, defaultOpen?: boolean, children: React.ReactNode, key?: React.Key }) => {
   return (
     <Disclosure defaultOpen={defaultOpen}>
       {({ open }) => (
@@ -129,6 +130,7 @@ export default function DashboardLayout() {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [menuSearchQuery, setMenuSearchQuery] = useState('');
 
   // ── Seller Profile Completion Modal ────────────────────────────────────────
   // Helper: deteksi email mock/palsu yang dibuat otomatis saat registrasi NIK
@@ -253,243 +255,136 @@ export default function DashboardLayout() {
       return <Navigate to="/portal" replace />;
     }
 
-  const renderNavItems = () => (
+  const renderNavItems = () => {
+    const filterMenu = (label: string) => {
+      if (!menuSearchQuery) return true;
+      return label.toLowerCase().includes(menuSearchQuery.toLowerCase());
+    };
 
-    <>
-      {isAdmin && (
-        <>
-          <NavGroup label="Overview & Utama" icon={LayoutDashboard} defaultOpen={true}>
-            <div className="tour-admin-sidebar-overview">
-              <NavItem 
-                to="/dashboard/admin" 
-                icon={LayoutDashboard} 
-                label="Overview" 
-                isActive={location.pathname === "/dashboard/admin"}
-                onClick={() => { navigate("/dashboard/admin"); setIsSidebarOpen(false); }}
-              />
-            </div>
-          </NavGroup>
+    const adminGroups = [
+      {
+        label: "Overview & Utama",
+        icon: LayoutDashboard,
+        items: [
+          { to: "/dashboard/admin", icon: LayoutDashboard, label: "Overview", tourClass: "tour-admin-sidebar-overview" }
+        ]
+      },
+      {
+        label: "Toko & Transaksi",
+        icon: Store,
+        items: [
+          { to: "/dashboard/admin/transactions", icon: Receipt, label: "Riwayat Transaksi", tourClass: "tour-admin-sidebar-transactions" },
+          { to: "/dashboard/admin/flashsale", icon: Zap, label: "Flash Sale" },
+          { to: "/dashboard/admin/withdrawals", icon: CreditCard, label: "Penarikan Saldo", tourClass: "tour-admin-sidebar-withdrawals" }
+        ]
+      },
+      {
+        label: "Input Data Induk",
+        icon: Tag,
+        items: [
+          { to: "/dashboard/admin/sellers", icon: Users, label: "Data Penjual", tourClass: "tour-admin-sidebar-sellers" },
+          { to: "/dashboard/admin/products", icon: Package, label: "Semua Produk" },
+          { to: "/dashboard/admin/categories", icon: Tag, label: "Kategori Produk" }
+        ]
+      },
+      {
+        label: "Logistik & Stok",
+        icon: Package,
+        items: [
+          { to: "/dashboard/admin/pickup", icon: Package, label: "Penyerahan Roti" },
+          { to: "/dashboard/admin/stock-requests", icon: Package, label: "Req. Restock", tourClass: "tour-admin-sidebar-stock-requests" },
+          { to: "/dashboard/admin/returns", icon: RotateCcw, label: "Req. Retur", tourClass: "tour-admin-sidebar-returns" },
+          { to: "/dashboard/admin/stock-opname", icon: ClipboardList, label: "Stock Opname" }
+        ]
+      },
+      {
+        label: "Layanan Anggota",
+        icon: Megaphone,
+        items: [
+          { to: "/dashboard/admin/union-programs", icon: Megaphone, label: "Program Serikat" },
+          { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
+          { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
+          { to: "/dashboard/admin/feedbacks", icon: MessageSquare, label: "Kritik & Saran" }
+        ]
+      },
+      {
+        label: "Laporan & Evaluasi",
+        icon: ClipboardList,
+        items: [
+          { to: "/dashboard/admin/reports", icon: Bug, label: "Laporan & Bug", badge: unreadCount > 0 ? unreadCount : undefined }
+        ]
+      },
+      {
+        label: "Konfigurasi Sistem",
+        icon: Settings,
+        items: [
+          { to: "/dashboard/admin/settings", icon: Settings, label: "Pengaturan Umum" },
+          { to: "/dashboard/admin/payments", icon: CreditCard, label: "Metode Pembayaran" },
+          { to: "/dashboard/admin/loyalty", icon: Tag, label: "Loyalty Point" },
+          { to: "/dashboard/admin/standby-schedule", icon: Clock, label: "Jadwal Standby" }
+        ]
+      },
+      {
+        label: "Lainnya",
+        icon: Info,
+        items: [
+          { to: "/help", icon: Info, label: "Pusat Bantuan" }
+        ]
+      }
+    ];
 
-          <NavGroup label="Toko & Transaksi" icon={Store} defaultOpen={true}>
-            <div className="tour-admin-sidebar-transactions">
-              <NavItem 
-                to="/dashboard/admin/transactions" 
-                icon={Receipt} 
-                label="Riwayat Transaksi" 
-                isActive={location.pathname === "/dashboard/admin/transactions"}
-                onClick={() => { navigate("/dashboard/admin/transactions"); setIsSidebarOpen(false); }}
-              />
-            </div>
-            <div className="tour-admin-sidebar-withdrawals">
-              <NavItem 
-                to="/dashboard/admin/withdrawals" 
-                icon={CreditCard} 
-                label="Penarikan Saldo" 
-                isActive={location.pathname === "/dashboard/admin/withdrawals"}
-                onClick={() => { navigate("/dashboard/admin/withdrawals"); setIsSidebarOpen(false); }}
-              />
-            </div>
-          </NavGroup>
+    const sellerItems = [
+      { to: "/dashboard/seller", icon: LayoutDashboard, label: "Overview", tourClass: "tour-seller-sidebar-overview" },
+      { to: "/dashboard/seller/products", icon: Package, label: "Produk Saya", tourClass: "tour-seller-sidebar-products" },
+      { to: "/dashboard/seller/transactions", icon: ShoppingCart, label: "Pesanan Masuk", tourClass: "tour-seller-sidebar-transactions" },
+      { to: "/dashboard/seller/pre-orders", icon: ClipboardList, label: "Pre-Order (PO)" },
+      { to: "/dashboard/seller/withdrawals", icon: CreditCard, label: "Penarikan Saldo", tourClass: "tour-seller-sidebar-withdrawals" },
+      { to: "/help", icon: Info, label: "Pusat Bantuan" }
+    ];
 
-          <NavGroup label="Input Data Induk" icon={Tag} defaultOpen={false}>
-            <div className="tour-admin-sidebar-sellers">
-              <NavItem 
-                to="/dashboard/admin/sellers" 
-                icon={Users} 
-                label="Data Penjual" 
-                isActive={location.pathname === "/dashboard/admin/sellers"}
-                onClick={() => { navigate("/dashboard/admin/sellers"); setIsSidebarOpen(false); }}
-              />
-            </div>
-            <NavItem 
-              to="/dashboard/admin/products" 
-              icon={Package} 
-              label="Semua Produk" 
-              isActive={location.pathname === "/dashboard/admin/products"}
-              onClick={() => { navigate("/dashboard/admin/products"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/dashboard/admin/categories" 
-              icon={Tag} 
-              label="Kategori Produk" 
-              isActive={location.pathname === "/dashboard/admin/categories"}
-              onClick={() => { navigate("/dashboard/admin/categories"); setIsSidebarOpen(false); }}
-            />
-          </NavGroup>
+    return (
+      <>
+        {isAdmin && adminGroups.map((group, gIdx) => {
+          const filteredItems = group.items.filter(item => filterMenu(item.label));
+          if (filteredItems.length === 0) return null;
 
-          <NavGroup label="Logistik & Stok" icon={Package} defaultOpen={false}>
-            <NavItem 
-              to="/dashboard/admin/pickup" 
-              icon={Package} 
-              label="Penyerahan Roti" 
-              isActive={location.pathname === "/dashboard/admin/pickup"}
-              onClick={() => { navigate("/dashboard/admin/pickup"); setIsSidebarOpen(false); }}
-            />
-            <div className="tour-admin-sidebar-stock-requests">
-              <NavItem 
-                to="/dashboard/admin/stock-requests" 
-                icon={Package} 
-                label="Req. Restock" 
-                isActive={location.pathname === "/dashboard/admin/stock-requests"}
-                onClick={() => { navigate("/dashboard/admin/stock-requests"); setIsSidebarOpen(false); }}
-              />
-            </div>
-            <div className="tour-admin-sidebar-returns">
-              <NavItem 
-                to="/dashboard/admin/returns" 
-                icon={RotateCcw} 
-                label="Req. Retur" 
-                isActive={location.pathname === "/dashboard/admin/returns"}
-                onClick={() => { navigate("/dashboard/admin/returns"); setIsSidebarOpen(false); }}
-              />
-            </div>
-            <NavItem 
-              to="/dashboard/admin/stock-opname" 
-              icon={ClipboardList} 
-              label="Stock Opname" 
-              isActive={location.pathname === "/dashboard/admin/stock-opname"}
-              onClick={() => { navigate("/dashboard/admin/stock-opname"); setIsSidebarOpen(false); }}
-            />
-          </NavGroup>
+          return (
+            <NavGroup 
+              key={gIdx} 
+              label={group.label} 
+              icon={group.icon} 
+              defaultOpen={menuSearchQuery ? true : gIdx < 2}
+            >
+              {filteredItems.map((item: any, iIdx: number) => (
+                <div key={iIdx} className={item.tourClass}>
+                  <NavItem
+                    to={item.to}
+                    icon={item.icon}
+                    label={item.label}
+                    isActive={location.pathname === item.to}
+                    onClick={() => { navigate(item.to); setIsSidebarOpen(false); }}
+                    badge={item.badge}
+                  />
+                </div>
+              ))}
+            </NavGroup>
+          );
+        })}
 
-          <NavGroup label="Laporan & Evaluasi" icon={ClipboardList} defaultOpen={false}>
-            <NavItem 
-              to="/dashboard/admin/reports" 
-              icon={Bug} 
-              label="Laporan & Bug" 
-              isActive={location.pathname === "/dashboard/admin/reports"}
-              onClick={() => { navigate("/dashboard/admin/reports"); setIsSidebarOpen(false); }}
-              badge={unreadCount > 0 ? unreadCount : undefined}
-            />
-          </NavGroup>
-
-          <NavGroup label="Pengaturan & Sistem" icon={Settings} defaultOpen={false}>
-            <NavItem 
-              to="/dashboard/admin/settings" 
-              icon={Settings} 
-              label="Pengaturan Umum" 
-              isActive={location.pathname === "/dashboard/admin/settings"}
-              onClick={() => { navigate("/dashboard/admin/settings"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/dashboard/admin/payments" 
-              icon={CreditCard} 
-              label="Metode Pembayaran" 
-              isActive={location.pathname === "/dashboard/admin/payments"}
-              onClick={() => { navigate("/dashboard/admin/payments"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/dashboard/admin/loyalty" 
-              icon={Tag} 
-              label="Loyalty Point" 
-              isActive={location.pathname === "/dashboard/admin/loyalty"}
-              onClick={() => { navigate("/dashboard/admin/loyalty"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/dashboard/admin/standby-schedule" 
-              icon={Clock} 
-              label="Jadwal Standby" 
-              isActive={location.pathname === "/dashboard/admin/standby-schedule"}
-              onClick={() => { navigate("/dashboard/admin/standby-schedule"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/dashboard/admin/union-programs" 
-              icon={Megaphone} 
-              label="Program Serikat" 
-              isActive={location.pathname === "/dashboard/admin/union-programs"}
-              onClick={() => { navigate("/dashboard/admin/union-programs"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/dashboard/admin/forms" 
-              icon={ClipboardList} 
-              label="Form Builder" 
-              isActive={location.pathname === "/dashboard/admin/forms"}
-              onClick={() => { navigate("/dashboard/admin/forms"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/dashboard/admin/announcements" 
-              icon={Megaphone} 
-              label="Pengumuman" 
-              isActive={location.pathname === "/dashboard/admin/announcements"}
-              onClick={() => { navigate("/dashboard/admin/announcements"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/dashboard/admin/feedbacks" 
-              icon={MessageSquare} 
-              label="Kritik & Saran" 
-              isActive={location.pathname === "/dashboard/admin/feedbacks"}
-              onClick={() => { navigate("/dashboard/admin/feedbacks"); setIsSidebarOpen(false); }}
-            />
-            <NavItem 
-              to="/help" 
-              icon={Info} 
-              label="Pusat Bantuan" 
-              isActive={location.pathname === "/help"}
-              onClick={() => { navigate("/help"); setIsSidebarOpen(false); }}
-            />
-          </NavGroup>
-        </>
-      )}
-
-      {isSeller && (
-        <>
-          <div className="tour-seller-sidebar-overview">
-            <NavItem 
-              to="/dashboard/seller" 
-              icon={LayoutDashboard} 
-              label="Overview" 
-              isActive={location.pathname === "/dashboard/seller"}
-              onClick={() => { navigate("/dashboard/seller"); setIsSidebarOpen(false); }}
-            />
-          </div>
-          <div className="tour-seller-sidebar-products">
-            <NavItem 
-              to="/dashboard/seller/products" 
-              icon={Package} 
-              label="Produk Saya" 
-              isActive={location.pathname === "/dashboard/seller/products"}
-              onClick={() => { navigate("/dashboard/seller/products"); setIsSidebarOpen(false); }}
-            />
-          </div>
-          <div className="tour-seller-sidebar-transactions">
-            <NavItem 
-              to="/dashboard/seller/transactions" 
-              icon={ShoppingCart} 
-              label="Pesanan Masuk" 
-              isActive={location.pathname === "/dashboard/seller/transactions"}
-              onClick={() => { navigate("/dashboard/seller/transactions"); setIsSidebarOpen(false); }}
-            />
-          </div>
-          <div>
+        {isSeller && sellerItems.filter(item => filterMenu(item.label)).map((item, iIdx) => (
+          <div key={iIdx} className={item.tourClass}>
             <NavItem
-              to="/dashboard/seller/pre-orders"
-              icon={ClipboardList}
-              label="Pre-Order (PO)"
-              isActive={location.pathname === "/dashboard/seller/pre-orders"}
-              onClick={() => { navigate("/dashboard/seller/pre-orders"); setIsSidebarOpen(false); }}
+              to={item.to}
+              icon={item.icon}
+              label={item.label}
+              isActive={location.pathname === item.to}
+              onClick={() => { navigate(item.to); setIsSidebarOpen(false); }}
             />
           </div>
-          <div className="tour-seller-sidebar-withdrawals">
-            <NavItem 
-              to="/dashboard/seller/withdrawals" 
-              icon={CreditCard} 
-              label="Penarikan Saldo" 
-              isActive={location.pathname === "/dashboard/seller/withdrawals"}
-              onClick={() => { navigate("/dashboard/seller/withdrawals"); setIsSidebarOpen(false); }}
-            />
-          </div>
-          <div className="my-4 border-t border-zinc-200 dark:border-zinc-800"></div>
-          <NavItem 
-            to="/help" 
-            icon={Info} 
-            label="Pusat Bantuan" 
-            isActive={location.pathname === "/help"}
-            onClick={() => { navigate("/help"); setIsSidebarOpen(false); }}
-          />
-        </>
-      )}
-    </>
-  );
+        ))}
+      </>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 flex overflow-hidden transition-colors duration-300">
@@ -502,8 +397,21 @@ export default function DashboardLayout() {
             </div>
           </div>
         </div>
-        
-        <div className="flex-1 py-6 px-6 space-y-8 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 flex flex-col min-h-0">
+        <div className="px-4 py-4 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Cari menu..."
+              value={menuSearchQuery}
+              onChange={(e) => setMenuSearchQuery(e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
+            />
+          </div>
+        </div>
+
+        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto no-scrollbar pb-20">
           <div>
             <div className="px-4 py-2 mb-4 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
               Menu Utama
@@ -529,7 +437,7 @@ export default function DashboardLayout() {
               </button>
             </div>
           </div>
-        </div>
+        </nav>
 
         <div className="p-8 border-t border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[2rem] border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
@@ -554,7 +462,8 @@ export default function DashboardLayout() {
             Keluar Akun
           </button>
         </div>
-      </aside>
+      </div>
+    </aside>
 
       <Transition.Root show={isSidebarOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50 lg:hidden" onClose={setIsSidebarOpen}>
@@ -584,14 +493,25 @@ export default function DashboardLayout() {
                 <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-black">
                   <div className="flex h-20 shrink-0 items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800">
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
-                      <SPSLogo variant="wide" className="h-10" />
+                      <SPSLogo variant="wide" className="h-12" />
                     </div>
                     <button type="button" onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none">
                       <X className="w-6 h-6" />
                     </button>
                   </div>
-                  <div className="flex-1 overflow-y-auto px-6 py-6 pb-24 space-y-6 custom-scrollbar">
-                    <div>
+                  <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-6">
+                    <div className="px-2">
+                      <div className="relative mb-6">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                        <input
+                          type="text"
+                          placeholder="Cari menu..."
+                          value={menuSearchQuery}
+                          onChange={(e) => setMenuSearchQuery(e.target.value)}
+                          className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
+                        />
+                      </div>
+
                       <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
                         Menu Utama
                       </div>
@@ -600,7 +520,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     
-                    <div>
+                    <div className="px-2">
                       <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
                         Akses Cepat
                       </div>

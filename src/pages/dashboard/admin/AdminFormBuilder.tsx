@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { 
   ClipboardList, Plus, X, Trash2, Save, MoveUp, MoveDown, 
@@ -7,7 +8,7 @@ import {
   Eye, Settings, AlertCircle, Copy, GripVertical, Check, Link2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface FormField {
   id: string;
@@ -29,6 +30,7 @@ interface DynamicForm {
 
 export default function AdminFormBuilder() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [forms, setForms] = useState<DynamicForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
@@ -282,14 +284,30 @@ export default function AdminFormBuilder() {
                           : 'border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-300'
                       }`}
                     >
-                      {activeFieldId === field.id && (
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-2xl" />
-                      )}
+                      <div className="relative group/field">
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 bg-blue-600 transition-opacity ${activeFieldId === field.id ? 'opacity-100' : 'opacity-0'}`} />
                       
+                      {/* Grip icon for visual cue */}
+                      <div className="absolute left-1/2 -top-3 -translate-x-1/2 opacity-0 group-hover/field:opacity-100 transition-opacity">
+                        <GripVertical className="w-5 h-5 text-zinc-300 rotate-90" />
+                      </div>
+
                       <div className="flex items-start gap-4">
-                        <div className="flex flex-col gap-2 pt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={(e) => { e.stopPropagation(); moveField(index, 'up'); }} className="text-zinc-300 hover:text-blue-500"><MoveUp className="w-4 h-4" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); moveField(index, 'down'); }} className="text-zinc-300 hover:text-blue-500"><MoveDown className="w-4 h-4" /></button>
+                        <div className="flex flex-col gap-1 pt-1">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); moveField(index, 'up'); }} 
+                            className={`p-2 rounded-lg transition-all ${index === 0 ? 'text-zinc-100 dark:text-zinc-800 cursor-not-allowed' : 'text-zinc-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20'}`}
+                            disabled={index === 0}
+                          >
+                            <MoveUp className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); moveField(index, 'down'); }} 
+                            className={`p-2 rounded-lg transition-all ${index === (editingForm.fields?.length || 0) - 1 ? 'text-zinc-100 dark:text-zinc-800 cursor-not-allowed' : 'text-zinc-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20'}`}
+                            disabled={index === (editingForm.fields?.length || 0) - 1}
+                          >
+                            <MoveDown className="w-5 h-5" />
+                          </button>
                         </div>
                         <div className="flex-1 space-y-4">
                           <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -381,8 +399,9 @@ export default function AdminFormBuilder() {
                           </div>
                         </div>
                       </div>
-                    </motion.div>
-                  ))}
+                    </div>
+                  </motion.div>
+                ))}
                 </AnimatePresence>
                 
                 {editingForm.fields?.length === 0 && (
@@ -451,8 +470,11 @@ export default function AdminFormBuilder() {
                       <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">{form.fields?.length || 0} Kolom</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <button className="flex items-center gap-1 text-[10px] font-black text-blue-600 uppercase tracking-widest hover:gap-2 transition-all">
-                        Respon <ChevronRight className="w-3 h-3" />
+                      <button 
+                        onClick={() => navigate(`/dashboard/admin/forms/responses/${form.id}`)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-100 transition-all"
+                      >
+                        Lihat Respon <ChevronRight className="w-3 h-3" />
                       </button>
                     </div>
                   </div>

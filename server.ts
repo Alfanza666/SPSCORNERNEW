@@ -1711,7 +1711,7 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       .select("role")
       .eq("id", user.id)
       .single();
-    if (profile?.role !== "admin")
+    if (profile?.role !== "admin" && profile?.role !== "superadmin")
       return res.status(403).json({ error: "Forbidden: Admin only" });
     const { data: transaction, error: txError } = await supabase
       .from("transactions")
@@ -1796,7 +1796,7 @@ app.post("/api/admin/transactions/confirm-sariroti", async (req, res) => {
       .select("role")
       .eq("id", user.id)
       .single();
-    if (profile?.role !== "admin" && profile?.role !== "seller")
+    if (profile?.role !== "admin" && profile?.role !== "superadmin" && profile?.role !== "seller")
       return res.status(403).json({ error: "Forbidden: Admin/Seller only" });
     const { data: transaction, error: txError } = await supabase
       .from("transactions")
@@ -1876,7 +1876,7 @@ app.post("/api/admin/transactions/notify-ready", async (req, res) => {
       .select("role")
       .eq("id", user.id)
       .single();
-    if (profile?.role !== "admin")
+    if (profile?.role !== "admin" && profile?.role !== "superadmin")
       return res.status(403).json({ error: "Forbidden: Admin only" });
     const { data: transaction, error: txError } = await supabase
       .from("transactions")
@@ -2930,7 +2930,7 @@ app.get("/api/admin/password-resets", async (req, res) => {
     if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    if (profile?.role !== 'admin') return res.status(403).json({ error: "Forbidden: Admin only" });
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') return res.status(403).json({ error: "Forbidden: Admin only" });
 
     const { data: resets, error } = await supabase
       .from('password_reset_requests')
@@ -2954,7 +2954,7 @@ app.post("/api/admin/password-resets/complete", async (req, res) => {
     if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-    if (profile?.role !== 'admin') return res.status(403).json({ error: "Forbidden: Admin only" });
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') return res.status(403).json({ error: "Forbidden: Admin only" });
 
     const { data: request, error: reqError } = await supabase
       .from('password_reset_requests')
@@ -3118,7 +3118,7 @@ app.post("/api/admin/test-email", async (req, res) => {
       .select("role")
       .eq("id", user.id)
       .single();
-    if (profile?.role !== "admin")
+    if (profile?.role !== "admin" && profile?.role !== "superadmin")
       return res.status(403).json({ error: "Forbidden: Admin only" });
     let targetEmail =
       to || process.env.SARIROTI_ADMIN_EMAIL || "Sales.Adm.bjm@sariroti.com";
