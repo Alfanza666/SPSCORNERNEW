@@ -319,8 +319,8 @@ const processDigitalItems = __name(async (transactionId, transactionItems) => {
     console.error(
       "\u274C Digiflazz credentials not configured. Cannot process digital items.",
     );
-    for (const item of digitalItems) {
-      await supabase
+    const updatePromises = digitalItems.map((item) =>
+      supabase
         .from("transaction_items")
         .update({
           metadata: {
@@ -330,8 +330,9 @@ const processDigitalItems = __name(async (transactionId, transactionItems) => {
             digiflazz_error: "Digiflazz credentials not configured",
           },
         })
-        .eq("id", item.id);
-    }
+        .eq("id", item.id)
+    );
+    await Promise.all(updatePromises);
     await supabase
       .from("transactions")
       .update({ status: "failed" })
@@ -2001,8 +2002,8 @@ app.post("/api/digital/callback", async (req, res) => {
         .select("id, metadata")
         .contains("metadata", { ref_id });
       if (itemsByRef && itemsByRef.length > 0) {
-        for (const item of itemsByRef) {
-          await supabase
+        const updatePromises = itemsByRef.map((item) =>
+          supabase
             .from("transaction_items")
             .update({
               metadata: {
@@ -2018,8 +2019,9 @@ app.post("/api/digital/callback", async (req, res) => {
                 last_update: new Date().toISOString(),
               },
             })
-            .eq("id", item.id);
-        }
+            .eq("id", item.id)
+        );
+        await Promise.all(updatePromises);
         
         // Trigger Notification
         if (status.toLowerCase() === "sukses" || status.toLowerCase() === "gagal") {
@@ -2043,8 +2045,8 @@ app.post("/api/digital/callback", async (req, res) => {
           .eq("transaction_id", ref_id)
           .contains("metadata", { is_digital: true });
         if (itemsByTx && itemsByTx.length > 0) {
-          for (const item of itemsByTx) {
-            await supabase
+          const updatePromisesTx = itemsByTx.map((item) =>
+            supabase
               .from("transaction_items")
               .update({
                 metadata: {
@@ -2060,8 +2062,9 @@ app.post("/api/digital/callback", async (req, res) => {
                   last_update: new Date().toISOString(),
                 },
               })
-              .eq("id", item.id);
-          }
+              .eq("id", item.id)
+          );
+          await Promise.all(updatePromisesTx);
           // Trigger Notification
           if (status.toLowerCase() === "sukses" || status.toLowerCase() === "gagal") {
              const { data: tx } = await supabase.from('transactions').select('buyer_id').eq('id', ref_id).single();
