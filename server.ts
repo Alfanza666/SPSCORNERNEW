@@ -2648,6 +2648,104 @@ app.post("/api/auth/reset-password-request", async (req, res) => {
   }
 });
 
+// Endpoint baru: Kirim email reset password dengan token manual
+app.post("/api/auth/forgot-password-send-email", async (req, res) => {
+  try {
+    const { nikOrEmail } = req.body;
+    if (!nikOrEmail) {
+      return res.status(400).json({ error: "NIK atau Email wajib diisi" });
+    }
+
+    let userId = null;
+    let userEmail = null;
+    let userName = "User";
+
+    // Cari user berdasarkan NIK atau email
+    const { data: profileByNik } = await supabase
+      .from("profiles")
+      .select("id, name, nik, email")
+      .eq("nik", nikOrEmail)
+      .single();
+
+    if (profileByNik) {
+      userId = profileByNik.id;
+      userName = profileByNik.name || "User";
+      userEmail = profileByNik.email;
+    } else if (nikOrEmail.includes('@')) {
+      // Kalau input email, cari di auth.users
+      const listResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const authUsers = listResult.data?.users ?? [];
+      const foundUser = authUsers.find(u => u.email?.toLowerCase() === nikOrEmail.toLowerCase());
+      if (foundUser) {
+        userId = foundUser.id;
+        userEmail = foundUser.email;
+        const { data: profileById } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", userId)
+          .single();
+        if (profileById) userName = profileById.name || "User";
+      }
+    }
+
+    if (!userId || !userEmail) {
+      return res.status(404).json({ error: "Akun tidak ditemukan" });
+    }
+
+    // Jangan izinkan reset untuk email fake
+    if (userEmail.endsWith('@sps.local')) {
+      return res.status(400).json({ error: "Akun ini tidak支持 reset password via email" });
+    }
+
+    // Generate token unik
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 jam
+
+    // Simpan token ke database
+    await supabase.from('password_reset_tokens').insert({
+      user_id: userId,
+      token: token,
+      expires_at: expiresAt.toISOString()
+    });
+
+    // Kirim email dengan link reset
+    const resetLink = `https://spscorner.store/reset-password?token=${token}`;
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #2563eb;">🔐 Reset Password SPS Corner</h1>
+        </div>
+        <p style="font-size: 16px; color: #333;">Halo <strong>${userName}</strong>,</p>
+        <p style="font-size: 14px; color: #666;">Anda meminta reset password untuk akun SPS Corner Anda.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}" style="background: #2563eb; color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+            Reset Password
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #999;">Link ini berlaku selama 1 jam. Jika Anda tidak meminta reset password, abaikan email ini.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 20px;">SPS Corner - Platformbelanja Karyawan</p>
+      </div>
+    `;
+
+    const emailResult = await sendSarirotiEmailInternal(
+      userEmail,
+      "🔐 Reset Password SPS Corner",
+      htmlContent
+    );
+
+    if (!emailResult.success) {
+      return res.status(500).json({ error: "Gagal mengirim email: " + emailResult.error });
+    }
+
+    console.log(`✅ Reset password email sent to ${userEmail}`);
+    res.json({ success: true, message: "Link reset password telah dikirim ke email Anda" });
+
+  } catch (error: any) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ error: error.message || "Terjadi kesalahan" });
+  }
+});
+
 // API endpoint untuk reset password dengan token manual
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
@@ -2661,20 +2759,30 @@ app.post("/api/auth/reset-password", async (req, res) => {
       return res.status(400).json({ error: "Password minimal 6 karakter" });
     }
 
-    // Verifikasi token dan update password
-    // Token ini adalah recovery token dari URL
-    const { data: userData, error: verifyError } = await supabase.auth.getUser(token);
-    
-    if (verifyError || !userData?.user) {
-      // Coba dengan method lain - verify token
-      return res.status(400).json({ 
-        error: "Token tidak valid atau sudah expired. Silakan minta link baru." 
-      });
+    // Verifikasi token dari database
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('password_reset_tokens')
+      .select('user_id, expires_at, used_at')
+      .eq('token', token)
+      .single();
+
+    if (tokenError || !tokenData) {
+      return res.status(400).json({ error: "Token tidak valid" });
     }
 
-    // Update password
+    // Cek apakah token sudah digunakan
+    if (tokenData.used_at) {
+      return res.status(400).json({ error: "Token sudah digunakan. Silakan minta link baru." });
+    }
+
+    // Cek apakah token expired
+    if (new Date(tokenData.expires_at) < new Date()) {
+      return res.status(400).json({ error: "Token sudah expired. Silakan minta link baru." });
+    }
+
+    // Update password user
     const { error: updateError } = await supabase.auth.admin.updateUser(
-      userData.user.id,
+      tokenData.user_id,
       { password: newPassword }
     );
 
@@ -2682,7 +2790,14 @@ app.post("/api/auth/reset-password", async (req, res) => {
       throw updateError;
     }
 
-    res.json({ success: true, message: "Password berhasil diubah" });
+    // Tandai token sudah digunakan
+    await supabase
+      .from('password_reset_tokens')
+      .update({ used_at: new Date().toISOString() })
+      .eq('token', token);
+
+    console.log(`✅ Password reset successful for user ${tokenData.user_id}`);
+    res.json({ success: true, message: "Password berhasil direset. Silakan login dengan password baru." });
   } catch (error: any) {
     console.error("Reset password error:", error);
     res.status(500).json({ error: error.message || "Terjadi kesalahan saat reset password" });

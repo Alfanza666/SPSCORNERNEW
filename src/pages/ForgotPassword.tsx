@@ -18,45 +18,17 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      // Cek apakah input adalah email atau NIK
-      const isEmail = nik.includes('@');
-      
-      let emailToReset = nik;
-
-      // Kalau input NIK, cari email dari database
-      if (!isEmail) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('nik', nik.trim())
-          .single();
-
-        if (profileError || !profile) {
-          throw new Error('NIK tidak ditemukan. Pastikan NIK yang Anda masukkan benar.');
-        }
-
-        // Ambil email dari auth.users
-        const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profile.id);
-        
-        if (authError || !authUser.user) {
-          throw new Error('Tidak dapat menemukan email terkait NIK ini.');
-        }
-
-        emailToReset = authUser.user.email;
-        
-        // Kalau email ini fake (@sps.local), tidak bisa reset
-        if (emailToReset.endsWith('@sps.local')) {
-          throw new Error('Akun ini tidak memiliki email valid untuk reset password. Silakan hubungi admin.');
-        }
-      }
-
-      // Kirim email reset password via Supabase
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset, {
-        redirectTo: 'https://spscorner.store/reset-password',
+      // Langsung kirim ke API - biarkan server yang proses (NIK atau email)
+      const response = await fetch('/api/auth/forgot-password-send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nikOrEmail: nik.trim() })
       });
-
-      if (resetError) {
-        throw new Error(resetError.message || 'Gagal mengirim email reset password.');
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Gagal mengirim email reset password.');
       }
 
       setSuccess(true);
