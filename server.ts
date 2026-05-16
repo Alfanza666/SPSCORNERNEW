@@ -3444,7 +3444,7 @@ app.post("/api/admin/seller-registration-links", async (req, res) => {
       .eq("id", adminId)
       .single();
 
-    if (!adminProfile || adminProfile.role !== "admin") {
+    if (!adminProfile || (adminProfile.role !== "admin" && adminProfile.role !== "superadmin")) {
       return res.status(403).json({ error: "Hanya admin yang dapat membuat link" });
     }
 
