@@ -18,7 +18,28 @@ export default function AuthCallback() {
 
   useEffect(() => {
     let redirected = false;
-    let timeoutId: ReturnType<typeof setTimeout>;
+    let timeoutId: ReturnType<typeof setTimeout>();
+
+    // CEK SEBELUM SUPABASE PROSES - cek hash langsung di URL
+    // Ini harus dilakukan SEBELUM Supabase memproses anything
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      // Ini adalah password reset - langsung redirect SEBELUM Supabase create session
+      // Hapus hash dari URL agar tidak diproses Supabase
+      window.history.replaceState(null, '', '/update-password');
+      navigate('/update-password', { replace: true });
+      return;
+    }
+
+    // Cek apakah ini password reset dari query params
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPasswordReset = urlParams.get('type') === 'recovery';
+
+    // Jika password reset, langsung ke halaman update password
+    if (isPasswordReset) {
+      navigate('/update-password', { replace: true });
+      return;
+    }
 
     const handleUserRedirect = async (userId: string, userEmail?: string) => {
       if (redirected) return;
@@ -101,7 +122,17 @@ export default function AuthCallback() {
           phone: profile!.phone,
           balance: profile!.balance ?? 0,
           email: userEmail,
-        });
+});
+        
+        // Cek lagi apakah ini password reset (mungkin dari session)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const isPasswordReset = hashParams.get('type') === 'recovery';
+        
+        if (isPasswordReset) {
+          // Kalau password reset, langsung ke halaman ubah password
+          navigate('/update-password', { replace: true });
+          return;
+        }
 
         const returnUrl = sessionStorage.getItem('returnUrl');
         if (returnUrl) {

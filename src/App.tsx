@@ -28,6 +28,8 @@ const Home = lazyWithRetry(() => import('./pages/Home'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
 const Register = lazyWithRetry(() => import('./pages/auth/Register'));
 const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
+const UpdatePassword = lazyWithRetry(() => import('./pages/auth/UpdatePassword'));
+const ResetPassword = lazyWithRetry(() => import('./pages/auth/ResetPassword'));
 const AuthCallback = lazyWithRetry(() => import('./pages/AuthCallback'));
 
 const KioskLayout = lazyWithRetry(() => import('./pages/kiosk/KioskLayout'));
@@ -171,6 +173,8 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/update-password" element={<UpdatePassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/help" element={<HelpCenter />} />

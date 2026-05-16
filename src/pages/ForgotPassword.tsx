@@ -18,22 +18,49 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/reset-password-request', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ nikOrEmail: nik })
+      // Cek apakah input adalah email atau NIK
+      const isEmail = nik.includes('@');
+      
+      let emailToReset = nik;
+
+      // Kalau input NIK, cari email dari database
+      if (!isEmail) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('nik', nik.trim())
+          .single();
+
+        if (profileError || !profile) {
+          throw new Error('NIK tidak ditemukan. Pastikan NIK yang Anda masukkan benar.');
+        }
+
+        // Ambil email dari auth.users
+        const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profile.id);
+        
+        if (authError || !authUser.user) {
+          throw new Error('Tidak dapat menemukan email terkait NIK ini.');
+        }
+
+        emailToReset = authUser.user.email;
+        
+        // Kalau email ini fake (@sps.local), tidak bisa reset
+        if (emailToReset.endsWith('@sps.local')) {
+          throw new Error('Akun ini tidak memiliki email valid untuk reset password. Silakan hubungi admin.');
+        }
+      }
+
+      // Kirim email reset password via Supabase - use production URL
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset, {
+        redirectTo: 'https://spscorner.store/reset-password',
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Gagal mengirim permintaan reset password.');
+      if (resetError) {
+        throw new Error(resetError.message || 'Gagal mengirim email reset password.');
       }
 
       setSuccess(true);
-      toast.success('Permintaan reset password telah dikirim ke admin.');
+      toast.success('Link reset password telah dikirim ke email Anda. Silakan cek inbox atau spam.');
     } catch (err: any) {
       console.error('Forgot password error:', err);
       toast.error(err.message || 'Gagal mengirim permintaan reset password.');
@@ -69,9 +96,9 @@ export default function ForgotPassword() {
                 <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
               </div>
               <div className="space-y-2 sm:space-y-3">
-                <h2 className="text-lg sm:text-xl font-black text-zinc-900">Permintaan Terkirim!</h2>
+                <h2 className="text-lg sm:text-xl font-black text-zinc-900">Email Terkirim!</h2>
                 <p className="text-[10px] sm:text-xs text-zinc-500 font-bold leading-relaxed">
-                  Admin akan mereset password Anda menjadi <span className="text-blue-600">123456</span>. Silakan hubungi admin di kantor atau tunggu informasi selanjutnya.
+                  Kami telah mengirim link reset password ke email Anda. Silakan cek inbox atau folder spam. Link berlaku selama 1 jam.
                 </p>
               </div>
               <button
