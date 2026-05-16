@@ -3416,13 +3416,287 @@ app.get("/api/reports", async (req, res) => {
           userAgent: match[6]
         };
       }
-      return { id: index.toString(), raw: line, timestamp: new Date().toISOString() };
-    });
+return { id: index.toString(), raw: line, timestamp: new Date().toISOString() };
+      });
+      
+      res.json({ success: true, data: reports.reverse().slice(0, 100) });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+// ========== SELLER REGISTRATION ==========
+
+// API untuk admin generate link pendaftaran seller
+app.post("/api/admin/seller-registration-links", async (req, res) => {
+  try {
+    const { days, maxUses = 1, notes } = req.body;
+    const adminId = req.headers['x-user-id'];
     
-    res.json({ success: true, data: reports.reverse() });
-  } catch (error) {
-    console.error("Gagal membaca laporan:", error);
-    res.status(500).json({ error: "Gagal membaca laporan" });
+    if (!adminId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Cek apakah admin
+    const { data: adminProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", adminId)
+      .single();
+
+    if (!adminProfile || adminProfile.role !== "admin") {
+      return res.status(403).json({ error: "Hanya admin yang dapat membuat link" });
+    }
+
+    if (!days || days < 1 || days > 30) {
+      return res.status(400).json({ error: "Hari harus antara 1-30" });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+    const { data, error } = await supabase
+      .from("seller_registration_links")
+      .insert({
+        token,
+        created_by: adminId,
+        expires_at: expiresAt.toISOString(),
+        max_uses: maxUses,
+        notes
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const link = `https://spscorner.store/register-seller?token=${token}`;
+    
+    console.log(`✅ Seller registration link created: ${link}`);
+    res.json({ 
+      success: true, 
+      link,
+      expiresAt: expiresAt.toISOString(),
+      maxUses: maxUses
+    });
+
+  } catch (error: any) {
+    console.error("Error creating seller link:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API untuk cek validitas link
+app.get("/api/seller-registration/verify", async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: "Token diperlukan" });
+    }
+
+    const { data: link, error } = await supabase
+      .from("seller_registration_links")
+      .select("*")
+      .eq("token", token)
+      .eq("is_active", true)
+      .single();
+
+    if (error || !link) {
+      return res.status(404).json({ valid: false, error: "Link tidak ditemukan atau tidak aktif" });
+    }
+
+    // Cek expired
+    if (new Date(link.expires_at) < new Date()) {
+      return res.status(400).json({ valid: false, error: "Link sudah expired" });
+    }
+
+    // Cek max uses
+    if (link.used_count >= link.max_uses) {
+      return res.status(400).json({ valid: false, error: "Link sudah mencapai batas penggunaan" });
+    }
+
+    res.json({ 
+      valid: true, 
+      expiresAt: link.expires_at,
+      notes: link.notes
+    });
+
+  } catch (error: any) {
+    console.error("Verify link error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API untuk daftar sebagai seller
+app.post("/api/seller-register", async (req, res) => {
+  try {
+    const { token, nik, name, email, phone, bankName, bankAccountNumber, bankAccountName, password } = req.body;
+
+    if (!token || !nik || !name || !email || !phone || !password) {
+      return res.status(400).json({ error: "Data tidak lengkap" });
+    }
+
+    // Verifikasi link
+    const { data: link, error: linkError } = await supabase
+      .from("seller_registration_links")
+      .select("*")
+      .eq("token", token)
+      .eq("is_active", true)
+      .single();
+
+    if (linkError || !link) {
+      return res.status(400).json({ error: "Link tidak valid" });
+    }
+
+    if (new Date(link.expires_at) < new Date()) {
+      return res.status(400).json({ error: "Link sudah expired" });
+    }
+
+    if (link.used_count >= link.max_uses) {
+      return res.status(400).json({ error: "Link sudah reach limit" });
+    }
+
+    // Cek NIK sudah terdaftar belum
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id, email, role")
+      .eq("nik", nik.trim())
+      .single();
+
+    let userId;
+
+    if (existingProfile) {
+      // User sudah ada, update jadi seller
+      if (existingProfile.role === "seller") {
+        return res.status(400).json({ error: "NIK ini sudah terdaftar sebagai seller" });
+      }
+      
+      userId = existingProfile.id;
+      
+      // Update profile jadi seller + data bank
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({
+          role: "seller",
+          email: email.trim(),
+          phone: phone.trim(),
+          bank_name: bankName,
+          bank_account_number: bankAccountNumber,
+          bank_account_name: bankAccountName,
+          seller_registered_at: new Date().toISOString(),
+          seller_registration_token: token
+        })
+        .eq("id", userId);
+
+      if (updateError) throw updateError;
+
+    } else {
+      // Buat user baru di Supabase Auth + profile
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            nik: nik.trim(),
+            name: name.trim(),
+            phone: phone.trim(),
+            role: "seller"
+          }
+        }
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("Gagal membuat akun");
+
+      userId = authData.user.id;
+
+      // Update profile dengan data bank
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          email: email.trim(),
+          phone: phone.trim(),
+          bank_name: bankName,
+          bank_account_number: bankAccountNumber,
+          bank_account_name: bankAccountName,
+          seller_registered_at: new Date().toISOString(),
+          seller_registration_token: token
+        })
+        .eq("id", userId);
+
+      if (profileError) throw profileError;
+    }
+
+    // Update link usage count
+    await supabase
+      .from("seller_registration_links")
+      .update({ used_count: link.used_count + 1 })
+      .eq("id", link.id);
+
+    // Nonaktifkan link kalau sudah reach max uses
+    if (link.used_count + 1 >= link.max_uses) {
+      await supabase
+        .from("seller_registration_links")
+        .update({ is_active: false })
+        .eq("id", link.id);
+    }
+
+    console.log(`✅ Seller registered: ${email} (NIK: ${nik})`);
+    res.json({ success: true, message: "Pendaftaran seller berhasil! Silakan login." });
+
+  } catch (error: any) {
+    console.error("Seller registration error:", error);
+    res.status(500).json({ error: error.message || "Terjadi kesalahan" });
+  }
+});
+
+// API untuk cek produk seller (validasi tidak boleh sama)
+app.get("/api/seller/products/check", async (req, res) => {
+  try {
+    const { name, category, sellerId } = req.query;
+    
+    if (!name || !category || !sellerId) {
+      return res.status(400).json({ error: "Parameter tidak lengkap" });
+    }
+
+    // Cek produk seller sendiri yang masih aktif
+    const { data: existingProducts } = await supabase
+      .from("products")
+      .select("id, name, category")
+      .eq("seller_id", sellerId)
+      .eq("is_active", true);
+
+    if (existingProducts && existingProducts.length > 0) {
+      // Cek nama sama (case insensitive)
+      const sameName = existingProducts.find(p => 
+        p.name.toLowerCase() === (name as string).toLowerCase()
+      );
+      
+      if (sameName) {
+        return res.json({ 
+          allowed: false, 
+          reason: `Produk dengan nama "${sameName.name}" sudah ada` 
+        });
+      }
+
+      // Cek kategori sama
+      const sameCategory = existingProducts.filter(p => 
+        p.category.toLowerCase() === (category as string).toLowerCase()
+      );
+
+      if (sameCategory.length >= 3) {
+        return res.json({ 
+          allowed: false, 
+          reason: `Kategori "${category}" sudah ada ${sameCategory.length} produk. Maksimal 3 produk per kategori.` 
+        });
+      }
+    }
+
+    res.json({ allowed: true });
+
+  } catch (error: any) {
+    console.error("Check product error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 

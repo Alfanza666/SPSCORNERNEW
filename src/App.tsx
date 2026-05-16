@@ -27,6 +27,7 @@ function lazyWithRetry(importFn: () => Promise<any>) {
 const Home = lazyWithRetry(() => import('./pages/Home'));
 const Login = lazyWithRetry(() => import('./pages/Login'));
 const Register = lazyWithRetry(() => import('./pages/auth/Register'));
+const RegisterSeller = lazyWithRetry(() => import('./pages/auth/RegisterSeller'));
 const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
 const UpdatePassword = lazyWithRetry(() => import('./pages/auth/UpdatePassword'));
 const ResetPassword = lazyWithRetry(() => import('./pages/auth/ResetPasswordPage'));
@@ -172,6 +173,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/register-seller" element={<RegisterSeller />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />

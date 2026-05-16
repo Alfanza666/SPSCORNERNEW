@@ -88,6 +88,11 @@ export default function AdminSettings() {
   });
   const { user } = useAuthStore();
   const isSuperadmin = user?.role === 'superadmin';
+  const [sellerLinkDays, setSellerLinkDays] = useState(7);
+  const [sellerLinkUses, setSellerLinkUses] = useState(1);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState('');
+  const [sellerLinkExpires, setSellerLinkExpires] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -155,6 +160,45 @@ export default function AdminSettings() {
       toast.error('Gagal menyimpan pengaturan');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const generateSellerLink = async () => {
+    if (!user?.id) {
+      toast.error('Anda belum login');
+      return;
+    }
+    
+    try {
+      setGeneratingLink(true);
+      
+      const response = await fetch('/api/admin/seller-registration-links', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user.id
+        },
+        body: JSON.stringify({ 
+          days: sellerLinkDays, 
+          maxUses: sellerLinkUses 
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Gagal generate link');
+      }
+
+      setGeneratedLink(result.link);
+      setSellerLinkExpires(result.expiresAt);
+      toast.success('Link berhasil dibuat!');
+      
+    } catch (error: any) {
+      console.error('Error generating seller link:', error);
+      toast.error(error.message || 'Gagal generate link');
+    } finally {
+      setGeneratingLink(false);
     }
   };
 
@@ -355,6 +399,86 @@ export default function AdminSettings() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Seller Registration Links */}
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  Link Pendaftaran Seller
+                </h2>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Generate link untuk pendaftaran seller baru dengan batas waktu tertentu.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 mb-2">Berlaku (hari)</label>
+                <select
+                  value={sellerLinkDays}
+                  onChange={(e) => setSellerLinkDays(Number(e.target.value))}
+                  className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm"
+                >
+                  <option value={2}>2 Hari</option>
+                  <option value={3}>3 Hari</option>
+                  <option value={7}>7 Hari</option>
+                  <option value={14}>14 Hari</option>
+                  <option value={30}>30 Hari</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 mb-2">Max Penggunaan</label>
+                <select
+                  value={sellerLinkUses}
+                  onChange={(e) => setSellerLinkUses(Number(e.target.value))}
+                  className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm"
+                >
+                  <option value={1}>1x</option>
+                  <option value={5}>5x</option>
+                  <option value={10}>10x</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={generateSellerLink}
+                  disabled={generatingLink}
+                  className="btn-clay-primary w-full"
+                >
+                  {generatingLink ? 'Membuat...' : 'Generate Link'}
+                </button>
+              </div>
+            </div>
+
+            {generatedLink && (
+              <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mb-2">Link Berhasil Dibuat:</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={generatedLink}
+                    className="flex-1 bg-white dark:bg-zinc-800 border border-emerald-200 dark:border-emerald-700 rounded-lg px-3 py-2 text-xs font-mono"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedLink);
+                      toast.success('Link disalin!');
+                    }}
+                    className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-2">
+                  Link berlaku hingga: {new Date(sellerLinkExpires).toLocaleDateString('id-ID', {
+                    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                  })}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-900/30">
