@@ -2647,6 +2647,47 @@ app.post("/api/auth/reset-password-request", async (req, res) => {
       .json({ error: error.message || "Terjadi kesalahan pada server" });
   }
 });
+
+// API endpoint untuk reset password dengan token manual
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: "Token dan password wajib diisi" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "Password minimal 6 karakter" });
+    }
+
+    // Verifikasi token dan update password
+    // Token ini adalah recovery token dari URL
+    const { data: userData, error: verifyError } = await supabase.auth.getUser(token);
+    
+    if (verifyError || !userData?.user) {
+      // Coba dengan method lain - verify token
+      return res.status(400).json({ 
+        error: "Token tidak valid atau sudah expired. Silakan minta link baru." 
+      });
+    }
+
+    // Update password
+    const { error: updateError } = await supabase.auth.admin.updateUser(
+      userData.user.id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    res.json({ success: true, message: "Password berhasil diubah" });
+  } catch (error: any) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ error: error.message || "Terjadi kesalahan saat reset password" });
+  }
+});
 app.get("/api/transactions/:id", async (req, res) => {
   try {
     const { id } = req.params;

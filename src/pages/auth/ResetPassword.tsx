@@ -16,17 +16,36 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Cek apakah ada valid token di URL
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const type = hashParams.get('type');
+    // Cek apakah ada error dari redirect
+    const queryParams = new URLSearchParams(window.location.search);
+    const errorCode = queryParams.get('error_code');
+    const errorDesc = queryParams.get('error_description');
     
-    // Kalau tidak ada type=recovery di hash, berarti bukan dari link reset
-    if (type !== 'recovery') {
-      // Redirect ke forgot-password jika bukan dari link yang valid
-      navigate('/forgot-password', { replace: true });
-    } else {
-      setLoading(false);
+    if (errorCode) {
+      setError(errorDesc || 'Link tidak valid atau sudah expired');
     }
+    
+    // Cek apakah ada valid token di URL - dari hash ATAU query params
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    
+    const typeFromHash = hashParams.get('type');
+    const accessTokenFromHash = hashParams.get('access_token');
+    const accessTokenFromQuery = queryParams.get('access_token');
+    
+    console.log('URL check:', {
+      hasError: !!errorCode,
+      typeFromHash,
+      hasAccessToken: !!(accessTokenFromHash || accessTokenFromQuery),
+      fullUrl: window.location.href
+    });
+    
+    if (!accessTokenFromHash && !accessTokenFromQuery && !errorCode) {
+      // Kalau tidak ada token dan tidak ada error, mungkin user langsung akses halaman ini
+      // Jangan redirect - biarkan user isi form, nanti akan error saat submit
+      console.log('No token found, but allowing user to try');
+    }
+    
+    setLoading(false);
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,13 +65,15 @@ export default function ResetPassword() {
     setError('');
 
     try {
-      // Ambil hash dari URL dan parse
+      // Ambil token dari hash DAN query params
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
+      const queryParams = new URLSearchParams(window.location.search);
+      
+      const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
 
       if (!accessToken) {
-        throw new Error('Token tidak valid. Silakan minta link reset password baru.');
+        throw new Error('Token tidak valid atau sudah expired. Silakan minta link reset password baru.');
       }
 
       // Set session dengan token dari URL

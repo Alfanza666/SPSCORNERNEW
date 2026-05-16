@@ -29,7 +29,7 @@ const Login = lazyWithRetry(() => import('./pages/Login'));
 const Register = lazyWithRetry(() => import('./pages/auth/Register'));
 const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
 const UpdatePassword = lazyWithRetry(() => import('./pages/auth/UpdatePassword'));
-const ResetPassword = lazyWithRetry(() => import('./pages/auth/ResetPassword'));
+const ResetPassword = lazyWithRetry(() => import('./pages/auth/ResetPasswordPage'));
 const AuthCallback = lazyWithRetry(() => import('./pages/AuthCallback'));
 
 const KioskLayout = lazyWithRetry(() => import('./pages/kiosk/KioskLayout'));

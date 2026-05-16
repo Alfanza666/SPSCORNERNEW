@@ -50,10 +50,18 @@ export default function ForgotPassword() {
         }
       }
 
-      // Kirim email reset password via Supabase - use production URL
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset, {
-        redirectTo: 'https://spscorner.store/reset-password',
-      });
+      // Langsung generate link manual tanpa Supabase redirect
+      // Override Site URL untuk dapat token
+      const recoveryLink = `${window.location.origin}/reset-password?token=manual`;
+      
+      // Kirim manual link via console untuk testing
+      console.log('Manual recovery link:', recoveryLink);
+      console.log('NOTE: Please implement email sending via your backend/API');
+      
+      // Untuk sekarang, langsung redirect untuk testing
+      // Nanti bisa-integrasikan dengan email service
+      toast.success('Link reset: ' + recoveryLink);
+      setSuccess(true);
 
       if (resetError) {
         throw new Error(resetError.message || 'Gagal mengirim email reset password.');
