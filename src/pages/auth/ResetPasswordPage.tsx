@@ -14,8 +14,12 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('');
   const [searchParams] = useSearchParams();
   
-  // Ambil token dari URL - bisa di hash atau query
-  const token = searchParams.get('token') || '';
+  // Ambil token dari hash (#) karena Supabase kirimnya di hash
+  const hashParams = new URLSearchParams(window.location.hash.substring(1));
+  const token = hashParams.get('access_token') || searchParams.get('token') || '';
+  
+  console.log('Token from URL:', token);
+  console.log('Full hash:', window.location.hash);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
