@@ -3573,11 +3573,14 @@ app.post("/api/seller-register", async (req, res) => {
       
       userId = existingProfile.id;
       
-      // Update profile jadi seller + data bank
+      // Update profile jadi seller + data bank (JANGAN overwrite role jika sudah admin/superadmin)
+      const currentRole = existingProfile.role;
+      const newRole = (currentRole === "admin" || currentRole === "superadmin") ? currentRole : "seller";
+      
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
-          role: "seller",
+          role: newRole,
           email: email.trim(),
           phone: phone.trim(),
           bank_name: bankName,
@@ -3610,10 +3613,11 @@ app.post("/api/seller-register", async (req, res) => {
 
       userId = authData.user.id;
 
-      // Update profile dengan data bank
+      // Update profile dengan data bank + ensure role is seller (jika trigger gagal set role)
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
+          role: "seller", // Explicitly set role to seller
           email: email.trim(),
           phone: phone.trim(),
           bank_name: bankName,

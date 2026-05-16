@@ -9,6 +9,7 @@ create table if not exists public.profiles (
   role text not null,
   name text not null,
   nik text unique,
+  email text,
   phone text,
   balance numeric not null default 0,
   total_sales numeric not null default 0,
@@ -41,7 +42,7 @@ begin
   end;
 
   -- Add the definitive constraint
-  alter table public.profiles add constraint profiles_role_check check (role in ('admin', 'seller', 'buyer'));
+  alter table public.profiles add constraint profiles_role_check check (role in ('superadmin', 'admin', 'seller', 'buyer'));
 exception when others then
   raise log 'Error updating profiles_role_check: %', SQLERRM;
 end;
@@ -247,6 +248,7 @@ create table if not exists public.failed_transactions (
 create table if not exists public.categories (
   id uuid primary key default uuid_generate_v4(),
   name text not null unique,
+  slug text,
   created_at timestamptz not null default timezone('utc'::text, now())
 );
 
@@ -379,20 +381,22 @@ begin
   user_nik := nullif(trim(new.raw_user_meta_data ->> 'nik'), '');
   user_phone := nullif(trim(new.raw_user_meta_data ->> 'phone'), '');
 
-  insert into public.profiles (id, role, name, nik, phone)
+  insert into public.profiles (id, role, name, nik, phone, email)
   values (
     new.id,
     user_role,
     user_name,
     user_nik,
-    user_phone
+    user_phone,
+    new.email
   )
   on conflict (id) do update 
   set 
     role = excluded.role,
     name = excluded.name,
     nik = excluded.nik,
-    phone = excluded.phone;
+    phone = excluded.phone,
+    email = excluded.email;
 
   return new;
 exception
@@ -453,6 +457,7 @@ alter table public.failed_transactions enable row level security;
 alter table public.settings enable row level security;
 alter table public.withdrawals enable row level security;
 alter table public.notifications enable row level security;
+alter table public.categories enable row level security;
 
 -- POLICIES
 -- Profiles: Users can read all profiles, but only update their own
@@ -618,6 +623,14 @@ begin
 
   if not exists (select 1 from pg_policies where schemaname='public' and tablename='notifications' and policyname='notifications_insert_all') then
     create policy notifications_insert_all on public.notifications for insert with check (true);
+  end if;
+
+  -- Categories policies
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='categories' and policyname='categories_select_public') then
+    create policy categories_select_public on public.categories for select using (true);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='categories' and policyname='categories_admin_all') then
+    create policy categories_admin_all on public.categories for all using (public.is_admin());
   end if;
 end;
 $$;

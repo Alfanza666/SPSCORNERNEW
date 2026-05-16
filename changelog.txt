@@ -1,3 +1,11 @@
+v4.8.0 - Autonomous Error Reporting & Category Fixes
+--------------------------------------------------
+### Fitur Baru & Optimasi:
+- **[NEW] Autonomous Error Reporting:** Sistem kini secara otomatis menangkap error JavaScript, Promise rejections, dan log konsol. Dilengkapi dengan "Breadcrumbs" (jejak aksi user) dan metadata lingkungan teknis untuk mempermudah diagnosa oleh admin.
+- **[FIX] Categories RLS & Schema:** Memperbaiki masalah "policy violation" saat menambah kategori dengan menambahkan kebijakan RLS yang tepat untuk Admin. Menambahkan kolom `slug` yang hilang pada tabel kategori.
+- **[ENHANCEMENT] PWA UI Cleanup:** Menghilangkan tombol debug "Install App (Debug)" namun tetap mempertahankan banner instalasi PWA yang bersih dan profesional.
+- **[ENHANCEMENT] Error Visibility:** Dashboard Admin Reports kini menampilkan detail teknis lengkap (Stack Trace & Breadcrumbs) untuk setiap laporan otomatis.
+
 v4.7.1 - Excel File Import & Enhanced Bulk Tools
 --------------------------------------------------
 ### Fitur Baru & Optimasi:

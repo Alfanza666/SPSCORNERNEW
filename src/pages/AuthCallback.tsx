@@ -61,23 +61,71 @@ export default function AuthCallback() {
         }
 
         if (!profile) {
-          const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Pengguna Baru';
-          const { data: insertedProfile, error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: session.user.id,
-              name: googleName,
-              role: 'buyer',
-              balance: 0,
-              loyalty_points: 0,
-            })
-            .select('id, role, name, nik, phone, balance, loyalty_points')
-            .single();
-
-          if (insertError || !insertedProfile) {
-            throw new Error('Gagal membuat profil. Silakan hubungi admin.');
+          const googleEmail = session.user.email?.toLowerCase();
+          const googleNik = session.user.user_metadata?.nik?.toLowerCase();
+          let existingProfile: any = null;
+          
+          // Try matching by email (if column exists)
+          if (googleEmail) {
+            try {
+              const { data: emailMatch } = await supabase
+                .from('profiles')
+                .select('id, role, name, nik, phone, balance, loyalty_points')
+                .ilike('email', googleEmail)
+                .single();
+              
+              if (emailMatch) existingProfile = emailMatch;
+            } catch (e) {
+              // Email column might not exist yet
+              console.log('Email matching not available, trying NIK');
+            }
           }
-          profile = insertedProfile;
+          
+          // Try matching by NIK from metadata
+          if (!existingProfile && googleNik) {
+            const { data: nikMatch } = await supabase
+              .from('profiles')
+              .select('id, role, name, nik, phone, balance, loyalty_points')
+              .eq('nik', googleNik)
+              .single();
+            
+            if (nikMatch) existingProfile = nikMatch;
+          }
+
+          // If found existing profile (e.g., from seller registration), update ID to match Google Auth
+          if (existingProfile) {
+            const { error: updateIdError } = await supabase
+              .from('profiles')
+              .update({ id: session.user.id, email: googleEmail })
+              .eq('id', existingProfile.id);
+
+            if (!updateIdError) {
+              profile = { ...existingProfile, id: session.user.id };
+            }
+          }
+
+          // If still no profile, create new one
+          if (!profile) {
+            const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Pengguna Baru';
+            const { data: insertedProfile, error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: session.user.id,
+                name: googleName,
+                role: 'buyer',
+                balance: 0,
+                loyalty_points: 0,
+                email: googleEmail,
+                nik: googleNik,
+              })
+              .select('id, role, name, nik, phone, balance, loyalty_points')
+              .single();
+
+            if (insertError || !insertedProfile) {
+              throw new Error('Gagal membuat profil. Silakan hubungi admin.');
+            }
+            profile = insertedProfile;
+          }
         }
 
         const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
