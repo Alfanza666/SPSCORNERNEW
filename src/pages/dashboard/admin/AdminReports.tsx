@@ -158,7 +158,6 @@ export default function AdminReports() {
                   <XCircle className="w-5 h-5 text-zinc-400" />
                 </button>
               </div>
-              <div className="p-6 space-y-4">
               <div className="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
                 <div className="flex items-center justify-between">
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${STATUS_MAP[selectedReport.status]?.color}`}>
