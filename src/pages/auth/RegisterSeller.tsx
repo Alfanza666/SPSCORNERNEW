@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { 
-  Store, ArrowLeft, Eye, EyeOff, Loader2, AlertCircle, 
+import {
+  Store, ArrowLeft, Eye, EyeOff, Loader2, AlertCircle,
   CheckCircle2, CreditCard, Phone, Mail, User, Hash, ShieldCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -234,7 +234,7 @@ export default function RegisterSeller() {
 
               <div className="col-span-2">
                 <label className="block text-[10px] font-black text-zinc-400 mb-1.5 uppercase tracking-widest">
-                  NIK (Nomor KTP)
+                  NIK (Nomor Induk Karyawan)
                 </label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -242,9 +242,9 @@ export default function RegisterSeller() {
                     name="nik"
                     value={formData.nik}
                     onChange={handleChange}
-                    placeholder="16 digit nomor KTP"
+                    placeholder="8 digit nomor NIK"
                     required
-                    maxLength={16}
+                    maxLength={8}
                     className="input-clay pl-10"
                   />
                 </div>
