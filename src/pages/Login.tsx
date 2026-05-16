@@ -52,11 +52,29 @@ export default function Login() {
     setError('');
 
     try {
-      let cleanNik = nik.trim().toLowerCase();
-      if (!cleanNik.includes('@')) {
-        cleanNik = cleanNik.replace(/[\s-.]/g, '');
+      let input = nik.trim().toLowerCase();
+      input = input.replace(/[\s-.]/g, '');
+
+      let email: string;
+      
+      if (input.includes('@')) {
+        // User memasukkan email langsung
+        email = input;
+      } else {
+        // User memasukkan NIK - cari email dari profiles berdasarkan NIK
+        const { data: profileByNik, error: nikError } = await supabase
+          .from('profiles')
+          .select('email, id')
+          .eq('nik', input)
+          .single();
+        
+        if (nikError || !profileByNik?.email) {
+          // Fallback ke format email lama jika tidak ketemu di profiles
+          email = `${input}@sps.local`;
+        } else {
+          email = profileByNik.email;
+        }
       }
-      const email = cleanNik.includes('@') ? cleanNik : `${cleanNik}@sps.local`;
 
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
