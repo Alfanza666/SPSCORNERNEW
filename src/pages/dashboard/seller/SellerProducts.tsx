@@ -55,6 +55,32 @@ export default function SellerProducts() {
     image_url: ''
   });
 
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('seller_product_draft');
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.name || parsed.price || parsed.stock) {
+          setNewProduct(parsed);
+          toast.success('Ditemukan draft produk yang belum tersimpan');
+        }
+      } catch (e) {
+        console.error('Error loading draft:', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (newProduct.name || newProduct.price || newProduct.stock) {
+      localStorage.setItem('seller_product_draft', JSON.stringify(newProduct));
+    }
+  }, [newProduct]);
+
+  const clearDraft = () => {
+    localStorage.removeItem('seller_product_draft');
+    setNewProduct({ name: '', description: '', price: '', stock: '', category: '', image_url: '' });
+  };
+
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user?.id) return;
@@ -223,7 +249,7 @@ export default function SellerProducts() {
       if (error) throw error;
       
       setIsAdding(false);
-      setNewProduct({ name: '', description: '', price: '', stock: '', category: '', image_url: '' });
+      clearDraft();
       fetchProducts();
     } catch (error: any) {
       console.error('Error adding product:', error);

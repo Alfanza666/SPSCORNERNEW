@@ -52,25 +52,26 @@ export default function Login() {
     setError('');
 
     try {
-      let input = nik.trim().toLowerCase();
-      input = input.replace(/[\s-.]/g, '');
+      const rawInput = nik.trim();
+      const input = rawInput.replace(/[\s-.]/g, '');
 
       let email: string;
       
       if (input.includes('@')) {
         // User memasukkan email langsung
-        email = input;
+        email = input.toLowerCase();
       } else {
         // User memasukkan NIK - cari email dari profiles berdasarkan NIK
+        // Gunakan ilike untuk case-insensitive search
         const { data: profileByNik, error: nikError } = await supabase
           .from('profiles')
           .select('email, id')
-          .eq('nik', input)
+          .ilike('nik', input)
           .single();
         
         if (nikError || !profileByNik?.email) {
           // Fallback ke format email lama jika tidak ketemu di profiles
-          email = `${input}@sps.local`;
+          email = `${input.toLowerCase()}@sps.local`;
         } else {
           email = profileByNik.email;
         }
