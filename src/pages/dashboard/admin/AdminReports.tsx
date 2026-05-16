@@ -159,13 +159,61 @@ export default function AdminReports() {
                 </button>
               </div>
               <div className="p-6 space-y-4">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${STATUS_MAP[selectedReport.status]?.color}`}>
-                  {STATUS_MAP[selectedReport.status]?.label || selectedReport.status}
-                </span>
-                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4">
-                  <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium leading-relaxed">{selectedReport.message}</p>
+              <div className="p-6 space-y-4 overflow-y-auto max-h-[70vh]">
+                <div className="flex items-center justify-between">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${STATUS_MAP[selectedReport.status]?.color}`}>
+                    {STATUS_MAP[selectedReport.status]?.label || selectedReport.status}
+                  </span>
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{selectedReport.type === 'crash' ? 'Otonom / Crash' : 'Manual / Bug'}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
+
+                <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300 font-bold leading-relaxed">{selectedReport.message}</p>
+                </div>
+
+                {/* Metadata Details */}
+                {selectedReport.metadata && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl">
+                        <p className="text-[9px] font-black text-zinc-400 uppercase mb-1">Halaman</p>
+                        <p className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 truncate">{selectedReport.metadata.url || '-'}</p>
+                      </div>
+                      <div className="p-3 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl">
+                        <p className="text-[9px] font-black text-zinc-400 uppercase mb-1">Browser / OS</p>
+                        <p className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400 truncate">{selectedReport.metadata.userAgent || '-'}</p>
+                      </div>
+                    </div>
+
+                    {selectedReport.metadata.breadcrumbs && selectedReport.metadata.breadcrumbs.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Riwayat Aksi (Breadcrumbs)</p>
+                        <div className="bg-zinc-900 rounded-xl p-3 space-y-1.5 max-h-32 overflow-y-auto">
+                          {selectedReport.metadata.breadcrumbs.map((b: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 text-[9px] font-mono">
+                              <span className="text-zinc-600">[{format(new Date(b.time), 'HH:mm:ss')}]</span>
+                              <span className="text-blue-400 uppercase">{b.type}</span>
+                              <span className="text-zinc-400">{b.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedReport.metadata.stack && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Stack Trace</p>
+                        <div className="bg-zinc-900 rounded-xl p-3 overflow-x-auto">
+                          <pre className="text-[9px] font-mono text-red-400/80 leading-tight">
+                            {selectedReport.metadata.stack}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 text-sm pt-2">
                   <div>
                     <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Dilaporkan oleh</p>
                     <p className="font-bold text-zinc-900 dark:text-white">{selectedReport.user_name || 'Anonymous'}</p>
@@ -176,15 +224,15 @@ export default function AdminReports() {
                   </div>
                 </div>
               </div>
-              <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 flex gap-3">
+              <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 flex gap-3 bg-zinc-50/50 dark:bg-zinc-800/20">
                 {selectedReport.status !== 'resolved' && (
                   <button onClick={() => handleUpdateStatus(selectedReport.id, 'resolved')}
-                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors">
+                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-600/20 active:scale-95">
                     <CheckCircle2 className="w-4 h-4" /> Tandai Selesai
                   </button>
                 )}
                 <button onClick={() => handleDelete(selectedReport.id)}
-                  className="px-4 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-red-100 transition-colors">
+                  className="px-6 py-3 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-2xl font-black text-sm flex items-center gap-2 hover:bg-red-100 transition-all active:scale-95">
                   <Trash2 className="w-4 h-4" /> Hapus
                 </button>
               </div>

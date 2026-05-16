@@ -30,6 +30,7 @@ import SPSLogo from '../../components/SPSLogo';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import ErrorReporter from '../../components/ErrorReporter';
 
 const NAV_ITEMS = [
   { path: '/portal', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -504,6 +505,8 @@ export default function PortalLayout() {
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}
       />
+
+      <ErrorReporter />
     </div>
   );
 }

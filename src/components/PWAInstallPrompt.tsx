@@ -79,18 +79,8 @@ export default function PWAInstallPrompt() {
   }, [deferredPrompt, showPrompt]);
 
   if (!showPrompt) {
-    // Debug button (can be removed in production)
-    return (
-      <div className="fixed bottom-4 right-4 z-[9999]">
-        <button
-          onClick={triggerManualInstall}
-          className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" />
-          Install App (Debug)
-        </button>
-      </div>
-    );
+    // Tombol debug dihilangkan sesuai permintaan user
+    return null;
   }
 
   return (
