@@ -77,6 +77,12 @@ export default function PortalProfile() {
 
     setUploadingAvatar(true);
     try {
+      // Ensure session is valid before making authenticated requests
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        throw new Error('Session expired. Please login again.');
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Math.random()}.${fileExt}`;
       const filePath = `avatars/${fileName}`;
@@ -97,7 +103,9 @@ export default function PortalProfile() {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select()
+        .single();
 
       if (updateError) throw updateError;
 
