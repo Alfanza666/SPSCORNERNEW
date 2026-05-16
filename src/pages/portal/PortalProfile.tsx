@@ -117,18 +117,17 @@ export default function PortalProfile() {
     
     setUpdatingProfile(true);
     try {
-      // 1. Update Profiles table (WITHOUT email because it doesn't exist there)
-      // 1. Upsert profile (Create if missing, update if exists)
+      // 1. Update Profiles table - use UPDATE instead of UPSERT
+      // Reason: profile should already exist, upsert can cause FK constraint errors if auth.users doesn't exist
       const { error: profileError } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
+        .update({
           name: name.trim(),
           phone: phone.trim(),
           nik: nik.trim(),
-          role: user.role || 'buyer',
           updated_at: new Date().toISOString()
-        });
+        })
+        .eq('id', user.id);
 
       if (profileError) throw profileError;
 
