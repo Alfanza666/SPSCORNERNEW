@@ -187,58 +187,101 @@ export default function App() {
             <Route path="/portal" element={<PortalLayout />}>
               <Route index element={<PortalDashboard />} />
               <Route path="program" element={<PortalProgram />} />
+              <Route path="program/" element={<PortalProgram />} />
               <Route path="flashsale" element={<PortalFlashsale />} />
+              <Route path="flashsale/" element={<PortalFlashsale />} />
               <Route path="pengumuman" element={<PortalPengumuman />} />
+              <Route path="pengumuman/" element={<PortalPengumuman />} />
               <Route path="pengaduan" element={<PortalPengaduan />} />
+              <Route path="pengaduan/" element={<PortalPengaduan />} />
               <Route path="kritik" element={<PortalKritik />} />
-               <Route path="profile" element={<PortalProfile />} />
+              <Route path="kritik/" element={<PortalKritik />} />
+              <Route path="profile" element={<PortalProfile />} />
+              <Route path="profile/" element={<PortalProfile />} />
               <Route path="forms" element={<PortalFormList />} />
+              <Route path="forms/" element={<PortalFormList />} />
               <Route path="forms/:formId" element={<PortalFormView />} />
             </Route>
 
             <Route path="/kiosk" element={<KioskLayout />}>
               <Route index element={<Catalog />} />
               <Route path="cart" element={<Cart />} />
+              <Route path="cart/" element={<Cart />} />
               <Route path="checkout" element={<Checkout />} />
+              <Route path="checkout/" element={<Checkout />} />
               <Route path="validate" element={<Validate />} />
+              <Route path="validate/" element={<Validate />} />
               <Route path="success" element={<Success />} />
+              <Route path="success/" element={<Success />} />
               <Route path="history" element={<History />} />
+              <Route path="history/" element={<History />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="profile/" element={<Profile />} />
               <Route path="digital" element={<DigitalProducts />} />
+              <Route path="digital/" element={<DigitalProducts />} />
               <Route path="preorder" element={<PreOrder />} />
+              <Route path="preorder/" element={<PreOrder />} />
             </Route>
 
             <Route path="/dashboard" element={<DashboardLayout />}>
+              <Route index element={<Navigate to="/portal" replace />} />
               <Route path="admin" element={<AdminDashboard />} />
+              <Route path="admin/" element={<AdminDashboard />} />
               <Route path="admin/sellers" element={<AdminSellers />} />
+              <Route path="admin/sellers/" element={<AdminSellers />} />
               <Route path="admin/categories" element={<AdminCategories />} />
+              <Route path="admin/categories/" element={<AdminCategories />} />
               <Route path="admin/products" element={<AdminProducts />} />
+              <Route path="admin/products/" element={<AdminProducts />} />
               <Route path="admin/transactions" element={<AdminTransactions />} />
+              <Route path="admin/transactions/" element={<AdminTransactions />} />
               <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
+              <Route path="admin/withdrawals/" element={<AdminWithdrawals />} />
               <Route path="admin/stock-requests" element={<AdminStockRequests />} />
+              <Route path="admin/stock-requests/" element={<AdminStockRequests />} />
               <Route path="admin/returns" element={<AdminReturns />} />
+              <Route path="admin/returns/" element={<AdminReturns />} />
               <Route path="admin/reports" element={<AdminReports />} />
+              <Route path="admin/reports/" element={<AdminReports />} />
               <Route path="admin/pickup" element={<AdminPickup />} />
+              <Route path="admin/pickup/" element={<AdminPickup />} />
               <Route path="admin/stock-opname" element={<AdminStockOpname />} />
+              <Route path="admin/stock-opname/" element={<AdminStockOpname />} />
               <Route path="admin/payments" element={<AdminPayments />} />
+              <Route path="admin/payments/" element={<AdminPayments />} />
               <Route path="admin/loyalty" element={<AdminLoyalty />} />
+              <Route path="admin/loyalty/" element={<AdminLoyalty />} />
               <Route path="admin/announcements" element={<AdminAnnouncements />} />
+              <Route path="admin/announcements/" element={<AdminAnnouncements />} />
               <Route path="admin/feedbacks" element={<AdminFeedbacks />} />
+              <Route path="admin/feedbacks/" element={<AdminFeedbacks />} />
               <Route path="admin/union-programs" element={<AdminUnionPrograms />} />
+              <Route path="admin/union-programs/" element={<AdminUnionPrograms />} />
               <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
+              <Route path="admin/standby-schedule/" element={<AdminStandbySchedule />} />
               <Route path="admin/forms" element={<AdminFormBuilder />} />
+              <Route path="admin/forms/" element={<AdminFormBuilder />} />
               <Route path="admin/forms/responses/:formId" element={<AdminFormResponses />} />
 
               <Route path="scanner" element={<AdminScanner />} />
+              <Route path="scanner/" element={<AdminScanner />} />
               <Route path="admin/flashsale" element={<AdminFlashsale />} />
+              <Route path="admin/flashsale/" element={<AdminFlashsale />} />
               <Route path="admin/gathering" element={<AdminGathering />} />
+              <Route path="admin/gathering/" element={<AdminGathering />} />
               <Route path="admin/programs" element={<AdminUnionPrograms />} />
+              <Route path="admin/programs/" element={<AdminUnionPrograms />} />
               <Route path="admin/doorprize" element={<AdminDoorprize />} />
+              <Route path="admin/doorprize/" element={<AdminDoorprize />} />
 
               <Route path="seller" element={<SellerDashboard />} />
+              <Route path="seller/" element={<SellerDashboard />} />
               <Route path="seller/products" element={<SellerProducts />} />
+              <Route path="seller/products/" element={<SellerProducts />} />
               <Route path="seller/withdrawals" element={<SellerWithdrawals />} />
+              <Route path="seller/withdrawals/" element={<SellerWithdrawals />} />
               <Route path="seller/transactions" element={<SellerTransactions />} />
+              <Route path="seller/transactions/" element={<SellerTransactions />} />
             </Route>
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
