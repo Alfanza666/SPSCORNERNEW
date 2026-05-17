@@ -43,6 +43,7 @@ export default function Checkout() {
   const grandTotal = subtotal; // Real base amount untuk backend & iPaymu
 
   const buyerName = user?.name || sessionStorage.getItem('buyerName');
+  const buyerEmail = user?.email || sessionStorage.getItem('buyerEmail') || null;
 
   const saveGuestTransaction = (txId: string) => {
     // Always save last transaction to sessionStorage for success page access (even for guests)
@@ -50,10 +51,22 @@ export default function Checkout() {
     if (!user) {
       try {
         const history = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
-        if (!history.includes(txId)) {
-          history.push(txId);
-          localStorage.setItem('guest_transactions', JSON.stringify(history));
+        const existingIndex = history.findIndex((t: any) => t.id === txId);
+        const guestData = {
+          id: txId,
+          buyerName: buyerName,
+          buyerEmail: buyerEmail,
+          buyerPhone: guestPhone || null,
+          createdAt: new Date().toISOString()
+        };
+        if (existingIndex >= 0) {
+          history[existingIndex] = guestData;
+        } else {
+          history.push(guestData);
         }
+        // Keep only last 50 transactions
+        const trimmedHistory = history.slice(-50);
+        localStorage.setItem('guest_transactions', JSON.stringify(trimmedHistory));
       } catch (e) {
         console.error('Failed to save guest transaction', e);
       }
@@ -217,7 +230,6 @@ export default function Checkout() {
       }
       // Ensure name is at least 3 chars for iPaymu
       if (cleanName.length < 3) cleanName = "Pelanggan";
-      const dummyEmail = `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`;
 
       const ipaymuRes = await fetch('/api/payment/ipaymu/direct', {
         method: 'POST',
@@ -226,7 +238,7 @@ export default function Checkout() {
           transaction_id: tx.id,
           amount: grandTotal,
           buyer_name: cleanName,
-          buyer_email: user?.email || dummyEmail,
+          buyer_email: buyerEmail,
           buyer_phone: dummyPhone,
           payment_method: method,
           payment_channel: channel
@@ -511,7 +523,7 @@ export default function Checkout() {
         const txData: any = {
           buyer_name: buyerName,
           buyer_id: user?.id || null,
-          buyer_email: user?.email || null,
+buyer_email: buyerEmail,
           total_amount: grandTotal,
           items: items.map(item => ({
             id: item.id,
@@ -573,7 +585,6 @@ export default function Checkout() {
       }
       // Ensure name is at least 3 chars for iPaymu
       if (cleanName.length < 3) cleanName = "Pelanggan";
-      const dummyEmail = `${cleanName.replace(/\s+/g, '').toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1000)}@gmail.com`;
 
       // 2. Create IPaymu Payment
       const ipaymuRes = await fetch('/api/payment/ipaymu/create', {
@@ -583,7 +594,7 @@ export default function Checkout() {
           transaction_id: tx.id,
           amount: getTotal(),
           buyer_name: cleanName,
-          buyer_email: user?.email || dummyEmail,
+          buyer_email: buyerEmail,
           buyer_phone: dummyPhone,
           items: items.map(item => ({
             name: item.name,

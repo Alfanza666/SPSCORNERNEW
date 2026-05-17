@@ -14,6 +14,7 @@ export default function Cart() {
   const navigate = useNavigate();
   const [buyerName, setBuyerName] = useState('');
   const [buyerPhone, setBuyerPhone] = useState('');
+  const [buyerEmail, setBuyerEmail] = useState('');
   const [isReserving, setIsReserving] = useState(false);
 
   const subtotal = getTotal();
@@ -28,6 +29,12 @@ export default function Cart() {
     if (user) {
       setBuyerName(user.name);
       setBuyerPhone(user.phone || '');
+      setBuyerEmail(user.email || '');
+    } else {
+      // Load guest data from sessionStorage
+      setBuyerName(sessionStorage.getItem('buyerName') || '');
+      setBuyerPhone(sessionStorage.getItem('buyerPhone') || '');
+      setBuyerEmail(sessionStorage.getItem('buyerEmail') || '');
     }
   }, [user]);
 
@@ -90,6 +97,16 @@ export default function Cart() {
       return;
     }
 
+    // Guest checkout requires email for all products (for pickup notification)
+    if (!user && !buyerEmail.trim()) {
+      toast.error('Mohon masukkan email untuk receive notifikasi pengambilan pesanan');
+      return;
+    }
+    if (buyerEmail.trim() && !buyerEmail.includes('@')) {
+      toast.error('Format email tidak valid');
+      return;
+    }
+
     setIsReserving(true);
     try {
       const newReservations: string[] = [];
@@ -119,6 +136,7 @@ export default function Cart() {
       setReservations(newReservations);
       sessionStorage.setItem('buyerName', buyerName);
       sessionStorage.setItem('buyerPhone', buyerPhone);
+      sessionStorage.setItem('buyerEmail', buyerEmail);
       navigate('/kiosk/checkout');
     } catch (error: any) {
       console.error('Reservation error:', error);
@@ -324,6 +342,31 @@ export default function Cart() {
                   Untuk bantuan kendala & konfirmasi pesanan
                 </p>
               </div>
+
+              {!user && (
+                <div>
+                  <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 mb-2 uppercase tracking-widest">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Email (Opsional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      placeholder="email@contoh.com - untuk dikirimkan nota/token"
+                      value={buyerEmail}
+                      onChange={(e) => setBuyerEmail(e.target.value)}
+                      disabled={isReserving}
+                      className="input-clay h-10 sm:h-12 text-xs sm:text-sm pl-3"
+                    />
+                  </div>
+                  <p className="text-[8px] sm:text-[9px] text-zinc-400 dark:text-zinc-500 font-bold italic ml-1 mt-1.5 flex items-center gap-1">
+                    <ShieldCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-500 dark:text-emerald-400" />
+                    Untuk dikirimkan nota & token listrik/pulsa
+                  </p>
+                </div>
+              )}
             </div>
 
             <button

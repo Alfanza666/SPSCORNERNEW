@@ -97,7 +97,8 @@ export default function History() {
         query = query.eq('buyer_id', user.id);
       } else {
         try {
-          const guestTxIds = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
+          const guestData = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
+          const guestTxIds = guestData.map((t: any) => t.id).filter(Boolean);
           if (guestTxIds.length > 0) {
             query = query.in('id', guestTxIds);
           } else {
@@ -147,7 +148,8 @@ export default function History() {
         query = query.eq('buyer_id', user.id);
       } else {
         try {
-          const guestTxIds = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
+          const guestData = JSON.parse(localStorage.getItem('guest_transactions') || '[]');
+          const guestTxIds = guestData.map((t: any) => t.id).filter(Boolean);
           if (guestTxIds.length > 0) {
             query = query.in('id', guestTxIds);
           } else {

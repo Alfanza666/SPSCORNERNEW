@@ -17,12 +17,32 @@ export default function AdminStockOpname() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('id, name, stock, price, image_url, categories(name), profiles:seller_id(name)')
+        .select('id, name, stock, price, image_url, category, seller_id')
         .order('stock', { ascending: true });
-      if (error) throw error;
-      setProducts(data || []);
+      
+      if (productsError) throw productsError;
+
+      const sellerIds = [...new Set(productsData?.map(p => p.seller_id).filter(Boolean) || [])];
+      
+      let sellersMap: Record<string, any> = {};
+      if (sellerIds.length > 0) {
+        const { data: sellersData } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', sellerIds);
+        if (sellersData) {
+          sellersData.forEach(s => sellersMap[s.id] = s);
+        }
+      }
+
+      const productsWithRelations = (productsData || []).map(p => ({
+        ...p,
+        profiles: p.seller_id ? sellersMap[p.seller_id] : null
+      }));
+
+      setProducts(productsWithRelations);
     } catch (err: any) {
       toast.error('Gagal memuat produk: ' + err.message);
     } finally {
@@ -51,7 +71,8 @@ export default function AdminStockOpname() {
 
   const filtered = products.filter(p =>
     p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.categories?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.profiles?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const lowStockCount = products.filter(p => p.stock < 5).length;
