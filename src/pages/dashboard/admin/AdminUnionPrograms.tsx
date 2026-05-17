@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -27,19 +27,153 @@ export default function AdminUnionPrograms() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    program_type: 'gathering',
+    program_type: '',
     start_date: '',
     end_date: '',
     is_active: true,
     is_targeted: false,
     dynamic_form_id: '',
+    // Gathering options
+    enable_meal: true,
+    enable_doorprize: false,
+    enable_family: false,
+    enable_form: true,
+    paid_addons: [] as { id: string; name: string; price: number }[],
+    max_participants: 0,
+    // Kurban/Bingkisan options
+    kurban_type: 'sapi',
+    distribution_date: '',
+    target_level: 'all',
+    // Turnamen options
+    tournament_mode: 'individual',
+    team_size: 0,
+    allow_register_team: false,
   });
+
+  // Banner Upload State
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string>('');
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Format harus JPG, PNG, atau WebP');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran maksimal 5MB');
+      return;
+    }
+
+    setBannerFile(file);
+    setBannerPreview(URL.createObjectURL(file));
+  };
+
+  const uploadBanner = async (programId: string): Promise<string | null> => {
+    if (!bannerFile) return formData.banner_url || null;
+    
+    setUploadingBanner(true);
+    try {
+      const fileExt = bannerFile.name.split('.').pop();
+      const fileName = `${programId}-banner-${Date.now()}.${fileExt}`;
+      const filePath = `banners/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('program-files')
+        .upload(filePath, bannerFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('program-files')
+        .getPublicUrl(filePath);
+
+      setUploadingBanner(false);
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Banner upload error:', error);
+      toast.error('Gagal upload banner');
+      setUploadingBanner(false);
+      return null;
+    }
+  };
+
+  // Helper for paid add-ons
+  const addPaidAddon = () => {
+    setFormData({
+      ...formData,
+      paid_addons: [...formData.paid_addons, { id: crypto.randomUUID(), name: '', price: 0 }]
+    });
+  };
+
+  const updatePaidAddon = (id: string, field: 'name' | 'price', value: string | number) => {
+    setFormData({
+      ...formData,
+      paid_addons: formData.paid_addons.map(addon => 
+        addon.id === id ? { ...addon, [field]: field === 'price' ? Number(value) : value } : addon
+      )
+    });
+  };
+
+  const removePaidAddon = (id: string) => {
+    setFormData({
+      ...formData,
+      paid_addons: formData.paid_addons.filter(addon => addon.id !== id)
+    });
+  };
 
   const [formConfig, setFormConfig] = useState<FormField[]>([]);
   const [targetNiks, setTargetNiks] = useState('');
   const [uploadedEligibleCount, setUploadedEligibleCount] = useState(0);
   const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- AUTO-SAVE DRAFT LOGIC ---
+  const DRAFT_KEY = 'draft_union_program';
+
+  // Load draft on mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(DRAFT_KEY);
+    if (savedDraft) {
+      try {
+        const parsedDraft = JSON.parse(savedDraft);
+        setFormData(parsedDraft.formData);
+        setBannerPreview(parsedDraft.bannerPreview || '');
+        setFormConfig(parsedDraft.formConfig || []);
+        setTargetNiks(parsedDraft.targetNiks || '');
+        toast.success('Draft program sebelumnya ditemukan dan dipulihkan');
+      } catch (e) {
+        console.error('Failed to parse draft', e);
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    }
+  }, []);
+
+  // Save draft on change
+  useEffect(() => {
+    // Only save if modal is open or form has some data
+    if (isModalOpen || formData.name || formData.program_type) {
+      const draftToSave = {
+        formData,
+        bannerPreview,
+        formConfig,
+        targetNiks
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftToSave));
+    }
+  }, [formData, bannerPreview, formConfig, targetNiks, isModalOpen]);
+
+  // Clear draft function
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+  };
 
   useEffect(() => {
     fetchPrograms();
@@ -87,10 +221,16 @@ export default function AdminUnionPrograms() {
 
   const resetForm = () => {
     setFormData({
-      name: '', description: '', program_type: 'gathering',
+      name: '', description: '', program_type: '',
       start_date: '', end_date: '', is_active: true, is_targeted: false,
-      dynamic_form_id: ''
+      dynamic_form_id: '', banner_url: '',
+      enable_meal: true, enable_doorprize: false, enable_family: false, enable_form: true,
+      paid_addons: [], max_participants: 0,
+      kurban_type: 'sapi', distribution_date: '', target_level: 'all',
+      tournament_mode: 'individual', team_size: 0, allow_register_team: false
     });
+    setBannerFile(null);
+    setBannerPreview('');
     setFormConfig([]);
     setTargetNiks('');
     setUploadedEligibleCount(0);
@@ -101,7 +241,10 @@ export default function AdminUnionPrograms() {
   };
 
   const openEditModal = (program: any) => {
+    const meta = program.metadata || {};
     setEditingProgram(program);
+    setBannerFile(null);
+    setBannerPreview(program.banner_url || '');
     setFormData({
       name: program.name,
       description: program.description || '',
@@ -111,6 +254,22 @@ export default function AdminUnionPrograms() {
       is_active: program.is_active,
       is_targeted: program.is_targeted,
       dynamic_form_id: program.dynamic_form_id || '',
+      banner_url: program.banner_url || '',
+      // Gathering
+      enable_meal: meta.enable_meal ?? true,
+      enable_doorprize: meta.enable_doorprize ?? false,
+      enable_family: meta.enable_family ?? false,
+      enable_form: meta.enable_form ?? true,
+      paid_addons: meta.paid_addons || [],
+      max_participants: meta.max_participants ?? 0,
+      // Kurban
+      kurban_type: meta.kurban_type ?? 'sapi',
+      distribution_date: meta.distribution_date ?? '',
+      target_level: meta.target_level ?? 'all',
+      // Turnamen
+      tournament_mode: meta.tournament_mode ?? 'individual',
+      team_size: meta.team_size ?? 0,
+      allow_register_team: meta.allow_register_team ?? false
     });
     setFormConfig(program.form_config || []);
     setIsModalOpen(true);
@@ -229,8 +388,30 @@ export default function AdminUnionPrograms() {
     setSaving(true);
     try {
       const programData = {
-        ...formData,
-        form_config: formConfig
+        name: formData.name,
+        description: formData.description,
+        program_type: formData.program_type,
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
+        is_active: formData.is_active,
+        is_targeted: formData.is_targeted,
+        dynamic_form_id: formData.dynamic_form_id || null,
+        banner_url: formData.banner_url || bannerPreview || null,
+        form_config: formConfig,
+        metadata: {
+          enable_meal: formData.enable_meal,
+          enable_doorprize: formData.enable_doorprize,
+          enable_family: formData.enable_family,
+          enable_form: formData.enable_form,
+          paid_addons: formData.paid_addons,
+          max_participants: formData.max_participants,
+          kurban_type: formData.kurban_type,
+          distribution_date: formData.distribution_date,
+          target_level: formData.target_level,
+          tournament_mode: formData.tournament_mode,
+          team_size: formData.team_size,
+          allow_register_team: formData.allow_register_team
+        }
       };
 
       let programId;
@@ -268,9 +449,28 @@ export default function AdminUnionPrograms() {
         if (eligibilityData.length > 0) {
           const { error: eligError } = await supabase.from('program_eligibility').insert(eligibilityData);
           if (eligError) throw eligError;
+
+          // AUTO-GENERATE COUPONS via RPC
+          // We trigger coupon generation immediately after eligibility is set
+          toast.loading('Mendistribusikan kupon...', { duration: 2000 });
+          try {
+             const { data: count, error: genError } = await supabase.rpc('generate_program_coupons', {
+               p_program_id: programId,
+               p_niks: nikArray
+             });
+             if (genError) throw genError;
+             if (count > 0) {
+               toast.success(`Berhasil membagikan ${count} kupon otomatis kepada peserta!`);
+             }
+          } catch (genErr: any) {
+             console.error("Auto generation failed", genErr);
+             // Non-blocking error, we don't want to rollback program creation just because coupon gen failed (maybe first run)
+             toast.error("Program disimpan, tetapi distribusi kupon otomatis gagal.");
+          }
         }
       }
 
+      clearDraft();
       resetForm();
       fetchPrograms();
     } catch (error: any) {
@@ -383,8 +583,117 @@ export default function AdminUnionPrograms() {
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
+</div>
+
+                  {/* Dynamic Options based on Program Type */}
+                  <div className="mt-6 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Settings className="w-5 h-5 text-zinc-500" />
+                      <p className="font-bold text-zinc-700 dark:text-zinc-300">Pengaturan {formData.program_type === 'gathering' ? 'Gathering' : formData.program_type === 'kurban' ? 'Kurban' : 'Program'}</p>
+                    </div>
+
+                    {formData.program_type === 'gathering' && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <label className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                            <input
+                              type="checkbox"
+                              checked={formData.enable_meal}
+                              onChange={e => setFormData({ ...formData, enable_meal: e.target.checked })}
+                              className="w-5 h-5 rounded accent-green-600"
+                            />
+                            <div>
+                              <span className="block text-sm font-semibold text-zinc-700 dark:text-zinc-200">Makan (Meal)</span>
+                              <span className="text-xs text-zinc-400">Tiket makan & QR Code</span>
+                            </div>
+                          </label>
+                          <label className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                            <input
+                              type="checkbox"
+                              checked={formData.enable_doorprize}
+                              onChange={e => setFormData({ ...formData, enable_doorprize: e.target.checked })}
+                              className="w-5 h-5 rounded accent-purple-600"
+                            />
+                            <div>
+                              <span className="block text-sm font-semibold text-zinc-700 dark:text-zinc-200">Doorprize</span>
+                              <span className="text-xs text-zinc-400">Spin wheel & Coupon</span>
+                            </div>
+                          </label>
+                        </div>
+                        <label className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                          <input
+                            type="checkbox"
+                            checked={formData.enable_family}
+                            onChange={e => setFormData({ ...formData, enable_family: e.target.checked })}
+                            className="w-5 h-5 rounded accent-indigo-600"
+                          />
+                          <div>
+                            <span className="block text-sm font-semibold text-zinc-700 dark:text-zinc-200">Keluarga (Family)</span>
+                            <span className="text-xs text-zinc-400">Tambah anggota keluarga via QRIS</span>
+                          </div>
+                        </label>
+                        <div>
+                          <label className="block text-xs font-semibold text-zinc-500 mb-1">Maks. Peserta (0 = unlimited)</label>
+                          <input
+                            type="number"
+                            value={formData.max_participants}
+                            onChange={e => setFormData({ ...formData, max_participants: parseInt(e.target.value) || 0 })}
+                            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.program_type === 'kurban' && (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-zinc-500 mb-1">Jenis Hewan Kurban</label>
+                          <select
+                            value={formData.kurban_type}
+                            onChange={e => setFormData({ ...formData, kurban_type: e.target.value })}
+                            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm"
+                          >
+                            <option value="sapi">Sapi (1 orang max 1 sapi)</option>
+                            <option value="kambing">Kambing (1 orang max 1 kambing)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-zinc-500 mb-1">Tanggal Distribusi Daging</label>
+                          <input
+                            type="date"
+                            value={formData.distribution_date}
+                            onChange={e => setFormData({ ...formData, distribution_date: e.target.value })}
+                            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-zinc-500 mb-1">Maks. Peserta (0 = unlimited)</label>
+                          <input
+                            type="number"
+                            value={formData.max_participants}
+                            onChange={e => setFormData({ ...formData, max_participants: parseInt(e.target.value) || 0 })}
+                            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.program_type !== 'gathering' && formData.program_type !== 'kurban' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-zinc-500 mb-1">Maks. Peserta (0 = unlimited)</label>
+                        <input
+                          type="number"
+                          value={formData.max_participants}
+                          onChange={e => setFormData({ ...formData, max_participants: parseInt(e.target.value) || 0 })}
+                          className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm"
+                          placeholder="0"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
             </motion.div>
           ))}
           
@@ -425,7 +734,7 @@ export default function AdminUnionPrograms() {
               </div>
 
               <form onSubmit={handleSubmit} className="overflow-y-auto p-4 md:p-6 space-y-6 flex-1">
-                {/* Basic Info */}
+                {/* STEP 1: Dasar - Wajib diisi dulu */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Nama Program *</label>
@@ -445,84 +754,342 @@ export default function AdminUnionPrograms() {
                       value={formData.description}
                       onChange={e => setFormData({ ...formData, description: e.target.value })}
                       className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Deskripsi singkat program..."
+                      placeholder="Penjelasan lengkap tentang program ini..."
                     />
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Tipe</label>
-                      <select
-                        value={formData.program_type}
-                        onChange={e => setFormData({ ...formData, program_type: e.target.value })}
-                        className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="gathering">Gathering</option>
-                        <option value="kurban">Kurban</option>
-                        <option value="bantuan">Bantuan</option>
-                        <option value="pelatihan">Pelatihan</option>
-                        <option value="lainnya">Lainnya</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Tanggal Mulai</label>
-                      <input
-                        type="date"
-                        value={formData.start_date}
-                        onChange={e => setFormData({ ...formData, start_date: e.target.value })}
-                        className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Tanggal Selesai</label>
-                      <input
-                        type="date"
-                        value={formData.end_date}
-                        onChange={e => setFormData({ ...formData, end_date: e.target.value })}
-                        className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="flex items-center justify-center gap-3 pt-5">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.is_active}
-                          onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                          className="w-5 h-5 rounded accent-blue-600"
-                        />
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Aktif</span>
-                      </label>
-                    </div>
-                  </div>
                   
-                  {/* Dynamic Form Link */}
+                  {/* Banner Upload */}
                   <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700">
-                    <div className="flex items-center gap-3 mb-4">
-                      <ClipboardList className="w-5 h-5 text-blue-500" />
+                    <div className="flex items-center gap-3 mb-3">
+                      <Image className="w-5 h-5 text-purple-500" />
                       <div>
-                        <p className="font-bold text-zinc-900 dark:text-white">Link ke Formulir Dinamis</p>
-                        <p className="text-xs text-zinc-500">Opsional: Gunakan formulir dari Form Builder sebagai ganti form pendaftaran bawaan.</p>
+                        <p className="font-bold text-zinc-900 dark:text-white">Banner Acara</p>
+                        <p className="text-xs text-zinc-500">Opsional: Unggah gambar banner untuk tampilan di portal</p>
                       </div>
                     </div>
-                    <select
-                      value={formData.dynamic_form_id}
-                      onChange={e => setFormData({ ...formData, dynamic_form_id: e.target.value })}
-                      className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">-- Gunakan Form Pendaftaran Bawaan --</option>
-                      {dynamicForms.map(form => (
-                        <option key={form.id} value={form.id}>{form.title}</option>
-                      ))}
-                    </select>
-                    {formData.dynamic_form_id && (
-                      <div className="mt-3 flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-                        <AlertCircle className="w-4 h-4 text-amber-600" />
-                        <p className="text-[10px] md:text-xs text-amber-700 dark:text-amber-400 font-medium">
-                          Perhatian: Menggunakan formulir dinamis akan menonaktifkan "Formulir Pendaftaran" bawaan di bawah.
-                        </p>
+                    
+                    {!bannerPreview && !bannerFile ? (
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700/50 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <Upload className="w-8 h-8 text-zinc-400 mb-2" />
+                          <p className="text-xs text-zinc-500">Klik untuk upload banner</p>
+                          <p className="text-[10px] text-zinc-400">JPG, PNG, WebP (maks 5MB)</p>
+                        </div>
+                        <input type="file" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleBannerUpload} />
+                      </label>
+                    ) : (
+                      <div className="relative">
+                        <img 
+                          src={bannerPreview} 
+                          alt="Banner Preview" 
+                          className="w-full h-40 object-cover rounded-xl border border-zinc-200 dark:border-zinc-700" 
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => { setBannerFile(null); setBannerPreview(''); setFormData({...formData, banner_url: ''}); }}
+                          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                    {uploadingBanner && (
+                      <div className="flex items-center gap-2 mt-2 text-sm text-purple-600">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Mengunggah banner...
                       </div>
                     )}
                   </div>
+                  
+                  {/* PROGRESSIVE DISCLOSURE - PICK TYPE FIRST */}
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                    <label className="block text-sm font-bold text-amber-800 dark:text-amber-200 mb-2">
+                      Langkah 1: Pilih Jenis Program *
+                    </label>
+                    <select
+                      required
+                      value={formData.program_type}
+                      onChange={e => setFormData({ ...formData, program_type: e.target.value })}
+                      className="w-full border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-900 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="">-- Pilih Tipe Program --</option>
+                      <option value="gathering">Gathering (Acara Karyawan)</option>
+                      <option value="kurban">Kurban (Pembagian Daging)</option>
+                      <option value="bingkisan">Bingkisan (Leburan/THR)</option>
+                      <option value="turnamen">Turnamen (Olahraga/Kompetisi)</option>
+                    </select>
+                  </div>
+
+                  {/* STEP 2: Details - Only show after type is selected */}
+                  {formData.program_type && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="grid grid-cols-1 md:grid-cols-3 gap-4"
+                    >
+                      <div>
+                        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Tanggal Mulai</label>
+                        <input
+                          type="date"
+                          value={formData.start_date}
+                          onChange={e => setFormData({ ...formData, start_date: e.target.value })}
+                          className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Tanggal Selesai</label>
+                        <input
+                          type="date"
+                          value={formData.end_date}
+                          onChange={e => setFormData({ ...formData, end_date: e.target.value })}
+                          className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="flex items-center justify-start gap-3 pt-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.is_active}
+                            onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                            className="w-5 h-5 rounded accent-blue-600"
+                          />
+                          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Aktif</span>
+                        </label>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
+                  
+                  {/* Formulir Tambahan Acara */}
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <ClipboardList className="w-5 h-5 text-blue-500" />
+                        <div>
+                          <p className="font-bold text-zinc-900 dark:text-white">Formulir Tambahan Acara</p>
+                          <p className="text-xs text-zinc-500">Aktifkan polling atau kuesioner untuk peserta</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={!!formData.dynamic_form_id}
+                          onChange={e => setFormData({ ...formData, dynamic_form_id: e.target.checked ? formData.dynamic_form_id : '' })}
+                          className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                    
+                    {formData.dynamic_form_id ? (
+                      <div className="space-y-3">
+                        <select
+                          value={formData.dynamic_form_id}
+                          onChange={e => setFormData({ ...formData, dynamic_form_id: e.target.value })}
+                          className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">-- Pilih Formulir --</option>
+                          {dynamicForms.filter(f => f.is_active).map(form => (
+                            <option key={form.id} value={form.id}>{form.title}</option>
+                          ))}
+                        </select>
+                        {formData.dynamic_form_id && dynamicForms.find(f => f.id === formData.dynamic_form_id) && (
+                          <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+                            <p className="text-xs text-green-700 dark:text-green-400">
+                              ✓ Formulir aktif: <span className="font-semibold">{dynamicForms.find(f => f.id === formData.dynamic_form_id)?.title}</span>
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                          <AlertCircle className="w-4 h-4 text-amber-600" />
+                          <p className="text-[10px] md:text-xs text-amber-700 dark:text-amber-400 font-medium">
+                            Formulir ini akan muncul di portal karyawan sebelum mereka mengkonfirmasi kehadiran.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-zinc-400 dark:text-zinc-500">
+                        <p className="text-sm">Toggle di atas untuk mengaktifkan</p>
+                      </div>
+                    )}
+                  </div>
+
+                {/* LANGKAH 3: PENGATURAN KHUSUS BERDASARKAN JENIS PROGRAM */}
+                {formData.program_type && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-zinc-500" />
+                      <h3 className="font-bold text-zinc-700 dark:text-zinc-300">Langkah 3: Konfigurasi {formData.program_type === 'gathering' ? 'Gathering' : formData.program_type === 'kurban' ? 'Kurban' : formData.program_type === 'bingkisan' ? 'Bingkisan' : formData.program_type === 'turnamen' ? 'Turnamen' : 'Program'}</h3>
+                    </div>
+
+                    {/* CARD: GATHERING */}
+                    {formData.program_type === 'gathering' && (
+                      <div className="grid gap-4">
+                        {/* Gate Settings */}
+                        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Gift className="w-4 h-4 text-green-600" />
+                            <span className="font-bold text-green-800 dark:text-green-200 text-sm">Gate & Tiket</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-lg border border-green-100 dark:border-green-900">
+                              <input type="checkbox" checked={formData.enable_meal} onChange={e => setFormData({ ...formData, enable_meal: e.target.checked })} className="w-5 h-5 rounded accent-green-600" />
+                              <div><span className="block text-sm font-semibold text-zinc-700 dark:text-zinc-200">Tiket Makan</span><span className="text-xs text-zinc-400">QR Meal coupon</span></div>
+                            </label>
+                            <label className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-lg border border-green-100 dark:border-green-900">
+                              <input type="checkbox" checked={formData.enable_doorprize} onChange={e => setFormData({ ...formData, enable_doorprize: e.target.checked })} className="w-5 h-5 rounded accent-purple-600" />
+                              <div><span className="block text-sm font-semibold text-zinc-700 dark:text-zinc-200">Doorprize</span><span className="text-xs text-zinc-400">Spin wheel & kupon</span></div>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Family Payment */}
+                        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4 text-indigo-600" />
+                              <span className="font-bold text-indigo-800 dark:text-indigo-200 text-sm">Keluarga Berbayar</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input type="checkbox" checked={formData.enable_family} onChange={e => setFormData({ ...formData, enable_family: e.target.checked })} className="sr-only peer" />
+                              <div className="w-9 h-5 bg-zinc-200 peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                          </div>
+                          {formData.enable_family && (
+                            <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-800 space-y-3">
+                              <div className="flex justify-between items-center">
+                                <label className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">Daftar Item Berbayar (Add-ons)</label>
+                                <button type="button" onClick={addPaidAddon} className="text-xs flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold">
+                                  <Plus className="w-3 h-3" /> Tambah Item
+                                </button>
+                              </div>
+                              
+                              {formData.paid_addons.length === 0 && (
+                                <p className="text-xs text-zinc-400 italic">Belum ada item. Klik "+ Tambah Item" untuk menambahkan.</p>
+                              )}
+                              
+                              {formData.paid_addons.map((addon, idx) => (
+                                <div key={addon.id} className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                  <span className="text-xs text-zinc-400 w-6">{idx + 1}.</span>
+                                  <input 
+                                    type="text" 
+                                    value={addon.name}
+                                    onChange={e => updatePaidAddon(addon.id, 'name', e.target.value)}
+                                    className="flex-1 border-none bg-transparent text-sm text-zinc-700 dark:text-zinc-200 focus:outline-none"
+                                    placeholder="Nama item (contoh: Sewa Tenda)"
+                                  />
+                                  <input 
+                                    type="number" 
+                                    value={addon.price}
+                                    onChange={e => updatePaidAddon(addon.id, 'price', e.target.value)}
+                                    className="w-24 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-xs text-right"
+                                    placeholder="Harga"
+                                  />
+                                  <button type="button" onClick={() => removePaidAddon(addon.id)} className="text-red-500 hover:text-red-700">
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Kuota & Form */}
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-zinc-500 mb-1">Kuota Maks (0 = unlimited)</label>
+                              <input type="number" value={formData.max_participants} onChange={e => setFormData({ ...formData, max_participants: parseInt(e.target.value) || 0 })} className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />
+                            </div>
+                            <div className="flex items-center pt-5 justify-end">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked={formData.enable_form} onChange={e => setFormData({ ...formData, enable_form: e.target.checked })} className="w-4 h-4 rounded accent-blue-600" />
+                                <span className="text-sm text-zinc-600 dark:text-zinc-300">Aktifkan Form/Poll</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CARD: KURBAN & BINGKISAN */}
+                    {(formData.program_type === 'kurban' || formData.program_type === 'bingkisan') && (
+                      <div className="grid gap-4">
+                        <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl border border-amber-200 dark:border-amber-800">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Gift className="w-4 h-4 text-amber-600" />
+                            <span className="font-bold text-amber-800 dark:text-amber-200 text-sm">Konfigurasi {formData.program_type === 'kurban' ? 'Kurban' : 'Bingkisan'}</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {formData.program_type === 'kurban' && (
+                              <div>
+                                <label className="block text-xs text-amber-600 dark:text-amber-400 mb-1">Jenis Hewan</label>
+                                <select value={formData.kurban_type} onChange={e => setFormData({ ...formData, kurban_type: e.target.value })} className="w-full border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm">
+                                  <option value="sapi">Sapi (1 orang max 1)</option>
+                                  <option value="kambing">Kambing (1 orang max 1)</option>
+                                </select>
+                              </div>
+                            )}
+                            <div>
+                              <label className="block text-xs text-amber-600 dark:text-amber-400 mb-1">Tanggal Distribusi</label>
+                              <input type="date" value={formData.distribution_date} onChange={e => setFormData({ ...formData, distribution_date: e.target.value })} className="w-full border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-amber-600 dark:text-amber-400 mb-1">Target Jabatan</label>
+                              <select value={formData.target_level} onChange={e => setFormData({ ...formData, target_level: e.target.value })} className="w-full border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm">
+                                <option value="all">Semua Karyawan</option>
+                                <option value="operative">Hanya Operative</option>
+                                <option value="staff">Hanya Staff & above</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-amber-600 dark:text-amber-400 mb-1">Kuota Maks (0 = unlimited)</label>
+                              <input type="number" value={formData.max_participants} onChange={e => setFormData({ ...formData, max_participants: parseInt(e.target.value) || 0 })} className="w-full border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <p className="text-xs text-blue-700 dark:text-blue-300"><Info className="w-3 h-3 inline mr-1" /> Kupon akan otomatis digenerate untuk NIK yang di-upload di section Targeted. Karyawan tidak perlu konfirmasi hadir.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CARD: TURNAMEN */}
+                    {formData.program_type === 'turnamen' && (
+                      <div className="grid gap-4">
+                        <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Trophy className="w-4 h-4 text-orange-600" />
+                            <span className="font-bold text-orange-800 dark:text-orange-200 text-sm">Konfigurasi Turnamen</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-orange-600 dark:text-orange-400 mb-1">Mode Pendaftaran</label>
+                              <select value={formData.tournament_mode} onChange={e => setFormData({ ...formData, tournament_mode: e.target.value })} className="w-full border border-orange-300 dark:border-orange-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm">
+                                <option value="individual">Individu</option>
+                                <option value="team">Tim</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-orange-600 dark:text-orange-400 mb-1">Ukuran Tim (0 jika individu)</label>
+                              <input type="number" value={formData.team_size} onChange={e => setFormData({ ...formData, team_size: parseInt(e.target.value) || 0 })} className="w-full border border-orange-300 dark:border-orange-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />
+                            </div>
+                            <div className="sm:col-span-2">
+                              <label className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-lg border border-orange-100 dark:border-orange-900">
+                                <input type="checkbox" checked={formData.allow_register_team} onChange={e => setFormData({ ...formData, allow_register_team: e.target.checked })} className="w-5 h-5 rounded accent-orange-600" />
+                                <div><span className="block text-sm font-semibold text-zinc-700 dark:text-zinc-200">Tim Bisa Mendaftarkan Diri</span><span className="text-xs text-zinc-400">Leader bisa buat tim & invite anggota</span></div>
+                              </label>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-orange-600 dark:text-orange-400 mb-1">Kuota Maks (0 = unlimited)</label>
+                              <input type="number" value={formData.max_participants} onChange={e => setFormData({ ...formData, max_participants: parseInt(e.target.value) || 0 })} className="w-full border border-orange-300 dark:border-orange-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Targeting */}
                 <div className="border-t border-zinc-200 dark:border-zinc-800 pt-6">
@@ -742,7 +1309,7 @@ export default function AdminUnionPrograms() {
                 <div className="flex gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
                   <button
                     type="button"
-                    onClick={resetForm}
+                    onClick={() => { clearDraft(); resetForm(); }}
                     className="flex-1 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 py-3 rounded-xl font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   >
                     Batal

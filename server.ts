@@ -3698,8 +3698,258 @@ app.get("/api/seller/products/check", async (req, res) => {
 
     res.json({ allowed: true });
 
-  } catch (error: any) {
+} catch (error: any) {
     console.error("Check product error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// =====================================================
+// API: Program Serikat Push Method (Coupons & Doorprize)
+// =====================================================
+
+// Generate coupons from eligibility (Bulk)
+app.post("/api/admin/programs/:programId/generate-coupons", async (req, res) => {
+  try {
+    const { programId } = req.params;
+    const { couponType = 'attendance', prefix = 'ATT' } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    const result = await supabase.rpc("generate_program_coupons", {
+      p_program_id: programId,
+      p_coupon_type: couponType,
+      p_prefix: prefix
+    });
+    
+    if (result.error) throw result.error;
+    
+    res.json({ success: true, count: result.data, message: `${result.data} kupon berhasil digenerate` });
+  } catch (error: any) {
+    console.error("Generate coupons error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate manual coupon (external/affiliate)
+app.post("/api/admin/programs/:programId/manual-coupon", async (req, res) => {
+  try {
+    const { programId } = req.params;
+    const { nik, name } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    const result = await supabase.rpc("generate_manual_coupon", {
+      p_program_id: programId,
+      p_nik: nik,
+      p_name: name,
+      p_creator_id: user.id
+    });
+    
+    if (result.error) throw result.error;
+    
+    res.json({ success: true, data: result.data });
+  } catch (error: any) {
+    console.error("Generate manual coupon error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Claim/scan coupon
+app.post("/api/admin/coupons/claim", async (req, res) => {
+  try {
+    const { qrCode } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    const result = await supabase.rpc("claim_program_coupon", {
+      p_qr_code: qrCode,
+      p_scanner_user_id: user.id
+    });
+    
+    if (result.error) throw result.error;
+    
+    res.json({ success: true, data: result.data });
+  } catch (error: any) {
+    console.error("Claim coupon error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bypass attendance (remote doorprize)
+app.post("/api/admin/programs/:programId/bypass-attendance", async (req, res) => {
+  try {
+    const { programId } = req.params;
+    const { nik } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    const result = await supabase.rpc("bypass_attendance_coupon", {
+      p_program_id: programId,
+      p_nik: nik,
+      p_scanner_user_id: user.id
+    });
+    
+    if (result.error) throw result.error;
+    
+    res.json({ success: true, data: result.data });
+  } catch (error: any) {
+    console.error("Bypass attendance error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Draw doorprize winner
+app.post("/api/admin/programs/:programId/draw-doorprize", async (req, res) => {
+  try {
+    const { programId } = req.params;
+    const { prizeName } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    const result = await supabase.rpc("draw_doorprize_winner", {
+      p_program_id: programId,
+      p_prize_name: prizeName,
+      p_drawer_id: user.id
+    });
+    
+    if (result.error) throw result.error;
+    
+    res.json({ success: true, data: result.data });
+  } catch (error: any) {
+    console.error("Draw doorprize error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get program coupons
+app.get("/api/admin/programs/:programId/coupons", async (req, res) => {
+  try {
+    const { programId } = req.params;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    const { data, error } = await supabase
+      .from("program_coupons")
+      .select("*")
+      .eq("program_id", programId)
+      .order("created_at", { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error("Get coupons error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get doorprize logs
+app.get("/api/admin/programs/:programId/doorprize-log", async (req, res) => {
+  try {
+    const { programId } = req.params;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    const { data, error } = await supabase
+      .from("program_doorprize_log")
+      .select("*")
+      .eq("program_id", programId)
+      .order("draw_sequence", { ascending: true });
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error("Get doorprize log error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get user's coupons (for portal)
+app.get("/api/portal/my-coupons", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data, error } = await supabase
+      .from("program_coupons")
+      .select("*, union_programs(name)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error("Get my coupons error:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -3732,6 +3982,71 @@ if (!process.env.VERCEL) {
         res.sendFile("dist/index.html", { root: "." });
       });
     }
+    // =====================================================
+    // NEW ROUTE: FAMILY PAYMENT CHECKOUT
+    // =====================================================
+app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => {
+      try {
+        const { programId } = req.params;
+        const { userId, familyCount, totalAmount, userEmail, userName, userPhone } = req.body;
+
+        if (!familyCount || familyCount < 1 || !totalAmount) return res.status(400).json({ error: "Invalid data" });
+
+        // 1. Create Pending Coupon
+        const familyCode = `FAM-${userId?.slice(0,4) || 'USER'}-${Date.now()}`;
+        const { data: newCoupon, error: insertError } = await supabase
+          .from('program_coupons')
+          .insert({
+            program_id: programId,
+            user_id: userId,
+            nik: 'PENDING_PAYMENT',
+            name: userName || 'Karyawan SPS',
+            email: userEmail,
+            phone: userPhone,
+            coupon_code: familyCode,
+            gate_type: 'attendance_family',
+            status: 'active',
+            metadata: { family_count: familyCount, total_price: totalAmount, payment_status: 'pending' }
+          })
+          .select()
+          .single();
+        if (insertError) throw insertError;
+
+        // 2. Call iPaymu Direct
+        const directPaymentData = {
+            name: userName || 'Karyawan SPS',
+            phone: userPhone || '0812000000', 
+            email: userEmail || 'user@sps.store',
+            amount: totalAmount,
+            comments: `Pembayaran Keluarga Gathering - ${familyCount} Orang`,
+            notifyUrl: `${process.env.APP_URL}/api/payment/ipaymu/callback`,
+            referenceId: newCoupon.id,
+            paymentMethod: 'QRIS',
+            paymentChannel: 'qris' 
+        };
+
+        console.log("Sending iPaymu direct payment:", directPaymentData);
+        const paymentResponse = await ipaymuClient.createDirectPayment(directPaymentData);
+        console.log("iPaymu response:", paymentResponse);
+        
+        // 3. Response
+        if (paymentResponse.Status === 200 && paymentResponse.Data) {
+            const qrisData = paymentResponse.Data.QrCode || paymentResponse.Data.Url || "PAYMENT_PENDING";
+            res.json({ 
+                success: true, 
+                qris_string: qrisData,
+                coupon_id: newCoupon.id,
+                amount: totalAmount 
+            });
+        } else {
+            throw new Error(paymentResponse.Message || "Gagal generate QRIS");
+        }
+} catch (error: any) {
+        console.error("Checkout Family Error:", error);
+        res.status(500).json({ error: error.message || "Terjadi kesalahan" });
+      }
+    });
+
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });

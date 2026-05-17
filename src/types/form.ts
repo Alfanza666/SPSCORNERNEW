@@ -1,0 +1,60 @@
+export type FieldType = 
+  | 'text' 
+  | 'textarea' 
+  | 'number' 
+  | 'select' 
+  | 'radio' 
+  | 'checkbox' 
+  | 'image_choice' // Polling Visual
+  | 'rating'       // Bintang
+  | 'scale'        // 1-10
+  | 'file_upload' // Unggah File
+  | 'addon_group'
+  | 'date';       // Tanggal // Add-ons logic
+
+export interface FormOption {
+  value: string;
+  label: string;
+  image?: string; // URL untuk image_choice
+}
+
+export interface AddonItem {
+  id: string;
+  name: string;
+  sizes: string[];
+  price: number; // Harga per unit
+}
+
+export interface FormField {
+  id: string;
+  type: FieldType;
+  label: string;
+  description?: string;
+  required: boolean;
+  placeholder?: string;
+  
+  // Untuk select, radio, image_choice
+  options?: FormOption[];
+  
+  // Untuk rating
+  max?: number; // Default 5
+  icon?: 'star' | 'heart';
+  
+  // Untuk scale
+  min?: number;
+  max_scale?: number; // Default 10
+  
+  // Untuk file_upload
+  allowed_types?: string[];
+  max_size_mb?: number;
+  
+  // Untuk addon_group
+  allow_multiple?: boolean;
+  items?: AddonItem[];
+}
+
+export interface FormConfig {
+  title: string;
+  description?: string;
+  fields: FormField[];
+}

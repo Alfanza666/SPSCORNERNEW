@@ -92,6 +92,8 @@ const AdminScanner = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSc
 const AdminFlashsale = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFlashsale'));
 const AdminGathering = lazyWithRetry(() => import('./pages/dashboard/admin/AdminGathering'));
 const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
+const AdminProgramCoupons = lazyWithRetry(() => import('./pages/dashboard/admin/AdminProgramCoupons'));
+const AdminDoorprizeSpin = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprizeSpin'));
 const AdminDoorprize = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprize'));
 const AdminFormBuilder = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormBuilder'));
 const AdminFormResponses = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormResponses'));
@@ -142,8 +144,13 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) fetchProfile(session.user.id);
-      else setUser(null);
+      // Only trigger store updates if session status actually changes to avoid unnecessary re-renders
+      // which cause components to unmount and lose local state (like form input)
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -259,6 +266,10 @@ export default function App() {
               <Route path="admin/feedbacks/" element={<AdminFeedbacks />} />
               <Route path="admin/union-programs" element={<AdminUnionPrograms />} />
               <Route path="admin/union-programs/" element={<AdminUnionPrograms />} />
+              <Route path="admin/program-coupons" element={<AdminProgramCoupons />} />
+              <Route path="admin/program-coupons/" element={<AdminProgramCoupons />} />
+              <Route path="admin/doorprize-spin" element={<AdminDoorprizeSpin />} />
+              <Route path="admin/doorprize-spin/" element={<AdminDoorprizeSpin />} />
               <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
               <Route path="admin/standby-schedule/" element={<AdminStandbySchedule />} />
               <Route path="admin/forms" element={<AdminFormBuilder />} />

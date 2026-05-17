@@ -34,7 +34,10 @@ import {
   Loader2,
   CheckCircle2,
   MessageSquare,
-  Zap
+  Zap,
+  Ticket,
+  Gift,
+  QrCode
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -302,6 +305,9 @@ export default function DashboardLayout() {
         icon: Megaphone,
         items: [
           { to: "/dashboard/admin/union-programs", icon: Megaphone, label: "Program Serikat" },
+          { to: "/dashboard/admin/program-coupons", icon: Ticket, label: "Kupon Peserta" },
+          { to: "/dashboard/scanner", icon: QrCode, label: "Scan QR" },
+          { to: "/dashboard/admin/doorprize", icon: Gift, label: "Undian Doorprize" },
           { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
           { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
           { to: "/dashboard/admin/feedbacks", icon: MessageSquare, label: "Kritik & Saran" }
