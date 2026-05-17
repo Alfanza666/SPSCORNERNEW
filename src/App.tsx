@@ -243,6 +243,8 @@ export default function App() {
               <Route path="admin/returns/" element={<AdminReturns />} />
               <Route path="admin/reports" element={<AdminReports />} />
               <Route path="admin/reports/" element={<AdminReports />} />
+              <Route path="admin/settings" element={<AdminSettings />} />
+              <Route path="admin/settings/" element={<AdminSettings />} />
               <Route path="admin/pickup" element={<AdminPickup />} />
               <Route path="admin/pickup/" element={<AdminPickup />} />
               <Route path="admin/stock-opname" element={<AdminStockOpname />} />
