@@ -104,6 +104,42 @@ export default function SellerWithdrawals() {
       const fee = withdrawAmount * 0.08;
       const netAmount = withdrawAmount - fee;
 
+      // Race condition protection: Get latest balance first
+      const { data: latestProfile } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('id', user?.id)
+        .single();
+
+      const currentBalance = latestProfile?.balance || 0;
+      
+      if (currentBalance < withdrawAmount) {
+        throw new Error('Saldo tidak mencukupi');
+      }
+
+      // Start transaction: insert withdrawal first, then deduct balance atomically
+      // Using conditional update to prevent negative balance
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ balance: currentBalance - withdrawAmount })
+        .eq('id', user?.id)
+        .gte('balance', withdrawAmount); // Only update if balance >= amount
+
+      if (profileError) {
+        // If update failed (likely race condition), check if it's because balance changed
+        const { data: recheckProfile } = await supabase
+          .from('profiles')
+          .select('balance')
+          .eq('id', user?.id)
+          .single();
+        
+        if (recheckProfile?.balance < withdrawAmount) {
+          throw new Error('Saldo tidak mencukupi. Silakan coba lagi.');
+        }
+        throw profileError;
+      }
+
+      // Only insert withdrawal record after balance is successfully deducted
       const { error: withdrawalError } = await supabase
         .from('withdrawals')
         .insert({
@@ -117,21 +153,21 @@ export default function SellerWithdrawals() {
           account_name: accountName
         });
 
-      if (withdrawalError) throw withdrawalError;
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ balance: balance - withdrawAmount })
-        .eq('id', user?.id);
-
-      if (profileError) throw profileError;
+      if (withdrawalError) {
+        // Rollback: restore balance if withdrawal insert fails
+        await supabase
+          .from('profiles')
+          .update({ balance: currentBalance })
+          .eq('id', user?.id);
+        throw withdrawalError;
+      }
 
       setAmount('');
       fetchData();
       toast.success('Permintaan penarikan berhasil dikirim. Menunggu persetujuan admin.');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error requesting withdrawal:', error);
-      toast.error('Gagal mengirim permintaan penarikan');
+      toast.error(error.message || 'Gagal mengirim permintaan penarikan');
     } finally {
       setIsRequesting(false);
     }

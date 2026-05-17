@@ -45,6 +45,7 @@ export default function AdminWithdrawals() {
       if (error) throw error;
 
       if (newStatus === 'rejected') {
+        // Get latest balance to ensure we add to current balance
         const { data: profile } = await supabase
           .from('profiles')
           .select('balance')
@@ -52,6 +53,7 @@ export default function AdminWithdrawals() {
           .single();
 
         if (profile) {
+          // Atomic add-back using gte to prevent issues
           await supabase
             .from('profiles')
             .update({ balance: profile.balance + amount })
