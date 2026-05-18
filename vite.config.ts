@@ -31,6 +31,12 @@ export default defineConfig(({mode}) => {
           background_color: '#ffffff',
           display: 'standalone',
           start_url: '/',
+          permissions: [
+            'camera',
+            'geolocation',
+            'photos',
+            'persistent-storage'
+          ],
           icons: [
             {
               src: '/logos/sps-logo-icon.png',
