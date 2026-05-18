@@ -135,46 +135,6 @@ export default function AdminUnionPrograms() {
   const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- AUTO-SAVE DRAFT LOGIC ---
-  const DRAFT_KEY = 'draft_union_program';
-
-  // Load draft on mount
-  useEffect(() => {
-    const savedDraft = localStorage.getItem(DRAFT_KEY);
-    if (savedDraft) {
-      try {
-        const parsedDraft = JSON.parse(savedDraft);
-        setFormData(parsedDraft.formData);
-        setBannerPreview(parsedDraft.bannerPreview || '');
-        setFormConfig(parsedDraft.formConfig || []);
-        setTargetNiks(parsedDraft.targetNiks || '');
-        toast.success('Draft program sebelumnya ditemukan dan dipulihkan');
-      } catch (e) {
-        console.error('Failed to parse draft', e);
-        localStorage.removeItem(DRAFT_KEY);
-      }
-    }
-  }, []);
-
-  // Save draft on change
-  useEffect(() => {
-    // Only save if modal is open or form has some data
-    if (isModalOpen || formData.name || formData.program_type) {
-      const draftToSave = {
-        formData,
-        bannerPreview,
-        formConfig,
-        targetNiks
-      };
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftToSave));
-    }
-  }, [formData, bannerPreview, formConfig, targetNiks, isModalOpen]);
-
-  // Clear draft function
-  const clearDraft = () => {
-    localStorage.removeItem(DRAFT_KEY);
-  };
-
   useEffect(() => {
     fetchPrograms();
     fetchDynamicForms();
@@ -470,7 +430,6 @@ export default function AdminUnionPrograms() {
         }
       }
 
-      clearDraft();
       resetForm();
       fetchPrograms();
     } catch (error: any) {
@@ -1309,7 +1268,7 @@ export default function AdminUnionPrograms() {
                 <div className="flex gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-800">
                   <button
                     type="button"
-                    onClick={() => { clearDraft(); resetForm(); }}
+                    onClick={() => { resetForm(); }}
                     className="flex-1 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 py-3 rounded-xl font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   >
                     Batal

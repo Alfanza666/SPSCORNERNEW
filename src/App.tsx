@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from 'react';
+import React, { useEffect, useRef, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Toaster } from 'react-hot-toast';
@@ -135,22 +135,29 @@ function LoadingFallback() {
 }
 
 export default function App() {
-  const { fetchProfile, setUser } = useAuthStore();
+  const { fetchProfile, setUser, user } = useAuthStore();
+  const isAuthInit = useRef(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) fetchProfile(session.user.id);
       else setUser(null);
+      isAuthInit.current = true;
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Only trigger store updates if session status actually changes to avoid unnecessary re-renders
-      // which cause components to unmount and lose local state (like form input)
+      // === NUCLEAR OPTION: BLOCK ALL FOCUS EVENTS ===
+      // Supabase calls this on every window focus to validate tokens.
+      // We completely ignore this event after the first load to prevent ANY re-renders.
+      if (isAuthInit.current) return;
+
+      // First time load only
       if (session?.user) {
         fetchProfile(session.user.id);
       } else {
         setUser(null);
       }
+      isAuthInit.current = true;
     });
 
     return () => subscription.unsubscribe();

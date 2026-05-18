@@ -80,3 +80,30 @@
     - Payload includes name, phone, amount, referenceId.
     - Validates and returns `qris_string`.
 - **RPC**: Updated `claim_program_coupon` to handle `attendance_family` & `meal_family`.
+
+---
+
+## [Version 4.7.2] - 2026-05-19 (Stability & UI Polish)
+
+### 🛠️ Bug Fixes & Stability
+
+- **Window Focus Auto-Refresh Fix (Critical)**:
+    - Implemented "Nuclear Option" in `App.tsx` `onAuthStateChange`.
+    - Added `isAuthInitialized` ref to completely block re-renders triggered by browser tab switching/focus events.
+    - Resolved `Uncaught ReferenceError: useRef is not defined` build error.
+- **AdminUnionPrograms**:
+    - Removed all `localStorage` draft persistence logic to simplify state management and prevent data corruption.
+- **PortalProgram**:
+    - Refined "Bawa Anggota Keluarga?" toggle (`wantsExtra` state) logic.
+    - Fixed payment flow (Scenario A: Direct Confirm, Scenario B: Payment -> QR).
+    - Improved Claymorphism UI styling.
+
+### 🆕 Features
+
+- **AdminFormBuilder**:
+    - Added "Tautkan ke Program?" toggle and dropdown to link dynamic forms to `union_programs`.
+    - Updated `dynamic_form_id` on save automatically.
+- **AdminScanner**:
+    - Complete UI/UX overhaul with Claymorphism viewport styling.
+    - Implemented "Pause on Scan" logic to prevent double scans.
+    - Added Success/Error Modals for validation feedback instead of Toasts.
