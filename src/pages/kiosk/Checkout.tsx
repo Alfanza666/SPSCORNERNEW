@@ -436,11 +436,12 @@ export default function Checkout() {
         headers['Authorization'] = `Bearer ${session.access_token}`;
       }
 
-      const txRes = await fetch('/api/transactions/create', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(txDataToInsert)
-      });
+      const createRes = await fetch('/api/transactions/create', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(txData)
+          });
+        });
 
       if (!txRes.ok) {
         let errorMessage = 'Failed to create transaction';
@@ -580,10 +581,11 @@ buyer_email: buyerEmail,
           }))
         };
 
-        const createRes = await fetch('/api/transactions/create', {
+       const createRes = await fetch('/api/transactions/create', {
           method: 'POST',
           headers,
-          body: JSON.stringify(txDataToInsert)
+          body: JSON.stringify(txData)
+          });
         });
 
         if (!createRes.ok) {
