@@ -3,8 +3,8 @@ import { supabase } from '../../../lib/supabase';
 import { formatRupiah, exportCSV } from '../../../lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { CheckCircle2, XCircle, Clock, Download, Search, Filter, Wallet, ArrowRight, Loader2, User, Store } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { CheckCircle2, XCircle, Clock, Download, Search, Filter, Wallet } from 'lucide-react';
+import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
@@ -45,7 +45,7 @@ export default function AdminWithdrawals() {
       if (error) throw error;
 
       if (newStatus === 'rejected') {
-        // Get latest balance to ensure we add to current balance
+        // Atomic add-back to return the EXACT amount rejected
         const { data: profile } = await supabase
           .from('profiles')
           .select('balance')
@@ -53,7 +53,6 @@ export default function AdminWithdrawals() {
           .single();
 
         if (profile) {
-          // Atomic add-back using gte to prevent issues
           await supabase
             .from('profiles')
             .update({ balance: profile.balance + amount })
@@ -66,7 +65,7 @@ export default function AdminWithdrawals() {
         if (withdrawal) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('total_withdrawn, total_fee_paid')
+            .select('total_withdrawn')
             .eq('id', sellerId)
             .single();
 
@@ -74,15 +73,14 @@ export default function AdminWithdrawals() {
             await supabase
               .from('profiles')
               .update({ 
-                total_withdrawn: (profile.total_withdrawn || 0) + withdrawal.net_amount,
-                total_fee_paid: (profile.total_fee_paid || 0) + withdrawal.fee
+                total_withdrawn: (profile.total_withdrawn || 0) + withdrawal.amount
+                // total_fee_paid tidak di-update dari sini karena fee ditarik di awal transaksi
               })
               .eq('id', sellerId);
           }
         }
       }
 
-      // Update local state optimistically instead of refetching everything
       setWithdrawals(prev => prev.map(w => 
         w.id === id ? { ...w, status: newStatus } : w
       ));
@@ -97,7 +95,8 @@ export default function AdminWithdrawals() {
   const exportToCSV = () => {
     if (withdrawals.length === 0) return;
     
-    const headers = ['ID', 'Penjual', 'Bank', 'No. Rekening', 'Nama Pemilik', 'Jumlah Kotor', 'Biaya (8%)', 'Jumlah Bersih', 'Status', 'Tanggal'];
+    // Header CSV disederhanakan tanpa kolom fee
+    const headers = ['ID', 'Penjual', 'Bank', 'No. Rekening', 'Nama Pemilik', 'Nominal Penarikan', 'Status', 'Tanggal'];
     const rows = withdrawals.map(w => [
       w.id,
       w.profiles?.name || 'Unknown',
@@ -105,8 +104,6 @@ export default function AdminWithdrawals() {
       w.account_number || '-',
       w.account_name || '-',
       w.amount,
-      w.fee,
-      w.net_amount,
       w.status,
       format(new Date(w.created_at), 'yyyy-MM-dd HH:mm:ss')
     ]);
@@ -210,9 +207,8 @@ export default function AdminWithdrawals() {
             <thead>
               <tr className="border-b border-zinc-100 dark:border-zinc-800 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] bg-zinc-50/50 dark:bg-zinc-800/50">
                 <th className="p-6">Penjual</th>
-                <th className="p-6">Rekening</th>
-                <th className="p-6">Rincian Dana</th>
-                <th className="p-6">Diterima</th>
+                <th className="p-6">Rekening Tujuan</th>
+                <th className="p-6">Nominal Penarikan</th>
                 <th className="p-6">Status</th>
                 <th className="p-6 text-right">Aksi</th>
               </tr>
@@ -227,7 +223,7 @@ export default function AdminWithdrawals() {
                   <td className="p-6">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center font-black text-xl clay-icon">
-                        {w.profiles?.name.charAt(0)}
+                        {w.profiles?.name?.charAt(0) || '?'}
                       </div>
                       <div>
                         <p className="font-bold text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{w.profiles?.name || 'Unknown'}</p>
@@ -246,13 +242,7 @@ export default function AdminWithdrawals() {
                     </div>
                   </td>
                   <td className="p-6">
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-zinc-900 dark:text-white">{formatRupiah(w.amount)}</p>
-                      <p className="text-[10px] text-red-500 dark:text-red-400 font-black uppercase tracking-wider">Biaya Admin: {formatRupiah(w.fee)}</p>
-                    </div>
-                  </td>
-                  <td className="p-6">
-                    <p className="font-black text-blue-600 dark:text-blue-400 text-lg tracking-tight">{formatRupiah(w.net_amount)}</p>
+                    <p className="font-black text-blue-600 dark:text-blue-400 text-lg tracking-tight">{formatRupiah(w.amount)}</p>
                   </td>
                   <td className="p-6">
                     {w.status === 'pending' && (
@@ -327,7 +317,7 @@ export default function AdminWithdrawals() {
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center font-black text-sm clay-icon flex-shrink-0">
-                    {w.profiles?.name.charAt(0)}
+                    {w.profiles?.name?.charAt(0) || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-zinc-900 dark:text-white text-sm truncate">{w.profiles?.name || 'Unknown'}</p>
@@ -369,19 +359,9 @@ export default function AdminWithdrawals() {
                   <p className="text-xs text-zinc-500 dark:text-zinc-500">{w.account_name || '-'}</p>
                 </div>
                 
-                <div className="flex justify-between items-center pt-2 border-t border-zinc-200 dark:border-zinc-700">
-                  <div>
-                    <p className="text-[8px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-wider">Kotor</p>
-                    <p className="text-sm font-bold text-zinc-900 dark:text-white">{formatRupiah(w.amount)}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[8px] text-red-500 dark:text-red-400 font-black uppercase tracking-wider">Biaya</p>
-                    <p className="text-sm font-bold text-red-500 dark:text-red-400">-{formatRupiah(w.fee)}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[8px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-wider">Bersih</p>
-                    <p className="text-base font-black text-blue-600 dark:text-blue-400 tracking-tight">{formatRupiah(w.net_amount)}</p>
-                  </div>
+                <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                  <p className="text-[8px] text-zinc-500 dark:text-zinc-400 font-black uppercase tracking-wider">Nominal Penarikan</p>
+                  <p className="text-base font-black text-blue-600 dark:text-blue-400 tracking-tight">{formatRupiah(w.amount)}</p>
                 </div>
               </div>
 
