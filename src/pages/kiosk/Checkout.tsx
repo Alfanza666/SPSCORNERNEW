@@ -156,30 +156,47 @@ export default function Checkout() {
   };
 
   const handleDirectPayment = async (method: string, channel: string) => {
-    if (!buyerName) return;
-    setLoading(true);
-    setLoadingMessage('Menyiapkan pesanan...');
+  if (!buyerName) return;
+  setLoading(true);
+  setLoadingMessage('Menyiapkan pesanan...');
 
-    try {
-      // 1. Create transaction record via backend API
-      const txData: any = {
-        buyer_name: buyerName,
-        buyer_id: user?.id || null,
-        buyer_phone: user?.phone || guestPhone || null,
-        buyer_email: user?.email || null,
-        total_amount: grandTotal,
-        items: items.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          is_digital: item.is_digital,
-          sku: item.sku,
-          target_number: item.target_number,
-          seller_id: item.seller_id,
-          metadata: item.metadata
-        }))
-      };
+  try {
+    // Definisi txDataToInsert langsung di sini agar aman
+    const txDataToInsert = {
+      buyer_name: buyerName,
+      buyer_id: user?.id || null,
+      buyer_phone: user?.phone || guestPhone || null,
+      buyer_email: user?.email || null,
+      total_amount: grandTotal,
+      items: items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        is_digital: item.is_digital,
+        sku: item.sku,
+        target_number: item.target_number,
+        seller_id: item.seller_id,
+        metadata: item.metadata
+      }))
+    };
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+    const createRes = await fetch('/api/transactions/create', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(txDataToInsert) // Gunakan variabel di sini
+    });
+
+    if (!createRes.ok) throw new Error('Failed to create transaction');
+    
+    const { transaction: tx } = await createRes.json();
+    setTransactionId(tx.id);
+    saveGuestTransaction(tx.id);
+    // ... lanjutkan logika iPaymu direct Anda
 
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = {
@@ -280,29 +297,27 @@ export default function Checkout() {
   };
 
   const handleManualQris = async () => {
-    if (!buyerName) return;
-    setLoading(true);
+  if (!buyerName) return;
+  setLoading(true);
 
-    try {
-      // 1. Create transaction record via backend API
-      const txData: any = {
-        buyer_name: buyerName,
-        buyer_id: user?.id || null,
-        buyer_email: user?.email || null,
-        buyer_phone: user?.phone || guestPhone || null,  // [QA FIX] was missing buyer_phone
-        total_amount: grandTotal, // Use same base amount for consistency
-        items: items.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          is_digital: item.is_digital,
-          sku: item.sku,
-          target_number: item.target_number,
-          seller_id: item.seller_id,
-          metadata: item.metadata
-        }))
-      };
+  try {
+    // Definisi variabel di sini
+    const txDataToInsert = {
+      buyer_name: buyerName,
+      buyer_id: user?.id || null,
+      buyer_email: user?.email || null,
+      buyer_phone: user?.phone || guestPhone || null,
+      total_amount: grandTotal,
+      items: items.map(item => ({ /* ... mapping items ... */ }))
+    };
+
+    // Gunakan di sini
+    const txRes = await fetch('/api/transactions/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(txDataToInsert)
+    });
+    // ... lanjutkan
 
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = {
