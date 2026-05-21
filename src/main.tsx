@@ -1,7 +1,8 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { CartProvider } from './context/CartContext'; // <-- 1. TAMBAHKAN IMPORT INI
 
 let updateSW: (reload?: boolean) => Promise<void>;
 
@@ -32,6 +33,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <CartProvider> {/* <-- 2. BUNGKUS APP DENGAN CART PROVIDER DI SINI */}
+      <App />
+    </CartProvider>
   </StrictMode>,
 );
