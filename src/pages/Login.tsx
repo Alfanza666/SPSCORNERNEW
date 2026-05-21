@@ -1,4 +1,125 @@
 import React, { useState } from 'react';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { motion } from 'motion/react';
+import { useAuthStore } from '../store/useAuthStore';
+import { LogIn, ArrowLeft, UserPlus, ShieldCheck, AlertCircle } from 'lucide-react';
+import SPSLogo from '../components/SPSLogo';
+import { useCart } from '../context/CartContext';
+
+export default function Login() {
+  const [nik, setNik] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Penambahan Hooks untuk Cart dan URL Parameters
+  const [searchParams] = useSearchParams();
+  const { syncCartAfterLogin } = useCart();
+  const cartRedirect = searchParams.get('redirect');
+
+  // Menggabungkan logika redirect bawaan dengan redirect dari keranjang
+  const fromPath = (location.state as any)?.from?.pathname;
+  const from = cartRedirect || (fromPath && fromPath !== 'undefined' ? fromPath + ((location.state as any)?.from?.search || '') : null);
+  const { fetchProfile } = useAuthStore();
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError('');
+    try {
+      if (from) {
+        sessionStorage.setItem('returnUrl', from);
+      }
+      // Gunakan URL canonical dengan www agar konsisten dengan Supabase Redirect URL setting
+      const redirectTo = `${window.location.origin}/auth/callback`;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account', // Tampilkan pilihan akun Google setiap kali
+          },
+        },
+      });
+      if (error) throw error;
+      // Browser akan redirect — tidak perlu aksi lanjutan
+    } catch (err: any) {
+      setError(err.message || 'Gagal login dengan Google.');
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const rawInput = nik.trim();
+      const input = rawInput.replace(/[\s-.]/g, '');
+
+      let email: string;
+      
+      if (input.includes('@')) {
+        // User memasukkan email langsung
+        email = input.toLowerCase();
+      } else {
+        // User memasukkan NIK - cari email dari profiles berdasarkan NIK
+        // Gunakan ilike untuk case-insensitive search
+        const { data: profileByNik, error: nikError } = await supabase
+          .from('profiles')
+          .select('email, id')
+          .ilike('nik', input)
+          .single();
+        
+        if (nikError || !profileByNik?.email) {
+          // Fallback ke format email lama jika tidak ketemu di profiles
+          email = `${input.toLowerCase()}@sps.local`;
+        } else {
+          email = profileByNik.email;
+        }
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      if (data.user) {
+        // Query hanya kolom inti yang pasti ada
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, role, name, balance, is_active')
+          .eq('id', data.user.id)
+          .single();
+
+        // Fallback: jika kolom is_active belum ada, coba tanpanya
+        let resolvedProfile = profile;
+        if (profileError || !profile) {
+          const { data: basicProfile, error: basicError } = await supabase
+            .from('profiles')
+            .select('id, role, name, balance')
+            .eq('id', data.user.id)
+            .single();
+
+          if (basicError || !basicProfile) {
+            throw new Error(
+              `Profil tidak ditemukan. (${basicError?.message || profileError?.message || 'unknown'})`
+            );
+          }
+          resolvedProfile = basicProfile as any;
+        }
+
+        // Cek is_active (aman jika field tidak ada → undefined → tidak block)
+        if (resolvedProfile!.is_active === false) {
+          await supabase.auth.signOut();
+          throw new Error('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
+        }
+
+        // Set store langsung agar DashboardLayout tidak redirectimport React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
