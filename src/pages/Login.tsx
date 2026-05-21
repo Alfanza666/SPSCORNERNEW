@@ -77,3 +77,62 @@ export default function Login() {
         if (nikError || !profileByNik?.email) {
           email = `${inputNik.toLowerCase()}@sps.local`;
         } else {
+          // --- BAGIAN INI YANG SEBELUMNYA HILANG TERPOTONG ---
+          email = profileByNik.email; 
+        }
+      }
+
+      // 3. Eksekusi Login ke Supabase
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) throw signInError;
+
+      if (data?.user) {
+        // Update state profile
+        await fetchProfile(data.user.id);
+
+        // ==========================================================
+        // 4. LOGIKA SINKRONISASI KERANJANG (GUEST CART) SETELAH LOGIN
+        // ==========================================================
+        const guestCart = localStorage.getItem('sps_guest_cart');
+        
+        if (guestCart) {
+          try {
+            const parsedCart = JSON.parse(guestCart);
+            
+            if (parsedCart.length > 0) {
+              // Masukkan item dari localStorage ke database
+              for (const item of parsedCart) {
+                await supabase.from('cart_items').upsert({
+                  user_id: data.user.id,
+                  product_id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  quantity: item.quantity,
+                  image_url: item.image_url
+                }, { onConflict: 'user_id,product_id' });
+              }
+              // Hapus keranjang lokal agar tidak duplikat
+              localStorage.removeItem('sps_guest_cart');
+            }
+          } catch (syncErr) {
+            console.error('Gagal memindahkan keranjang guest:', syncErr);
+          }
+        }
+        // ==========================================================
+
+        // 5. Arahkan user ke halaman checkout (jika dari keranjang) atau ke portal
+        navigate(from || '/portal', { replace: true });
+      }
+
+    } catch (err: any) {
+      setError(err.message || 'Login gagal. Periksa kembali NIK/Email dan Password Anda.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ... (lanjutkan ke bagian return UI Anda di bawah sini) ...
