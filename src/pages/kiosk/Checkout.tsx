@@ -155,13 +155,14 @@ export default function Checkout() {
     navigate('/kiosk/cart');
   };
 
-  const handleDirectPayment = async (method: string, channel: string) => {
+ const handleDirectPayment = async (method: string, channel: string) => {
   if (!buyerName) return;
+
   setLoading(true);
   setLoadingMessage('Menyiapkan pesanan...');
 
   try {
-    // Definisi txDataToInsert langsung di sini agar aman
+    // 1. Prepare transaction data
     const txDataToInsert = {
       buyer_name: buyerName,
       buyer_id: user?.id || null,
@@ -181,192 +182,218 @@ export default function Checkout() {
       }))
     };
 
+    // 2. Auth headers
     const { data: { session } } = await supabase.auth.getSession();
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    // 3. Create transaction
     const createRes = await fetch('/api/transactions/create', {
       method: 'POST',
       headers,
-      body: JSON.stringify(txDataToInsert) // Gunakan variabel di sini
+      body: JSON.stringify(txDataToInsert)
     });
 
-    if (!createRes.ok) throw new Error('Failed to create transaction');
-    
+    if (!createRes.ok) {
+      let errorMessage = 'Failed to create transaction';
+
+      try {
+        const text = await createRes.text();
+
+        try {
+          const errorData = JSON.parse(text);
+          errorMessage = errorData?.error || errorMessage;
+        } catch (e) {
+          console.error('Non-JSON error response from create:', text);
+          errorMessage = `Server error (${createRes.status}): ${text.slice(0, 100)}`;
+        }
+      } catch (e) {
+        console.error('Failed to read error response:', e);
+      }
+
+      throw new Error(errorMessage);
+    }
+
     const { transaction: tx } = await createRes.json();
+
     setTransactionId(tx.id);
     saveGuestTransaction(tx.id);
-    // ... lanjutkan logika iPaymu direct Anda
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
+    setLoadingMessage('Menghubungkan ke gerbang pembayaran iPaymu...');
 
-      const createRes = await fetch('/api/transactions/create', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(txData)
-      });
+    // 4. Prepare buyer data
+    const realPhone = user?.phone?.replace(/[^0-9]/g, '');
 
-      if (!createRes.ok) {
-        let errorMessage = 'Failed to create transaction';
-        try {
-          const text = await createRes.text();
-          try {
-            const errorData = JSON.parse(text);
-            errorMessage = errorData?.error || errorMessage;
-          } catch (e) {
-            console.error('Non-JSON error response from create:', text);
-            errorMessage = `Server error (${createRes.status}): ${text.slice(0, 100)}`;
-          }
-        } catch (e) {
-          console.error('Failed to read error response:', e);
-        }
-        throw new Error(errorMessage);
-      }
-      const { transaction: tx } = await createRes.json();
-      setTransactionId(tx.id);
-      saveGuestTransaction(tx.id);
-      setLoadingMessage('Menghubungkan ke gerbang pembayaran iPaymu...');
-
-      // 2. Create IPaymu Direct Payment
-      // Use real user phone if available, otherwise generate a realistic dummy phone
-      const realPhone = user?.phone?.replace(/[^0-9]/g, '');
-      const dummyPhone = realPhone && realPhone.length >= 10
+    const dummyPhone =
+      realPhone && realPhone.length >= 10
         ? realPhone
         : ('0812' + Math.floor(10000000 + Math.random() * 90000000).toString());
 
-      // Clean up buyerName (remove numbers, special chars, ensure min length)
-      let cleanName = (user?.name || buyerName).replace(/[^a-zA-Z\s]/g, '').trim();
-      if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
-        cleanName = user?.name || 'Pelanggan SPS Corner';
-      }
-      // Ensure name is at least 3 chars for iPaymu
-      if (cleanName.length < 3) cleanName = "Pelanggan";
+    let cleanName = (user?.name || buyerName)
+      .replace(/[^a-zA-Z\s]/g, '')
+      .trim();
 
-      const ipaymuRes = await fetch('/api/payment/ipaymu/direct', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          transaction_id: tx.id,
-          amount: grandTotal,
-          buyer_name: cleanName,
-          buyer_email: buyerEmail,
-          buyer_phone: dummyPhone,
-          payment_method: method,
-          payment_channel: channel
-        })
-      });
-
-      if (!ipaymuRes.ok) {
-        let errorMessage = 'Failed to create IPaymu direct payment';
-        try {
-          const text = await ipaymuRes.text();
-          try {
-            const errorData = JSON.parse(text);
-            errorMessage = errorData?.error || errorMessage;
-          } catch (e) {
-            console.error('Non-JSON error response from ipaymu direct:', text);
-            errorMessage = `Server error (${ipaymuRes.status}): ${text.slice(0, 100)}`;
-          }
-        } catch (e) {
-          console.error('Failed to read error response:', e);
-        }
-        throw new Error(errorMessage);
-      }
-
-      const { data } = await ipaymuRes.json();
-      setDirectPaymentData(data);
-      setPaymentStep('ipaymu_direct');
-
-      // 3. Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
-
-    } catch (error: any) {
-      console.error('Direct Payment error:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
-    } finally {
-      setLoading(false);
+    if (cleanName.length < 3 || cleanName.toLowerCase().includes('test')) {
+      cleanName = user?.name || 'Pelanggan SPS Corner';
     }
-  };
 
-  const handleManualQris = async () => {
+    if (cleanName.length < 3) {
+      cleanName = 'Pelanggan';
+    }
+
+    // 5. Create iPaymu direct payment
+    const ipaymuRes = await fetch('/api/payment/ipaymu/direct', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        transaction_id: tx.id,
+        amount: grandTotal,
+        buyer_name: cleanName,
+        buyer_email: buyerEmail,
+        buyer_phone: dummyPhone,
+        payment_method: method,
+        payment_channel: channel
+      })
+    });
+
+    if (!ipaymuRes.ok) {
+      let errorMessage = 'Failed to create IPaymu direct payment';
+
+      try {
+        const text = await ipaymuRes.text();
+
+        try {
+          const errorData = JSON.parse(text);
+          errorMessage = errorData?.error || errorMessage;
+        } catch (e) {
+          console.error('Non-JSON error response from ipaymu direct:', text);
+          errorMessage = `Server error (${ipaymuRes.status}): ${text.slice(0, 100)}`;
+        }
+      } catch (e) {
+        console.error('Failed to read error response:', e);
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const { data } = await ipaymuRes.json();
+
+    setDirectPaymentData(data);
+    setPaymentStep('ipaymu_direct');
+
+    // 6. Confirm reservations
+    for (const resId of reservations) {
+      await supabase.rpc('confirm_stock_deduction', {
+        p_reservation_id: resId
+      });
+    }
+
+  } catch (error: any) {
+    console.error('Direct Payment error:', error);
+
+    toast.error(
+      error.message || 'Terjadi kesalahan saat memproses pembayaran'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
+ const handleManualQris = async () => {
   if (!buyerName) return;
+
   setLoading(true);
 
   try {
-    // Definisi variabel di sini
+    // 1. Prepare transaction data
     const txDataToInsert = {
       buyer_name: buyerName,
       buyer_id: user?.id || null,
       buyer_email: user?.email || null,
       buyer_phone: user?.phone || guestPhone || null,
       total_amount: grandTotal,
-      items: items.map(item => ({ /* ... mapping items ... */ }))
+      items: items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        is_digital: item.is_digital,
+        sku: item.sku,
+        target_number: item.target_number,
+        seller_id: item.seller_id,
+        metadata: item.metadata
+      }))
     };
 
-    // Gunakan di sini
+    // 2. Auth headers
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
+    // 3. Create transaction
     const txRes = await fetch('/api/transactions/create', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(txDataToInsert)
     });
-    // ... lanjutkan
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
+    if (!txRes.ok) {
+      let errorMessage = 'Failed to create transaction';
 
-      const txRes = await fetch('/api/transactions/create', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(txData)
-      });
+      try {
+        const text = await txRes.text();
 
-      if (!txRes.ok) {
-        let errorMessage = 'Failed to create transaction';
         try {
-          const text = await txRes.text();
-          try {
-            const errorData = JSON.parse(text);
-            errorMessage = errorData?.error || errorMessage;
-          } catch (e) {
-            console.error('Non-JSON error response from create:', text);
-            errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`;
-          }
+          const errorData = JSON.parse(text);
+          errorMessage = errorData?.error || errorMessage;
         } catch (e) {
-          console.error('Failed to read error response:', e);
+          console.error('Non-JSON error response from create:', text);
+          errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`;
         }
-        throw new Error(errorMessage);
+      } catch (e) {
+        console.error('Failed to read error response:', e);
       }
 
-      const { transaction } = await txRes.json();
-      setTransactionId(transaction.id);
-      saveGuestTransaction(transaction.id);
-      setPaymentStep('manual_qris');
-
-      // 2. Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
-
-    } catch (error: any) {
-      console.error('Manual QRIS error:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
-    } finally {
-      setLoading(false);
+      throw new Error(errorMessage);
     }
-  };
+
+    const { transaction } = await txRes.json();
+
+    setTransactionId(transaction.id);
+
+    saveGuestTransaction(transaction.id);
+
+    setPaymentStep('manual_qris');
+
+    // 4. Confirm reservations
+    for (const resId of reservations) {
+      await supabase.rpc('confirm_stock_deduction', {
+        p_reservation_id: resId
+      });
+    }
+
+  } catch (error: any) {
+    console.error('Manual QRIS error:', error);
+
+    toast.error(
+      error.message || 'Terjadi kesalahan saat memproses pembayaran'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePointPayment = async () => {
     if (!buyerName || !user) return;
