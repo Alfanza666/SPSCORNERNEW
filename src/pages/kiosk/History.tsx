@@ -40,6 +40,7 @@ export default function History() {
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedTxDetail, setSelectedTxDetail] = useState<Transaction | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null);
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -123,6 +124,65 @@ export default function History() {
       }
     } catch (error) {
       console.error('Error polling history:', error);
+    }
+  };
+
+  
+  const handleUploadReceipt = async (e: any, tx: Transaction) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingReceipt(tx.id);
+    toast.loading('Memverifikasi bukti pembayaran...', { id: 'upload-receipt' });
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        try {
+          const response = await fetch('/api/payment/manual/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transaction_id: tx.id,
+              receipt_image: base64data,
+              expected_amount: tx.total_amount
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            let errorMsg = typeof data.error === 'string' ? data.error : 'Gagal memverifikasi bukti pembayaran';
+            try {
+              if (typeof data.error === 'string' && data.error.includes('{')) {
+                const parsed = JSON.parse(data.error);
+                if (parsed?.error?.code === 503 || parsed?.error?.status === 'UNAVAILABLE') {
+                  errorMsg = 'Sistem Verifikasi Otomatis (AI) sedang sangat sibuk. Mohon coba beberapa saat lagi.';
+                } else if (parsed?.error?.message) {
+                  errorMsg = parsed.error.message;
+                }
+              }
+            } catch (e) {}
+            throw new Error(errorMsg);
+          }
+
+          if (data.success) {
+            toast.success('Pembayaran berhasil diverifikasi!', { id: 'upload-receipt' });
+            fetchHistorySilently();
+          } else {
+            toast.error(data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai', { id: 'upload-receipt' });
+          }
+        } catch (error: any) {
+          toast.error(error.message || 'Terjadi kesalahan', { id: 'upload-receipt' });
+        } finally {
+          setUploadingReceipt(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast.error('Gagal membaca file', { id: 'upload-receipt' });
+      setUploadingReceipt(null);
     }
   };
 
@@ -509,6 +569,25 @@ Sistem SPS Corner`);
                     </div>
                     
                     <div className="flex items-center gap-4">
+                      
+                      {(tx.status === 'failed' || tx.status === 'pending') && (
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            id={`upload-${tx.id}`} 
+                            className="hidden" 
+                            onChange={(e) => handleUploadReceipt(e, tx)}
+                            disabled={uploadingReceipt === tx.id}
+                          />
+                          <label 
+                            htmlFor={`upload-${tx.id}`}
+                            className="cursor-pointer text-blue-600 dark:text-blue-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800"
+                          >
+                            {uploadingReceipt === tx.id ? 'Memproses...' : 'Upload Ulang Bukti TF'}
+                          </label>
+                        </div>
+                      )}
                       {tx.status === 'pending' && (
                         <button 
                           onClick={() => handleCancelOrder(tx.id)}
@@ -517,6 +596,7 @@ Sistem SPS Corner`);
                           Batalkan Pesanan
                         </button>
                       )}
+
                       <button 
                         onClick={() => setSelectedTxDetail(tx)}
                         className="text-blue-600 dark:text-blue-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest"

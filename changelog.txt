@@ -1,3 +1,11 @@
+v4.8.1 - Critical Bug Fixes: Double Deductions
+--------------------------------------------------
+### Perbaikan Bug (Hotfix):
+- **[FIX] Saldo Seller (Double Fee Deduction):** Memperbaiki bug di mana saldo penjual terpotong fee 8% dua kali (sekali saat transaksi, sekali saat penarikan). Potongan sekarang HANYA terjadi saat saldo masuk ke akun penjual. Penarikan kini diproses penuh tanpa potongan (0%).
+- **[FIX] Stok Produk (Double Stock Deduction):** Memperbaiki bug di mana stok fisik berkurang dua kali dalam satu transaksi. Sistem kini hanya mengurangi stok via `confirm_stock_deduction` di frontend untuk mencegah duplikasi.
+- **[FIX] Dead Code:** Menghapus endpoint API duplikat di backend (`/api/transactions/create`) yang menyebabkan eksekusi redundan.
+- **[MAINTENANCE] SQL Data Fix:** Menyediakan script SQL koreksi untuk memulihkan (`refund`) sisa stok yang sempat terpotong ganda, dan menyesuaikan total keuntungan platform (`total_fee_paid`).
+
 v4.8.0 - Autonomous Error Reporting & Category Fixes
 --------------------------------------------------
 ### Fitur Baru & Optimasi:
@@ -31,3 +39,5 @@ v4.6.1 - Admin Form Builder & Export Excel
   - **Reordering Control:** Menambahkan ikon "Grip" dan tombol pindah (Up/Down) yang selalu terlihat untuk memudahkan penyusunan pertanyaan.
   - **Visual Feedback:** Peningkatan indikator fokus pada pertanyaan yang sedang diedit.
 - **[FIX] Routing Admin:** Perbaikan 404 pada AdminFormBuilder yang disebabkan oleh ketidakkonsistenan case-sensitive pada path file.
+
+v4.8.2 - Memperbaiki issue Notifikasi PWA tidak bersuara dan terhapus otomatis, serta menambah sistem Broadcast Push untuk Pengumuman Portal. Optimasi kompatibilitas akses WebRTC (Kamera) PWA Android/iOS.

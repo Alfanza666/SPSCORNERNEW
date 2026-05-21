@@ -57,6 +57,23 @@ export default function PortalFormView() {
         .single();
       
       if (error) throw error;
+
+      let desc = data.description;
+      let theme = '#673AB7';
+      let banner = '';
+      try {
+        const parsed = JSON.parse(data.description);
+        if (parsed.text !== undefined) {
+          desc = parsed.text;
+          theme = parsed.theme || '#673AB7';
+          banner = parsed.banner || '';
+        }
+      } catch(e) {}
+      
+      data.description = desc;
+      (data as any).theme_color = theme;
+      (data as any).banner_url = banner;
+
       setForm(data);
       
       const initialAnswers: Record<string, any> = {};

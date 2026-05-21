@@ -102,7 +102,8 @@ export default function ErrorReporter() {
     // 4. Track Clicks as Breadcrumbs
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const info = target.tagName + (target.id ? `#${target.id}` : '') + (target.className ? `.${target.className.split(' ')[0]}` : '');
+      const className = typeof target.className === 'string' ? target.className : (target.getAttribute && target.getAttribute('class')) || '';
+      const info = target.tagName + (target.id ? `#${target.id}` : '') + (className ? `.${className.split(' ')[0]}` : '');
       addBreadcrumb('click', info);
     };
 

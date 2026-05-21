@@ -35,11 +35,12 @@ export default function PortalDashboard() {
   const fetchStats = async () => {
     setLoadingStats(true);
     try {
-      // 1. Fetch Members Count (with NIK)
-      const { count: membersCount } = await supabase
+      // 1. Fetch Members Count (only employees: NIK starts with digit or M)
+      const { data: profilesData } = await supabase
         .from('profiles')
-        .select('*', { count: 'exact', head: true })
+        .select('nik')
         .not('nik', 'is', null);
+      const membersCount = profilesData?.filter(p => p.nik && /^[0-9Mm]/.test(p.nik)).length || 0;
 
       // 2. Fetch Active Programs Count
       const { count: programsCount } = await supabase

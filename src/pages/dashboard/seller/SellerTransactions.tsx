@@ -186,27 +186,33 @@ export default function SellerTransactions() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      {item.transactions?.metadata?.sariroti_confirmed ? (
-                        item.metadata?.status === 'ready' ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-emerald-200 text-emerald-700 text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
-                            ✓ Siap Diambil
-                          </span>
+                      {user?.name?.toLowerCase().includes('sariroti') || user?.name?.toLowerCase().includes('koperasi') ? (
+                        item.transactions?.metadata?.sariroti_confirmed ? (
+                          item.metadata?.status === 'ready' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-emerald-200 text-emerald-700 text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
+                              ✓ Siap Diambil
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleMarkReady(item)}
+                              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold transition-colors shadow-sm"
+                            >
+                              Tandai Siap
+                            </button>
+                          )
                         ) : (
                           <button
-                            onClick={() => handleMarkReady(item)}
-                            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold transition-colors shadow-sm"
+                            onClick={() => handleConfirm(item)}
+                            className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-xs font-bold transition-colors shadow-sm flex items-center gap-2 inline-flex ml-auto"
                           >
-                            Tandai Siap
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Konfirmasi
                           </button>
                         )
                       ) : (
-                        <button
-                          onClick={() => handleConfirm(item)}
-                          className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-full text-xs font-bold transition-colors shadow-sm flex items-center gap-2 inline-flex ml-auto"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          Konfirmasi
-                        </button>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 text-xs font-bold bg-blue-50 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20">
+                          ✓ Sedang Diproses
+                        </span>
                       )}
                     </td>
                   </tr>

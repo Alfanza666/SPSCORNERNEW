@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import { Dialog, Transition, Menu } from '@headlessui/react';
@@ -115,6 +115,10 @@ export default function PortalLayout() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  if (!isEmployeeNik(user?.nik) && user.role !== 'admin' && user.role !== 'superadmin') {
+    return <Navigate to="/kiosk" replace />;
+  }
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
@@ -188,6 +192,15 @@ export default function PortalLayout() {
                   Dashboard Seller
                 </button>
               )}
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                onClick={() => navigate('/kiosk')}
+              >
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                  <Home className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                </div>
+                Kembali ke Kiosk
+              </button>
               {(isAdmin) && (
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
@@ -269,6 +282,15 @@ export default function PortalLayout() {
                         Portal Serikat
                       </div>
                       <div className="space-y-1.5 focus:outline-none">
+                        <button
+                          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                          onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                            <Home className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                          </div>
+                          Kembali ke Kiosk
+                        </button>
                         {NAV_ITEMS.map((item) => (
                           <NavItem
                             key={item.path}

@@ -12,7 +12,7 @@ export default function AdminStandbySchedule() {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ day: 'Senin', time_start: '07:00', time_end: '16:00', officer_name: '', notes: '' });
+  const [form, setForm] = useState<{ days: string[], time_start: string, time_end: string, officer_name: string, notes: string }>({ days: ['Senin'], time_start: '07:00', time_end: '16:00', officer_name: '', notes: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchSchedules(); }, []);
@@ -40,13 +40,19 @@ export default function AdminStandbySchedule() {
     }
     try {
       setSaving(true);
-      const { error } = await supabase
-        .from('standby_schedules')
-        .insert({ ...form, created_at: new Date().toISOString() });
+      const payloads = form.days.map(d => ({
+          day: d,
+          time_start: form.time_start,
+          time_end: form.time_end,
+          officer_name: form.officer_name,
+          notes: form.notes,
+          created_at: new Date().toISOString()
+        }));
+        const { error } = await supabase.from('standby_schedules').insert(payloads);
       if (error) throw error;
       toast.success('Jadwal berhasil ditambahkan');
       setShowForm(false);
-      setForm({ day: 'Senin', time_start: '07:00', time_end: '16:00', officer_name: '', notes: '' });
+      setForm({ days: ['Senin'], time_start: '07:00', time_end: '16:00', officer_name: '', notes: '' });
       fetchSchedules();
     } catch (err: any) {
       toast.error('Gagal menyimpan: Pastikan tabel standby_schedules sudah ada di Supabase. ' + err.message);

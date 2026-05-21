@@ -74,7 +74,7 @@ export default function Checkout() {
   };
 
   useEffect(() => {
-    if (items.length === 0 || !buyerName) {
+    if (!transactionId && (items.length === 0 || !buyerName)) {
       navigate('/kiosk');
       return;
     }
@@ -440,7 +440,6 @@ export default function Checkout() {
       }
 
       toast.success('Berhasil membayar dengan Points!');
-      clearCart();
       setReservations([]);
       navigate('/kiosk/success', { state: { transactionId: transaction.id } });
 
@@ -487,9 +486,7 @@ export default function Checkout() {
 
       if (data.success) {
         toast.success('Pembayaran berhasil diverifikasi!');
-        clearCart();
         setReservations([]);
-        sessionStorage.removeItem('buyerName');
         navigate('/kiosk/success', { state: { transactionId } });
       } else {
         toast.error(data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai');
@@ -1040,8 +1037,6 @@ buyer_email: buyerEmail,
             <div className="space-y-4">
               <button
                 onClick={() => {
-                  clearCart();
-                  sessionStorage.removeItem('buyerName');
                   navigate('/kiosk/success', { state: { transactionId } });
                 }}
                 className="btn-clay-primary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3"

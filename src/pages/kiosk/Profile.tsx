@@ -20,7 +20,11 @@ import {
   MessageSquare,
   FileText,
   ExternalLink,
-  Star
+  Star,
+  Phone,
+  Mail,
+  Loader2,
+  Save
 } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
@@ -41,8 +45,14 @@ const FAQ_ITEMS = [
 ];
 
 export default function Profile() {
-  const { user } = useAuthStore();
+  const { user, fetchProfile } = useAuthStore();
   const navigate = useNavigate();
+  
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [editEmail, setEditEmail] = useState(user?.email || '');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileFieldErrors, setProfileFieldErrors] = useState<Record<string, string>>({});
   
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -63,6 +73,55 @@ export default function Profile() {
     };
     fetchSettings();
   }, []);
+
+  React.useEffect(() => {
+    if (user) {
+      setEditName(user.name || '');
+      setEditPhone(user.phone || '');
+      setEditEmail(user.email || '');
+    }
+  }, [user]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileFieldErrors({});
+
+    const errors: Record<string, string> = {};
+    if (!editName.trim()) errors.name = 'Nama wajib diisi';
+    if (!editPhone.trim() || editPhone.replace(/\D/g, '').length < 10) errors.phone = 'Nomor HP tidak valid (minimal 10 digit)';
+    if (editEmail && (!editEmail.includes('@') || !editEmail.includes('.'))) errors.email = 'Format email tidak valid';
+
+    if (Object.keys(errors).length > 0) {
+      setProfileFieldErrors(errors);
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const updates: Record<string, string> = {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+      };
+      if (editEmail && !editEmail.endsWith('@sps.local')) {
+        updates.email = editEmail.trim();
+      }
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user!.id);
+
+      if (updateError) throw updateError;
+
+      await fetchProfile(user!.id);
+      toast.success('Profil berhasil diperbarui!');
+    } catch (err: any) {
+      console.error('Profile save error:', err);
+      toast.error(err.message || 'Gagal menyimpan profil');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,6 +263,94 @@ export default function Profile() {
                 )}
               </div>
             </div>
+          </motion.div>
+
+          {/* Edit Profile Card */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="clay-card p-5 sm:p-6 bg-white dark:bg-zinc-900"
+          >
+            <div className="flex items-center gap-3 sm:gap-4 mb-5 sm:mb-6">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 dark:bg-blue-900/30 rounded-lg sm:rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-inner border border-blue-100/50 dark:border-blue-800">
+                <User className="w-5 h-5 sm:w-6 sm:h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-zinc-900 dark:text-white tracking-tighter">Edit Profil</h3>
+                <p className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 font-medium">Perbarui informasi kontak Anda</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
+                  Nama Lengkap
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 dark:text-zinc-600" />
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 transition-all ${
+                      profileFieldErrors.name ? 'border-red-300 focus:ring-red-200' : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
+                    }`}
+                  />
+                </div>
+                {profileFieldErrors.name && <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{profileFieldErrors.name}</p>}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
+                  Nomor Handphone
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 dark:text-zinc-600" />
+                  <input
+                    type="tel"
+                    value={editPhone}
+                    onChange={e => setEditPhone(e.target.value)}
+                    placeholder="Contoh: 08123456789"
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 transition-all ${
+                      profileFieldErrors.phone ? 'border-red-300 focus:ring-red-200' : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
+                    }`}
+                  />
+                </div>
+                {profileFieldErrors.phone && <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{profileFieldErrors.phone}</p>}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 dark:text-zinc-600" />
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={e => setEditEmail(e.target.value)}
+                    placeholder="nama@email.com"
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 transition-all ${
+                      profileFieldErrors.email ? 'border-red-300 focus:ring-red-200' : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
+                    }`}
+                  />
+                </div>
+                {profileFieldErrors.email && <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{profileFieldErrors.email}</p>}
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/25 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none"
+              >
+                {savingProfile ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Menyimpan...</>
+                ) : (
+                  <><Save className="w-4 h-4" /> Simpan Profil</>
+                )}
+              </button>
+            </form>
           </motion.div>
 
           {/* Help Center Section */}

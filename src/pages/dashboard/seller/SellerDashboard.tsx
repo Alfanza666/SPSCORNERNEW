@@ -172,7 +172,7 @@ export default function SellerDashboard() {
           value={formatRupiah(stats.balance)} 
           icon={DollarSign} 
           color="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-          subtitle={`Estimasi bersih: ${formatRupiah(stats.balance * 0.92)}`}
+          subtitle="Sudah termasuk potongan fee (Bersih)"
         />
         <StatCard 
           title="Total Penjualan" 
@@ -271,7 +271,7 @@ export default function SellerDashboard() {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-blue-100 dark:border-blue-900/50 shadow-sm p-6 sm:p-8 bg-blue-50/50 dark:bg-blue-900/10">
              <h3 className="text-xs sm:text-sm font-black text-blue-900 dark:text-blue-400 uppercase tracking-widest mb-3 sm:mb-4">Informasi Biaya</h3>
              <p className="text-[10px] sm:text-xs text-blue-800 dark:text-blue-300 leading-relaxed font-medium">
-               Setiap transaksi dikenakan biaya administrasi sebesar <b className="text-blue-900 dark:text-blue-400">8%</b>. Biaya ini digunakan untuk pemeliharaan sistem dan pengembangan fitur SPS Corner.
+               Setiap penjualan produk Anda secara otomatis dikenakan potongan biaya platform sebesar <b className="text-blue-900 dark:text-blue-400">8%</b> di awal. Saldo yang tampil di dashboard sudah merupakan uang bersih Anda dan tidak akan dipotong lagi saat penarikan.
              </p>
           </div>
         </div>

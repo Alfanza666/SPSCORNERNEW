@@ -77,6 +77,23 @@ export default function PortalPengaduan() {
 
       if (error) throw error;
 
+      
+      // notifyAdmins
+      try {
+        const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+        if (admins) {
+            const notifications = admins.map(admin => ({
+                user_id: admin.id,
+                title: 'Pengaduan Baru',
+                message: `Terdapat pengaduan baru dari ${user.name}`,
+                type: 'system',
+                path: '/dashboard/admin/pengaduan'
+            }));
+            await supabase.from('notifications').insert(notifications);
+        }
+      } catch (e) { console.error('Gagal mengirim notif admin', e); }
+      // end notifyAdmins
+
       toast.success('Pengaduan/Pembelaan Anda telah dikirim');
       setFormData({ type: 'pengaduan', title: '', description: '' });
       fetchMyFeedback();

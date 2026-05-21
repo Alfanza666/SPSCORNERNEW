@@ -498,26 +498,33 @@ const updateSellerBalances = __name(async (items) => {
     const sellerTotals = {};
     for (const item of items) {
       if (item.seller_id) {
-        const itemTotal = (item.price || 0) * (item.quantity || 1);
+        // Use subtotal (which is net) if fee was already deducted, else calculate net
+        const isNetAlready = item.metadata && item.metadata.fee_deducted !== undefined;
+        const itemGross = (item.price || 0) * (item.quantity || 1);
+        const itemNet = isNetAlready ? (item.subtotal || 0) : Math.round(itemGross * 0.92);
+        const itemFee = itemGross - itemNet;
+
         if (!sellerTotals[item.seller_id]) {
-          sellerTotals[item.seller_id] = { total: 0 };
+          sellerTotals[item.seller_id] = { net: 0, gross: 0, fee: 0 };
         }
-        sellerTotals[item.seller_id].total += itemTotal;
+        sellerTotals[item.seller_id].net += itemNet;
+        sellerTotals[item.seller_id].gross += itemGross;
+        sellerTotals[item.seller_id].fee += itemFee;
       }
     }
     for (const [sellerId, data] of Object.entries(sellerTotals)) {
-      const sellerShare = Math.round(data.total * 0.92);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("balance, total_sales")
+        .select("balance, total_sales, total_fee_paid")
         .eq("id", sellerId)
         .single();
       if (profile) {
         await supabase
           .from("profiles")
           .update({
-            balance: (profile.balance || 0) + sellerShare,
-            total_sales: (profile.total_sales || 0) + data.total,
+            balance: (profile.balance || 0) + data.net,
+            total_sales: (profile.total_sales || 0) + data.gross,
+            total_fee_paid: (profile.total_fee_paid || 0) + data.fee,
           })
           .eq("id", sellerId);
       }
@@ -1758,17 +1765,31 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
         emailHtml
       ).then(() => console.log(`[Email] Konfirmasi terkirim ke ${buyerEmail}`)).catch(e => console.warn("[Email] Gagal:", e.message));
     }
-    const uniqueSellers = [
-      ...new Set(transaction.transaction_items.map((item) => item.seller_id)),
-    ];
+    const uniqueSellers = [...new Set(transaction.transaction_items.map((item) => item.seller_id))];
+    let hasKoperasi = false;
     for (const sellerId of uniqueSellers) {
       if (sellerId) {
         await sendNotification(sellerId, {
           type: "transaction",
-          title: "\u{1F4B0} Pesanan Baru Masuk!",
+          title: "💰 Pesanan Baru Masuk!",
           message: `Ada pesanan baru #${transaction_id.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
           path: `/dashboard/seller/transactions?id=${transaction_id}`,
         });
+      } else {
+        hasKoperasi = true;
+      }
+    }
+    if (hasKoperasi) {
+      const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+      if (admins) {
+        for (const admin of admins) {
+          await sendNotification(admin.id, {
+            type: 'transaction',
+            title: '🛒 Pesanan Koperasi Baru',
+            message: `Ada pesanan baru #${transaction_id.slice(0, 8)} dari ${transaction.buyer_name}.`,
+            path: `/dashboard/admin/transactions?id=${transaction_id}`
+          });
+        }
       }
     }
     res.json({ success: true, message: "Transaction approved and processed" });
@@ -2219,6 +2240,9 @@ app.post("/api/payment/manual/verify", async (req, res) => {
           "reason": "Alasan singkat mengapa valid/tidak valid"
         }
       `;
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ success: false, error: "GEMINI_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
+    }
     const geminiResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [
@@ -2508,10 +2532,39 @@ app.post("/api/payment/ipaymu/callback", async (req, res) => {
       if (transaction.buyer_id) {
         await sendNotification(transaction.buyer_id, {
           type: "transaction",
-          title: "\u2705 Pembayaran Berhasil!",
+          title: "✅ Pembayaran Berhasil!",
           message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
           path: `/kiosk/history?id=${refId}`,
         });
+      }
+      
+      const uniqueSellers = [...new Set(transaction.transaction_items.map((item) => item.seller_id))];
+      let hasKoperasi = false;
+      for (const sellerId of uniqueSellers) {
+        if (sellerId) {
+          await sendNotification(sellerId, {
+            type: 'transaction',
+            title: '💰 Pesanan Baru Masuk!',
+            message: `Ada pesanan baru #${refId.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
+            path: `/dashboard/seller/transactions?id=${refId}`,
+          });
+        } else {
+          hasKoperasi = true;
+        }
+      }
+      
+      if (hasKoperasi) {
+        const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+        if (admins) {
+          for (const admin of admins) {
+            await sendNotification(admin.id, {
+              type: 'transaction',
+              title: '🛒 Pesanan Koperasi Baru',
+              message: `Ada pesanan baru #${refId.slice(0, 8)} dari ${transaction.buyer_name}.`,
+              path: `/dashboard/admin/transactions?id=${refId}`
+            });
+          }
+        }
       }
     } else if (txStatus === "failed") {
       if (transaction.buyer_id) {
@@ -2866,36 +2919,7 @@ app.post("/api/transactions/create", async (req, res) => {
       status,
       receipt_image,
     } = req.body;
-    const digitalItems = items.filter((item) => item.is_digital);
-    if (digitalItems.length > 0) {
-      const totalDigitalValue = digitalItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0,
-      );
-      const currentBalance = await getDigiflazzBalance();
-      const estimatedHpp = totalDigitalValue * 0.95;
-      if (currentBalance < estimatedHpp) {
-        return res
-          .status(400)
-          .json({
-            error: `Mohon maaf, saldo sistem (PPOB) sedang tidak mencukupi untuk memproses pesanan digital ini. Saldo: ${currentBalance}`,
-          });
-      }
-    }
-    app.post("/api/transactions/create", async (req, res) => {
-  try {
-    const {
-      buyer_name,
-      buyer_id,
-      buyer_phone,
-      buyer_email,
-      total_amount, // Total yang dibayar pembeli (misal: 10000)
-      items,
-      payment_method,
-      status,
-      receipt_image,
-    } = req.body;
-    
+
     const digitalItems = items.filter((item) => item.is_digital);
     if (digitalItems.length > 0) {
       const totalDigitalValue = digitalItems.reduce(
@@ -2913,13 +2937,12 @@ app.post("/api/transactions/create", async (req, res) => {
       }
     }
 
-    // --- LOGIKA POTONGAN 8% (OPSI A) DIMULAI DI SINI ---
     // 1. Hitung Fee Platform (8%)
     const feeAmount = Math.round(total_amount * 0.08);
     // 2. Hitung Uang Bersih (Netto) yang menjadi milik Penjual
     const netAmount = total_amount - feeAmount;
 
-    // 3. Modifikasi data transaksi utama (Tetap simpan kotor untuk nota pembeli, tapi tandai ada fee)
+    // 3. Modifikasi data transaksi utama
     const txDataToInsert = {
       buyer_name,
       buyer_phone,
@@ -2940,20 +2963,17 @@ app.post("/api/transactions/create", async (req, res) => {
     if (txError) throw txError;
     const tx = txDataResult;
 
-    // 4. Modifikasi tabel Items (Suntikkan uang bersih ke riwayat saldo seller nanti)
+    // 4. Modifikasi tabel Items
     const txItems = items.map((item) => {
-      // Hitung subtotal kotor per item
       const itemGrossSubtotal = item.price * item.quantity;
-      // Hitung 8% per item secara adil untuk masing-masing seller
       const itemFee = Math.round(itemGrossSubtotal * 0.08); 
-      // Subtotal bersih yang jadi milik seller ini
       const itemNetSubtotal = itemGrossSubtotal - itemFee;
 
       return {
         transaction_id: tx.id,
         product_id: item.is_digital ? null : item.id,
         quantity: item.quantity,
-        price: item.price, // Harga asli untuk nota pembeli
+        price: item.price,
         subtotal: itemNetSubtotal, // KRUSIAL: Ini yang akan dibaca saat update saldo seller nanti!
         seller_id: item.is_digital ? null : item.seller_id,
         metadata: item.is_digital
@@ -2977,98 +2997,14 @@ app.post("/api/transactions/create", async (req, res) => {
       .select();
     if (itemsError) throw itemsError;
 
-    // 5. Catat keuntungan 8% ini ke kantong Admin (Opsional jika Anda punya tabel platform_revenues)
-    // await supabase.from('platform_revenues').insert({ order_id: tx.id, amount: feeAmount });
+    // No decrement_stock here. Frontend handles it via confirm_stock_deduction.
 
-    // --- LOGIKA POTONGAN SELESAI ---
-
-    for (const item of items) {
-      if (!item.is_digital && item.id) {
-        const { error: stockErr } = await supabase.rpc("decrement_stock", {
-          p_id: item.id,
-          p_amount: item.quantity,
-        });
-        if (stockErr) {
-          await supabase.from("transactions").delete().eq("id", tx.id);
-          throw new Error(`Stok tidak mencukupi untuk ${item.name}`);
-        }
-      }
-    }
     if (tx.status === "paid" || tx.status === "success") {
       if (insertedItems && insertedItems.length > 0) {
         await processDigitalItems(tx.id, insertedItems);
       }
-    }
-    if (tx.status === "paid" || tx.status === "success") {
       await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
-      
-      // Karena Validate.tsx melempar status "success", kita harus MENG-UPDATE SALDO SELLER DETIK INI JUGA!
       await updateSellerBalances(insertedItems); 
-    }
-    res.json({ success: true, transaction: tx });
-  } catch (error) {
-    console.error("Create transaction error:", error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to create transaction" });
-  }
-});
-    if (buyer_id) txDataToInsert.buyer_id = buyer_id;
-    if (payment_method) txDataToInsert.payment_method = payment_method;
-    if (receipt_image) txDataToInsert.receipt_image = receipt_image;
-    if (buyer_email) txDataToInsert.payment_details = { buyer_email };
-    if (buyer_email) txDataToInsert.payment_details = { buyer_email };
-    const { data: txDataResult, error: txError } = await supabase
-      .from("transactions")
-      .insert(txDataToInsert)
-      .select()
-      .single();
-    if (txError) throw txError;
-    const tx = txDataResult;
-    const txItems = items.map((item) => ({
-      transaction_id: tx.id,
-      product_id: item.is_digital ? null : item.id,
-      quantity: item.quantity,
-      price: item.price,
-      subtotal: item.price * item.quantity,
-      seller_id: item.is_digital ? null : item.seller_id,
-      metadata: item.is_digital
-        ? {
-            is_digital: true,
-            status: "processing",
-            target_number: item.target_number,
-            product_name: item.name,
-            sku: item.sku,
-            is_postpaid: item.metadata?.is_postpaid,
-            customer_name: item.metadata?.customer_name,
-            segment_power: item.metadata?.segment_power,
-          }
-        : null,
-    }));
-    const { data: insertedItems, error: itemsError } = await supabase
-      .from("transaction_items")
-      .insert(txItems)
-      .select();
-    if (itemsError) throw itemsError;
-    for (const item of items) {
-      if (!item.is_digital && item.id) {
-        const { error: stockErr } = await supabase.rpc("decrement_stock", {
-          p_id: item.id,
-          p_amount: item.quantity,
-        });
-        if (stockErr) {
-          await supabase.from("transactions").delete().eq("id", tx.id);
-          throw new Error(`Stok tidak mencukupi untuk ${item.name}`);
-        }
-      }
-    }
-    if (tx.status === "paid" || tx.status === "success") {
-      if (insertedItems && insertedItems.length > 0) {
-        await processDigitalItems(tx.id, insertedItems);
-      }
-    }
-    if (tx.status === "paid" || tx.status === "success") {
-      await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
     }
     res.json({ success: true, transaction: tx });
   } catch (error) {
@@ -4075,6 +4011,46 @@ app.get("/api/portal/my-coupons", async (req, res) => {
     res.json({ success: true, data });
   } catch (error: any) {
     console.error("Get my coupons error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Broadcast notification to all users
+app.post("/api/notifications/broadcast", async (req, res) => {
+  try {
+    const { title, message, url = "/" } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    // Get all users so it appears in notification panel even if no push subscription
+    // Only send to employees (NIK starts with digit or M), not vendors (NIK starts with H)
+    const { data: users, error } = await supabase.from("profiles").select("id, nik");
+    if (error) throw error;
+    
+    const employeeUsers = (users || []).filter(u => u.nik && /^[0-9Mm]/.test(u.nik));
+    
+    if (employeeUsers.length > 0) {
+      const userIds = employeeUsers.map(u => u.id);
+      await Promise.allSettled(userIds.map(id => sendNotification(id, {
+        type: 'system',
+        title: title,
+        message: message,
+        path: url
+      })));
+    }
+    
+    res.json({ success: true, count: subs?.length || 0 });
+  } catch (error: any) {
+    console.error("Broadcast push error:", error);
     res.status(500).json({ error: error.message });
   }
 });

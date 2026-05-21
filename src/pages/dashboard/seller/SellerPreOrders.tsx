@@ -44,6 +44,8 @@ export default function SellerPreOrders() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [isNewProduct, setIsNewProduct] = useState(false);
+  const [productForm, setProductForm] = useState({ name: '', price: '' });
   const [configForm, setConfigForm] = useState({
     pickup_type: 'next_day',
     custom_days: 1,
@@ -77,7 +79,16 @@ export default function SellerPreOrders() {
     }
   };
 
+  const openNewPoForm = () => {
+    setIsNewProduct(true);
+    setProductForm({ name: '', price: '' });
+    setConfigForm({ pickup_type: 'next_day', custom_days: 1, order_cutoff_time: '10:00', po_stock: 20, min_order: 1, max_order: 20, pickup_notes: 'Ambil di loket penjual, jam 07.00–11.00 WITA', open_days: [1,2,3,4,5] });
+    setSelectedProduct({ name: 'Produk Baru', id: 'new' });
+    setShowConfigForm(true);
+  };
+
   const openConfigForm = (product: any) => {
+    setIsNewProduct(false);
     const existing = poConfigs.find(c => c.product_id === product.id);
     if (existing) {
       setConfigForm({
@@ -136,7 +147,17 @@ export default function SellerPreOrders() {
     try {
       const updateData: any = { status: newStatus };
       if (newStatus === 'confirmed') updateData.confirmed_at = new Date().toISOString();
-      if (newStatus === 'ready') updateData.ready_at = new Date().toISOString();
+      if (newStatus === 'ready') {
+        updateData.ready_at = new Date().toISOString();
+        const order = preOrders.find((o: any) => o.id === orderId);
+        if (order) {
+            fetch('/api/pre-orders/notify-ready', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_id: orderId, buyer_id: order.buyer_id, buyer_name: order.buyer_name })
+            }).catch(console.error);
+        }
+      }
       if (newStatus === 'picked_up') updateData.picked_up_at = new Date().toISOString();
       const { error } = await supabase.from('pre_orders').update(updateData).eq('id', orderId);
       if (error) throw error;

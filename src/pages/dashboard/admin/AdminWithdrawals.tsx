@@ -74,8 +74,7 @@ export default function AdminWithdrawals() {
             await supabase
               .from('profiles')
               .update({ 
-                total_withdrawn: (profile.total_withdrawn || 0) + withdrawal.net_amount,
-                total_fee_paid: (profile.total_fee_paid || 0) + withdrawal.fee
+                total_withdrawn: (profile.total_withdrawn || 0) + withdrawal.amount
               })
               .eq('id', sellerId);
           }

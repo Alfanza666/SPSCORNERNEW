@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Home, Check, Clock, HelpCircle, Bell } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
 import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
@@ -63,8 +63,10 @@ export default function KioskLayout() {
   const handleHomeClick = () => {
     if (user && user.role !== 'buyer') {
       navigate(`/dashboard/${user.role}`);
-    } else {
+    } else if (user && isEmployeeNik(user?.nik)) {
       navigate('/portal');
+    } else {
+      navigate('/');
     }
   };
 
@@ -242,13 +244,15 @@ export default function KioskLayout() {
                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-0.5">Anggota</p>
                     <p className="text-xs font-black text-zinc-900 dark:text-white truncate max-w-[100px] leading-none">{user.name?.split(' ')[0]}</p>
                   </div>
-                  <button
-                    onClick={() => navigate('/portal')}
-                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group shadow-sm"
-                    title="Kembali ke Portal"
-                  >
-                    <Home className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
-                  </button>
+                  {isEmployeeNik(user?.nik) && (
+                    <button
+                      onClick={() => navigate('/portal')}
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group shadow-sm"
+                      title="Kembali ke Portal"
+                    >
+                      <Home className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button

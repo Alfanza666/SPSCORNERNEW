@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, isEmployeeNik } from '../store/useAuthStore';
 import { Loader2, AlertCircle, User, Phone, CreditCard, ShieldCheck, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SPSLogo from '../components/SPSLogo';
@@ -168,7 +168,9 @@ export default function AuthCallback() {
     } else if (role === 'seller') {
       navigate('/dashboard/seller', { replace: true });
     } else {
-      navigate('/portal', { replace: true });
+      const profile = useAuthStore.getState().user;
+      const isEmployee = isEmployeeNik(profile?.nik);
+      navigate(isEmployee ? '/portal' : '/kiosk', { replace: true });
     }
   };
 

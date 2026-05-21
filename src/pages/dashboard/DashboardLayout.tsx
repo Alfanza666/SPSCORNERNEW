@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import { Dialog, Transition, Menu, Disclosure } from '@headlessui/react';
@@ -15,6 +15,7 @@ import {
   Menu as MenuIcon,
   X,
   ShieldCheck,
+  Globe,
   Bell,
   Search,
   User as UserIcon,
@@ -28,6 +29,7 @@ import {
   ClipboardList,
   Bug,
   ChevronDown,
+  MonitorSmartphone,
   Megaphone,
   Phone,
   Mail,
@@ -309,6 +311,8 @@ export default function DashboardLayout() {
           { to: "/dashboard/scanner", icon: QrCode, label: "Scan QR" },
           { to: "/dashboard/admin/doorprize", icon: Gift, label: "Undian Doorprize" },
           { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
+            { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
+            { to: "/dashboard/admin/kritik", icon: MessageSquare, label: "Kritik & Saran" },
           { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
           { to: "/dashboard/admin/feedbacks", icon: MessageSquare, label: "Kritik & Saran" }
         ]
@@ -317,7 +321,8 @@ export default function DashboardLayout() {
         label: "Laporan & Evaluasi",
         icon: ClipboardList,
         items: [
-          { to: "/dashboard/admin/reports", icon: Bug, label: "Laporan & Bug", badge: unreadCount > 0 ? unreadCount : undefined }
+          { to: "/dashboard/admin/reports", icon: Bug, label: "Laporan & Bug", badge: unreadCount > 0 ? unreadCount : undefined },
+          { to: "/dashboard/admin/coupon-reports", icon: ClipboardList, label: "Laporan Kupon" }
         ]
       },
       {
@@ -359,7 +364,7 @@ export default function DashboardLayout() {
               key={gIdx} 
               label={group.label} 
               icon={group.icon} 
-              defaultOpen={menuSearchQuery ? true : gIdx < 2}
+              defaultOpen={true}
             >
               {filteredItems.map((item: any, iIdx: number) => (
                 <div key={iIdx} className={item.tourClass}>
@@ -432,6 +437,17 @@ export default function DashboardLayout() {
               Akses Cepat
             </div>
             <div className="space-y-2 tour-seller-sidebar-kiosk">
+              {isEmployeeNik(user?.nik) && (
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                  onClick={() => navigate('/portal')}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                    <Globe className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                  </div>
+                  Akses Portal
+                </button>
+              )}
               <button
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
                 onClick={() => navigate('/kiosk')}
@@ -530,9 +546,20 @@ export default function DashboardLayout() {
                       <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
                         Akses Cepat
                       </div>
-                      <button
-                        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
-                        onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
+                      {isEmployeeNik(user?.nik) && (
+                        <button
+                          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
+                          onClick={() => { navigate('/portal'); setIsSidebarOpen(false); }}
+                          >
+                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                              <Globe className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                            </div>
+                            Akses Portal
+                          </button>
+                        )}
+                        <button
+                          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
+                          onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
                       >
                         <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
                           <Store className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />

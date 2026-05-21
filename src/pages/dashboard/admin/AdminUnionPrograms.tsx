@@ -395,6 +395,13 @@ export default function AdminUnionPrograms() {
         if (error) throw error;
         programId = data.id;
         toast.success('Program berhasil dibuat');
+        if (programData.is_active) {
+            fetch('/api/admin/programs/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ program_id: programId, title: programData.name })
+            }).catch(console.error);
+        }
       }
 
       if (formData.is_targeted && targetNiks.trim()) {
@@ -446,7 +453,15 @@ export default function AdminUnionPrograms() {
         .update({ is_active: !program.is_active })
         .eq('id', program.id);
       if (error) throw error;
-      toast.success(`Program ${!program.is_active ? 'diaktifkan' : 'dinonaktifkan'}`);
+      const newStatus = !program.is_active;
+      toast.success(`Program ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}`);
+      if (newStatus) {
+          fetch('/api/admin/programs/notify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ program_id: program.id, title: program.name })
+          }).catch(console.error);
+      }
       fetchPrograms();
     } catch (error) {
       toast.error('Gagal mengubah status');

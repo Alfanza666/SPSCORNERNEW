@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
-import { useAuthStore } from '../store/useAuthStore';
+import { useAuthStore, isEmployeeNik } from '../store/useAuthStore';
 import { AlertCircle } from 'lucide-react';
 import SPSLogo from '../components/SPSLogo';
 
@@ -121,7 +121,10 @@ export default function Login() {
         // ==========================================================
 
         // 5. Arahkan user ke halaman checkout atau tujuan awal
-        navigate(from || '/portal', { replace: true });
+        const profile = useAuthStore.getState().user;
+        const isEmployee = isEmployeeNik(profile?.nik) || profile?.role === 'admin' || profile?.role === 'superadmin';
+        const defaultRoute = isEmployee ? '/portal' : '/kiosk';
+        navigate(from || defaultRoute, { replace: true });
       }
 
     } catch (err: any) {

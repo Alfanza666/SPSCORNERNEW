@@ -56,7 +56,7 @@ export default function AdminStockOpname() {
       setSaving(productId);
       const { error } = await supabase
         .from('products')
-        .update({ stock: newStock, updated_at: new Date().toISOString() })
+        .update({ stock: newStock })
         .eq('id', productId);
       if (error) throw error;
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
