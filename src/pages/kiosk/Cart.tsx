@@ -88,17 +88,14 @@ export default function Cart() {
   }
 
   const handleCheckout = async () => {
-    // --- LOGIKA PENCEGAT LOGIN DITAMBAHKAN DI SINI ---
     if (!user) {
       toast('Silakan masuk ke akun Anda terlebih dahulu untuk melanjutkan pembayaran.', {
         icon: '🔒',
         duration: 3000,
       });
-      // Arahkan ke login dengan membawa info URL tujuan checkout ini
       navigate(`/login?redirect=${encodeURIComponent('/kiosk/cart')}`);
       return;
     }
-    // -------------------------------------------------
 
     if (!buyerName.trim()) {
       toast.error('Mohon masukkan nama Anda');
@@ -227,4 +224,190 @@ export default function Cart() {
                       whileTap={{ scale: 0.9 }}
                       onClick={() => removeItem(item.id)}
                       disabled={isReserving}
-                      className="text-zinc-300 dark:text-zinc-600 p-1.5 sm:p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-
+                      className="text-zinc-300 dark:text-zinc-600 p-1.5 sm:p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md sm:rounded-lg transition-colors flex-shrink-0"
+                    >
+                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </motion.button>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 sm:mt-4">
+                    <div className="flex items-center bg-zinc-50 dark:bg-zinc-800/50 rounded-md sm:rounded-lg p-0.5 sm:p-1 shadow-inner dark:shadow-none border border-zinc-50 dark:border-zinc-800">
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                          if (item.quantity > 1) updateQuantity(item.id, item.quantity - 1);
+                        }}
+                        disabled={item.quantity <= 1 || isReserving}
+                        className="h-6 w-6 sm:h-8 sm:w-8 rounded-sm sm:rounded-md bg-white dark:bg-zinc-700 shadow-sm dark:shadow-none flex items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 transition-colors border border-zinc-50 dark:border-zinc-700"
+                      >
+                        <Minus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      </motion.button>
+                      <span className="font-black w-6 sm:w-8 text-center text-zinc-900 dark:text-white text-xs sm:text-sm tracking-tighter">
+                        {item.quantity}
+                      </span>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => {
+                          if (item.quantity < item.stock) {
+                            updateQuantity(item.id, item.quantity + 1);
+                          }
+                        }}
+                        disabled={item.quantity >= item.stock || isReserving}
+                        className="h-6 w-6 sm:h-8 sm:w-8 rounded-sm sm:rounded-md bg-white dark:bg-zinc-700 shadow-sm dark:shadow-none flex items-center justify-center text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors border border-zinc-50 dark:border-zinc-700"
+                      >
+                        <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      </motion.button>
+                    </div>
+                    
+                    <div className="text-right">
+                      <p className="text-[8px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest mb-0.5">Subtotal</p>
+                      <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-sm tracking-tighter">{formatRupiah(item.price * item.quantity)}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        <div className="lg:col-span-1">
+          <div className="clay-card p-4 sm:p-6 sticky top-20 sm:top-24">
+            <h2 className="text-base sm:text-lg font-black text-zinc-900 dark:text-white mb-3 sm:mb-4 flex items-center gap-1.5 tracking-tighter">
+              <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 dark:text-blue-400" />
+              Ringkasan
+            </h2>
+            
+            <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6 guide-cart-buyer-info">
+              <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">
+                <span>Total Item</span>
+                <span className="text-zinc-900 dark:text-white font-black">
+                  {items.reduce((sum, item) => sum + item.quantity, 0)}
+                </span>
+              </div>
+              <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">
+                <span>Subtotal</span>
+                <span className="text-zinc-900 dark:text-white font-black">
+                  {formatRupiah(subtotal)}
+                </span>
+              </div>
+              <div className="flex justify-between text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs mt-2">
+                <span className="flex items-center gap-1">
+                  Biaya Layanan
+                  <span className="text-[8px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1 py-0.5 rounded font-black">
+                    QRIS 0.7%
+                  </span>
+                </span>
+                <span className="text-amber-600 dark:text-amber-400 font-black">+{formatRupiah(estimatedMdr)}</span>
+              </div>
+              <div className="pt-3 sm:pt-4 border-t border-zinc-50 dark:border-zinc-800 flex justify-between items-end mt-3">
+                <span className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] sm:text-xs">Total Tagihan</span>
+                <span className="text-lg sm:text-xl font-black text-blue-600 dark:text-blue-400 tracking-tighter">
+                  {formatRupiah(estimatedTotal)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-4 sm:mb-6 guide-cart-summary">
+              <div>
+                <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 mb-2 uppercase tracking-widest">
+                  <User className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
+                  Nama Pemesan
+                </label>
+                <div className="relative">
+                  <input
+                    placeholder="Masukkan nama Anda"
+                    value={buyerName}
+                    onChange={(e) => setBuyerName(e.target.value)}
+                    disabled={isReserving || !!user}
+                    className={`input-clay h-10 sm:h-12 text-xs sm:text-sm pl-3 ${user ? 'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-50 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed' : ''}`}
+                  />
+                  {user?.nik && (
+                    <div className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 bg-zinc-100/80 dark:bg-zinc-800/80 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] sm:text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest border border-white/50 dark:border-zinc-700 shadow-sm">
+                      NIK: {user.nik}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 mb-2 uppercase tracking-widest">
+                  <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" />
+                  Nomor HP (WhatsApp)
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    placeholder="Contoh: 08123456789"
+                    value={buyerPhone}
+                    onChange={(e) => setBuyerPhone(e.target.value.replace(/\\D/g, ''))}
+                    disabled={isReserving}
+                    className="input-clay h-10 sm:h-12 text-xs sm:text-sm pl-3"
+                  />
+                </div>
+                <p className="text-[8px] sm:text-[9px] text-zinc-400 dark:text-zinc-500 font-bold italic ml-1 mt-1.5 flex items-center gap-1">
+                  <ShieldCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-500 dark:text-emerald-400" />
+                  Untuk bantuan kendala & konfirmasi pesanan
+                </p>
+              </div>
+
+              {!user && (
+                <div>
+                  <label className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-zinc-700 dark:text-zinc-300 ml-1 mb-2 uppercase tracking-widest">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Email (Opsional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      placeholder="email@contoh.com - untuk dikirimkan nota/token"
+                      value={buyerEmail}
+                      onChange={(e) => setBuyerEmail(e.target.value)}
+                      disabled={isReserving}
+                      className="input-clay h-10 sm:h-12 text-xs sm:text-sm pl-3"
+                    />
+                  </div>
+                  <p className="text-[8px] sm:text-[9px] text-zinc-400 dark:text-zinc-500 font-bold italic ml-1 mt-1.5 flex items-center gap-1">
+                    <ShieldCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-500 dark:text-emerald-400" />
+                    Untuk dikirimkan nota & token listrik/pulsa
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={handleCheckout}
+              disabled={isReserving}
+              className="btn-clay-primary w-full h-10 sm:h-12 text-xs sm:text-sm group flex items-center justify-center gap-1.5 sm:gap-2 guide-cart-checkout-btn"
+            >
+              {isReserving ? (
+                <>
+                  <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  Lanjut Pembayaran
+                  <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 group-hover:translate-x-1.5 transition-transform" />
+                </>
+              )}
+            </button>
+            
+            <button
+              onClick={() => navigate('/kiosk')}
+              className="w-full py-2 sm:py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-black text-[8px] sm:text-[10px] flex items-center justify-center gap-1.5 mt-1 group uppercase tracking-widest"
+            >
+              <ArrowLeft className="w-2.5 h-2.5 sm:w-3 sm:h-3 group-hover:-translate-x-1.5 transition-transform" />
+              Kembali ke Menu
+            </button>
+            
+            <p className="text-center text-[8px] sm:text-[10px] text-zinc-300 dark:text-zinc-600 mt-3 sm:mt-4 leading-relaxed font-bold">
+              Dengan melanjutkan, kamu menyetujui syarat dan ketentuan yang berlaku di SPS Corner.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
