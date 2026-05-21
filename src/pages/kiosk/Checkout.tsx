@@ -439,7 +439,7 @@ export default function Checkout() {
       const txRes = await fetch('/api/transactions/create', {
         method: 'POST',
         headers,
-        body: JSON.stringify(txData)
+        body: JSON.stringify(txDataToInsert)
       });
 
       if (!txRes.ok) {
@@ -583,7 +583,7 @@ buyer_email: buyerEmail,
         const createRes = await fetch('/api/transactions/create', {
           method: 'POST',
           headers,
-          body: JSON.stringify(txData)
+          body: JSON.stringify(txDataToInsert)
         });
 
         if (!createRes.ok) {
