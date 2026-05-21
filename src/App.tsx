@@ -71,6 +71,7 @@ const AdminFeedbacks = lazyWithRetry(() => import('./pages/dashboard/admin/Admin
 
 const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/SellerProducts'));
+const SellerPreOrders = lazyWithRetry(() => import('./pages/dashboard/seller/SellerPreOrders'));
 const SellerWithdrawals = lazyWithRetry(() => import('./pages/dashboard/seller/SellerWithdrawals'));
 const SellerTransactions = lazyWithRetry(() => import('./pages/dashboard/seller/SellerTransactions'));
 
@@ -299,6 +300,8 @@ export default function App() {
               <Route path="seller/products" element={<SellerProducts />} />
               <Route path="seller/products/" element={<SellerProducts />} />
               <Route path="seller/withdrawals" element={<SellerWithdrawals />} />
+              <Route path="seller/preorders" element={<SellerPreOrders />} />
+              <Route path="seller/preorders/" element={<SellerPreOrders />} />
               <Route path="seller/withdrawals/" element={<SellerWithdrawals />} />
               <Route path="seller/transactions" element={<SellerTransactions />} />
               <Route path="seller/transactions/" element={<SellerTransactions />} />
