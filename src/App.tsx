@@ -300,8 +300,8 @@ export default function App() {
               <Route path="seller/products" element={<SellerProducts />} />
               <Route path="seller/products/" element={<SellerProducts />} />
               <Route path="seller/withdrawals" element={<SellerWithdrawals />} />
-              <Route path="seller/preorders" element={<SellerPreOrders />} />
-              <Route path="seller/preorders/" element={<SellerPreOrders />} />
+              <Route path="seller/pre-orders" element={<SellerPreOrders />} />
+              <Route path="seller/pre-orders/" element={<SellerPreOrders />} />
               <Route path="seller/withdrawals/" element={<SellerWithdrawals />} />
               <Route path="seller/transactions" element={<SellerTransactions />} />
               <Route path="seller/transactions/" element={<SellerTransactions />} />
