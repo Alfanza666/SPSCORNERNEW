@@ -2882,12 +2882,137 @@ app.post("/api/transactions/create", async (req, res) => {
           });
       }
     }
+    app.post("/api/transactions/create", async (req, res) => {
+  try {
+    const {
+      buyer_name,
+      buyer_id,
+      buyer_phone,
+      buyer_email,
+      total_amount, // Total yang dibayar pembeli (misal: 10000)
+      items,
+      payment_method,
+      status,
+      receipt_image,
+    } = req.body;
+    
+    const digitalItems = items.filter((item) => item.is_digital);
+    if (digitalItems.length > 0) {
+      const totalDigitalValue = digitalItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0,
+      );
+      const currentBalance = await getDigiflazzBalance();
+      const estimatedHpp = totalDigitalValue * 0.95;
+      if (currentBalance < estimatedHpp) {
+        return res
+          .status(400)
+          .json({
+            error: `Mohon maaf, saldo sistem (PPOB) sedang tidak mencukupi untuk memproses pesanan digital ini. Saldo: ${currentBalance}`,
+          });
+      }
+    }
+
+    // --- LOGIKA POTONGAN 8% (OPSI A) DIMULAI DI SINI ---
+    // 1. Hitung Fee Platform (8%)
+    const feeAmount = Math.round(total_amount * 0.08);
+    // 2. Hitung Uang Bersih (Netto) yang menjadi milik Penjual
+    const netAmount = total_amount - feeAmount;
+
+    // 3. Modifikasi data transaksi utama (Tetap simpan kotor untuk nota pembeli, tapi tandai ada fee)
     const txDataToInsert = {
       buyer_name,
       buyer_phone,
-      total_amount,
+      total_amount: total_amount, 
       status: status || "pending",
+      metadata: { fee_platform: feeAmount, net_seller_amount: netAmount }
     };
+    if (buyer_id) txDataToInsert.buyer_id = buyer_id;
+    if (payment_method) txDataToInsert.payment_method = payment_method;
+    if (receipt_image) txDataToInsert.receipt_image = receipt_image;
+    if (buyer_email) txDataToInsert.payment_details = { buyer_email };
+    
+    const { data: txDataResult, error: txError } = await supabase
+      .from("transactions")
+      .insert(txDataToInsert)
+      .select()
+      .single();
+    if (txError) throw txError;
+    const tx = txDataResult;
+
+    // 4. Modifikasi tabel Items (Suntikkan uang bersih ke riwayat saldo seller nanti)
+    const txItems = items.map((item) => {
+      // Hitung subtotal kotor per item
+      const itemGrossSubtotal = item.price * item.quantity;
+      // Hitung 8% per item secara adil untuk masing-masing seller
+      const itemFee = Math.round(itemGrossSubtotal * 0.08); 
+      // Subtotal bersih yang jadi milik seller ini
+      const itemNetSubtotal = itemGrossSubtotal - itemFee;
+
+      return {
+        transaction_id: tx.id,
+        product_id: item.is_digital ? null : item.id,
+        quantity: item.quantity,
+        price: item.price, // Harga asli untuk nota pembeli
+        subtotal: itemNetSubtotal, // KRUSIAL: Ini yang akan dibaca saat update saldo seller nanti!
+        seller_id: item.is_digital ? null : item.seller_id,
+        metadata: item.is_digital
+          ? {
+              is_digital: true,
+              status: "processing",
+              target_number: item.target_number,
+              product_name: item.name,
+              sku: item.sku,
+              is_postpaid: item.metadata?.is_postpaid,
+              customer_name: item.metadata?.customer_name,
+              segment_power: item.metadata?.segment_power,
+            }
+          : { fee_deducted: itemFee }, // Beri tanda di metadata kalau sudah dipotong fee
+      };
+    });
+
+    const { data: insertedItems, error: itemsError } = await supabase
+      .from("transaction_items")
+      .insert(txItems)
+      .select();
+    if (itemsError) throw itemsError;
+
+    // 5. Catat keuntungan 8% ini ke kantong Admin (Opsional jika Anda punya tabel platform_revenues)
+    // await supabase.from('platform_revenues').insert({ order_id: tx.id, amount: feeAmount });
+
+    // --- LOGIKA POTONGAN SELESAI ---
+
+    for (const item of items) {
+      if (!item.is_digital && item.id) {
+        const { error: stockErr } = await supabase.rpc("decrement_stock", {
+          p_id: item.id,
+          p_amount: item.quantity,
+        });
+        if (stockErr) {
+          await supabase.from("transactions").delete().eq("id", tx.id);
+          throw new Error(`Stok tidak mencukupi untuk ${item.name}`);
+        }
+      }
+    }
+    if (tx.status === "paid" || tx.status === "success") {
+      if (insertedItems && insertedItems.length > 0) {
+        await processDigitalItems(tx.id, insertedItems);
+      }
+    }
+    if (tx.status === "paid" || tx.status === "success") {
+      await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
+      
+      // Karena Validate.tsx melempar status "success", kita harus MENG-UPDATE SALDO SELLER DETIK INI JUGA!
+      await updateSellerBalances(insertedItems); 
+    }
+    res.json({ success: true, transaction: tx });
+  } catch (error) {
+    console.error("Create transaction error:", error);
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to create transaction" });
+  }
+});
     if (buyer_id) txDataToInsert.buyer_id = buyer_id;
     if (payment_method) txDataToInsert.payment_method = payment_method;
     if (receipt_image) txDataToInsert.receipt_image = receipt_image;
