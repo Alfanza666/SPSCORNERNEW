@@ -54,6 +54,16 @@ export default function Cart() {
     releaseExistingReservations();
   }, []);
 
+  // --- LOGIKA PEMULIHAN KERANJANG (RESTORE CART) ---
+  useEffect(() => {
+    const backupCart = localStorage.getItem('sps_guest_cart_backup');
+    if (backupCart && items.length === 0) {
+      useCartStore.setState({ items: JSON.parse(backupCart) });
+      localStorage.removeItem('sps_guest_cart_backup'); // Bersihkan brankas setelah dipakai
+    }
+  }, [items.length]);
+  // -------------------------------------------------
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 sm:p-6">
@@ -88,7 +98,11 @@ export default function Cart() {
   }
 
   const handleCheckout = async () => {
+    // --- PENCEGAT & BACKUP KERANJANG SAAT BELUM LOGIN ---
     if (!user) {
+      // Simpan item ke brankas localStorage sebelum dilempar ke login
+      localStorage.setItem('sps_guest_cart_backup', JSON.stringify(items));
+      
       toast('Silakan masuk ke akun Anda terlebih dahulu untuk melanjutkan pembayaran.', {
         icon: '🔒',
         duration: 3000,
@@ -96,6 +110,7 @@ export default function Cart() {
       navigate(`/login?redirect=${encodeURIComponent('/kiosk/cart')}`);
       return;
     }
+    // ----------------------------------------------------
 
     if (!buyerName.trim()) {
       toast.error('Mohon masukkan nama Anda');
@@ -339,7 +354,7 @@ export default function Cart() {
                     type="tel"
                     placeholder="Contoh: 08123456789"
                     value={buyerPhone}
-                    onChange={(e) => setBuyerPhone(e.target.value.replace(/\\D/g, ''))}
+                    onChange={(e) => setBuyerPhone(e.target.value.replace(/\D/g, ''))}
                     disabled={isReserving}
                     className="input-clay h-10 sm:h-12 text-xs sm:text-sm pl-3"
                   />
