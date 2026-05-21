@@ -68,7 +68,6 @@ export default function PreOrder() {
 
       // 2. Create Pre-Order record first
       const poData = {
-        po_config_id: selectedProduct.id, //
         product_id: selectedProduct.product_id,
         seller_id: selectedProduct.seller_id,
         buyer_id: user?.id || null,
