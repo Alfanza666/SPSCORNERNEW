@@ -5,7 +5,6 @@ import { motion } from 'motion/react';
 import { useAuthStore } from '../store/useAuthStore';
 import { LogIn, ArrowLeft, UserPlus, ShieldCheck, AlertCircle } from 'lucide-react';
 import SPSLogo from '../components/SPSLogo';
-import { useCart } from '../context/CartContext';
 
 export default function Login() {
   const [nik, setNik] = useState('');
@@ -13,17 +12,17 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Penambahan Hooks untuk Cart dan URL Parameters
+  // Membaca parameter URL jika user dialihkan dari keranjang
   const [searchParams] = useSearchParams();
-  const { syncCartAfterLogin } = useCart();
   const cartRedirect = searchParams.get('redirect');
 
-  // Menggabungkan logika redirect bawaan dengan redirect dari keranjang
   const fromPath = (location.state as any)?.from?.pathname;
   const from = cartRedirect || (fromPath && fromPath !== 'undefined' ? fromPath + ((location.state as any)?.from?.search || '') : null);
+  
   const { fetchProfile } = useAuthStore();
 
   const handleGoogleLogin = async () => {
@@ -33,7 +32,6 @@ export default function Login() {
       if (from) {
         sessionStorage.setItem('returnUrl', from);
       }
-      // Gunakan URL canonical dengan www agar konsisten dengan Supabase Redirect URL setting
       const redirectTo = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -42,12 +40,11 @@ export default function Login() {
           redirectTo,
           queryParams: {
             access_type: 'offline',
-            prompt: 'select_account', // Tampilkan pilihan akun Google setiap kali
+            prompt: 'select_account',
           },
         },
       });
       if (error) throw error;
-      // Browser akan redirect — tidak perlu aksi lanjutan
     } catch (err: any) {
       setError(err.message || 'Gagal login dengan Google.');
       setGoogleLoading(false);
@@ -66,11 +63,8 @@ export default function Login() {
       let email: string;
       
       if (input.includes('@')) {
-        // User memasukkan email langsung
         email = input.toLowerCase();
       } else {
-        // User memasukkan NIK - cari email dari profiles berdasarkan NIK
-        // Gunakan ilike untuk case-insensitive search
         const { data: profileByNik, error: nikError } = await supabase
           .from('profiles')
           .select('email, id')
@@ -78,7 +72,6 @@ export default function Login() {
           .single();
         
         if (nikError || !profileByNik?.email) {
-          // Fallback ke format email lama jika tidak ketemu di profiles
           email = `${input.toLowerCase()}@sps.local`;
         } else {
           email = profileByNik.email;
@@ -89,14 +82,12 @@ export default function Login() {
       if (error) throw error;
 
       if (data.user) {
-        // Query hanya kolom inti yang pasti ada
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('id, role, name, balance, is_active')
           .eq('id', data.user.id)
           .single();
 
-        // Fallback: jika kolom is_active belum ada, coba tanpanya
         let resolvedProfile = profile;
         if (profileError || !profile) {
           const { data: basicProfile, error: basicError } = await supabase
@@ -113,126 +104,11 @@ export default function Login() {
           resolvedProfile = basicProfile as any;
         }
 
-        // Cek is_active (aman jika field tidak ada → undefined → tidak block)
         if (resolvedProfile!.is_active === false) {
           await supabase.auth.signOut();
           throw new Error('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
         }
 
-        // Set store langsung agar DashboardLayout tidak redirectimport React, { useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { motion } from 'motion/react';
-import { useAuthStore } from '../store/useAuthStore';
-import { LogIn, ArrowLeft, UserPlus, ShieldCheck, AlertCircle } from 'lucide-react';
-import SPSLogo from '../components/SPSLogo';
-
-export default function Login() {
-  const [nik, setNik] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
-  const location = useLocation();
-  const fromPath = (location.state as any)?.from?.pathname;
-  const from = fromPath && fromPath !== 'undefined' ? fromPath + ((location.state as any)?.from?.search || '') : null;
-  const { fetchProfile } = useAuthStore();
-
-  const handleGoogleLogin = async () => {
-    setGoogleLoading(true);
-    setError('');
-    try {
-      if (from) {
-        sessionStorage.setItem('returnUrl', from);
-      }
-      // Gunakan URL canonical dengan www agar konsisten dengan Supabase Redirect URL setting
-      const redirectTo = `${window.location.origin}/auth/callback`;
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'select_account', // Tampilkan pilihan akun Google setiap kali
-          },
-        },
-      });
-      if (error) throw error;
-      // Browser akan redirect — tidak perlu aksi lanjutan
-    } catch (err: any) {
-      setError(err.message || 'Gagal login dengan Google.');
-      setGoogleLoading(false);
-    }
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const rawInput = nik.trim();
-      const input = rawInput.replace(/[\s-.]/g, '');
-
-      let email: string;
-      
-      if (input.includes('@')) {
-        // User memasukkan email langsung
-        email = input.toLowerCase();
-      } else {
-        // User memasukkan NIK - cari email dari profiles berdasarkan NIK
-        // Gunakan ilike untuk case-insensitive search
-        const { data: profileByNik, error: nikError } = await supabase
-          .from('profiles')
-          .select('email, id')
-          .ilike('nik', input)
-          .single();
-        
-        if (nikError || !profileByNik?.email) {
-          // Fallback ke format email lama jika tidak ketemu di profiles
-          email = `${input.toLowerCase()}@sps.local`;
-        } else {
-          email = profileByNik.email;
-        }
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-
-      if (data.user) {
-        // Query hanya kolom inti yang pasti ada
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, role, name, balance, is_active')
-          .eq('id', data.user.id)
-          .single();
-
-        // Fallback: jika kolom is_active belum ada, coba tanpanya
-        let resolvedProfile = profile;
-        if (profileError || !profile) {
-          const { data: basicProfile, error: basicError } = await supabase
-            .from('profiles')
-            .select('id, role, name, balance')
-            .eq('id', data.user.id)
-            .single();
-
-          if (basicError || !basicProfile) {
-            throw new Error(
-              `Profil tidak ditemukan. (${basicError?.message || profileError?.message || 'unknown'})`
-            );
-          }
-          resolvedProfile = basicProfile as any;
-        }
-
-        // Cek is_active (aman jika field tidak ada → undefined → tidak block)
-        if (resolvedProfile!.is_active === false) {
-          await supabase.auth.signOut();
-          throw new Error('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
-        }
-
-        // Set store langsung agar DashboardLayout tidak redirect balik
         useAuthStore.getState().setUser({
           id: resolvedProfile!.id,
           role: resolvedProfile!.role,
@@ -241,7 +117,7 @@ export default function Login() {
           email: data.user.email,
         });
 
-        // Navigate setelah store diisi
+        // Redirect dinamis (termasuk kembali ke checkout jika dari keranjang)
         if (from) {
           navigate(from);
         } else if (resolvedProfile!.role === 'admin' || resolvedProfile!.role === 'superadmin') {
@@ -266,7 +142,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-      {/* Decorative Background */}
       <div className="absolute top-0 left-0 w-full h-full -z-10 opacity-40">
         <div className="absolute top-[10%] left-[5%] w-48 h-48 sm:w-64 sm:h-64 bg-blue-200 rounded-full blur-3xl" />
         <div className="absolute bottom-[10%] right-[5%] w-64 h-64 sm:w-96 sm:h-96 bg-amber-200 rounded-full blur-3xl" />
@@ -280,9 +155,7 @@ export default function Login() {
       >
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex justify-center mb-4 sm:mb-6">
-            <motion.div
-              whileHover={{ rotate: 5, scale: 1.1 }}
-            >
+            <motion.div whileHover={{ rotate: 5, scale: 1.1 }}>
               <SPSLogo variant="stack" className="h-16 sm:h-20" />
             </motion.div>
           </div>
@@ -291,7 +164,6 @@ export default function Login() {
         </div>
 
         <div className="clay-card p-5 sm:p-8">
-          {/* Google Login Button */}
           <button
             type="button"
             onClick={handleGoogleLogin}
@@ -305,7 +177,6 @@ export default function Login() {
               </>
             ) : (
               <>
-                {/* Google Icon SVG */}
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -317,7 +188,6 @@ export default function Login() {
             )}
           </button>
 
-          {/* Divider */}
           <div className="relative mb-5 sm:mb-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-zinc-100" />
