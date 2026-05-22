@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface ScanLog {
   id: string;
@@ -102,14 +103,6 @@ export default function AdminScanner() {
     setIsLocked(false);
 
     try {
-      // Proactively trigger camera permission prompt for PWA compatibility (iOS/Android)
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(track => track.stop());
-      }
-
-      const { Html5Qrcode } = await import('html5-qrcode');
-      
       if (html5QrCodeRef.current) {
           try { await html5QrCodeRef.current.stop(); } catch (e) { }
       }
