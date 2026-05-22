@@ -1,3 +1,10 @@
+v4.9.2 - Fix: Kamera Tidak Berfungsi di Mode PWA Android
+--------------------------------------------------
+### Perbaikan Bug:
+- **[FIX] Permissions-Policy Header:** Memperbaiki header `Permissions-Policy` di `vercel.json` yang sebelumnya `camera=()` (memblokir semua origin). Diubah menjadi `camera=(self)` agar kamera dapat diakses dari origin yang sama.
+- **[FIX] Sinkronisasi Versi UI:** Menyeragamkan tampilan versi di halaman utama dan dashboard agar konsisten dengan `package.json`.
+- **[CLEANUP] Dead Code:** Mengidentifikasi paket `react-webcam` sebagai dependensi tidak terpakai (zero imports) — direkomendasikan untuk dihapus.
+
 v4.9.1 - Pemisahan Manajemen Produk Pre-Order (PO)
 --------------------------------------------------
 ### Fitur Baru & Optimasi:
