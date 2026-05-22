@@ -102,6 +102,9 @@ export default function AdminScanner() {
     setScanning(true);
     setIsLocked(false);
 
+    // Beri waktu bagi React untuk merender DOM (memunculkan div #qr-reader-scanner)
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     try {
       if (html5QrCodeRef.current) {
           try { await html5QrCodeRef.current.stop(); } catch (e) { }
