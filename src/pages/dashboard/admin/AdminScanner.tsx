@@ -110,26 +110,39 @@ export default function AdminScanner() {
           try { await html5QrCodeRef.current.stop(); } catch (e) { }
       }
 
-      const cameras = await Html5Qrcode.getCameras();
-      if (!cameras || cameras.length === 0) {
-        throw new Error("Tidak ada kamera fisik yang terdeteksi.");
+      // 1. Dapatkan izin secara paksa menggunakan standar web paling dasar tanpa filter
+      // Ini memaksa Chrome memunculkan pop-up izin jika belum ada
+      let stream;
+      try {
+        const constraints = cameraFacing === 'environment' 
+          ? { video: { facingMode: 'environment' } } 
+          : { video: true };
+        
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (fallbackErr) {
+          // Jika facingMode ditolak, coba panggil kamera apa saja tanpa batasan
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+      } catch (e: any) {
+        throw new Error("Chrome menolak akses: " + e.message);
       }
 
-      // Pilih kamera belakang jika ada, jika tidak gunakan kamera pertama
-      let selectedCameraId = cameras[0].id;
-      if (cameraFacing === 'environment') {
-        const backCamera = cameras.find(c => 
-          c.label.toLowerCase().includes('back') || 
-          c.label.toLowerCase().includes('belakang') || 
-          c.label.toLowerCase().includes('environment')
-        );
-        if (backCamera) selectedCameraId = backCamera.id;
-      }
+      // 2. Ambil ID kamera yang berhasil dibuka oleh browser
+      const videoTrack = stream.getVideoTracks()[0];
+      const deviceId = videoTrack.getSettings().deviceId;
+
+      // 3. Matikan stream sementara agar hardware dilepaskan
+      stream.getTracks().forEach(track => track.stop());
+
+      // 4. Beri jeda agar OS Android (terutama Chrome) benar-benar mereset hardware kamera
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       html5QrCodeRef.current = new Html5Qrcode("qr-reader-scanner");
 
+      // 5. Mulai scanner menggunakan ID kamera yang pasti valid tersebut
       await html5QrCodeRef.current.start(
-        selectedCameraId,
+        deviceId || { facingMode: "environment" },
         {
           fps: 10,
           qrbox: { width: 280, height: 280 },
