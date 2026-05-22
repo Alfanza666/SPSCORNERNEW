@@ -1,9 +1,11 @@
-v4.9.2 - Fix: Kamera Tidak Berfungsi di Mode PWA Android
+v4.9.2 - Fix: Kamera Tidak Berfungsi di Chrome & Mode PWA Android
 --------------------------------------------------
 ### Perbaikan Bug:
-- **[FIX] Permissions-Policy Header:** Memperbaiki header `Permissions-Policy` di `vercel.json` yang sebelumnya `camera=()` (memblokir semua origin). Diubah menjadi `camera=(self)` agar kamera dapat diakses dari origin yang sama.
+- **[FIX] Chrome getUserMedia Transient Activation:** Menghapus `await setTimeout(100)` sebelum `getUserMedia` yang memutus rantai user gesture (transient activation). Chrome kehilangan konteks klik pengguna setelah `await`, sehingga kamera ditolak. Firefox lebih toleran terhadap jeda ini.
+- **[FIX] Race Condition Stop/Start Kamera:** Menghapus pola pre-permission `getUserMedia` → `stop()` → `start()` ulang yang menyebabkan race condition pada Chrome Android. Kamera sekarang langsung dikelola oleh `html5-qrcode` tanpa siklus stop/start manual.
+- **[FIX] DOM Readiness:** Memindahkan elemen `#qr-reader-scanner` agar selalu di-render di DOM (tidak kondisional), sehingga `html5-qrcode` bisa langsung attach tanpa perlu jeda render.
+- **[FIX] Permissions-Policy Header:** Memperbaiki header `Permissions-Policy` di `vercel.json` dari `camera=()` menjadi `camera=(self)` agar origin sendiri diizinkan mengakses kamera.
 - **[FIX] Sinkronisasi Versi UI:** Menyeragamkan tampilan versi di halaman utama dan dashboard agar konsisten dengan `package.json`.
-- **[CLEANUP] Dead Code:** Mengidentifikasi paket `react-webcam` sebagai dependensi tidak terpakai (zero imports) — direkomendasikan untuk dihapus.
 
 v4.9.1 - Pemisahan Manajemen Produk Pre-Order (PO)
 --------------------------------------------------

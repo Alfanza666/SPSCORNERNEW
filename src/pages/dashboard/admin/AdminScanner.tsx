@@ -102,47 +102,15 @@ export default function AdminScanner() {
     setScanning(true);
     setIsLocked(false);
 
-    // Beri waktu bagi React untuk merender DOM (memunculkan div #qr-reader-scanner)
-    await new Promise(resolve => setTimeout(resolve, 100));
-
     try {
       if (html5QrCodeRef.current) {
           try { await html5QrCodeRef.current.stop(); } catch (e) { }
       }
 
-      // 1. Dapatkan izin secara paksa menggunakan standar web paling dasar tanpa filter
-      // Ini memaksa Chrome memunculkan pop-up izin jika belum ada
-      let stream;
-      try {
-        const constraints = cameraFacing === 'environment' 
-          ? { video: { facingMode: 'environment' } } 
-          : { video: true };
-        
-        try {
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-        } catch (fallbackErr) {
-          // Jika facingMode ditolak, coba panggil kamera apa saja tanpa batasan
-          stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        }
-      } catch (e: any) {
-        throw new Error("Chrome menolak akses: " + e.message);
-      }
-
-      // 2. Ambil ID kamera yang berhasil dibuka oleh browser
-      const videoTrack = stream.getVideoTracks()[0];
-      const deviceId = videoTrack.getSettings().deviceId;
-
-      // 3. Matikan stream sementara agar hardware dilepaskan
-      stream.getTracks().forEach(track => track.stop());
-
-      // 4. Beri jeda agar OS Android (terutama Chrome) benar-benar mereset hardware kamera
-      await new Promise(resolve => setTimeout(resolve, 300));
-
       html5QrCodeRef.current = new Html5Qrcode("qr-reader-scanner");
 
-      // 5. Mulai scanner menggunakan ID kamera yang pasti valid tersebut
       await html5QrCodeRef.current.start(
-        deviceId || { facingMode: "environment" },
+        { facingMode: cameraFacing === 'environment' ? 'environment' : 'user' },
         {
           fps: 10,
           qrbox: { width: 280, height: 280 },
@@ -160,7 +128,6 @@ export default function AdminScanner() {
           errorMsg.toLowerCase().includes('not allowed')) {
         errorMsg = "Akses kamera diblokir. Harap buka Pengaturan (Settings) > Aplikasi > Browser Anda (Chrome/Safari), lalu izinkan akses Kamera. Jika di browser, klik ikon gembok di URL bar lalu izinkan kamera.";
       } else {
-        // Output detailed error for debugging
         errorMsg = `Gagal: ${err.name || 'UnknownError'} - ${err.message || String(err)}`;
       }
       
@@ -321,8 +288,11 @@ export default function AdminScanner() {
           </div>
 
           <div className="flex-1 relative flex items-center justify-center bg-zinc-100/50 dark:bg-black/40">
+            {/* QR reader element - always in DOM so html5-qrcode can attach immediately */}
+            <div id="qr-reader-scanner" className={`w-full h-full absolute inset-0 [&>video]:object-cover [&>video]:w-full [&>video]:h-full ${!scanning ? 'invisible' : ''}`} style={{ border: 'none' }}></div>
+
             {!scanning ? (
-              <div className="text-center p-6">
+              <div className="text-center p-6 z-10">
                 <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-200 dark:border-zinc-700 shadow-xl">
                   <CameraOff className="w-8 h-8 text-zinc-400" />
                 </div>
@@ -337,9 +307,6 @@ export default function AdminScanner() {
               </div>
             ) : (
               <div className="w-full h-full relative">
-                {/* HTML5 QR Scanner injects video here */}
-                <div id="qr-reader-scanner" className="w-full h-full [&>video]:object-cover [&>video]:w-full [&>video]:h-full" style={{ border: 'none' }}></div>
-                
                 {/* Custom Overlay */}
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                     <div className="w-64 h-64 border-2 border-white/20 rounded-3xl relative overflow-hidden">
