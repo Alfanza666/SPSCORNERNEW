@@ -15,6 +15,16 @@ export interface Product {
   sku?: string;
   profiles?: { name: string };
   metadata?: any;
+  is_preorder?: boolean;
+  po_config_id?: string;
+  po_seller_id?: string;
+  pickup_notes?: string;
+  po_pickup_type?: string;
+  po_open_days?: number[];
+  po_cutoff_time?: string;
+  po_stock?: number;
+  po_min_order?: number;
+  po_max_order?: number;
 }
 
 export interface CartItem extends Product {

@@ -7,6 +7,7 @@ import { formatRupiah } from '../../lib/utils';
 import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2, Phone, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
+import { addDays } from 'date-fns';
 
 export default function Checkout() {
   const { items, getTotal, reservations, setReservations, clearCart } = useCartStore();
@@ -127,6 +128,39 @@ export default function Checkout() {
       Notification.requestPermission();
     }
   }, [items, buyerName, navigate]);
+
+  // Helper: Create pre_orders records for PO items in cart after successful payment
+  const createPreOrderRecords = async (txId: string) => {
+    const poItems = items.filter(item => item.is_preorder);
+    if (poItems.length === 0) return;
+    for (const item of poItems) {
+      try {
+        let pickupDays = 1;
+        if (item.po_pickup_type === 'same_day') pickupDays = 0;
+        const pickupDate = addDays(new Date(), pickupDays);
+        const poData = {
+          product_id: item.id,
+          seller_id: item.po_seller_id || item.seller_id,
+          buyer_id: user?.id || null,
+          buyer_name: buyerName,
+          buyer_phone: user?.phone || sessionStorage.getItem('buyerPhone') || null,
+          quantity: item.quantity,
+          unit_price: item.price,
+          total_price: item.price * item.quantity,
+          pickup_date: pickupDate.toISOString(),
+          order_date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          status: 'pending',
+          notes: `PO via Cart | Tx: ${txId.slice(0, 8)}`,
+          po_config_id: item.po_config_id || null,
+        };
+        const { error } = await supabase.from('pre_orders').insert([poData]);
+        if (error) console.error('Failed to create PO record for', item.name, error);
+      } catch (e) {
+        console.error('Error creating PO record:', e);
+      }
+    }
+  };
 
   // Countdown timer for QRIS payment (15 minutes)
   useEffect(() => {
@@ -440,6 +474,7 @@ export default function Checkout() {
       }
 
       toast.success('Berhasil membayar dengan Points!');
+      await createPreOrderRecords(transaction.id);
       setReservations([]);
       navigate('/kiosk/success', { state: { transactionId: transaction.id } });
 
@@ -486,6 +521,7 @@ export default function Checkout() {
 
       if (data.success) {
         toast.success('Pembayaran berhasil diverifikasi!');
+        await createPreOrderRecords(transactionId);
         setReservations([]);
         navigate('/kiosk/success', { state: { transactionId } });
       } else {
@@ -624,6 +660,9 @@ buyer_email: buyerEmail,
       for (const resId of reservations) {
         await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
       }
+
+      // 3.5 Create PO records before redirect
+      await createPreOrderRecords(tx.id);
 
       // 4. Redirect to IPaymu
       window.location.href = payment_url;

@@ -1,3 +1,19 @@
+v4.9.1 - Pemisahan Manajemen Produk Pre-Order (PO)
+--------------------------------------------------
+### Fitur Baru & Optimasi:
+- **[ENHANCEMENT] Independensi Form PO:** Form penambahan produk di halaman Pre-Order kini sudah mendukung upload gambar, kategori, dan deskripsi penuh. Penjual bisa langsung meracik produk baru beserta konfigurasi PO-nya dari satu menu.
+- **[ENHANCEMENT] Separasi Data Katalog:** Produk yang sudah diset sebagai Pre-Order kini dihilangkan/disembunyikan dari halaman "Produk Saya", sehingga manajemen produk reguler dan PO tidak lagi tercampur dan meminimalisir kesalahan stok.
+- **[NEW] Hapus Produk PO:** Menambahkan fungsionalitas untuk menghapus produk dari database langsung dari halaman pengaturan PO.
+
+v4.9.0 - Unified Pre-Order Shopping Experience
+--------------------------------------------------
+### Fitur Baru & Optimasi:
+- **[NEW] Integrasi Pre-Order ke Katalog:** Mengubah sistem Pre-Order dari halaman terpisah menjadi tab ke-4 di Katalog utama (Kantin | Koperasi | Digital | Pre-Order).
+- **[NEW] Unified Checkout Flow:** Produk PO sekarang dapat dimasukkan ke keranjang dan di-checkout bersama produk lain dengan alur pembayaran yang sama.
+- **[ENHANCEMENT] PO Metadata di Keranjang:** Menambahkan badge khusus "Pre-Order" dan informasi waktu ready (pickup time) pada item di keranjang.
+- **[ENHANCEMENT] Smart Stock Reservation:** Sistem keranjang kini cukup pintar untuk melakukan *bypass* pemotongan stok pada produk PO (karena belum ready stock), sembari tetap membuat record `pre_orders` setelah pembayaran.
+- **[ENHANCEMENT] Redirect Halaman Lama:** Akses ke `/kiosk/preorder` akan di-redirect secara halus ke tab Pre-Order di Katalog untuk menjaga kompatibilitas link lama.
+
 v4.8.1 - Critical Bug Fixes: Double Deductions
 --------------------------------------------------
 ### Perbaikan Bug (Hotfix):

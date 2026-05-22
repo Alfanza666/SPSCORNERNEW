@@ -1,127 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
-import { formatRupiah } from '../../lib/utils';
-import { Search, Loader2, Package } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { addDays } from 'date-fns';
-import toast from 'react-hot-toast';
-import { useAuthStore } from '../../store/useAuthStore';
-import { useCartStore } from '../../store/useCartStore';
 
-const PICKUP_TYPE_LABELS: Record<string, string> = {
-  same_day: 'Hari Ini',
-  next_day: 'Besok',
-  custom_days: 'Kustom',
-};
-
+/**
+ * PreOrder redirect page.
+ * Backward-compatible: redirects old /kiosk/preorder URLs to the
+ * integrated Pre-Order tab in the main Catalog page.
+ */
 export default function PreOrder() {
-  const [configs, setConfigs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
-  const [quantity, setQuantity] = useState(1);
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const { addItem } = useCartStore();
-  
-  const [buyerName, setBuyerName] = useState(user?.name || '');
-  const [buyerPhone, setBuyerPhone] = useState(user?.phone || '');
-  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    fetchConfigs();
-  }, []);
+    navigate('/kiosk?tab=preorder', { replace: true });
+  }, [navigate]);
 
-  const fetchConfigs = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('pre_order_configs')
-      .select('*, products(id, name, price, image_url, category, description, is_active), profiles:seller_id(name)')
-      .eq('is_active', true);
-    setConfigs((data || []).filter(c => c.products?.is_active));
-    setLoading(false);
-  };
-
-  const handleCheckoutPO = async () => {
-    if (!buyerName || !buyerPhone) {
-      toast.error('Nama dan Nomor HP wajib diisi');
-      return;
-    }
-    setProcessing(true);
-    try {
-      const pickupDate = addDays(new Date(), selectedProduct.pickup_type === 'next_day' ? 1 : (selectedProduct.custom_days || 0));
-
-      const poData = {
-        product_id: selectedProduct.product_id,
-        seller_id: selectedProduct.seller_id,
-        buyer_id: user?.id || null,
-        buyer_name: buyerName,
-        buyer_phone: buyerPhone,
-        quantity: quantity,
-        unit_price: selectedProduct.products.price,
-        total_price: selectedProduct.products.price * quantity,
-        pickup_date: pickupDate.toISOString(),
-        order_date: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        status: 'pending',
-        notes: `PO: ${PICKUP_TYPE_LABELS[selectedProduct.pickup_type]}`,
-        po_config_id: selectedProduct.id 
-      };
-
-      const { data: poRes, error: poErr } = await supabase.from('pre_orders').insert([poData]).select().single();
-      if (poErr) throw new Error(poErr.message);
-
-      // Simpan data untuk diproses di checkout utama
-      sessionStorage.setItem('buyerName', buyerName);
-      sessionStorage.setItem('buyerPhone', buyerPhone);
-
-      // Arahkan ke checkout utama dengan item PO
-      navigate('/kiosk/checkout', { 
-        state: { 
-          isPO: true, 
-          poId: poRes.id,
-          productName: `[PO] ${selectedProduct.products.name}`,
-          price: selectedProduct.products.price,
-          quantity: quantity
-        } 
-      });
-    } catch (e: any) {
-      toast.error('Gagal: ' + e.message);
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#e8ebf0] pb-24">
-      <div className="bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Produk Pre-Order</h1></div>
-      <div className="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-        {configs.map((config) => (
-          <div key={config.id} onClick={() => { setSelectedProduct(config); setQuantity(config.min_order || 1); }}
-            className="bg-white p-4 rounded-2xl shadow-sm cursor-pointer border hover:shadow-lg transition-all">
-            <img src={config.products.image_url} className="w-full aspect-square object-cover rounded-xl mb-3" />
-            <h3 className="font-bold text-sm">{config.products.name}</h3>
-            <p className="text-amber-600 font-black">{formatRupiah(config.products.price)}</p>
-          </div>
-        ))}
-      </div>
-
-      <AnimatePresence>
-        {selectedProduct && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedProduct(null)}>
-            <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-              <h2 className="text-xl font-black mb-4">Pesan {selectedProduct.products.name}</h2>
-              <div className="space-y-3">
-                <input type="text" value={buyerName} onChange={e => setBuyerName(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="Nama Anda" />
-                <input type="tel" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="Nomor HP" />
-              </div>
-              <button onClick={handleCheckoutPO} disabled={processing} className="w-full mt-6 bg-amber-500 text-white font-black py-4 rounded-xl">
-                {processing ? <Loader2 className="animate-spin mx-auto" /> : "Lanjut ke Pembayaran"}
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+  return null;
 }

@@ -218,12 +218,15 @@ export default function SellerProducts() {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, pre_order_configs(id)')
         .eq('seller_id', user?.id)
         .order('created_at', { ascending: false });
         
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Filter out products that have an entry in pre_order_configs
+      const normalProducts = (data || []).filter(p => !p.pre_order_configs || p.pre_order_configs.length === 0);
+      setProducts(normalProducts);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {

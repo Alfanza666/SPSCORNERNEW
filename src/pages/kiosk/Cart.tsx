@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { Trash2, Plus, Minus, ArrowRight, ArrowLeft, ShoppingCart, ShoppingBag, Loader2, User, Info, CreditCard, ShieldCheck, Phone } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ArrowLeft, ShoppingCart, ShoppingBag, Loader2, User, Info, CreditCard, ShieldCheck, Phone, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
@@ -135,7 +135,7 @@ export default function Cart() {
       const newReservations: string[] = [];
       
       for (const item of items) {
-        if (item.is_digital) continue;
+        if (item.is_digital || item.is_preorder) continue;
 
         const { data: resId, error } = await supabase.rpc('reserve_stock', {
           p_product_id: item.id,
@@ -228,6 +228,17 @@ export default function Cart() {
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">Digital</span>
                           <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{item.target_number}</span>
+                        </div>
+                      )}
+                      {item.is_preorder && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5" />
+                            Pre-Order
+                          </span>
+                          {item.pickup_notes && (
+                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium truncate max-w-[120px]">{item.pickup_notes}</span>
+                          )}
                         </div>
                       )}
                       <p className="text-blue-600 dark:text-blue-400 font-black text-[10px] sm:text-xs mt-0.5 tracking-tighter">
