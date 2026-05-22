@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { formatRupiah } from '../../lib/utils';
-import { Search, Loader2, CreditCard } from 'lucide-react';
+import { Search, Loader2, Package } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { addDays } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useCartStore } from '../../store/useCartStore';
 
 const PICKUP_TYPE_LABELS: Record<string, string> = {
   same_day: 'Hari Ini',
@@ -22,6 +23,7 @@ export default function PreOrder() {
   const [quantity, setQuantity] = useState(1);
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { addItem } = useCartStore();
   
   const [buyerName, setBuyerName] = useState(user?.name || '');
   const [buyerPhone, setBuyerPhone] = useState(user?.phone || '');
@@ -37,7 +39,6 @@ export default function PreOrder() {
       .from('pre_order_configs')
       .select('*, products(id, name, price, image_url, category, description, is_active), profiles:seller_id(name)')
       .eq('is_active', true);
-    
     setConfigs((data || []).filter(c => c.products?.is_active));
     setLoading(false);
   };
@@ -51,7 +52,6 @@ export default function PreOrder() {
     try {
       const pickupDate = addDays(new Date(), selectedProduct.pickup_type === 'next_day' ? 1 : (selectedProduct.custom_days || 0));
 
-      // STRUKTUR DATA LENGKAP UNTUK MENGHINDARI ERROR NOT-NULL
       const poData = {
         product_id: selectedProduct.product_id,
         seller_id: selectedProduct.seller_id,
@@ -59,63 +59,33 @@ export default function PreOrder() {
         buyer_name: buyerName,
         buyer_phone: buyerPhone,
         quantity: quantity,
-        unit_price: selectedProduct.products.price, // FIXED: unit_price
+        unit_price: selectedProduct.products.price,
         total_price: selectedProduct.products.price * quantity,
         pickup_date: pickupDate.toISOString(),
         order_date: new Date().toISOString(),
-        created_at: new Date().toISOString(), // FIXED: seringkali required di DB
+        created_at: new Date().toISOString(),
         status: 'pending',
-        notes: `PO dari Kiosk. Tipe: ${PICKUP_TYPE_LABELS[selectedProduct.pickup_type]}`,
-        po_config_id: selectedProduct.id // FIXED: po_config_id
+        notes: `PO: ${PICKUP_TYPE_LABELS[selectedProduct.pickup_type]}`,
+        po_config_id: selectedProduct.id 
       };
 
       const { data: poRes, error: poErr } = await supabase.from('pre_orders').insert([poData]).select().single();
-      if (poErr) {
-        console.error("DB Error:", poErr);
-        throw new Error(poErr.message);
-      }
+      if (poErr) throw new Error(poErr.message);
 
-      const txData = {
-        buyer_name: buyerName,
-        buyer_id: user?.id || null,
-        total_amount: poData.total_price,
-        status: 'pending',
-        items: [{
-          id: selectedProduct.products.id,
-          name: `[PO] ${selectedProduct.products.name}`,
+      // Simpan data untuk diproses di checkout utama
+      sessionStorage.setItem('buyerName', buyerName);
+      sessionStorage.setItem('buyerPhone', buyerPhone);
+
+      // Arahkan ke checkout utama dengan item PO
+      navigate('/kiosk/checkout', { 
+        state: { 
+          isPO: true, 
+          poId: poRes.id,
+          productName: `[PO] ${selectedProduct.products.name}`,
           price: selectedProduct.products.price,
-          quantity: quantity,
-          is_po: true,
-          po_id: poRes.id,
-          seller_id: selectedProduct.seller_id
-        }]
-      };
-
-      const createRes = await fetch('/api/transactions/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(txData)
+          quantity: quantity
+        } 
       });
-      if (!createRes.ok) throw new Error('Gagal membuat transaksi');
-      const createData = await createRes.json();
-      
-      const ipaymuRes = await fetch('/api/payment/ipaymu/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transaction_id: createData.transaction.id,
-          amount: poData.total_price,
-          buyer_name: buyerName,
-          buyer_email: user?.email || 'guest@spscorner.id',
-          buyer_phone: buyerPhone,
-          items: txData.items
-        })
-      });
-
-      if (!ipaymuRes.ok) throw new Error('Gagal membuat link pembayaran');
-      const ipaymuData = await ipaymuRes.json();
-      window.location.href = ipaymuData.payment_url;
-      
     } catch (e: any) {
       toast.error('Gagal: ' + e.message);
       setProcessing(false);
@@ -124,7 +94,7 @@ export default function PreOrder() {
 
   return (
     <div className="min-h-screen bg-[#e8ebf0] pb-24">
-      <div className="bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Pre-Order</h1></div>
+      <div className="bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Produk Pre-Order</h1></div>
       <div className="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         {configs.map((config) => (
           <div key={config.id} onClick={() => { setSelectedProduct(config); setQuantity(config.min_order || 1); }}
@@ -145,8 +115,8 @@ export default function PreOrder() {
                 <input type="text" value={buyerName} onChange={e => setBuyerName(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="Nama Anda" />
                 <input type="tel" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="Nomor HP" />
               </div>
-              <button onClick={handleCheckoutPO} disabled={processing} className="w-full mt-6 bg-amber-500 text-white font-black py-4 rounded-xl flex justify-center items-center gap-2">
-                {processing ? <Loader2 className="animate-spin" /> : <CreditCard />} Bayar {formatRupiah(selectedProduct.products.price * quantity)}
+              <button onClick={handleCheckoutPO} disabled={processing} className="w-full mt-6 bg-amber-500 text-white font-black py-4 rounded-xl">
+                {processing ? <Loader2 className="animate-spin mx-auto" /> : "Lanjut ke Pembayaran"}
               </button>
             </div>
           </motion.div>
