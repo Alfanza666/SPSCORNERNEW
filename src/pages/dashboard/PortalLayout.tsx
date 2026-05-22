@@ -78,86 +78,6 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick, color }: NavItemPro
       <span className="flex-1 text-left">{label}</span>
       {isActive && (
         <motion.div layoutId="active-nav-portal" className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 shrink-0" />
-import React, { useState, useEffect, Fragment } from 'react';
-import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
-import { useNotifications } from '../../hooks/useNotifications';
-import { supabase } from '../../lib/supabase';
-import { Dialog, Transition, Menu } from '@headlessui/react';
-import {
-  LogOut,
-  LayoutDashboard,
-  Shield,
-  Bell,
-  Search,
-  User as UserIcon,
-  KeyRound,
-  Settings,
-  Megaphone,
-  Gift,
-  MessageSquare,
-  AlertTriangle,
-  Menu as MenuIcon,
-  X,
-  Home,
-  ChevronRight,
-  ChevronDown,
-  Loader2,
-  Pin,
-  ClipboardList
-} from 'lucide-react';
-import SPSLogo from '../../components/SPSLogo';
-import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
-import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'motion/react';
-import ErrorReporter from '../../components/ErrorReporter';
-
-const NAV_ITEMS = [
-  { path: '/portal', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { path: '/portal/pengaduan', label: 'Pengaduan & Pembelaan', icon: AlertTriangle, color: 'red' },
-  { path: '/portal/pengumuman', label: 'Pengumuman Serikat', icon: Megaphone, color: 'blue' },
-  { path: '/portal/program', label: 'Program Serikat', icon: Gift, color: 'amber' },
-  { path: '/portal/forms', label: 'Daftar Formulir', icon: ClipboardList, color: 'blue' },
-  { path: '/portal/kritik', label: 'Kritik & Saran', icon: MessageSquare, color: 'purple' },
-  { path: '/portal/profile', label: 'Profil Saya', icon: UserIcon, color: 'default' },
-];
-
-interface NavItemProps {
-  to: string;
-  icon: any;
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-  color?: string;
-  key?: string | number;
-}
-
-const NavItem = ({ to, icon: Icon, label, isActive, onClick, color }: NavItemProps) => {
-  const colorClasses: Record<string, string> = {
-    red: 'text-red-600 dark:text-red-400',
-    blue: 'text-blue-600 dark:text-blue-400',
-    amber: 'text-amber-600 dark:text-amber-400',
-    purple: 'text-purple-600 dark:text-purple-400',
-    default: 'text-zinc-600 dark:text-zinc-400'
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${
-        isActive
-          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 shadow-[inset_2px_2px_4px_rgba(59,130,246,0.1)] dark:shadow-[inset_2px_2px_4px_rgba(59,130,246,0.2)]'
-          : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white'
-      }`}
-    >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 overflow-hidden ${
-        isActive ? 'clay-icon-blue' : 'bg-white dark:bg-zinc-800 clay-icon group-hover:scale-110'
-      }`}>
-        <Icon className={`w-5 h-5 ${isActive ? 'text-white' : colorClasses[color || 'default']}`} />
-      </div>
-      <span className="flex-1 text-left">{label}</span>
-      {isActive && (
-        <motion.div layoutId="active-nav-portal" className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 shrink-0" />
       )}
     </button>
   );
@@ -165,7 +85,7 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick, color }: NavItemPro
 
 export default function PortalLayout() {
   const { user, isLoading, signOut } = useAuthStore();
-  const { notifications, unreadCount, markAllAsRead, markOneAsRead, subscribeToWebPush } = useNotifications();
+  const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -173,7 +93,9 @@ export default function PortalLayout() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    // We no longer automatically request Notification permission here.
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, []);
 
   if (isLoading) {
@@ -368,6 +290,104 @@ export default function PortalLayout() {
                             <Home className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
                           </div>
                           Kembali ke Kiosk
+                        </button>
+                        {NAV_ITEMS.map((item) => (
+                          <NavItem
+                            key={item.path}
+                            to={item.path}
+                            icon={item.icon}
+                            label={item.label}
+                            isActive={isActivePath(item.path, item.exact)}
+                            onClick={() => { navigate(item.path); setIsSidebarOpen(false); }}
+                            color={item.color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[1.5rem] border-2 border-white dark:border-zinc-700">
+                      <div className="w-10 h-10 rounded-xl clay-icon-blue font-black flex items-center justify-center overflow-hidden">
+                        <UserIcon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-zinc-900 dark:text-white truncate">
+                          {user.name}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider">{user.role}</p>
+                      </div>
+                    </div>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
+                      onClick={handleSignOut}
+                    >
+                      <LogOut className="w-5 h-5" />
+                      Keluar Akun
+                    </button>
+                  </div>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition.Root>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Top Header */}
+        <header className="h-24 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-6 lg:px-12 sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-colors duration-300">
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden clay-icon w-12 h-12 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400"
+            >
+              <MenuIcon className="w-6 h-6" />
+            </button>
+            <div className="hidden md:flex items-center gap-4 bg-zinc-50 dark:bg-zinc-800/50 px-6 py-3 rounded-2xl border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)] group focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-4 focus-within:ring-blue-500/10 dark:focus-within:ring-blue-500/20 transition-all">
+              <Search className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400" />
+              <input
+                type="text"
+                placeholder="Cari di portal..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none outline-none text-sm font-bold text-zinc-900 dark:text-white w-48 xl:w-80 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 md:gap-8">
+            <Menu as="div" className="relative">
+              <Menu.Button className="relative clay-icon w-12 h-12 bg-white dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none">
+                <Bell className="w-6 h-6" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 shadow-sm" />
+                )}
+              </Menu.Button>
+
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-200"
+                enterFrom="transform opacity-0 scale-95 y-2"
+                enterTo="transform opacity-100 scale-100 y-0"
+                leave="transition ease-in duration-150"
+                leaveFrom="transform opacity-100 scale-100 y-0"
+                leaveTo="transform opacity-0 scale-95 y-2"
+              >
+                <Menu.Items className="absolute right-[-60px] sm:right-0 mt-4 w-[320px] sm:w-96 bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl dark:shadow-black border border-zinc-100 dark:border-zinc-800 overflow-hidden z-50 focus:outline-none">
+                  <div className="p-4 sm:p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
+                    <h3 className="font-black text-zinc-900 dark:text-white">Notifikasi</h3>
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full shadow-sm">
+                        {unreadCount} Baru
+                      </span>
+                    )}
+                  </div>
+                  <div className="max-h-[32rem] overflow-y-auto custom-scrollbar">
+                    {notifications.filter(n => !n.isRead).length === 0 ? (
+                      <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
+                        <Bell className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                        <p className="text-sm font-medium">Belum ada notifikasi baru</p>
+                      </div>
                     ) : (
                       notifications.filter(n => !n.isRead).map((notif) => (
                         <Menu.Item key={notif.id}>
