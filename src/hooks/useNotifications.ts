@@ -237,5 +237,31 @@ export function useNotifications() {
     }
   };
 
-  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead, subscribeToWebPush };
+  const unsubscribeFromWebPush = async () => {
+    if (!user) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        await subscription.unsubscribe();
+        const { data: { session } } = await supabase.auth.getSession();
+        await fetch('/api/push/unsubscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+          },
+          body: JSON.stringify({ user_id: user.id, endpoint: subscription.endpoint })
+        });
+        console.log('[Push] Unsubscribed successfully');
+      }
+    } catch (error) {
+      console.error('[Push] Unsubscribe failed:', error);
+    }
+  };
+
+  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush };
 }

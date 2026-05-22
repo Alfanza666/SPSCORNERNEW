@@ -1,9 +1,18 @@
+v4.9.3 - Fix: Push Notification Stale Subscription & Unsubscribe Flow
+--------------------------------------------------
+### Perbaikan Bug:
+- **[FIX] Cleanup Expired Subscriptions di `sendNotification`:** Menambahkan penghapusan otomatis subscription yang expired (HTTP 404/410) pada fungsi `sendNotification` di server, agar database `push_subscriptions` tidak menumpuk data stale.
+- **[FIX] Tag Field pada Push Payload:** Menambahkan field `tag` ke payload push di `sendNotification` agar notifikasi yang sama bisa di-group dan tidak bertumpuk di notification tray.
+- **[NEW] Unsubscribe Endpoint:** Menambahkan `POST /api/push/unsubscribe` di server untuk menghapus subscription dari database.
+- **[NEW] `unsubscribeFromWebPush`:** Menambahkan fungsi unsubscribe di client (`useNotifications.ts`) yang mencabut izin push dari browser dan menghapus subscription dari server.
+
 v4.9.2 - Fix: Kamera Tidak Berfungsi di Chrome & Mode PWA Android
 --------------------------------------------------
 ### Perbaikan Bug:
 - **[FIX] Chrome getUserMedia Transient Activation:** Menghapus `await setTimeout(100)` sebelum `getUserMedia` yang memutus rantai user gesture (transient activation). Chrome kehilangan konteks klik pengguna setelah `await`, sehingga kamera ditolak. Firefox lebih toleran terhadap jeda ini.
 - **[FIX] Race Condition Stop/Start Kamera:** Menghapus pola pre-permission `getUserMedia` → `stop()` → `start()` ulang yang menyebabkan race condition pada Chrome Android. Kamera sekarang langsung dikelola oleh `html5-qrcode` tanpa siklus stop/start manual.
 - **[FIX] DOM Readiness:** Memindahkan elemen `#qr-reader-scanner` agar selalu di-render di DOM (tidak kondisional), sehingga `html5-qrcode` bisa langsung attach tanpa perlu jeda render.
+- **[FIX] Layout Scanner Terpisah (Kiri-Kanan):** Memperbaiki struktur DOM scanner yang sebelumnya memisahkan video kamera dan overlay panduan menjadi dua anak flex container, menyebabkan overlay tidak menumpuk di atas video. Sekarang `#qr-reader-scanner` sebagai block element normal mengisi parent, semua overlay di-position absolute di atasnya.
 - **[FIX] Permissions-Policy Header:** Memperbaiki header `Permissions-Policy` di `vercel.json` dari `camera=()` menjadi `camera=(self)` agar origin sendiri diizinkan mengakses kamera.
 - **[FIX] Sinkronisasi Versi UI:** Menyeragamkan tampilan versi di halaman utama dan dashboard agar konsisten dengan `package.json`.
 

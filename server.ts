@@ -103,6 +103,23 @@ app.post("/api/push/subscribe", async (req, res) => {
   }
 });
 
+app.post("/api/push/unsubscribe", async (req, res) => {
+  const { user_id, endpoint } = req.body;
+  if (!user_id || !endpoint) return res.status(400).json({ error: "Data tidak lengkap" });
+
+  try {
+    await supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", user_id)
+      .eq("subscription->endpoint", endpoint);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Push unsubscribe error:", error);
+    res.status(500).json({ error: "Gagal berhenti langganan" });
+  }
+});
+
 // ─── Helper: send push notification to all subscriptions of a user ────────────
 async function sendPushToUser(userId, title, body, url = "/", tag = "sps-notif") {
   try {
@@ -293,13 +310,18 @@ const sendNotification = __name(async (userId, payload) => {
         title: payload.title,
         body: payload.message,
         url: payload.path || "/",
+        tag: `sps-${payload.type || 'notif'}`,
       });
 
-      const pushPromises = subs.map((sub) =>
+      const pushPromises = subs.map((sub, idx) =>
         webpush.sendNotification(sub.subscription, pushPayload, { urgency: 'high' }).catch((err) => {
           if (err.statusCode === 404 || err.statusCode === 410) {
-            // Subscription has expired or is no longer valid
-            // In a real app, delete it from the DB here
+            supabase
+              .from("push_subscriptions")
+              .delete()
+              .eq("user_id", userId)
+              .eq("subscription->endpoint", subs[idx].subscription?.endpoint)
+              .then(() => {});
           }
         })
       );

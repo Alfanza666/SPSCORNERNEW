@@ -287,49 +287,51 @@ export default function AdminScanner() {
             </button>
           </div>
 
-          <div className="flex-1 relative flex items-center justify-center bg-zinc-100/50 dark:bg-black/40">
-            {/* QR reader element - always in DOM so html5-qrcode can attach immediately */}
-            <div id="qr-reader-scanner" className={`w-full h-full absolute inset-0 [&>video]:object-cover [&>video]:w-full [&>video]:h-full ${!scanning ? 'invisible' : ''}`} style={{ border: 'none' }}></div>
+          <div className="flex-1 relative bg-zinc-100/50 dark:bg-black/40">
+            {/* QR reader element - always in DOM, block element so video fills parent */}
+            <div id="qr-reader-scanner"
+              className={`[&>video]:object-cover [&>video]:w-full [&>video]:h-full ${scanning ? 'w-full h-full' : 'w-0 h-0 overflow-hidden'}`}
+              style={{ border: 'none' }}
+            ></div>
 
             {!scanning ? (
-              <div className="text-center p-6 z-10">
-                <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-200 dark:border-zinc-700 shadow-xl">
-                  <CameraOff className="w-8 h-8 text-zinc-400" />
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <div className="text-center p-6">
+                  <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-200 dark:border-zinc-700 shadow-xl">
+                    <CameraOff className="w-8 h-8 text-zinc-400" />
+                  </div>
+                  <p className="text-zinc-400 font-medium mb-6">Kamera tidak aktif</p>
+                  <button
+                    onClick={startScanner}
+                    className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-zinc-900 dark:text-white font-bold rounded-2xl shadow-lg shadow-blue-600/30 transition-all active:scale-95 flex items-center justify-center mx-auto gap-2"
+                  >
+                    <Camera className="w-5 h-5" />
+                    Nyalakan Kamera
+                  </button>
                 </div>
-                <p className="text-zinc-400 font-medium mb-6">Kamera tidak aktif</p>
-                <button
-                  onClick={startScanner}
-                  className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-zinc-900 dark:text-white font-bold rounded-2xl shadow-lg shadow-blue-600/30 transition-all active:scale-95 flex items-center justify-center mx-auto gap-2"
-                >
-                  <Camera className="w-5 h-5" />
-                  Nyalakan Kamera
-                </button>
               </div>
             ) : (
-              <div className="w-full h-full relative">
-                {/* Custom Overlay */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    <div className="w-64 h-64 border-2 border-white/20 rounded-3xl relative overflow-hidden">
-                        {/* Laser Line */}
-                        <motion.div 
-                           animate={{ y: [0, 256, 0] }}
-                           transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                           className="w-full h-[2px] bg-blue-500 shadow-[0_0_15px_3px_rgba(59,130,246,0.5)] absolute top-0"
-                        />
-                        {/* Corner markers */}
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-3xl"></div>
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-3xl"></div>
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-3xl"></div>
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-3xl"></div>
-                    </div>
-                </div>
-
-                {isLocked && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex items-center justify-center">
-                        <Loader2 className="w-10 h-10 text-zinc-900 dark:text-white animate-spin" />
-                    </div>
-                )}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+                  <div className="w-64 h-64 border-2 border-white/20 rounded-3xl relative overflow-hidden">
+                      {/* Laser Line */}
+                      <motion.div
+                         animate={{ y: [0, 256, 0] }}
+                         transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                         className="w-full h-[2px] bg-blue-500 shadow-[0_0_15px_3px_rgba(59,130,246,0.5)] absolute top-0"
+                      />
+                      {/* Corner markers */}
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-3xl"></div>
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-3xl"></div>
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-3xl"></div>
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-3xl"></div>
+                  </div>
               </div>
+            )}
+
+            {isLocked && scanning && (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex items-center justify-center">
+                    <Loader2 className="w-10 h-10 text-zinc-900 dark:text-white animate-spin" />
+                </div>
             )}
           </div>
           
