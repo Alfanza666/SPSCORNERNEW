@@ -123,10 +123,10 @@ export default function Checkout() {
 
     fetchSettings();
 
-    // Request push notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
+    // We no longer automatically request Notification permission here.
+
+
+
   }, [items, buyerName, navigate]);
 
   // Helper: Create pre_orders records for PO items in cart after successful payment

@@ -140,8 +140,8 @@ export function useNotifications() {
       })
       .subscribe();
 
-    // Auto-subscribe to push when user is available
-    subscribeToWebPush();
+    // Auto-subscribe to push only if permission was already granted
+    subscribeToWebPush(false);
 
     return () => {
       supabase.removeChannel(notifSub);
@@ -184,15 +184,16 @@ export function useNotifications() {
     }
   };
 
-  const subscribeToWebPush = async () => {
+  const subscribeToWebPush = async (requestPermission = true) => {
     if (!user) return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       console.warn('[Push] Not supported in this browser');
       return;
     }
 
-    // Request permission first
+    // Request permission if needed and allowed
     if (Notification.permission === 'default') {
+      if (!requestPermission) return; // Do not prompt automatically
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         console.warn('[Push] Permission denied');

@@ -102,6 +102,12 @@ export default function AdminScanner() {
     setIsLocked(false);
 
     try {
+      // Proactively trigger camera permission prompt for PWA compatibility (iOS/Android)
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(track => track.stop());
+      }
+
       const { Html5Qrcode } = await import('html5-qrcode');
       
       if (html5QrCodeRef.current) {

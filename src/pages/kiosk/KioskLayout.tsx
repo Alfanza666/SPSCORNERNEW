@@ -45,9 +45,6 @@ export default function KioskLayout() {
 
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
     if (user && isCatalog && !user.phone) {
       const t = setTimeout(() => setShowPhoneModal(true), 1500);
       return () => clearTimeout(t);

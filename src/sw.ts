@@ -47,6 +47,8 @@ self.addEventListener('push', (event) => {
         badge: '/logos/sps-logo-icon.png',
         vibrate: [200, 100, 200, 100, 200, 100, 200], // Memicu getar dan suara default OS
         requireInteraction: true, // Menempel di status bar / lockscreen
+        renotify: true, // WAJIB ada agar notifikasi berikutnya dengan tag sama tetap bergetar & muncul di lockscreen
+        tag: payload.tag || 'sps-notification',
         data: { url: payload.url || '/' } // Simpan URL untuk dibuka saat di-klik
        } as any)
     );

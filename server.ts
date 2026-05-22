@@ -115,7 +115,7 @@ async function sendPushToUser(userId, title, body, url = "/", tag = "sps-notif")
 
     const payload = JSON.stringify({ title, body, url, tag });
     const results = await Promise.allSettled(
-      subs.map((row) => webpush.sendNotification(row.subscription, payload))
+      subs.map((row) => webpush.sendNotification(row.subscription, payload, { urgency: 'high' }))
     );
 
     // Clean up expired/invalid subscriptions
@@ -251,8 +251,7 @@ const getIpaymuAxiosConfig = __name(() => {
 }, "getIpaymuAxiosConfig");
 const IPAYMU_VA = (process.env.IPAYMU_VA || "").replace(/['"]/g, "").trim();
 const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || "")
-  .replace(/['"]/g, "")
-  .trim();
+  .replace(/['"]/g, "").trim();
 const IPAYMU_PRODUCTION = process.env.IPAYMU_PRODUCTION !== "false";
 if (!IPAYMU_VA || !IPAYMU_API_KEY) {
   console.warn("\u26A0\uFE0F IPAYMU_VA or IPAYMU_API_KEY not configured");
@@ -297,7 +296,7 @@ const sendNotification = __name(async (userId, payload) => {
       });
 
       const pushPromises = subs.map((sub) =>
-        webpush.sendNotification(sub.subscription, pushPayload).catch((err) => {
+        webpush.sendNotification(sub.subscription, pushPayload, { urgency: 'high' }).catch((err) => {
           if (err.statusCode === 404 || err.statusCode === 410) {
             // Subscription has expired or is no longer valid
             // In a real app, delete it from the DB here
