@@ -114,7 +114,6 @@ export default function AdminScanner() {
         {
           fps: 10,
           qrbox: { width: 280, height: 280 },
-          aspectRatio: 1.0,
           disableFlip: false
         },
         onScanSuccess,
@@ -128,9 +127,12 @@ export default function AdminScanner() {
           errorMsg.toLowerCase().includes('notallowederror') || 
           errorMsg.toLowerCase().includes('not allowed')) {
         errorMsg = "Akses kamera diblokir. Harap buka Pengaturan (Settings) > Aplikasi > Browser Anda (Chrome/Safari), lalu izinkan akses Kamera. Jika di browser, klik ikon gembok di URL bar lalu izinkan kamera.";
+      } else {
+        // Output detailed error for debugging
+        errorMsg = `Gagal: ${err.name || 'UnknownError'} - ${err.message || String(err)}`;
       }
       
-      toast.error(errorMsg, { duration: 6000 });
+      toast.error(errorMsg, { duration: 8000 });
       setScanning(false);
     }
   };
