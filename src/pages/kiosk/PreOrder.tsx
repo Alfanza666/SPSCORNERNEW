@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { formatRupiah } from '../../lib/utils';
-import { Search, Calendar, Clock, Loader2, CreditCard, Info } from 'lucide-react';
+import { Search, Loader2, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { addDays } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -23,7 +23,6 @@ export default function PreOrder() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   
-  // Mengambil data user secara otomatis (jika ada)
   const [buyerName, setBuyerName] = useState(user?.name || '');
   const [buyerPhone, setBuyerPhone] = useState(user?.phone || '');
   const [processing, setProcessing] = useState(false);
@@ -34,21 +33,13 @@ export default function PreOrder() {
 
   const fetchConfigs = async () => {
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('pre_order_configs')
-        .select('*, products(id, name, price, image_url, category, description, is_active), profiles:seller_id(name)')
-        .eq('is_active', true);
-
-      if (error) throw error;
-      
-      const validConfigs = (data || []).filter(c => c.products?.is_active);
-      setConfigs(validConfigs);
-    } catch (error: any) {
-      toast.error('Gagal memuat produk Pre-Order: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
+    const { data } = await supabase
+      .from('pre_order_configs')
+      .select('*, products(id, name, price, image_url, category, description, is_active), profiles:seller_id(name)')
+      .eq('is_active', true);
+    
+    setConfigs((data || []).filter(c => c.products?.is_active));
+    setLoading(false);
   };
 
   const handleCheckoutPO = async () => {
@@ -58,14 +49,9 @@ export default function PreOrder() {
     }
     setProcessing(true);
     try {
-      let pickupDate = new Date();
-      if (selectedProduct.pickup_type === 'next_day') {
-        pickupDate = addDays(pickupDate, 1);
-      } else if (selectedProduct.pickup_type === 'custom_days') {
-        pickupDate = addDays(pickupDate, selectedProduct.custom_days || 1);
-      }
+      const pickupDate = addDays(new Date(), selectedProduct.pickup_type === 'next_day' ? 1 : (selectedProduct.custom_days || 0));
 
-      // Perbaikan: Menyertakan po_config_id untuk mencegah error not-null
+      // STRUKTUR DATA LENGKAP UNTUK MENGHINDARI ERROR NOT-NULL
       const poData = {
         product_id: selectedProduct.product_id,
         seller_id: selectedProduct.seller_id,
@@ -73,22 +59,25 @@ export default function PreOrder() {
         buyer_name: buyerName,
         buyer_phone: buyerPhone,
         quantity: quantity,
+        unit_price: selectedProduct.products.price, // FIXED: unit_price
         total_price: selectedProduct.products.price * quantity,
         pickup_date: pickupDate.toISOString(),
         order_date: new Date().toISOString(),
+        created_at: new Date().toISOString(), // FIXED: seringkali required di DB
         status: 'pending',
         notes: `PO dari Kiosk. Tipe: ${PICKUP_TYPE_LABELS[selectedProduct.pickup_type]}`,
-        po_config_id: selectedProduct.id 
+        po_config_id: selectedProduct.id // FIXED: po_config_id
       };
 
-      // Pastikan insert menggunakan Array [poData]
       const { data: poRes, error: poErr } = await supabase.from('pre_orders').insert([poData]).select().single();
-      if (poErr) throw poErr;
+      if (poErr) {
+        console.error("DB Error:", poErr);
+        throw new Error(poErr.message);
+      }
 
       const txData = {
         buyer_name: buyerName,
         buyer_id: user?.id || null,
-        buyer_email: user?.email || null,
         total_amount: poData.total_price,
         status: 'pending',
         items: [{
@@ -125,57 +114,39 @@ export default function PreOrder() {
 
       if (!ipaymuRes.ok) throw new Error('Gagal membuat link pembayaran');
       const ipaymuData = await ipaymuRes.json();
-      
       window.location.href = ipaymuData.payment_url;
+      
     } catch (e: any) {
-      toast.error('Terjadi kesalahan: ' + e.message);
+      toast.error('Gagal: ' + e.message);
       setProcessing(false);
     }
   };
 
-  const filteredConfigs = configs.filter(c => 
-    c.products.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
-    <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 pb-24 transition-colors duration-300">
-      <div className="bg-white dark:bg-zinc-900 px-4 pt-4 pb-3 rounded-b-2xl shadow-sm">
-        <h1 className="text-xl font-black">Produk <span className="text-amber-500">Pre-Order</span></h1>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 mt-6">
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-          <input type="text" placeholder="Cari produk PO..." className="w-full pl-9 p-3 rounded-xl border border-zinc-200 text-xs" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-        </div>
-
-        {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {filteredConfigs.map((config) => (
-              <div key={config.id} onClick={() => { setSelectedProduct(config); setQuantity(config.min_order || 1); }}
-                className="bg-white p-4 rounded-[1.5rem] shadow-sm cursor-pointer border hover:shadow-lg transition-all">
-                <img src={config.products.image_url} className="w-full aspect-square object-cover rounded-xl mb-3" />
-                <h3 className="font-bold text-sm">{config.products.name}</h3>
-                <p className="text-amber-600 font-black">{formatRupiah(config.products.price)}</p>
-              </div>
-            ))}
+    <div className="min-h-screen bg-[#e8ebf0] pb-24">
+      <div className="bg-white p-6 shadow-sm"><h1 className="text-xl font-black">Pre-Order</h1></div>
+      <div className="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+        {configs.map((config) => (
+          <div key={config.id} onClick={() => { setSelectedProduct(config); setQuantity(config.min_order || 1); }}
+            className="bg-white p-4 rounded-2xl shadow-sm cursor-pointer border hover:shadow-lg transition-all">
+            <img src={config.products.image_url} className="w-full aspect-square object-cover rounded-xl mb-3" />
+            <h3 className="font-bold text-sm">{config.products.name}</h3>
+            <p className="text-amber-600 font-black">{formatRupiah(config.products.price)}</p>
           </div>
-        )}
+        ))}
       </div>
 
       <AnimatePresence>
         {selectedProduct && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-            onClick={() => !processing && setSelectedProduct(null)}>
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedProduct(null)}>
             <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-              <h2 className="text-xl font-black mb-4">Pesan Pre-Order</h2>
-              <div className="space-y-4">
+              <h2 className="text-xl font-black mb-4">Pesan {selectedProduct.products.name}</h2>
+              <div className="space-y-3">
                 <input type="text" value={buyerName} onChange={e => setBuyerName(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="Nama Anda" />
                 <input type="tel" value={buyerPhone} onChange={e => setBuyerPhone(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="Nomor HP" />
               </div>
-              <button onClick={handleCheckoutPO} disabled={processing} className="w-full mt-6 bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-xl flex justify-center items-center gap-2">
-                {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-                Bayar Sekarang
+              <button onClick={handleCheckoutPO} disabled={processing} className="w-full mt-6 bg-amber-500 text-white font-black py-4 rounded-xl flex justify-center items-center gap-2">
+                {processing ? <Loader2 className="animate-spin" /> : <CreditCard />} Bayar {formatRupiah(selectedProduct.products.price * quantity)}
               </button>
             </div>
           </motion.div>
