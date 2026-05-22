@@ -113,7 +113,7 @@ export default function AdminScanner() {
       html5QrCodeRef.current = new Html5Qrcode("qr-reader-scanner");
 
       await html5QrCodeRef.current.start(
-        { facingMode: { ideal: cameraFacing } },
+        { facingMode: cameraFacing },
         {
           fps: 10,
           qrbox: { width: 280, height: 280 },
