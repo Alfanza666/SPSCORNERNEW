@@ -110,10 +110,26 @@ export default function AdminScanner() {
           try { await html5QrCodeRef.current.stop(); } catch (e) { }
       }
 
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras || cameras.length === 0) {
+        throw new Error("Tidak ada kamera fisik yang terdeteksi.");
+      }
+
+      // Pilih kamera belakang jika ada, jika tidak gunakan kamera pertama
+      let selectedCameraId = cameras[0].id;
+      if (cameraFacing === 'environment') {
+        const backCamera = cameras.find(c => 
+          c.label.toLowerCase().includes('back') || 
+          c.label.toLowerCase().includes('belakang') || 
+          c.label.toLowerCase().includes('environment')
+        );
+        if (backCamera) selectedCameraId = backCamera.id;
+      }
+
       html5QrCodeRef.current = new Html5Qrcode("qr-reader-scanner");
 
       await html5QrCodeRef.current.start(
-        { facingMode: cameraFacing },
+        selectedCameraId,
         {
           fps: 10,
           qrbox: { width: 280, height: 280 },
