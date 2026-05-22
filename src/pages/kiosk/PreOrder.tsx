@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { formatRupiah } from '../../lib/utils';
-import { Search, Package, Calendar, Clock, Loader2, CreditCard, Info } from 'lucide-react';
+import { Search, Calendar, Clock, Loader2, CreditCard, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format, addDays } from 'date-fns';
+import { addDays } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -22,6 +22,8 @@ export default function PreOrder() {
   const [quantity, setQuantity] = useState(1);
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  
+  // Mengambil data user secara otomatis (jika ada)
   const [buyerName, setBuyerName] = useState(user?.name || '');
   const [buyerPhone, setBuyerPhone] = useState(user?.phone || '');
   const [processing, setProcessing] = useState(false);
@@ -63,7 +65,7 @@ export default function PreOrder() {
         pickupDate = addDays(pickupDate, selectedProduct.custom_days || 1);
       }
 
-      // Memperbaiki error null po_config_id dengan menyertakan po_config_id
+      // Perbaikan: Menyertakan po_config_id untuk mencegah error not-null
       const poData = {
         product_id: selectedProduct.product_id,
         seller_id: selectedProduct.seller_id,
@@ -76,10 +78,11 @@ export default function PreOrder() {
         order_date: new Date().toISOString(),
         status: 'pending',
         notes: `PO dari Kiosk. Tipe: ${PICKUP_TYPE_LABELS[selectedProduct.pickup_type]}`,
-        po_config_id: selectedProduct.id // <--- SOLUSI ERROR NOT NULL
+        po_config_id: selectedProduct.id 
       };
 
-      const { data: poRes, error: poErr } = await supabase.from('pre_orders').insert(poData).select().single();
+      // Pastikan insert menggunakan Array [poData]
+      const { data: poRes, error: poErr } = await supabase.from('pre_orders').insert([poData]).select().single();
       if (poErr) throw poErr;
 
       const txData = {
@@ -130,22 +133,34 @@ export default function PreOrder() {
     }
   };
 
+  const filteredConfigs = configs.filter(c => 
+    c.products.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 pb-24">
-      {/* Header & Content tetap sama agar Zero Regression */}
+    <div className="min-h-screen bg-[#e8ebf0] dark:bg-zinc-950 pb-24 transition-colors duration-300">
       <div className="bg-white dark:bg-zinc-900 px-4 pt-4 pb-3 rounded-b-2xl shadow-sm">
         <h1 className="text-xl font-black">Produk <span className="text-amber-500">Pre-Order</span></h1>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-        {configs.map((config) => (
-          <motion.div key={config.id} onClick={() => { setSelectedProduct(config); setQuantity(config.min_order || 1); }}
-            className="bg-white rounded-[1.5rem] p-4 shadow-sm cursor-pointer border hover:shadow-lg transition-all">
-            <img src={config.products.image_url} className="w-full aspect-square object-cover rounded-xl mb-3" />
-            <h3 className="font-bold text-sm">{config.products.name}</h3>
-            <p className="text-amber-600 font-black">{formatRupiah(config.products.price)}</p>
-          </motion.div>
-        ))}
+      <div className="max-w-7xl mx-auto px-4 mt-6">
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <input type="text" placeholder="Cari produk PO..." className="w-full pl-9 p-3 rounded-xl border border-zinc-200 text-xs" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        </div>
+
+        {loading ? <div className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div> : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {filteredConfigs.map((config) => (
+              <div key={config.id} onClick={() => { setSelectedProduct(config); setQuantity(config.min_order || 1); }}
+                className="bg-white p-4 rounded-[1.5rem] shadow-sm cursor-pointer border hover:shadow-lg transition-all">
+                <img src={config.products.image_url} className="w-full aspect-square object-cover rounded-xl mb-3" />
+                <h3 className="font-bold text-sm">{config.products.name}</h3>
+                <p className="text-amber-600 font-black">{formatRupiah(config.products.price)}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
