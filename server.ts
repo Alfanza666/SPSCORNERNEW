@@ -171,6 +171,18 @@ async function sendPushToAdmins(title, body, url = "/dashboard/admin") {
 // ─── Helper: restore stock for a cancelled/failed transaction ───────────────
 async function restoreTransactionStock(transactionId) {
   try {
+    // Only restore if stock was actually deducted for this transaction
+    const { data: tx } = await supabase
+      .from("transactions")
+      .select("metadata")
+      .eq("id", transactionId)
+      .single();
+
+    if (!tx?.metadata?.stock_deducted) {
+      console.log(`[Stock] Skipping restore for ${transactionId.slice(0,8)} — stock was not deducted`);
+      return;
+    }
+
     const { data: items } = await supabase
       .from("transaction_items")
       .select("product_id, quantity, seller_id")
@@ -3282,7 +3294,49 @@ app.post("/api/transactions/create", async (req, res) => {
       .select();
     if (itemsError) throw itemsError;
 
-    // No decrement_stock here. Frontend handles it via confirm_stock_deduction.
+    // ─── Server-side stock deduction (replaces frontend confirm_stock_deduction) ───
+    const physicalItems = (insertedItems || []).filter(item => !item.metadata?.is_digital && item.product_id);
+    let stockDeducted = false;
+    if (physicalItems.length > 0) {
+      let allDeducted = true;
+      for (const item of physicalItems) {
+        const { data: product } = await supabase
+          .from("products")
+          .select("stock")
+          .eq("id", item.product_id)
+          .single();
+
+        if (product && product.stock >= item.quantity) {
+          await supabase
+            .from("products")
+            .update({ stock: product.stock - item.quantity })
+            .eq("id", item.product_id);
+
+          await supabase.from("stock_adjustments").insert({
+            product_id: item.product_id,
+            user_id: item.seller_id || txDataToInsert.buyer_id,
+            previous_stock: product.stock,
+            new_stock: product.stock - item.quantity,
+            adjustment_type: "sale",
+            notes: `Stock deducted from transaction ${tx.id}`
+          });
+        } else {
+          allDeducted = false;
+        }
+      }
+      stockDeducted = allDeducted;
+    }
+
+    // Update transaction with stock_deducted flag in metadata
+    await supabase
+      .from("transactions")
+      .update({
+        metadata: { ...(tx.metadata || {}), stock_deducted: stockDeducted }
+      })
+      .eq("id", tx.id);
+
+    // Also update local tx object for downstream use
+    tx.metadata = { ...(tx.metadata || {}), stock_deducted: stockDeducted };
 
     if (tx.status === "paid" || tx.status === "success") {
       if (insertedItems && insertedItems.length > 0) {
@@ -3569,6 +3623,87 @@ if (process.env.NODE_ENV !== "production") {
     } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
   });
 }
+app.get("/api/admin/stock-report", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') return res.status(403).json({ error: "Forbidden: Admin only" });
+
+    const sellerFilter = req.query.seller_id as string | undefined;
+
+    // 1. Get all products
+    let query = supabase
+      .from("products")
+      .select("id, name, sku, stock, seller_id, created_at");
+    if (sellerFilter) query = query.eq("seller_id", sellerFilter);
+    const { data: products, error: productsError } = await query;
+    if (productsError) throw productsError;
+
+    const productIds = products.map(p => p.id);
+
+    // 2. Get aggregated stock adjustments
+    const { data: adjustments, error: adjError } = await supabase
+      .from("stock_adjustments")
+      .select("product_id, adjustment_type, previous_stock, new_stock, created_at")
+      .in("product_id", productIds)
+      .order("created_at", { ascending: true });
+    if (adjError) throw adjError;
+
+    // 3. Group adjustments by product
+    const adjustmentsByProduct: Record<string, { restock: number; sold: number; returned: number; firstEntry: any }> = {};
+    for (const adj of adjustments || []) {
+      if (!adjustmentsByProduct[adj.product_id]) {
+        adjustmentsByProduct[adj.product_id] = { restock: 0, sold: 0, returned: 0, firstEntry: adj };
+      }
+      if (adj.adjustment_type === "restock") {
+        adjustmentsByProduct[adj.product_id].restock += (adj.new_stock - adj.previous_stock);
+      } else if (adj.adjustment_type === "sale") {
+        adjustmentsByProduct[adj.product_id].sold += (adj.previous_stock - adj.new_stock);
+      } else if (adj.adjustment_type === "correction") {
+        adjustmentsByProduct[adj.product_id].returned += (adj.new_stock - adj.previous_stock);
+      }
+    }
+
+    // 4. Build report
+    const report = products.map(product => {
+      const adjData = adjustmentsByProduct[product.id] || { restock: 0, sold: 0, returned: 0, firstEntry: null };
+      const initialStock = adjData.firstEntry
+        ? adjData.firstEntry.previous_stock
+        : product.stock;
+
+      return {
+        id: product.id,
+        name: product.name,
+        sku: product.sku || "",
+        seller_id: product.seller_id,
+        createdAt: product.created_at,
+        initialStock,
+        totalRestock: adjData.restock,
+        totalSold: adjData.sold,
+        totalReturned: adjData.returned,
+        currentStock: product.stock
+      };
+    });
+
+    // 5. Get sellers info
+    const sellerIds = [...new Set(products.map(p => p.seller_id).filter(Boolean))];
+    let sellersMap: Record<string, string> = {};
+    if (sellerIds.length > 0) {
+      const { data: sellers } = await supabase.from("profiles").select("id, name").in("id", sellerIds);
+      for (const s of sellers || []) sellersMap[s.id] = s.name;
+    }
+
+    res.json({ report, sellers: sellersMap });
+  } catch (err: any) {
+    console.error("Stock report error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 app.post("/api/admin/test-email", async (req, res) => {
   try {
     const { to } = req.body;

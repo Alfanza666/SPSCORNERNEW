@@ -300,11 +300,6 @@ export default function Checkout() {
       setDirectPaymentData(data);
       setPaymentStep('ipaymu_direct');
 
-      // 3. Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
-
     } catch (error: any) {
       console.error('Direct Payment error:', error);
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
@@ -373,11 +368,6 @@ export default function Checkout() {
       setTransactionId(transaction.id);
       saveGuestTransaction(transaction.id);
       setPaymentStep('manual_qris');
-
-      // 2. Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
 
     } catch (error: any) {
       console.error('Manual QRIS error:', error);
@@ -448,11 +438,6 @@ export default function Checkout() {
 
       const { transaction } = await txRes.json();
       setTransactionId(transaction.id);
-
-      // Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
 
       // 2. Pay using points
       const payRes = await fetch('/api/payment/points/pay', {
@@ -656,12 +641,7 @@ buyer_email: buyerEmail,
 
       const { payment_url } = await ipaymuRes.json();
 
-      // 3. Confirm reservations before redirecting
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
-
-      // 3.5 Create PO records before redirect
+      // 3. Create PO records before redirect
       await createPreOrderRecords(tx.id);
 
       // 4. Redirect to IPaymu

@@ -101,6 +101,7 @@ const AdminDoorprize = lazyWithRetry(() => import('./pages/dashboard/admin/Admin
 const AdminFormBuilder = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormBuilder'));
 const AdminFormResponses = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormResponses'));
 const AdminCouponReports = lazyWithRetry(() => import('./pages/dashboard/admin/AdminCouponReports'));
+const AdminStockReport = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockReport'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   const isChunkError = error?.message?.includes('dynamically imported') ||
@@ -293,6 +294,8 @@ export default function App() {
               <Route path="admin/forms/responses/:formId" element={<AdminFormResponses />} />
               <Route path="admin/coupon-reports" element={<AdminCouponReports />} />
               <Route path="admin/coupon-reports/" element={<AdminCouponReports />} />
+              <Route path="admin/stock-report" element={<AdminStockReport />} />
+              <Route path="admin/stock-report/" element={<AdminStockReport />} />
 
               <Route path="scanner" element={<AdminScanner />} />
               <Route path="scanner/" element={<AdminScanner />} />

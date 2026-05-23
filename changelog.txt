@@ -1,3 +1,20 @@
+v4.13.0 — Stock Logic Overhaul & Management Reporting
+--------------------------------------------------
+### Perbaikan Stock (Kritis):
+- **[FIX] Server-side Stock Deduction:** Stock fisik sekarang langsung terpotong di server (`/api/transactions/create`) saat transaksi dibuat, bukan di frontend. Menghilangkan race condition dan silent bypass saat reservasi expired.
+- **[FIX] confirm_stock_deduction Fix:** SQL function `confirm_stock_deduction` kini throw error jika reservasi tidak ditemukan (sebelumnya diam-diam return sukses → stock tidak terkurangi tapi tetap direstore → inflasi).
+- **[FIX] restoreTransactionStock Safety:** Helper `restoreTransactionStock` kini cek flag `stock_deducted` di metadata transaksi sebelum merestore stock — mencegah restore stock yang tidak pernah terpotong.
+- **[FIX] Frontend Cleanup:** Semua panggilan `confirm_stock_deduction` di Checkout.tsx (4 path pembayaran) dan Validate.tsx dihapus — server yang handle.
+
+### Fitur Baru:
+- **[NEW] Laporan Stok:** Halaman `AdminStockReport` di dashboard admin menampilkan pergerakan stok per produk (stok awal, total restock, total terjual, retur, stok akhir) dengan filter seller dan pencarian.
+- **[NEW] Export CSV:** Tombol Export CSV di halaman Laporan Stok untuk download data pergerakan stok.
+- **[NEW] Backend Endpoint `/api/admin/stock-report`:** Endpoint baru dengan aggregasi dari tabel `products` dan `stock_adjustments`.
+
+### Teknis:
+- **[CHANGE] Stock Deduction:** Pindah dari client-side (via `confirm_stock_deduction` RPC) ke server-side (di `/api/transactions/create` dengan `stock_deducted` flag).
+- **[NEW] SQL Fix File:** `fix_confirm_stock_deduction.sql` — perbaikan function agar throw exception jika reservasi tidak ditemukan (perlu dijalankan di Supabase SQL Editor).
+
 v4.12.0 — Audit Fixes: Security, Crash, & Code Quality
 --------------------------------------------------
 ### Perbaikan Keamanan (Kritis):

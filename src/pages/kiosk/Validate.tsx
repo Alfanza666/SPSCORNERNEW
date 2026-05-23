@@ -158,12 +158,6 @@ export default function Validate() {
           throw new Error('Invalid response from server when creating transaction');
         }
 
-        for (const resId of reservations) {
-          await supabase.rpc('confirm_stock_deduction', {
-            p_reservation_id: resId
-          });
-        }
-
         setValidationResult({ valid: true, message: 'Pembayaran Berhasil Diverifikasi!' });
         
         setTimeout(() => {
