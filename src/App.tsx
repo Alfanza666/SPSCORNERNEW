@@ -2,7 +2,6 @@ import React, { useEffect, useRef, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Toaster } from 'react-hot-toast';
-import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
 import Tutorial from './components/Tutorial';
 import PWAInstallPrompt from './components/PWAInstallPrompt';

@@ -26,7 +26,7 @@ const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseServiceKey =
   typeof envKey === "string" && envKey.trim() !== ""
     ? envKey
-    : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvZndlYnJiZGxvdndrZ2tsd2FiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDc5MTkwNywiZXhwIjoyMDg2MzY3OTA3fQ.Q51X1VHwEB9vnB5tXWd9ajJJ58F4OaYqUnaqi20DJxQ";
+    : (() => { throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set"); })();
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 import { GoogleGenAI } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -486,35 +486,29 @@ app.post("/api/product-returns/process", async (req, res) => {
   }
 });
 
-app.get("/api/debug-schema", async (req, res) => {
-  const { data, error } = await supabase.rpc("get_schema_info");
-  const { data: cols } = await supabase
-    .from("transaction_items")
-    .select("*")
-    .limit(1);
-  res.json({ error: null, cols: cols ? Object.keys(cols[0] || {}) : [] });
-});
-app.get("/api/debug/ip", async (req, res) => {
-  try {
-    const response = await axios.get("https://ifconfig.me/ip");
-    const ip = response.data.trim();
-    let proxyIp = null;
-    if (FIXIE_URL) {
-      try {
-        const proxyResponse = await axios.get(
-          "https://ifconfig.me/ip",
-          getDigiflazzAxiosConfig(),
-        );
-        proxyIp = proxyResponse.data.trim();
-      } catch (e) {
-        proxyIp = "Error fetching proxy IP";
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/debug-schema", async (req, res) => {
+    const { data, error } = await supabase.rpc("get_schema_info");
+    const { data: cols } = await supabase.from("transaction_items").select("*").limit(1);
+    res.json({ error: null, cols: cols ? Object.keys(cols[0] || {}) : [] });
+  });
+  app.get("/api/debug/ip", async (req, res) => {
+    try {
+      const response = await axios.get("https://ifconfig.me/ip");
+      const ip = response.data.trim();
+      let proxyIp = null;
+      if (FIXIE_URL) {
+        try {
+          const proxyResponse = await axios.get("https://ifconfig.me/ip", getDigiflazzAxiosConfig());
+          proxyIp = proxyResponse.data.trim();
+        } catch (e) { proxyIp = "Error fetching proxy IP"; }
       }
+      res.json({ outbound_ip: ip, proxy_ip: proxyIp, using_proxy: !!FIXIE_URL });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch outbound IP" });
     }
-    res.json({ outbound_ip: ip, proxy_ip: proxyIp, using_proxy: !!FIXIE_URL });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch outbound IP" });
-  }
-});
+  });
+}
 const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || "")
   .replace(/['"]/g, "")
   .trim();
@@ -2298,6 +2292,7 @@ app.post("/api/digital/callback", async (req, res) => {
       return res.status(400).json({ error: "Invalid callback data" });
     }
     const { ref_id, status, sn } = callbackData.data;
+    if (!status) return res.json({ success: true, message: "No status, skipping" });
     const secretToUse = webhookSecret || webhookId;
     if (secretToUse && hubSignature) {
       const bodyString = req.rawBody || JSON.stringify(req.body);
@@ -2424,14 +2419,16 @@ app.post("/api/digital/callback", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.get("/api/payment/ipaymu/debug", (req, res) => {
-  res.json({
-    va: IPAYMU_VA,
-    apiKeyLength: IPAYMU_API_KEY.length,
-    production: IPAYMU_PRODUCTION,
-    rawEnvProduction: process.env.IPAYMU_PRODUCTION,
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/payment/ipaymu/debug", (req, res) => {
+    res.json({
+      va: IPAYMU_VA,
+      apiKeyLength: IPAYMU_API_KEY.length,
+      production: IPAYMU_PRODUCTION,
+      rawEnvProduction: process.env.IPAYMU_PRODUCTION,
+    });
   });
-});
+}
 app.post("/api/payment/ipaymu/create", async (req, res) => {
   try {
     const {
@@ -3175,36 +3172,6 @@ app.post("/api/auth/reset-password", async (req, res) => {
     res.status(500).json({ error: error.message || "Terjadi kesalahan saat reset password" });
   }
 });
-app.get("/api/transactions/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { data, error } = await supabase
-      .from("transactions")
-      .select(
-        `
-          *,
-          transaction_items (
-            *,
-            products (
-              name,
-              category
-            )
-          )
-        `,
-      )
-      .eq("id", id)
-      .single();
-    if (error) {
-      return res.status(404).json({ error: "Transaction not found" });
-    }
-    res.json({ transaction: data });
-  } catch (error) {
-    console.error("Error fetching transaction:", error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to fetch transaction" });
-  }
-});
 const getDigiflazzBalance = __name(async () => {
   if (isDefaultDigiflazz) return 0;
   try {
@@ -3392,6 +3359,14 @@ app.post("/api/transactions/cancel", async (req, res) => {
 });
 app.post("/api/admin/transactions/cleanup", async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
+
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
     const { data: expired, error: fetchError } = await supabase
       .from("transactions")
@@ -3491,8 +3466,9 @@ app.post("/api/admin/password-resets/complete", async (req, res) => {
       return res.status(404).json({ error: "Permintaan reset password tidak ditemukan." });
     }
 
+    const tempPassword = Math.random().toString(36).slice(-8) + "A1!";
     const { error: updateAuthError } = await supabase.auth.admin.updateUserById(request.user_id, {
-      password: "123456"
+      password: tempPassword
     });
 
     if (updateAuthError) throw updateAuthError;
@@ -3502,7 +3478,21 @@ app.post("/api/admin/password-resets/complete", async (req, res) => {
       .update({ status: 'completed' })
       .eq('id', id);
 
-    if (error) throw error;
+    const { data: userProfile } = await supabase.from('profiles').select('email').eq('id', request.user_id).single();
+    if (userProfile?.email) {
+      sendSarirotiEmailInternal(
+        userProfile.email,
+        'Password Baru - SPS Corner',
+        `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+          <h2>Password Anda Telah DiReset</h2>
+          <p>Berikut password sementara Anda:</p>
+          <div style="background:#f3f4f6;padding:16px;border-radius:8px;text-align:center;font-size:24px;font-family:monospace;letter-spacing:4px;margin:16px 0;">${tempPassword}</div>
+          <p style="color:#ef4444;font-weight:bold;">Segera ganti password Anda setelah login.</p>
+          <p style="color:#6b7280;font-size:12px;">Abaikan email ini jika Anda tidak meminta reset password.</p>
+        </div>`
+      ).catch(e => console.warn("[Email] Gagal kirim password reset:", e.message));
+    }
+
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -3535,97 +3525,51 @@ app.get("/api/transactions/seller/:sellerId", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-app.get("/api/test-db4", async (req, res) => {
-  try {
-    const { data: items, error } = await supabase
-      .from('transaction_items')
-      .select(`
-        *,
-        products (
-          name
-        ),
-        transactions (
-          id,
-          buyer_id,
-          buyer_name,
-          status,
-          created_at,
-          payment_method
-        )
-      `)
-      .eq('seller_id', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e')
-      .order('created_at', { ascending: false });
-    res.json({ count: items?.length, error: error?.message, items: items?.slice(0, 2) });
-  } catch (e: any) { res.json({ error: e.message }); }
-});
-app.get("/api/test-db2", async (req, res) => {
-  try {
-    const { data } = await supabase.from('profiles').select('*').in('id', ['0b11d7b5-d920-4c7b-bee0-472267ba92bc', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e']);
-    res.json(data);
-  } catch (e: any) { res.json({ error: e.message }); }
-});
-app.get("/api/test-db", async (req, res) => {
-  try {
-    const { data: sarirotiUsers } = await supabase
-      .from("profiles")
-      .select("id, name")
-      .eq("role", "seller")
-      .ilike("name", "%sariroti%");
-    if (!sarirotiUsers || sarirotiUsers.length === 0) {
-      return res.json({ msg: "No sariroti seller" });
-    }
-    const sarirotiId = sarirotiUsers[0].id;
-    const { data: items } = await supabase
-      .from('transaction_items')
-      .select(`id, seller_id, products ( name, category, seller_id )`)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    res.json({ users: sarirotiUsers, items });
-  } catch (e: any) {
-    res.json({ error: e.message });
-  }
-});
-app.get("/api/fix-sariroti", async (req, res) => {
-  try {
-    const { data: sarirotiUsers } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("role", "seller")
-      .ilike("name", "%sariroti%")
-      .limit(1);
-    if (!sarirotiUsers || sarirotiUsers.length === 0) {
-      return res.json({ success: false, message: "Tidak ada admin sariroti" });
-    }
-    const sarirotiId = sarirotiUsers[0].id;
-    
-    const { data: products } = await supabase
-      .from("products")
-      .select("id")
-      .or("category.eq.Sariroti,name.ilike.%roti%");
-
-    let productIds = [];
-    if (products && products.length > 0) {
-      productIds = products.map((p) => p.id);
-      await supabase
-        .from("products")
-        .update({ seller_id: sarirotiId })
-        .in("id", productIds);
-
-      await supabase
-        .from("transaction_items")
-        .update({ seller_id: sarirotiId })
-        .in("product_id", productIds);
-    }
-    
-    res.json({
-      success: true,
-      message: "Berhasil mengaitkan Roti ke Admin Sariroti!",
-      updatedProducts: productIds.length
-    });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/test-db4", async (req, res) => {
+    try {
+      const { data: items, error } = await supabase.from('transaction_items')
+        .select(`*, products(name), transactions(id, buyer_id, buyer_name, status, created_at, payment_method)`)
+        .eq('seller_id', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e')
+        .order('created_at', { ascending: false });
+      res.json({ count: items?.length, error: error?.message, items: items?.slice(0, 2) });
+    } catch (e: any) { res.json({ error: e.message }); }
+  });
+  app.get("/api/test-db2", async (req, res) => {
+    try {
+      const { data } = await supabase.from('profiles').select('*')
+        .in('id', ['0b11d7b5-d920-4c7b-bee0-472267ba92bc', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e']);
+      res.json(data);
+    } catch (e: any) { res.json({ error: e.message }); }
+  });
+  app.get("/api/test-db", async (req, res) => {
+    try {
+      const { data: sarirotiUsers } = await supabase.from("profiles").select("id, name")
+        .eq("role", "seller").ilike("name", "%sariroti%");
+      if (!sarirotiUsers || sarirotiUsers.length === 0) return res.json({ msg: "No sariroti seller" });
+      const { data: items } = await supabase.from('transaction_items')
+        .select(`id, seller_id, products ( name, category, seller_id )`)
+        .order('created_at', { ascending: false }).limit(20);
+      res.json({ users: sarirotiUsers, items });
+    } catch (e: any) { res.json({ error: e.message }); }
+  });
+  app.get("/api/fix-sariroti", async (req, res) => {
+    try {
+      const { data: sarirotiUsers } = await supabase.from("profiles").select("id")
+        .eq("role", "seller").ilike("name", "%sariroti%").limit(1);
+      if (!sarirotiUsers || sarirotiUsers.length === 0) return res.json({ success: false, message: "Tidak ada admin sariroti" });
+      const sarirotiId = sarirotiUsers[0].id;
+      const { data: products } = await supabase.from("products").select("id")
+        .or("category.eq.Sariroti,name.ilike.%roti%");
+      if (products && products.length > 0) {
+        const ids = products.map(p => p.id);
+        await supabase.from("products").update({ seller_id: sarirotiId }).in("id", ids);
+        await supabase.from("transaction_items").update({ seller_id: sarirotiId }).in("product_id", ids);
+      }
+      res.json({ success: true, message: "Berhasil mengaitkan Roti ke Admin Sariroti!", updatedProducts: (products || []).length });
+    } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  });
+}
 app.post("/api/admin/test-email", async (req, res) => {
   try {
     const { to } = req.body;
@@ -3800,19 +3744,13 @@ return { id: index.toString(), raw: line, timestamp: new Date().toISOString() };
 app.post("/api/admin/seller-registration-links", async (req, res) => {
   try {
     const { days, maxUses = 1, notes } = req.body;
-    const adminId = req.headers['x-user-id'];
-    
-    if (!adminId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
 
-    // Cek apakah admin
-    const { data: adminProfile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", adminId)
-      .single();
-
+    const { data: adminProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (!adminProfile || (adminProfile.role !== "admin" && adminProfile.role !== "superadmin")) {
       return res.status(403).json({ error: "Hanya admin yang dapat membuat link" });
     }
@@ -4418,7 +4356,7 @@ app.post("/api/notifications/broadcast", async (req, res) => {
       })));
     }
     
-    res.json({ success: true, count: subs?.length || 0 });
+    res.json({ success: true, count: employeeUsers.length });
   } catch (error: any) {
     console.error("Broadcast push error:", error);
     res.status(500).json({ error: error.message });

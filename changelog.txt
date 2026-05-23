@@ -1,3 +1,25 @@
+v4.12.0 — Audit Fixes: Security, Crash, & Code Quality
+--------------------------------------------------
+### Perbaikan Keamanan (Kritis):
+- **[SECURITY] Hardcoded Service Key Dihapus:** Fallback string SUPABASE_SERVICE_ROLE_KEY di source code diganti throw error. Key hanya dari env var.
+- **[SECURITY] Password Reset Aman:** Password reset tidak lagi pakai "123456" — sekarang generate random 8-char + dikirim via email ke user.
+- **[SECURITY] Auth Cleanup Endpoint:** `POST /api/admin/transactions/cleanup` kini butuh JWT + role admin (sebelumnya tanpa auth).
+- **[SECURITY] x-user-id → JWT:** Endpoint seller-registration-links ganti dari header `x-user-id` rapuh ke JWT verification.
+- **[SECURITY] Debug Endpoints Diguard:** 6 debug/test endpoints (`/api/debug-*`, `/api/test-db*`, `/api/fix-sariroti`, `/api/payment/ipaymu/debug`) hanya aktif saat `NODE_ENV !== 'production'`.
+
+### Perbaikan Crash:
+- **[FIX] Broadcast Crash:** `subs` undefined → diganti `employeeUsers.length`. Broadcast notifikasi kini berfungsi.
+- **[FIX] Digiflazz Webhook Crash:** Guard `if (!status) return` sebelum `status.toLowerCase()` mencegah crash saat payload tanpa status.
+- **[FIX] Duplicate Route:** Hapus duplikat `app.get("/api/transactions/:id")` kedua yang shadow route pertama.
+- **[FIX] PortalLayout ErrorBoundary:** Tambah ErrorBoundary wrapping Outlet agar child page crash tidak bikin layout putih total.
+
+### Perbaikan Kualitas:
+- **[FIX] AudioContext Leak:** Scanner QR reuse 1 instance AudioContext + close() otomatis, mencegah memory leak (Chrome batasi ~6 instance).
+- **[FIX] Unused Imports:** Hapus `MonitorSmartphone` (DashboardLayout), `Search/KeyRound/ChevronRight/ChevronDown/Loader2/Pin` (PortalLayout), `supabase` (App.tsx), `updateSW` + manual SW register (main.tsx).
+- **[FIX] .vercelignore:** Hapus `dist` dari exclude list agar build output terpakai.
+- **[FIX] Portal Ganti Password:** Tambah tombol "Ganti Password" di sidebar Portal (sebelumnya modal ada tapi tidak bisa diakses).
+- **[FIX] PortalLayout Unused Imports:** Dihapus 6 icon import tidak terpakai.
+
 v4.11.0 - Push Notification untuk Program Kerja Baru (Targeted NIK)
 --------------------------------------------------
 ### Fitur Baru:

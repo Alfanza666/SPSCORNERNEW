@@ -18,12 +18,21 @@ interface ScanLog {
   timestamp: string;
 }
 
-// Helper to play beep sound
+// Helper to play beep sound (reuse AudioContext to avoid memory leak)
+let audioCtx: AudioContext | null = null;
+const getAudioCtx = () => {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return null;
+    audioCtx = new AC();
+  }
+  return audioCtx;
+};
+
 const playBeep = (type: 'success' | 'error') => {
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getAudioCtx();
+    if (!ctx) return;
     const osc = ctx.createOscillator();
     const gainNode = ctx.createGain();
     
