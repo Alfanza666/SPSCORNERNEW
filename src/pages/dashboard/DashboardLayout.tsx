@@ -130,7 +130,7 @@ const NavGroup = ({ label, icon: Icon, defaultOpen, children }: { label: string,
 
 export default function DashboardLayout() {
   const { user, isLoading, signOut, fetchProfile } = useAuthStore();
-  const { notifications, unreadCount, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush } = useNotifications();
+  const { notifications, unreadCount, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush, pushSubscribed } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -662,19 +662,31 @@ export default function DashboardLayout() {
                       </button>
                     </div>
                   )}
-                  {'Notification' in window && Notification.permission === 'granted' && (
+                  {'Notification' in window && Notification.permission === 'granted' && pushSubscribed && (
                     <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800 flex items-center justify-between gap-3">
                       <p className="text-xs text-red-700 dark:text-red-400 font-medium">Push notifikasi aktif</p>
                       <button 
                         onClick={(e) => {
                           e.preventDefault();
-                          unsubscribeFromWebPush && unsubscribeFromWebPush().then(() => {
-                            window.location.reload();
-                          });
+                          unsubscribeFromWebPush && unsubscribeFromWebPush();
                         }}
                         className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
                       >
                         Nonaktifkan
+                      </button>
+                    </div>
+                  )}
+                  {'Notification' in window && Notification.permission === 'granted' && !pushSubscribed && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
+                      <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Izinkan push notifikasi untuk update</p>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          subscribeToWebPush && subscribeToWebPush(true);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                      >
+                        Aktifkan
                       </button>
                     </div>
                   )}

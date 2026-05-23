@@ -43,6 +43,17 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+
+  // ── Check actual push subscription status ────────────────────────────────
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    navigator.serviceWorker.ready.then(reg => {
+      reg.pushManager.getSubscription().then(sub => {
+        setPushSubscribed(!!sub);
+      });
+    });
+  }, []);
 
   // ── Get existing service worker and listen for navigate messages ──────────
   useEffect(() => {
@@ -247,21 +258,24 @@ export function useNotifications() {
 
       if (subscription) {
         await subscription.unsubscribe();
-        const { data: { session } } = await supabase.auth.getSession();
-        await fetch('/api/push/unsubscribe', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
-          },
-          body: JSON.stringify({ user_id: user.id, endpoint: subscription.endpoint })
-        });
-        console.log('[Push] Unsubscribed successfully');
       }
+
+      // Always clean up server-side even if browser subscription is null
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch('/api/push/unsubscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ user_id: user.id, endpoint: subscription?.endpoint || '' })
+      });
+      setPushSubscribed(false);
+      console.log('[Push] Unsubscribed successfully');
     } catch (error) {
       console.error('[Push] Unsubscribe failed:', error);
     }
   };
 
-  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush };
+  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush, pushSubscribed };
 }
