@@ -3642,7 +3642,7 @@ app.get("/api/admin/stock-report", async (req, res) => {
     // 1. Get all products
     let query = supabase
       .from("products")
-      .select("id, name, sku, stock, seller_id, created_at, category");
+      .select("id, name, stock, seller_id, created_at, category");
     if (sellerFilter) query = query.eq("seller_id", sellerFilter);
     if (dateStart) query = query.gte("created_at", dateStart + "T00:00:00+07:00");
     if (dateEnd) query = query.lte("created_at", dateEnd + "T23:59:59+07:00");
@@ -3685,7 +3685,6 @@ app.get("/api/admin/stock-report", async (req, res) => {
       return {
         id: product.id,
         name: product.name,
-        sku: product.sku || "",
         seller_id: product.seller_id,
         createdAt: product.created_at,
         initialStock,

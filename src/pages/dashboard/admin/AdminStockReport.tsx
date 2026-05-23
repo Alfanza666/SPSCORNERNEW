@@ -10,7 +10,6 @@ import toast from 'react-hot-toast';
 interface ReportProduct {
   id: string;
   name: string;
-  sku: string;
   seller_id: string | null;
   createdAt: string;
   initialStock: number;
@@ -46,7 +45,11 @@ export default function AdminStockReport() {
       const res = await fetch(`/api/admin/stock-report?${params}`, {
         headers: { Authorization: `Bearer ${session?.access_token}` }
       });
-      if (!res.ok) throw new Error('Failed to fetch report');
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const err = await res.json(); msg = err.error || msg; } catch {}
+        throw new Error(msg);
+      }
       const data = await res.json();
       setReport(data.report || []);
       setSellers(data.sellers || {});
@@ -83,7 +86,6 @@ export default function AdminStockReport() {
     const excelData = filtered.map((p, i) => ({
       No: i + 1,
       'Nama Produk': p.name,
-      SKU: p.sku || '-',
       Seller: sellers[p.seller_id || ''] || '-',
       'Stok Awal': p.initialStock,
       Restock: p.totalRestock,
@@ -95,7 +97,6 @@ export default function AdminStockReport() {
     excelData.push({
       No: '',
       'Nama Produk': 'TOTAL',
-      SKU: '',
       Seller: '',
       'Stok Awal': totals.stockAwal,
       Restock: totals.restock,
@@ -109,7 +110,7 @@ export default function AdminStockReport() {
     XLSX.utils.book_append_sheet(wb, ws, 'Laporan Stok');
 
     const colWidths = [
-      { wch: 4 }, { wch: 40 }, { wch: 15 }, { wch: 20 },
+      { wch: 4 }, { wch: 40 }, { wch: 20 },
       { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }
     ];
     ws['!cols'] = colWidths;
