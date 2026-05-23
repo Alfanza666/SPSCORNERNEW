@@ -3759,14 +3759,14 @@ app.post("/api/admin/seller-registration-links", async (req, res) => {
       return res.status(400).json({ error: "Hari harus antara 1-30" });
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
+    const regToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     const { data, error } = await supabase
       .from("seller_registration_links")
       .insert({
-        token,
-        created_by: adminId,
+        token: regToken,
+        created_by: user.id,
         expires_at: expiresAt.toISOString(),
         max_uses: maxUses,
         notes
@@ -3776,7 +3776,7 @@ app.post("/api/admin/seller-registration-links", async (req, res) => {
 
     if (error) throw error;
 
-    const link = `https://spscorner.store/register-seller?token=${token}`;
+    const link = `https://spscorner.store/register-seller?token=${regToken}`;
     
     console.log(`✅ Seller registration link created: ${link}`);
     res.json({ 

@@ -3,12 +3,14 @@ import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
+import { ErrorBoundary } from 'react-error-boundary';
 import { Dialog, Transition, Menu } from '@headlessui/react';
 import {
   LogOut,
   LayoutDashboard,
   Shield,
   Bell,
+  Search,
   User as UserIcon,
   Settings,
   Megaphone,
