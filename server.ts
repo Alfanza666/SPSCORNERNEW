@@ -169,6 +169,49 @@ async function sendPushToAdmins(title, body, url = "/dashboard/admin") {
   }
 }
 
+// ─── Helper: restore stock for a cancelled/failed transaction ───────────────
+async function restoreTransactionStock(transactionId) {
+  try {
+    const { data: items } = await supabase
+      .from("transaction_items")
+      .select("product_id, quantity, seller_id")
+      .eq("transaction_id", transactionId);
+
+    if (!items || items.length === 0) return;
+
+    for (const item of items) {
+      if (!item.product_id) continue;
+
+      const { data: product } = await supabase
+        .from("products")
+        .select("stock")
+        .eq("id", item.product_id)
+        .single();
+
+      if (product) {
+        await supabase.rpc("increment_stock", {
+          p_id: item.product_id,
+          p_amount: item.quantity,
+        });
+
+        // Log adjustment if we have a valid user
+        if (item.seller_id) {
+          await supabase.from("stock_adjustments").insert({
+            product_id: item.product_id,
+            user_id: item.seller_id,
+            previous_stock: product.stock,
+            new_stock: product.stock + item.quantity,
+            adjustment_type: "correction",
+            notes: `Stock restored — transaction ${transactionId} cancelled/failed`,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`restoreTransactionStock error for ${transactionId}:`, e);
+  }
+}
+
 // ─── Insert notification helper (with specific path) ─────────────────────────
 async function createNotification(userId, type, title, message, path = "/") {
   try {
@@ -2588,6 +2631,8 @@ app.post("/api/payment/ipaymu/callback", async (req, res) => {
         }
       }
     } else if (txStatus === "failed") {
+      // Restore stock since confirm_stock_deduction was already called before redirect
+      await restoreTransactionStock(refId);
       if (transaction.buyer_id) {
         await sendNotification(transaction.buyer_id, {
           type: "transaction",
@@ -3079,6 +3124,8 @@ app.post("/api/transactions/cancel", async (req, res) => {
         .status(400)
         .json({ error: "Hanya pesanan pending yang dapat dibatalkan." });
     }
+    // Restore stock before deleting
+    await restoreTransactionStock(transaction_id);
     const { error: deleteError } = await supabase
       .from("transactions")
       .delete()
@@ -3096,7 +3143,7 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
     const { data: expired, error: fetchError } = await supabase
       .from("transactions")
       .select("id, metadata")
-      .eq("status", "pending")
+      .in("status", ["pending", "failed"])
       .lt("created_at", fiveMinsAgo);
     if (fetchError) throw fetchError;
     if (!expired || expired.length === 0) {
@@ -3114,20 +3161,7 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
       );
     if (updateError) throw updateError;
     for (const tx of expired) {
-      const { data: items } = await supabase
-        .from("transaction_items")
-        .select("product_id, quantity")
-        .eq("transaction_id", tx.id);
-      if (items) {
-        for (const item of items) {
-          if (item.product_id) {
-            await supabase.rpc("increment_stock", {
-              p_id: item.product_id,
-              p_amount: item.quantity,
-            });
-          }
-        }
-      }
+      await restoreTransactionStock(tx.id);
     }
     res.json({ success: true, count: expired.length });
   } catch (error) {
@@ -4168,6 +4202,36 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
         res.status(500).json({ error: error.message || "Terjadi kesalahan" });
       }
     });
+
+    // ── Auto-cleanup expired transactions every 3 minutes ─────────────────
+    async function autoCleanup() {
+      try {
+        const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
+        const { data: expired } = await supabase
+          .from("transactions")
+          .select("id")
+          .in("status", ["pending", "failed"])
+          .lt("created_at", fiveMinsAgo);
+        if (!expired || expired.length === 0) return;
+        await supabase
+          .from("transactions")
+          .update({
+            status: "failed",
+            metadata: { cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
+          })
+          .in("id", expired.map(tx => tx.id));
+        for (const tx of expired) {
+          await restoreTransactionStock(tx.id);
+        }
+        if (expired.length > 0) {
+          console.log(`[AutoCleanup] Restored stock for ${expired.length} expired transaction(s)`);
+        }
+      } catch (e) {
+        console.error("[AutoCleanup] Error:", e);
+      }
+    }
+    autoCleanup();
+    setInterval(autoCleanup, 3 * 60 * 1e3);
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);

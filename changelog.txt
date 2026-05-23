@@ -1,4 +1,4 @@
-v4.9.3 - Fix: Push Notification Stale Subscription, Unsubscribe & Foreground Suppression
+v4.9.3 - Fix: Push Notification, Stock Logic, & Unsubscribe Flow
 --------------------------------------------------
 ### Perbaikan Bug:
 - **[FIX] Cleanup Expired Subscriptions di `sendNotification`:** Menambahkan penghapusan otomatis subscription yang expired (HTTP 404/410) pada fungsi `sendNotification` di server, agar database `push_subscriptions` tidak menumpuk data stale.
@@ -7,6 +7,12 @@ v4.9.3 - Fix: Push Notification Stale Subscription, Unsubscribe & Foreground Sup
 - **[NEW] `unsubscribeFromWebPush`:** Menambahkan fungsi unsubscribe di client (`useNotifications.ts`) yang mencabut izin push dari browser dan menghapus subscription dari server.
 - **[FIX] Foreground Push Suppression:** Push notification tidak lagi tampil di status bar saat aplikasi sedang dibuka (ada window client aktif), karena user sudah bisa melihat notifikasi di panel bell in-app.
 - **[NEW] Tombol Nonaktifkan Push:** Menambahkan tombol "Nonaktifkan" berwarna merah di panel notifikasi DashboardLayout dan PortalLayout ketika `Notification.permission === 'granted'`, sehingga user bisa mematikan push notifikasi dari dalam app.
+- **[FIX] Stock Not Restored on Failed iPaymu Payment:** Menambahkan `restoreTransactionStock()` di callback iPaymu saat status "gagal" agar stock tidak hilang permanen.
+- **[FIX] Stock Not Restored on Cancel Transaction:** Menambahkan `restoreTransactionStock()` di endpoint `/api/transactions/cancel` sebelum transaksi dihapus.
+- **[FIX] Stock Not Restored on Failed Status Cleanup:** Memperbaiki cleanup endpoint agar juga memproses transaksi dengan status "failed" (sebelumnya hanya "pending").
+- **[FIX] Missing `increment_stock` Function:** Membuat SQL file (`fix_add_increment_stock.sql`) untuk function `increment_stock` yang diperlukan oleh cleanup/cancel/failed callback.
+- **[FIX] Shared Helper `restoreTransactionStock`:** Membuat fungsi reusable di `server.ts` untuk restore stock + log ke `stock_adjustments`, menggantikan kode duplikat yang manual.
+- **[NEW] Auto-Cleanup Interval:** Menambahkan `setInterval` 3 menit di `server.ts` yang otomatis mengecek dan merestore stock dari transaksi pending/failed >5 menit, tanpa perlu nunggu admin buka dashboard.
 
 v4.9.2 - Fix: Kamera Tidak Berfungsi di Chrome & Mode PWA Android
 --------------------------------------------------
