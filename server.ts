@@ -3705,8 +3705,13 @@ app.get("/api/admin/stock-report", async (req, res) => {
     }
 
     // 6. Get all categories for filter
-    const { data: categoryRows } = await supabase.from("products").select("category").not("category", "is", null);
-    const allCategories = [...new Set((categoryRows || []).map(c => c.category).filter(Boolean))];
+    let allCategories: string[] = [];
+    try {
+      const { data: categoryRows } = await supabase.from("products").select("category");
+      allCategories = [...new Set((categoryRows || []).map(c => c.category).filter(Boolean))];
+    } catch (e) {
+      // categories column may not exist — ignore
+    }
 
     res.json({ report, sellers: sellersMap, categories: allCategories });
   } catch (err: any) {
