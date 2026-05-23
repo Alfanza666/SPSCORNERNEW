@@ -3635,12 +3635,18 @@ app.get("/api/admin/stock-report", async (req, res) => {
     if (profile?.role !== 'admin' && profile?.role !== 'superadmin') return res.status(403).json({ error: "Forbidden: Admin only" });
 
     const sellerFilter = req.query.seller_id as string | undefined;
+    const dateStart = req.query.date_start as string | undefined;
+    const dateEnd = req.query.date_end as string | undefined;
+    const categoryFilter = req.query.category as string | undefined;
 
     // 1. Get all products
     let query = supabase
       .from("products")
-      .select("id, name, sku, stock, seller_id, created_at");
+      .select("id, name, sku, stock, seller_id, created_at, category");
     if (sellerFilter) query = query.eq("seller_id", sellerFilter);
+    if (dateStart) query = query.gte("created_at", dateStart + "T00:00:00+07:00");
+    if (dateEnd) query = query.lte("created_at", dateEnd + "T23:59:59+07:00");
+    if (categoryFilter) query = query.eq("category", categoryFilter);
     const { data: products, error: productsError } = await query;
     if (productsError) throw productsError;
 
@@ -3698,7 +3704,11 @@ app.get("/api/admin/stock-report", async (req, res) => {
       for (const s of sellers || []) sellersMap[s.id] = s.name;
     }
 
-    res.json({ report, sellers: sellersMap });
+    // 6. Get all categories for filter
+    const { data: categoryRows } = await supabase.from("products").select("category").not("category", "is", null);
+    const allCategories = [...new Set((categoryRows || []).map(c => c.category).filter(Boolean))];
+
+    res.json({ report, sellers: sellersMap, categories: allCategories });
   } catch (err: any) {
     console.error("Stock report error:", err);
     res.status(500).json({ error: err.message });
