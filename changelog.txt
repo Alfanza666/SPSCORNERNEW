@@ -1,3 +1,11 @@
+v4.9.4 - Fix: VAPID Public Key Fallback & Vercel Build Compatibility
+--------------------------------------------------
+### Perbaikan Bug:
+- **[FIX] VITE_VAPID_PUBLIC_KEY Missing di Vercel:** Menambahkan fallback fetch dari server endpoint `/api/config/public` jika env var tidak tersedia saat build. Client sekarang coba `import.meta.env` dulu, lalu fallback ke server.
+- **[NEW] Server Endpoint `/api/config/public`:** Endpoint yang return VAPID public key dari `.env` VPS, memastikan key tetap tersedia walau build-time env var gagal.
+- **[NEW] Test Push Endpoint (localhost only):** Menambahkan `POST /api/push/test` untuk debugging push notification langsung dari VPS tanpa auth admin.
+- **[FIX] Vite `define` Fallback:** Menambahkan `|| ''` pada define `VITE_VAPID_PUBLIC_KEY` agar tidak menghasilkan `undefined` saat env var kosong.
+
 v4.9.3 - Fix: Push Notification, Stock Logic, & Unsubscribe Flow
 --------------------------------------------------
 ### Perbaikan Bug:
