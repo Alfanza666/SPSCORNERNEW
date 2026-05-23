@@ -303,15 +303,17 @@ export default function SellerProducts() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('stock_requests').insert({
-        product_id: restockingProduct.id,
-        seller_id: user.id,
-        requested_quantity: quantity,
-        notes: restockNotes,
-        status: 'pending'
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/stock-requests/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ product_id: restockingProduct.id, requested_quantity: quantity, notes: restockNotes })
       });
-
-      if (error) throw error;
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
 
       toast.success('Permintaan restock berhasil dikirim ke Admin');
       setRestockingProduct(null);
@@ -337,16 +339,17 @@ export default function SellerProducts() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('product_returns').insert({
-        product_id: returningProduct.id,
-        seller_id: user.id,
-        quantity: quantity,
-        reason: returnReason,
-        status: 'pending',
-        initiated_by: user.id
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/product-returns/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ product_id: returningProduct.id, quantity, reason: returnReason })
       });
-
-      if (error) throw error;
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
 
       toast.success('Permintaan retur berhasil dikirim ke Admin');
       setReturningProduct(null);

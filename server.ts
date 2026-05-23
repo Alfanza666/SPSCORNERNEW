@@ -240,6 +240,252 @@ app.get("/api/config/public", (req, res) => {
     VAPID_SUBJECT: process.env.VAPID_SUBJECT || "",
   });
 });
+
+async function getAdminIds() {
+  const { data: admins } = await supabase.from("profiles").select("id").in("role", ["admin", "superadmin"]);
+  return (admins || []).map(a => a.id);
+}
+
+function getUserId(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  return authHeader.split(" ")[1];
+}
+
+async function resolveUser(token) {
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return null;
+  return user;
+}
+
+// --- Withdrawal endpoints ---
+
+app.post("/api/withdrawals/request", async (req, res) => {
+  try {
+    const token = getUserId(req);
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const user = await resolveUser(token);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { amount, bank_name, account_number, account_name, fee = 0, net_amount } = req.body;
+    if (amount < 50000) return res.status(400).json({ error: "Minimal penarikan Rp 50.000" });
+
+    const { data: profile } = await supabase.from("profiles").select("balance").eq("id", user.id).single();
+    const currentBalance = profile?.balance || 0;
+    if (currentBalance < amount) return res.status(400).json({ error: "Saldo tidak mencukupi" });
+
+    const { error: deductErr } = await supabase.from("profiles").update({ balance: currentBalance - amount }).eq("id", user.id).gte("balance", amount);
+    if (deductErr) return res.status(400).json({ error: "Gagal memotong saldo" });
+
+    const { error: insertErr } = await supabase.from("withdrawals").insert({
+      seller_id: user.id, amount, fee: fee || 0,
+      net_amount: net_amount || amount,
+      status: "pending", bank_name, account_number, account_name
+    });
+    if (insertErr) {
+      await supabase.from("profiles").update({ balance: currentBalance }).eq("id", user.id);
+      return res.status(500).json({ error: insertErr.message });
+    }
+
+    const adminIds = await getAdminIds();
+    await Promise.allSettled(adminIds.map(id => sendNotification(id, {
+      type: "withdrawal",
+      title: "💰 Permintaan Penarikan Baru",
+      message: `Penarikan Rp ${Number(amount).toLocaleString("id-ID")} dari ${user.email || "seller"} menunggu persetujuan.`,
+      path: "/dashboard/admin/withdrawals"
+    })));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Withdrawal request error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/withdrawals/process", async (req, res) => {
+  try {
+    const token = getUserId(req);
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const user = await resolveUser(token);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+    const { data: adminProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (adminProfile?.role !== "admin" && adminProfile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
+
+    const { id, status } = req.body;
+    const { data: withdrawal } = await supabase.from("withdrawals").select("*").eq("id", id).single();
+    if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
+
+    if (status === "rejected") {
+      const { data: profile } = await supabase.from("profiles").select("balance").eq("id", withdrawal.seller_id).single();
+      if (profile) await supabase.from("profiles").update({ balance: (profile.balance || 0) + withdrawal.amount }).eq("id", withdrawal.seller_id);
+    }
+
+    if (status === "paid") {
+      const { data: profile } = await supabase.from("profiles").select("total_withdrawn, total_fee_paid").eq("id", withdrawal.seller_id).single();
+      if (profile) await supabase.from("profiles").update({ total_withdrawn: (profile.total_withdrawn || 0) + withdrawal.amount }).eq("id", withdrawal.seller_id);
+    }
+
+    await supabase.from("withdrawals").update({ status }).eq("id", id);
+
+    const statusLabels = { approved: "disetujui", rejected: "ditolak", paid: "dibayar" };
+    await sendNotification(withdrawal.seller_id, {
+      type: "withdrawal",
+      title: status === "paid" ? "✅ Penarikan Dibayar" : status === "approved" ? "✅ Penarikan Disetujui" : "❌ Penarikan Ditolak",
+      message: `Penarikan Rp ${Number(withdrawal.amount).toLocaleString("id-ID")} telah ${statusLabels[status] || status} oleh admin.`,
+      path: "/dashboard/seller/withdrawals"
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Withdrawal process error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Stock request endpoints ---
+
+app.post("/api/stock-requests/create", async (req, res) => {
+  try {
+    const token = getUserId(req);
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const user = await resolveUser(token);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { product_id, requested_quantity, notes } = req.body;
+    if (requested_quantity <= 0) return res.status(400).json({ error: "Quantity must be > 0" });
+
+    await supabase.from("stock_requests").insert({ product_id, seller_id: user.id, requested_quantity: Number(requested_quantity), notes, status: "pending" });
+
+    const adminIds = await getAdminIds();
+    await Promise.allSettled(adminIds.map(id => sendNotification(id, {
+      type: "system",
+      title: "📦 Permintaan Restock Baru",
+      message: `Seller meminta restock ${requested_quantity} item.`,
+      path: "/dashboard/admin/stock-requests"
+    })));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Stock request error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/stock-requests/process", async (req, res) => {
+  try {
+    const token = getUserId(req);
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const user = await resolveUser(token);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+    const { data: adminProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (adminProfile?.role !== "admin" && adminProfile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
+
+    const { id, status } = req.body;
+    const { data: request } = await supabase.from("stock_requests").select("*").eq("id", id).single();
+    if (!request) return res.status(404).json({ error: "Request not found" });
+
+    await supabase.from("stock_requests").update({ status, admin_id: user.id, updated_at: new Date().toISOString() }).eq("id", id);
+
+    if (status === "approved") {
+      const { data: product } = await supabase.from("products").select("stock").eq("id", request.product_id).single();
+      if (product) {
+        const newStock = product.stock + request.requested_quantity;
+        await supabase.from("products").update({ stock: newStock }).eq("id", request.product_id);
+        await supabase.from("stock_adjustments").insert({
+          product_id: request.product_id, user_id: user.id,
+          previous_stock: product.stock, new_stock: newStock,
+          adjustment_type: "restock", notes: `Restock disetujui dari request ID: ${id}`
+        });
+      }
+    }
+
+    const statusLabels = { approved: "disetujui", rejected: "ditolak" };
+    await sendNotification(request.seller_id, {
+      type: "system",
+      title: status === "approved" ? "✅ Restock Disetujui" : "❌ Restock Ditolak",
+      message: `Permintaan restock ${request.requested_quantity} item telah ${statusLabels[status] || status} oleh admin.`,
+      path: "/dashboard/seller/products"
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Stock request process error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Product return endpoints ---
+
+app.post("/api/product-returns/create", async (req, res) => {
+  try {
+    const token = getUserId(req);
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const user = await resolveUser(token);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { product_id, quantity, reason } = req.body;
+    if (quantity <= 0) return res.status(400).json({ error: "Quantity must be > 0" });
+
+    await supabase.from("product_returns").insert({ product_id, seller_id: user.id, quantity: Number(quantity), reason, status: "pending", initiated_by: user.id });
+
+    const adminIds = await getAdminIds();
+    await Promise.allSettled(adminIds.map(id => sendNotification(id, {
+      type: "system",
+      title: "🔄 Permintaan Retur Baru",
+      message: `Seller meminta retur ${quantity} item. Alasan: ${reason || "-"}`,
+      path: "/dashboard/admin/returns"
+    })));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Product return error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/product-returns/process", async (req, res) => {
+  try {
+    const token = getUserId(req);
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const user = await resolveUser(token);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+    const { data: adminProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (adminProfile?.role !== "admin" && adminProfile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
+
+    const { id, status } = req.body;
+    const { data: request } = await supabase.from("product_returns").select("*").eq("id", id).single();
+    if (!request) return res.status(404).json({ error: "Request not found" });
+
+    await supabase.from("product_returns").update({ status, admin_id: user.id, updated_at: new Date().toISOString() }).eq("id", id);
+
+    if (status === "approved") {
+      const { data: product } = await supabase.from("products").select("stock").eq("id", request.product_id).single();
+      if (product) {
+        const newStock = Math.max(0, product.stock - request.quantity);
+        await supabase.from("products").update({ stock: newStock }).eq("id", request.product_id);
+        await supabase.from("stock_adjustments").insert({
+          product_id: request.product_id, user_id: user.id,
+          previous_stock: product.stock, new_stock: newStock,
+          adjustment_type: "correction", notes: `Retur disetujui dari request ID: ${id}`
+        });
+      }
+    }
+
+    const statusLabels = { approved: "disetujui", rejected: "ditolak" };
+    await sendNotification(request.seller_id, {
+      type: "system",
+      title: status === "approved" ? "✅ Retur Disetujui" : "❌ Retur Ditolak",
+      message: `Permintaan retur ${request.quantity} item telah ${statusLabels[status] || status} oleh admin. Alasan: ${request.reason || "-"}`,
+      path: "/dashboard/seller/products"
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Product return process error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/api/debug-schema", async (req, res) => {
   const { data, error } = await supabase.rpc("get_schema_info");
   const { data: cols } = await supabase

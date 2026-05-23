@@ -100,67 +100,26 @@ export default function SellerWithdrawals() {
 
     try {
       setIsRequesting(true);
-      
-      const fee = 0;
-      const netAmount = withdrawAmount;
 
-      // Race condition protection: Get latest balance first
-      const { data: latestProfile } = await supabase
-        .from('profiles')
-        .select('balance')
-        .eq('id', user?.id)
-        .single();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      const currentBalance = latestProfile?.balance || 0;
-      
-      if (currentBalance < withdrawAmount) {
-        throw new Error('Saldo tidak mencukupi');
-      }
-
-      // Start transaction: insert withdrawal first, then deduct balance atomically
-      // Using conditional update to prevent negative balance
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ balance: currentBalance - withdrawAmount })
-        .eq('id', user?.id)
-        .gte('balance', withdrawAmount); // Only update if balance >= amount
-
-      if (profileError) {
-        // If update failed (likely race condition), check if it's because balance changed
-        const { data: recheckProfile } = await supabase
-          .from('profiles')
-          .select('balance')
-          .eq('id', user?.id)
-          .single();
-        
-        if (recheckProfile?.balance < withdrawAmount) {
-          throw new Error('Saldo tidak mencukupi. Silakan coba lagi.');
-        }
-        throw profileError;
-      }
-
-      // Only insert withdrawal record after balance is successfully deducted
-      const { error: withdrawalError } = await supabase
-        .from('withdrawals')
-        .insert({
-          seller_id: user?.id,
+      const res = await fetch('/api/withdrawals/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
           amount: withdrawAmount,
-          fee: fee,
-          net_amount: netAmount,
-          status: 'pending',
           bank_name: bankName,
           account_number: accountNumber,
           account_name: accountName
-        });
+        })
+      });
 
-      if (withdrawalError) {
-        // Rollback: restore balance if withdrawal insert fails
-        await supabase
-          .from('profiles')
-          .update({ balance: currentBalance })
-          .eq('id', user?.id);
-        throw withdrawalError;
-      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Gagal mengirim permintaan');
 
       setAmount('');
       fetchData();

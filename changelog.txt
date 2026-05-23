@@ -1,3 +1,13 @@
+v4.10.0 - Push Notification untuk Withdrawal, Restock, & Retur
+--------------------------------------------------
+### Fitur Baru:
+- **[NEW] Withdrawal Request → Admin:** Seller ajukan penarikan saldo → admin dapat notifikasi "💰 Permintaan Penarikan Baru" di panel bell + push HP.
+- **[NEW] Restock Request → Admin:** Seller ajukan restock → admin dapat notifikasi "📦 Permintaan Restock Baru".
+- **[NEW] Retur Request → Admin:** Seller ajukan retur → admin dapat notifikasi "🔄 Permintaan Retur Baru".
+- **[NEW] Admin Approve/Reject → Seller:** Saat admin setujui/tolak withdrawal, restock, atau retur → seller dapat notifikasi status (✅ disetujui / ❌ ditolak) + push HP.
+- **[NEW] Enam Server Endpoint:** `POST /api/withdrawals/request`, `POST /api/withdrawals/process`, `POST /api/stock-requests/create`, `POST /api/stock-requests/process`, `POST /api/product-returns/create`, `POST /api/product-returns/process`.
+- **[CHANGE] Frontend → Server:** Operasi Supabase langsung dari browser diganti dengan panggilan API ke backend, memungkinkan validasi + notifikasi terpusat.
+
 v4.9.4 - Fix: VAPID Public Key Fallback & Vercel Build Compatibility
 --------------------------------------------------
 ### Perbaikan Bug:

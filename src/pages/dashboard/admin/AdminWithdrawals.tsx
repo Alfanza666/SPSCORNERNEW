@@ -35,53 +35,21 @@ export default function AdminWithdrawals() {
     }
   };
 
-  const handleUpdateStatus = async (id: string, newStatus: string, sellerId: string, amount: number) => {
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('withdrawals')
-        .update({ status: newStatus })
-        .eq('id', id);
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/withdrawals/process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ id, status: newStatus })
+      });
 
-      if (error) throw error;
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
 
-      if (newStatus === 'rejected') {
-        // Get latest balance to ensure we add to current balance
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('balance')
-          .eq('id', sellerId)
-          .single();
-
-        if (profile) {
-          // Atomic add-back using gte to prevent issues
-          await supabase
-            .from('profiles')
-            .update({ balance: profile.balance + amount })
-            .eq('id', sellerId);
-        }
-      }
-
-      if (newStatus === 'paid') {
-        const withdrawal = withdrawals.find(w => w.id === id);
-        if (withdrawal) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('total_withdrawn, total_fee_paid')
-            .eq('id', sellerId)
-            .single();
-
-          if (profile) {
-            await supabase
-              .from('profiles')
-              .update({ 
-                total_withdrawn: (profile.total_withdrawn || 0) + withdrawal.amount
-              })
-              .eq('id', sellerId);
-          }
-        }
-      }
-
-      // Update local state optimistically instead of refetching everything
       setWithdrawals(prev => prev.map(w => 
         w.id === id ? { ...w, status: newStatus } : w
       ));
@@ -280,13 +248,13 @@ export default function AdminWithdrawals() {
                       {w.status === 'pending' && (
                         <>
                           <button 
-                            onClick={() => handleUpdateStatus(w.id, 'approved', w.seller_id, w.amount)}
+                            onClick={() => handleUpdateStatus(w.id, 'approved')}
                             className="btn-clay-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500"
                           >
                             Setujui
                           </button>
                           <button 
-                            onClick={() => handleUpdateStatus(w.id, 'rejected', w.seller_id, w.amount)}
+                            onClick={() => handleUpdateStatus(w.id, 'rejected')}
                             className="btn-clay-secondary h-10 px-4 text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-500"
                           >
                             Tolak
@@ -295,7 +263,7 @@ export default function AdminWithdrawals() {
                       )}
                       {w.status === 'approved' && (
                         <button 
-                          onClick={() => handleUpdateStatus(w.id, 'paid', w.seller_id, w.amount)}
+                          onClick={() => handleUpdateStatus(w.id, 'paid')}
                           className="btn-clay-primary h-10 px-6 text-[10px] font-black uppercase tracking-widest"
                         >
                           Tandai Dibayar
@@ -388,13 +356,13 @@ export default function AdminWithdrawals() {
                 {w.status === 'pending' && (
                   <>
                     <button 
-                      onClick={() => handleUpdateStatus(w.id, 'approved', w.seller_id, w.amount)}
+                      onClick={() => handleUpdateStatus(w.id, 'approved')}
                       className="flex-1 btn-clay-secondary h-10 text-[10px] text-amber-600 dark:text-amber-500"
                     >
                       Setujui
                     </button>
                     <button 
-                      onClick={() => handleUpdateStatus(w.id, 'rejected', w.seller_id, w.amount)}
+                      onClick={() => handleUpdateStatus(w.id, 'rejected')}
                       className="flex-1 btn-clay-secondary h-10 text-[10px] text-red-600 dark:text-red-500"
                     >
                       Tolak
@@ -403,7 +371,7 @@ export default function AdminWithdrawals() {
                 )}
                 {w.status === 'approved' && (
                   <button 
-                    onClick={() => handleUpdateStatus(w.id, 'paid', w.seller_id, w.amount)}
+                    onClick={() => handleUpdateStatus(w.id, 'paid')}
                     className="w-full btn-clay-primary h-12 text-[10px]"
                   >
                     Tandai Dibayar

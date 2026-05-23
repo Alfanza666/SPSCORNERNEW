@@ -36,53 +36,20 @@ export default function AdminReturns() {
     }
   };
 
-  const handleUpdateStatus = async (id: string, productId: string, quantity: number, newStatus: 'approved' | 'rejected') => {
+  const handleUpdateStatus = async (id: string, newStatus: 'approved' | 'rejected') => {
     try {
       setLoading(true);
-      
-      // Update request status
-      const { error: updateError } = await supabase
-        .from('product_returns')
-        .update({ 
-          status: newStatus,
-          admin_id: user?.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id);
-
-      if (updateError) throw updateError;
-
-      // If approved, update product stock
-      if (newStatus === 'approved') {
-        // Get current stock
-        const { data: productData, error: productError } = await supabase
-          .from('products')
-          .select('stock, seller_id')
-          .eq('id', productId)
-          .single();
-          
-        if (productError) throw productError;
-
-        const newStock = Math.max(0, productData.stock - quantity);
-
-        // Update stock
-        const { error: stockError } = await supabase
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', productId);
-
-        if (stockError) throw stockError;
-
-        // Log adjustment
-        await supabase.from('stock_adjustments').insert({
-          product_id: productId,
-          user_id: user?.id,
-          previous_stock: productData.stock,
-          new_stock: newStock,
-          adjustment_type: 'correction',
-          notes: `Retur disetujui dari request ID: ${id}`
-        });
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/product-returns/process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ id, status: newStatus })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
 
       toast.success(`Permintaan retur berhasil di-${newStatus === 'approved' ? 'setujui' : 'tolak'}`);
       fetchReturns();
@@ -185,14 +152,14 @@ export default function AdminReturns() {
                       {ret.status === 'pending' && (
                         <div className="flex items-center justify-end gap-2">
                           <button
-                            onClick={() => handleUpdateStatus(ret.id, ret.product_id, ret.quantity, 'approved')}
+                            onClick={() => handleUpdateStatus(ret.id, 'approved')}
                             className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
                             title="Setujui"
                           >
                             <CheckCircle2 className="w-5 h-5" />
                           </button>
                           <button
-                            onClick={() => handleUpdateStatus(ret.id, ret.product_id, ret.quantity, 'rejected')}
+                            onClick={() => handleUpdateStatus(ret.id, 'rejected')}
                             className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                             title="Tolak"
                           >
