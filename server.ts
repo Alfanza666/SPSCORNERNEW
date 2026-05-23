@@ -6,7 +6,7 @@ import express from "express";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import axios from "axios";
-import { HttpsProxyAgent } from "https-proxy-agent";
+import { Pool } from "pg";
 import path from "path";
 import os from "os";
 import crypto from "crypto";
@@ -4509,26 +4509,24 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
     });
   })();
 }
-// TEMP: Run SQL via raw PostgREST call
+// TEMP: Run SQL via pg direct
 app.post("/api/run-sql-temp", async (req, res) => {
   try {
     const { sql } = req.body;
     if (!sql) return res.status(400).json({ error: "No SQL" });
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://jofwebrbdlovwkgklwab.supabase.co";
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    // Use the Supabase management-style endpoint
-    const r = await fetch(supabaseUrl + "/rest/v1/", {
-      method: "POST",
-      headers: {
-        "apikey": key,
-        "Authorization": "Bearer " + key,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Prefer": "params=multiple-objects"
-      },
-      body: JSON.stringify({ query: sql })
+    const pool = new Pool({
+      host: 'db.jofwebrbdlovwkgklwab.supabase.co',
+      port: 6543,
+      database: 'postgres',
+      user: 'postgres.jofwebrbdlovwkgklwab',
+      password: key,
+      max: 1,
+      ssl: { rejectUnauthorized: false }
     });
-    res.json({ status: r.status, body: await r.text() });
+    const result = await pool.query(sql);
+    await pool.end();
+    res.json({ success: true, rows: result.rows });
   } catch(e: any) {
     res.status(500).json({ error: e.message });
   }
