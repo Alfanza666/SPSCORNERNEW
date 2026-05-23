@@ -2,12 +2,15 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) =>
   __defProp(target, "name", { value, configurable: true });
+import { createRequire } from "module";
+const _require = createRequire(import.meta.url);
+
 import express from "express";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import axios from "axios";
 // TEMP: Run SQL via pg direct
-const { Pool } = require("pg");
+const { Pool } = _require("pg");
 import path from "path";
 import os from "os";
 import crypto from "crypto";
