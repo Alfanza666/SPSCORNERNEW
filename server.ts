@@ -6,7 +6,8 @@ import express from "express";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import axios from "axios";
-import { Pool } from "pg";
+// TEMP: Run SQL via pg direct
+const { Pool } = require("pg");
 import path from "path";
 import os from "os";
 import crypto from "crypto";
@@ -4517,9 +4518,9 @@ app.post("/api/run-sql-temp", async (req, res) => {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const pool = new Pool({
       host: 'db.jofwebrbdlovwkgklwab.supabase.co',
-      port: 6543,
+      port: 5432,
       database: 'postgres',
-      user: 'postgres.jofwebrbdlovwkgklwab',
+      user: 'postgres',
       password: key,
       max: 1,
       ssl: { rejectUnauthorized: false }
