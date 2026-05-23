@@ -233,6 +233,13 @@ async function createNotification(userId, type, title, message, path = "/") {
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
+app.get("/api/config/public", (req, res) => {
+  res.json({
+    VITE_VAPID_PUBLIC_KEY: process.env.VITE_VAPID_PUBLIC_KEY || "",
+    VAPID_SUBJECT: process.env.VAPID_SUBJECT || "",
+  });
+});
 app.get("/api/debug-schema", async (req, res) => {
   const { data, error } = await supabase.rpc("get_schema_info");
   const { data: cols } = await supabase
@@ -4106,6 +4113,24 @@ app.post("/api/notifications/broadcast", async (req, res) => {
     res.json({ success: true, count: subs?.length || 0 });
   } catch (error: any) {
     console.error("Broadcast push error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Test push endpoint (localhost only)
+app.post("/api/push/test", async (req, res) => {
+  try {
+    const clientIp = req.ip || req.socket.remoteAddress;
+    if (clientIp !== "127.0.0.1" && clientIp !== "::1" && clientIp !== "::ffff:127.0.0.1") {
+      return res.status(403).json({ error: "Localhost only" });
+    }
+    const { userId, title = "Test Push", message = "Test dari VPS", url = "/" } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId required" });
+
+    await sendNotification(userId, { type: "system", title, message, path: url });
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Test push error:", error);
     res.status(500).json({ error: error.message });
   }
 });

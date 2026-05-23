@@ -3,6 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 
+let cachedVapidKey: string | null = null;
+
+async function getVapidKey(): Promise<string> {
+  if (cachedVapidKey) return cachedVapidKey;
+  const fromEnv = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+  if (fromEnv) {
+    cachedVapidKey = fromEnv;
+    return fromEnv;
+  }
+  try {
+    const res = await fetch('/api/config/public');
+    const data = await res.json();
+    cachedVapidKey = data.VITE_VAPID_PUBLIC_KEY || '';
+    return cachedVapidKey;
+  } catch {
+    return '';
+  }
+}
+
 export interface NotificationItem {
   id: string;
   type: 'transaction' | 'withdrawal' | 'system';
@@ -216,9 +235,9 @@ export function useNotifications() {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      const applicationServerKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      const applicationServerKey = await getVapidKey();
       if (!applicationServerKey) {
-        console.warn('[Push] VITE_VAPID_PUBLIC_KEY is missing');
+        console.warn('[Push] VAPID public key is missing (check env or /api/config/public)');
         return;
       }
 
