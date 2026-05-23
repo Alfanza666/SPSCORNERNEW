@@ -3149,7 +3149,7 @@ app.post("/api/auth/reset-password", async (req, res) => {
     }
 
     // Update password user
-    const { error: updateError } = await supabase.auth.admin.updateUser(
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
       tokenData.user_id,
       { password: newPassword }
     );
