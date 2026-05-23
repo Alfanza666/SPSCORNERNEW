@@ -3893,10 +3893,12 @@ app.post("/api/admin/seller-registration-links", async (req, res) => {
   try {
     const { days, maxUses = 1, notes } = req.body;
     const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized - no auth header" });
     const token = authHeader.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "Unauthorized - no token" });
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    if (authError) return res.status(401).json({ error: `Unauthorized - ${authError.message}` });
+    if (!user) return res.status(401).json({ error: "Unauthorized - no user" });
 
     const { data: adminProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (!adminProfile || (adminProfile.role !== "admin" && adminProfile.role !== "superadmin")) {
