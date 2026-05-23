@@ -12,6 +12,7 @@ v4.12.0 — Audit Fixes: Security, Crash, & Code Quality
 - **[FIX] Digiflazz Webhook Crash:** Guard `if (!status) return` sebelum `status.toLowerCase()` mencegah crash saat payload tanpa status.
 - **[FIX] Duplicate Route:** Hapus duplikat `app.get("/api/transactions/:id")` kedua yang shadow route pertama.
 - **[FIX] PortalLayout ErrorBoundary:** Tambah ErrorBoundary wrapping Outlet agar child page crash tidak bikin layout putih total.
+- **[FIX] Increment Stock:** Hapus dependensi SQL function `increment_stock` (rpc) — ganti dengan direct `supabase.from("products").update()` agar tidak perlu SQL function di database. Mencegah crash auto-cleanup stock.
 
 ### Perbaikan Kualitas:
 - **[FIX] AudioContext Leak:** Scanner QR reuse 1 instance AudioContext + close() otomatis, mencegah memory leak (Chrome batasi ~6 instance).
@@ -19,6 +20,7 @@ v4.12.0 — Audit Fixes: Security, Crash, & Code Quality
 - **[FIX] .vercelignore:** Hapus `dist` dari exclude list agar build output terpakai.
 - **[FIX] Portal Ganti Password:** Tambah tombol "Ganti Password" di sidebar Portal (sebelumnya modal ada tapi tidak bisa diakses).
 - **[FIX] PortalLayout Unused Imports:** Dihapus 6 icon import tidak terpakai.
+- **[FIX] Duplicate Token:** Rename `token` → `regToken` di endpoint seller-registration-links untuk mencegah esbuild TransformError.
 
 v4.11.0 - Push Notification untuk Program Kerja Baru (Targeted NIK)
 --------------------------------------------------
