@@ -230,11 +230,12 @@ export default function AdminSellers() {
     try {
       setGeneratingLink(true);
       
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch('/api/admin/seller-registration-links', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-user-id': user.id
+          'Authorization': `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({ 
           days: sellerLinkDays, 
