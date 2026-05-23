@@ -4509,5 +4509,30 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
     });
   })();
 }
+// TEMP: Run SQL via raw PostgREST call
+app.post("/api/run-sql-temp", async (req, res) => {
+  try {
+    const { sql } = req.body;
+    if (!sql) return res.status(400).json({ error: "No SQL" });
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://jofwebrbdlovwkgklwab.supabase.co";
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Use the Supabase management-style endpoint
+    const r = await fetch(supabaseUrl + "/rest/v1/", {
+      method: "POST",
+      headers: {
+        "apikey": key,
+        "Authorization": "Bearer " + key,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Prefer": "params=multiple-objects"
+      },
+      body: JSON.stringify({ query: sql })
+    });
+    res.json({ status: r.status, body: await r.text() });
+  } catch(e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 var server_default = app;
 export { server_default as default };
