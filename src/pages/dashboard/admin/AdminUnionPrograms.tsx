@@ -396,11 +396,16 @@ export default function AdminUnionPrograms() {
         programId = data.id;
         toast.success('Program berhasil dibuat');
         if (programData.is_active) {
-            fetch('/api/admin/programs/notify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ program_id: programId, title: programData.name })
-            }).catch(console.error);
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                fetch('/api/admin/programs/notify', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+                    },
+                    body: JSON.stringify({ program_id: programId, title: programData.name })
+                }).catch(console.error);
+            });
         }
       }
 
@@ -456,11 +461,16 @@ export default function AdminUnionPrograms() {
       const newStatus = !program.is_active;
       toast.success(`Program ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}`);
       if (newStatus) {
-          fetch('/api/admin/programs/notify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ program_id: program.id, title: program.name })
-          }).catch(console.error);
+          supabase.auth.getSession().then(({ data: { session } }) => {
+              fetch('/api/admin/programs/notify', {
+                  method: 'POST',
+                  headers: { 
+                      'Content-Type': 'application/json',
+                      ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+                  },
+                  body: JSON.stringify({ program_id: program.id, title: program.name })
+              }).catch(console.error);
+          });
       }
       fetchPrograms();
     } catch (error) {

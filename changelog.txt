@@ -1,3 +1,11 @@
+v4.11.0 - Push Notification untuk Program Kerja Baru (Targeted NIK)
+--------------------------------------------------
+### Fitur Baru:
+- **[NEW] Notifikasi Program Kerja Baru:** Saat admin membuat/mengaktifkan program serikat, notifikasi push + panel bell otomatis terkirim ke semua karyawan.
+- **[NEW] Targeted NIK Notification:** Program yang di-set `is_targeted` akan otomatis mendeteksi peserta dari tabel `program_eligibility`. Peserta terdaftar mendapat notifikasi "🎯 Program Baru: Anda berhak menerima...", non-peserta mendapat "📢 Program Baru: Segera cek informasi...".
+- **[FIX] Endpoint `/api/admin/programs/notify`:** Endpoint yang sebelumnya tidak ada (404) kini sudah dibuat dan berfungsi penuh.
+- **[FIX] Authorization Header:** Fetch call dari frontend kini menyertakan token JWT agar endpoint tidak return 401.
+
 v4.10.0 - Push Notification untuk Withdrawal, Restock, & Retur
 --------------------------------------------------
 ### Fitur Baru:

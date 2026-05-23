@@ -4323,6 +4323,68 @@ app.get("/api/portal/my-coupons", async (req, res) => {
   }
 });
 
+// Notify about new/activated program — targeted if is_targeted, else all employees
+app.post("/api/admin/programs/notify", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
+
+    const { program_id, title } = req.body;
+    if (!program_id || !title) return res.status(400).json({ error: "program_id and title required" });
+
+    const { data: program } = await supabase.from("union_programs").select("is_targeted, name").eq("id", program_id).single();
+    if (!program) return res.status(404).json({ error: "Program not found" });
+
+    // Get all employee users (NIK starts with digit or M)
+    const { data: users } = await supabase.from("profiles").select("id, nik");
+    const employeeUsers = (users || []).filter(u => u.nik && /^[0-9Mm]/.test(u.nik));
+
+    if (employeeUsers.length === 0) return res.json({ success: true, count: 0 });
+
+    if (program.is_targeted) {
+      // Get targeted NIKs from eligibility
+      const { data: eligibility } = await supabase.from("program_eligibility").select("nik").eq("program_id", program_id);
+      const targetedNikSet = new Set((eligibility || []).map(e => e.nik));
+
+      for (const u of employeeUsers) {
+        if (targetedNikSet.has(u.nik)) {
+          await sendNotification(u.id, {
+            type: "system",
+            title: `🎯 Program Baru: ${title}`,
+            message: `Program "${title}" telah dibuka! Anda terdaftar sebagai peserta dan berhak menerima manfaat program ini. Cek kupon Anda di menu Program.`,
+            path: "/portal/program"
+          });
+        } else {
+          await sendNotification(u.id, {
+            type: "system",
+            title: `📢 Program Baru: ${title}`,
+            message: `Program "${title}" telah dibuka di Portal Serikat. Segera cek informasi dan jadwalnya!`,
+            path: "/portal/program"
+          });
+        }
+      }
+    } else {
+      // Non-targeted: notify all employees
+      await Promise.allSettled(employeeUsers.map(u => sendNotification(u.id, {
+        type: "system",
+        title: `📢 Program Baru: ${title}`,
+        message: `Program "${title}" telah dibuka di Portal Serikat. Segera cek informasi dan jadwalnya!`,
+        path: "/portal/program"
+      })));
+    }
+
+    res.json({ success: true, count: employeeUsers.length });
+  } catch (error: any) {
+    console.error("Program notify error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Broadcast notification to all users
 app.post("/api/notifications/broadcast", async (req, res) => {
   try {
