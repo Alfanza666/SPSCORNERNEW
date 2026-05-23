@@ -1,10 +1,12 @@
-v4.9.3 - Fix: Push Notification Stale Subscription & Unsubscribe Flow
+v4.9.3 - Fix: Push Notification Stale Subscription, Unsubscribe & Foreground Suppression
 --------------------------------------------------
 ### Perbaikan Bug:
 - **[FIX] Cleanup Expired Subscriptions di `sendNotification`:** Menambahkan penghapusan otomatis subscription yang expired (HTTP 404/410) pada fungsi `sendNotification` di server, agar database `push_subscriptions` tidak menumpuk data stale.
 - **[FIX] Tag Field pada Push Payload:** Menambahkan field `tag` ke payload push di `sendNotification` agar notifikasi yang sama bisa di-group dan tidak bertumpuk di notification tray.
 - **[NEW] Unsubscribe Endpoint:** Menambahkan `POST /api/push/unsubscribe` di server untuk menghapus subscription dari database.
 - **[NEW] `unsubscribeFromWebPush`:** Menambahkan fungsi unsubscribe di client (`useNotifications.ts`) yang mencabut izin push dari browser dan menghapus subscription dari server.
+- **[FIX] Foreground Push Suppression:** Push notification tidak lagi tampil di status bar saat aplikasi sedang dibuka (ada window client aktif), karena user sudah bisa melihat notifikasi di panel bell in-app.
+- **[NEW] Tombol Nonaktifkan Push:** Menambahkan tombol "Nonaktifkan" berwarna merah di panel notifikasi DashboardLayout dan PortalLayout ketika `Notification.permission === 'granted'`, sehingga user bisa mematikan push notifikasi dari dalam app.
 
 v4.9.2 - Fix: Kamera Tidak Berfungsi di Chrome & Mode PWA Android
 --------------------------------------------------

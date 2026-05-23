@@ -36,25 +36,30 @@ self.addEventListener('message', (event) => {
 // Listener untuk menerima tembakan Web Push (dari server - app tertutup)
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-  
-  try {
-    const payload = event.data.json();
-    
-    event.waitUntil(
-      self.registration.showNotification(payload.title || 'SPS Corner', { 
-        body: payload.body || 'Anda memiliki pemberitahuan baru',
-        icon: '/logos/sps-logo-icon.png',
-        badge: '/logos/sps-logo-icon.png',
-        vibrate: [200, 100, 200, 100, 200, 100, 200], // Memicu getar dan suara default OS
-        requireInteraction: true, // Menempel di status bar / lockscreen
-        renotify: true, // WAJIB ada agar notifikasi berikutnya dengan tag sama tetap bergetar & muncul di lockscreen
-        tag: payload.tag || 'sps-notification',
-        data: { url: payload.url || '/' } // Simpan URL untuk dibuka saat di-klik
-       } as any)
-    );
-  } catch (error) {
-    console.error("Push payload error", error);
-  }
+
+  event.waitUntil(
+    (async () => {
+      const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      // Jika ada tab/jendela app yang terbuka, jangan tampilkan push (user sudah lihat di bell panel)
+      if (windowClients.length > 0) return;
+
+      try {
+        const payload = event.data.json();
+        await self.registration.showNotification(payload.title || 'SPS Corner', {
+          body: payload.body || 'Anda memiliki pemberitahuan baru',
+          icon: '/logos/sps-logo-icon.png',
+          badge: '/logos/sps-logo-icon.png',
+          vibrate: [200, 100, 200, 100, 200, 100, 200], // Memicu getar dan suara default OS
+          requireInteraction: true, // Menempel di status bar / lockscreen
+          renotify: true, // WAJIB ada agar notifikasi berikutnya dengan tag sama tetap bergetar & muncul di lockscreen
+          tag: payload.tag || 'sps-notification',
+          data: { url: payload.url || '/' } // Simpan URL untuk dibuka saat di-klik
+        } as any);
+      } catch (error) {
+        console.error("Push payload error", error);
+      }
+    })()
+  );
 });
 
 // Listener saat pengguna men-klik notifikasi di layar kunci HP

@@ -85,7 +85,7 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick, color }: NavItemPro
 
 export default function PortalLayout() {
   const { user, isLoading, signOut } = useAuthStore();
-  const { notifications, unreadCount, markAllAsRead, markOneAsRead, subscribeToWebPush } = useNotifications();
+  const { notifications, unreadCount, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -395,6 +395,22 @@ export default function PortalLayout() {
                         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
                       >
                         Aktifkan
+                      </button>
+                    </div>
+                  )}
+                  {'Notification' in window && Notification.permission === 'granted' && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800 flex items-center justify-between gap-3">
+                      <p className="text-xs text-red-700 dark:text-red-400 font-medium">Push notifikasi aktif</p>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          unsubscribeFromWebPush && unsubscribeFromWebPush().then(() => {
+                            window.location.reload();
+                          });
+                        }}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                      >
+                        Nonaktifkan
                       </button>
                     </div>
                   )}
