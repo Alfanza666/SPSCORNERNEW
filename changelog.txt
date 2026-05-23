@@ -22,6 +22,7 @@ v4.12.0 — Audit Fixes: Security, Crash, & Code Quality
 - **[FIX] PortalLayout Unused Imports:** Dihapus 6 icon import tidak terpakai.
 - **[FIX] Duplicate Token:** Rename `token` → `regToken` di endpoint seller-registration-links untuk mencegah esbuild TransformError.
 - **[FIX] Ganti Password:** Perbaiki `supabase.auth.admin.updateUser()` → `updateUserById()` yang tidak tersedia di @supabase/supabase-js v2. Seller sekarang bisa ganti password dari modal.
+- **[FIX] Stock Inflasi:** Auto-cleanup restore stock untuk transaksi `pending` DAN `failed` → tiap 3 menit restore ulang transaksi yang sudah gagal, bikin stock naik terus. Diubah hanya restore untuk `pending` saja.
 
 v4.11.0 - Push Notification untuk Program Kerja Baru (Targeted NIK)
 --------------------------------------------------

@@ -4480,7 +4480,7 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
         const { data: expired } = await supabase
           .from("transactions")
           .select("id")
-          .in("status", ["pending", "failed"])
+          .in("status", ["pending"])
           .lt("created_at", fiveMinsAgo);
         if (!expired || expired.length === 0) return;
         await supabase
