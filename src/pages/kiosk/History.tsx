@@ -713,6 +713,19 @@ Sistem SPS Corner`);
                   </div>
                 </div>
 
+                <div className="mb-6">
+                  <div className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest shadow-inner text-center ${
+                    selectedTxDetail.status === 'success' || selectedTxDetail.status === 'paid' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' : 
+                    selectedTxDetail.status === 'processing' || selectedTxDetail.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' : 
+                    'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+                  }`}>
+                    {selectedTxDetail.status === 'success' ? 'Selesai' : 
+                     selectedTxDetail.status === 'paid' ? 'Pesanan Terbayar' : 
+                     selectedTxDetail.status === 'processing' ? 'Diproses Sistem' : 
+                     selectedTxDetail.status === 'pending' ? 'Menunggu Pembayaran' : 'Pesanan Gagal'}
+                  </div>
+                </div>
+
                 <div className="space-y-3 mb-6">
                   <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2 border-b border-zinc-100 dark:border-zinc-800 pb-2">Item Pembelian</h4>
                   {selectedTxDetail.transaction_items.map((item) => {

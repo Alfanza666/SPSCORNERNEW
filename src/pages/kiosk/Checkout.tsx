@@ -32,8 +32,9 @@ export default function Checkout() {
   });
   const [guestPhone, setGuestPhone] = useState(sessionStorage.getItem('buyerPhone') || '');
   const [countdown, setCountdown] = useState<number | null>(null);
-  // Ref untuk mencegah pembuatan transaksi duplikat
+  // Ref untuk mencegah pembuatan transaksi duplikat (mutex antar semua handler)
   const txIdRef = useRef<string | null>(null);
+  const isCreatingTx = useRef(false);
 
   const subtotal = getTotal();
   
@@ -191,6 +192,8 @@ export default function Checkout() {
 
   const handleDirectPayment = async (method: string, channel: string) => {
     if (!buyerName) return;
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handleDirectPayment)'); return; }
+    isCreatingTx.current = true;
     setLoading(true);
     setLoadingMessage('Menyiapkan pesanan...');
 
@@ -305,11 +308,14 @@ export default function Checkout() {
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
     } finally {
       setLoading(false);
+      isCreatingTx.current = false;
     }
   };
 
   const handleManualQris = async () => {
     if (!buyerName) return;
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handleManualQris)'); return; }
+    isCreatingTx.current = true;
     setLoading(true);
 
     try {
@@ -374,15 +380,19 @@ export default function Checkout() {
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
     } finally {
       setLoading(false);
+      isCreatingTx.current = false;
     }
   };
 
   const handlePointPayment = async () => {
     if (!buyerName || !user) return;
-    
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handlePointPayment)'); return; }
+    isCreatingTx.current = true;
+
     // Check if points are sufficient locally before sending request
     const total = getTotal();
     if ((user.loyalty_points || 0) < total) {
+      isCreatingTx.current = false;
       toast.error('Points Anda tidak mencukupi untuk pembayaran ini');
       return;
     }
@@ -469,6 +479,7 @@ export default function Checkout() {
     } finally {
       setLoading(false);
       setPointPaymentLoading(false);
+      isCreatingTx.current = false;
     }
   };
 
@@ -522,6 +533,8 @@ export default function Checkout() {
 
   const handlePayment = async () => {
     if (!buyerName) return;
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handlePayment)'); return; }
+    isCreatingTx.current = true;
     setLoading(true);
 
     try {
@@ -650,6 +663,7 @@ buyer_email: buyerEmail,
       console.error('Payment error:', error);
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
       setLoading(false);
+      isCreatingTx.current = false;
     }
   };
 

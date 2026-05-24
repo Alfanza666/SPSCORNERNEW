@@ -1,3 +1,42 @@
+v4.15.4 — Export Laporan Bug & Crash ke Excel/Markdown
+-----------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Export Excel (.xlsx):** AdminReports.tsx — tombol "Export .xlsx" untuk mengekspor laporan bug & crash ke format Excel. Menggunakan library `xlsx` (SheetJS) dengan kolom: ID, Tipe, Status, Pesan, User, Halaman, User Agent, Stack Trace, Waktu.
+- **[NEW] Export Markdown (.md):** AdminReports.tsx — tombol "Export .md" untuk mengekspor laporan ke file Markdown rapi dengan tabel, stack trace, breadcrumbs, dan metadata teknis per laporan.
+- **[NEW] Export Buttons:** Dua tombol ekspor di header halaman AdminReports, mengekspor data sesuai filter status aktif saat itu.
+
+### Teknis:
+- **[CHANGE] AdminReports.tsx:** +import XLSX, +exportToExcel(), +exportToMarkdown(), +2 tombol (FileSpreadsheet, FileText) di header.
+- **[CHANGE] package.json:** v4.15.3 → v4.15.4.
+
+v4.15.3 — Dead Code Cleanup: Hapus 21 file tidak terpakai
+-----------------------------------------------------------------------
+### Perbaikan:
+- **[CLEANUP] Dead Code Removal:** Hapus 21 file one-time patch/script/log yang tidak direferensi source code:
+  - 7 file `.cjs` (fix.cjs, fix_checkout.cjs, fix_globe.cjs, fix_layout.cjs, fix_layout2.cjs, patch.cjs, revert_incorrect_patches.cjs)
+  - 7 file `.sql` migrasi one-time (add_store_open_column.sql, fix_add_increment_stock.sql, fix_categories.sql, fix_confirm_stock_deduction.sql, fix_stock_correction_v2.sql, flashsale_setup.sql, reports_setup.sql)
+  - 3 file `scripts/` (create_mock_user.ts, migration_form_builder_storage.sql, migration_program_push_v1.sql)
+  - 4 file lain (push_to_github.bat, session-ses_1c94.md, walkthrough.md, 'Perbaikan program')
+  - Direktori `scripts/` (sekarang kosong) ikut dihapus
+- **[CLEANUP] Build Size:** Mengurangi ukuran project root ~15 file + 1 direktori
+
+### Teknis:
+- **[CHANGE] package.json:** v4.15.2 → v4.15.3.
+
+v4.15.2 — Fix Inconsistent Transaction Status & Duplicate Creation
+-----------------------------------------------------------------------
+### Perbaikan:
+- **[FIX] Duplikasi Transaksi (Critical):** Checkout.tsx — tambah mutex `isCreatingTx` ref di SEMUA handler pembayaran (DirectPayment, ManualQris, PointPayment, Payment) untuk mencegah pembuatan 2+ transaksi jika user klik 2 tombol berbeda secara cepat.
+- **[FIX] Duplikasi Transaksi (Backend):** Server.ts — tambah idempotency check di `/api/transactions/create`: jika buyer_id sama membuat transaksi pending dengan total_amount + jumlah item yg identik dalam 60 detik, kembalikan transaksi yg sudah ada.
+- **[FIX] iPaymu Callback Race Condition:** Server.ts — tambah guard agar callback "gagal" tidak menimpa transaksi yang sudah berstatus "paid"/"success". Jika item digital sudah terkirim (delivered), status dikembalikan ke "paid".
+- **[FIX] Status Badge di Detail Modal:** History.tsx — tambah badge status transaksi (Selesai/Terbayar/Diproses/Menunggu/Gagal) di bagian atas modal detail agar user bisa melihat status transaksi secara konsisten dengan tampilan list.
+
+### Teknis:
+- **[CHANGE] Checkout.tsx:** +isCreatingTx mutex ref, guard di 4 handler, reset di finally/catch.
+- **[CHANGE] server.ts:** +idempotency check di create endpoint + ipaymu callback guard + delivered item detection.
+- **[CHANGE] History.tsx:** +status badge global di modal detail transaksi.
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.15.1 → v4.15.2.
+
 v4.15.1 — Daily Report, Mobile Tabs, Vitest & Notification Enhancements
 -----------------------------------------------------------------------
 ### Fitur Baru:

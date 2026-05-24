@@ -2614,6 +2614,13 @@ app.post("/api/payment/ipaymu/callback", async (req, res) => {
       console.error("Transaction not found:", refId);
       return res.status(404).json({ error: "Transaction not found" });
     }
+
+    // ─── Guard: jangan timpa transaksi yg sudah berhasil/dibayar dengan status gagal ───
+    if (txStatus === "failed" && (transaction.status === "paid" || transaction.status === "success")) {
+      console.log(`[iPaymu] Skip overwrite tx ${refId}: already ${transaction.status}, ignoring "gagal" callback`);
+      return res.json({ success: true, message: "Ignored: transaction already paid/success" });
+    }
+
     const { error: updateError } = await supabase
       .from("transactions")
       .update({
@@ -2681,15 +2688,36 @@ app.post("/api/payment/ipaymu/callback", async (req, res) => {
         }
       }
     } else if (txStatus === "failed") {
-      // Restore stock since confirm_stock_deduction was already called before redirect
-      await restoreTransactionStock(refId);
-      if (transaction.buyer_id) {
-        await sendNotification(transaction.buyer_id, {
-          type: "transaction",
-          title: "\u274C Pembayaran Gagal",
-          message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
-          path: `/kiosk/history?id=${refId}`,
-        });
+      // ─── Cek apakah ada item digital yg sudah terkirim (delivered) ───
+      const hasDeliveredDigital = (transaction.transaction_items || []).some(
+        item => item.metadata?.is_digital && item.metadata?.status === 'delivered'
+      );
+      if (hasDeliveredDigital) {
+        // Jika item digital sudah terkirim, jangan set status "failed", kembalikan ke "paid"
+        console.log(`[iPaymu] Tx ${refId} has delivered digital items — reverting status to "paid" instead of "failed"`);
+        await supabase
+          .from("transactions")
+          .update({ status: "paid" })
+          .eq("id", refId);
+        if (transaction.buyer_id) {
+          await sendNotification(transaction.buyer_id, {
+            type: "transaction",
+            title: "✅ Pembayaran Berhasil!",
+            message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
+            path: `/kiosk/history?id=${refId}`,
+          });
+        }
+      } else {
+        // Restore stock since confirm_stock_deduction was already called before redirect
+        await restoreTransactionStock(refId);
+        if (transaction.buyer_id) {
+          await sendNotification(transaction.buyer_id, {
+            type: "transaction",
+            title: "\u274C Pembayaran Gagal",
+            message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
+            path: `/kiosk/history?id=${refId}`,
+          });
+        }
       }
     }
     console.log("\u2705 Transaction Updated:", {
@@ -3005,6 +3033,34 @@ app.post("/api/transactions/create", async (req, res) => {
       status,
       receipt_image,
     } = req.body;
+
+    // ─── Idempotency: cek duplikat pending/paid untuk buyer yg sama dalam 60 detik ───
+    if (buyer_id) {
+      const sixtySecAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const { data: recentTx } = await supabase
+        .from("transactions")
+        .select("id, status, total_amount, transaction_items(id, product_id, quantity, metadata)")
+        .eq("buyer_id", buyer_id)
+        .eq("status", "pending")
+        .gte("created_at", sixtySecAgo)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (recentTx && recentTx.length > 0) {
+        // Cari yg total_amount + item count sama (heuristic cukup kuat untuk cegah duplikat)
+        const duplicate = recentTx.find((tx) => {
+          if (Number(tx.total_amount) !== Number(total_amount)) return false;
+          const existingCount = (tx.transaction_items || []).length;
+          const incomingCount = (items || []).length;
+          if (existingCount !== incomingCount) return false;
+          return true;
+        });
+        if (duplicate) {
+          console.log(`[Idempotency] Returning existing transaction ${duplicate.id} for buyer ${buyer_id}`);
+          return res.json({ success: true, transaction: duplicate });
+        }
+      }
+    }
 
     const digitalItems = items.filter((item) => item.is_digital);
     if (digitalItems.length > 0) {
