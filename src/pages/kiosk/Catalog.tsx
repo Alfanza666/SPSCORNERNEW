@@ -89,19 +89,39 @@ export default function Catalog() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      // Get closed sellers (fault-tolerant: skip filter if store_open column doesn't exist)
+      let closedSellerIds: string[] = [];
+      try {
+        const { data: closedSellers } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('store_open', false);
+        if (closedSellers) {
+          closedSellerIds = closedSellers.map((s: any) => s.id);
+        }
+      } catch {
+        // store_open column not available — show all products
+      }
+
+      let query = supabase
         .from('products')
-        .select('id, name, price, stock, category, seller_id, is_active, description, image_url, profiles:seller_id(name, store_open)')
+        .select('id, name, price, stock, category, seller_id, is_active, description, image_url, profiles:seller_id(name)')
         .eq('is_active', true)
         .gt('stock', 0);
+
+      if (closedSellerIds.length > 0) {
+        const idList = closedSellerIds.map(id => `"${id}"`).join(',');
+        query = query.filter('seller_id', 'not.in', `(${idList})`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
       if (data) {
-        // Filter out products from sellers who closed their kiosk
-        const openData = data.filter((p: any) => p.profiles?.store_open !== false);
         // Categorize Koperasi products into Roti Tawar, Roti Manis, Roti Sandwich, Kue, and Sari Choco
-        const processedProducts = openData.map(p => {
+        const processedProducts = data.map(p => {
           if (isKoperasiProduct(p as any as Product)) {
             let newCategory = p.category;
             const name = p.name.toLowerCase();
