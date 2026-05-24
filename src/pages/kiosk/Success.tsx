@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   CheckCircle2, ShoppingBag, Printer, ArrowRight, Star, Clock, Mail,
@@ -14,11 +14,6 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
 import toast from 'react-hot-toast';
-
-const SHEET_HEIGHT = window.innerHeight * 0.78;
-const COLLAPSED_VISIBLE = 140;
-const COLLAPSED_Y = SHEET_HEIGHT - COLLAPSED_VISIBLE;
-const EXPANDED_Y = 0;
 
 const PAYMENT_METHOD_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
   qris: { label: 'QRIS (Otomatis)', icon: Smartphone },
@@ -38,12 +33,18 @@ export default function Success() {
   const location = useLocation();
   const { user } = useAuthStore();
   const { clearCart } = useCartStore();
-  const [currentTime] = useState(new Date());
+  const [sheetMetrics] = useState(() => {
+    const h = window.innerHeight * 0.78;
+    return { SHEET_HEIGHT: h, COLLAPSED_Y: h - 140 } as const;
+  });
+  const EXPANDED_Y = 0;
+  const { SHEET_HEIGHT, COLLAPSED_Y } = sheetMetrics;
+  const [currentTime] = useState(() => new Date());
   const [transaction, setTransaction] = useState<any>(null);
   const queryParams = new URLSearchParams(location.search);
   const transactionId = location.state?.transactionId
     || queryParams.get('id')
-    || sessionStorage.getItem('lastTransactionId');
+    || (() => { try { return sessionStorage.getItem('lastTransactionId'); } catch { return null; } })();
 
   const [expanded, setExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);

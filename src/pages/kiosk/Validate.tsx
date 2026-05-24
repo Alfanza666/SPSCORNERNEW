@@ -23,7 +23,7 @@ export default function Validate() {
     message: string;
   } | null>(null);
 
-  const buyerName = user?.name || sessionStorage.getItem('buyerName') || 'Unknown';
+  const buyerName = user?.name || (() => { try { return sessionStorage.getItem('buyerName'); } catch { return null; } })() || 'Unknown';
   const totalAmount = getTotal();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {

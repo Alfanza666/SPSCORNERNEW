@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, Product } from '../../store/useCartStore';
@@ -60,6 +60,8 @@ export default function Catalog() {
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = getTotal();
+
+  const renderDate = useMemo(() => new Date(), []);
 
   useEffect(() => {
     fetchProducts();
@@ -191,20 +193,20 @@ export default function Catalog() {
   };
 
   // Check if PO ordering is within cutoff time
-  const isWithinCutoff = (product: Product): boolean => {
+  const isWithinCutoff = (product: Product, now?: Date): boolean => {
     if (!product.po_cutoff_time) return true;
-    const now = new Date();
+    const current = now || new Date();
     const [hours, minutes] = product.po_cutoff_time.split(':').map(Number);
-    const cutoff = new Date();
+    const cutoff = new Date(current);
     cutoff.setHours(hours, minutes, 0, 0);
-    return now <= cutoff;
+    return current <= cutoff;
   };
 
   // Check if today is an open day for PO
-  const isTodayOpenDay = (product: Product): boolean => {
+  const isTodayOpenDay = (product: Product, now?: Date): boolean => {
     if (!product.po_open_days || product.po_open_days.length === 0) return true;
-    const today = new Date().getDay(); // 0=Sun, 1=Mon, ...
-    return product.po_open_days.includes(today);
+    const current = now || new Date();
+    return product.po_open_days.includes(current.getDay());
   };
 
   // Get ready label for PO product
@@ -479,7 +481,7 @@ export default function Catalog() {
                         (() => {
                           const poQty = cartItem?.quantity || 0;
                           const maxOrder = product.po_max_order || product.po_stock || 999;
-                          const canOrder = isTodayOpenDay(product) && isWithinCutoff(product);
+                          const canOrder = isTodayOpenDay(product, renderDate) && isWithinCutoff(product, renderDate);
                           return poQty > 0 ? (
                             <div className="flex items-center justify-between bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-1 shadow-sm">
                               <button
@@ -511,7 +513,7 @@ export default function Catalog() {
                               className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed guide-product-add"
                             >
                               <Plus className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
-                              {!canOrder ? (isTodayOpenDay(product) ? 'Cutoff Lewat' : 'Tutup Hari Ini') : 'Pre-Order'}
+                              {!canOrder ? (isTodayOpenDay(product, renderDate) ? 'Cutoff Lewat' : 'Tutup Hari Ini') : 'Pre-Order'}
                             </button>
                           );
                         })()
@@ -735,7 +737,7 @@ export default function Catalog() {
                   if (selectedProduct.is_preorder) {
                     const maxOrder = selectedProduct.po_max_order || selectedProduct.po_stock || 999;
                     const minOrder = selectedProduct.po_min_order || 1;
-                    const canOrder = isTodayOpenDay(selectedProduct) && isWithinCutoff(selectedProduct);
+                    const canOrder = isTodayOpenDay(selectedProduct, renderDate) && isWithinCutoff(selectedProduct, renderDate);
 
                     return qty > 0 ? (
                       <div className="flex items-center gap-4">
@@ -776,7 +778,7 @@ export default function Catalog() {
                         className="w-full h-14 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Plus className="w-5 h-5" strokeWidth={3} />
-                        {!canOrder ? (isTodayOpenDay(selectedProduct) ? `Cutoff Lewat (${selectedProduct.po_cutoff_time})` : 'Tutup Hari Ini') : 'Pre-Order Sekarang'}
+                        {!canOrder ? (isTodayOpenDay(selectedProduct, renderDate) ? `Cutoff Lewat (${selectedProduct.po_cutoff_time})` : 'Tutup Hari Ini') : 'Pre-Order Sekarang'}
                       </button>
                     );
                   }

@@ -1,3 +1,25 @@
+v4.15.5 — Fix React Error #520 (Hydration Mismatch) di Halaman Kiosk
+-----------------------------------------------------------------------
+### Perbaikan Bug:
+- **[FIX] Catalog.tsx:** Stabilkan `new Date()` di render path dengan `useMemo` untuk mencegah React mendeteksi ketidakkonsistenan render tree (#520). Mengubah `isWithinCutoff` & `isTodayOpenDay` menerima parameter `now?: Date` opsional agar render path pakai tanggal stabil sementara event handler tetap real-time.
+- **[FIX] Success.tsx:** Pindahkan `window.innerHeight` dari module scope ke dalam komponen via `useState` lazy initializer — mencegah crash saat modul dievaluasi di konteks non-browser (PWA/service worker edge case). Gunakan lazy initializer `useState(() => new Date())`.
+- **[FIX] Checkout.tsx:** Bungkus akses `sessionStorage` di render path dengan try-catch IIFE agar tidak throw error jika storage tidak tersedia.
+- **[FIX] Validate.tsx:** Sama, bungkus `sessionStorage` dengan try-catch.
+- **[FIX] Home.tsx, DashboardLayout.tsx:** Sinkronisasi versi UI ke v4.15.5.
+
+### Teknis:
+- **[CHANGE] package.json:** v4.15.4 → v4.15.5.
+- Root cause: React 19 mendeteksi non-deterministic values (`new Date()`, `sessionStorage`, `window.innerHeight`) dalam render tree sebagai potensi hydration inconsistency, memicu error #520 pada halaman `/kiosk` dan `/kiosk/cart`.
+
+### QA Checklist (Zero Regression):
+1. Buka `/kiosk` — pastikan katalog produk tampil normal, filter kategori bekerja, search berfungsi.
+2. Buka tab Pre-Order — pastikan cutoff time & open days masih berfungsi, tombol dinonaktifkan jika lewat cutoff.
+3. Buka modal detail produk — pastikan info Pre-Order (cutoff, open days) benar.
+4. Buka `/kiosk/cart` — tambah produk, lanjut ke checkout, pastikan data guest dari sessionStorage (buyerName, buyerPhone) terisi.
+5. Buka `/kiosk/checkout` — pastikan pembayaran bisa diproses.
+6. Buka `/kiosk/success` — pastikan halaman sukses tampil dengan bottom sheet drag-able.
+7. Test di mobile Chrome dan desktop Chrome.
+
 v4.15.4 — Export Laporan Bug & Crash ke Excel/Markdown
 -----------------------------------------------------------------------
 ### Fitur Baru:

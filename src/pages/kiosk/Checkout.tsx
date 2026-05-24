@@ -30,7 +30,9 @@ export default function Checkout() {
     vaMandiri: false,
     redirect: true
   });
-  const [guestPhone, setGuestPhone] = useState(sessionStorage.getItem('buyerPhone') || '');
+  const [guestPhone, setGuestPhone] = useState(() => {
+    try { return sessionStorage.getItem('buyerPhone') || ''; } catch { return ''; }
+  });
   const [countdown, setCountdown] = useState<number | null>(null);
   // Ref untuk mencegah pembuatan transaksi duplikat (mutex antar semua handler)
   const txIdRef = useRef<string | null>(null);
@@ -44,8 +46,8 @@ export default function Checkout() {
 
   const grandTotal = subtotal; // Real base amount untuk backend & iPaymu
 
-  const buyerName = user?.name || sessionStorage.getItem('buyerName');
-  const buyerEmail = user?.email || sessionStorage.getItem('buyerEmail') || null;
+  const buyerName = user?.name || (() => { try { return sessionStorage.getItem('buyerName'); } catch { return ''; } })();
+  const buyerEmail = user?.email || (() => { try { return sessionStorage.getItem('buyerEmail'); } catch { return null; } })() || null;
 
   const saveGuestTransaction = (txId: string) => {
     // Always save last transaction to sessionStorage for success page access (even for guests)
