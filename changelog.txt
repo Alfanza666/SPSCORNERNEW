@@ -1,3 +1,75 @@
+v4.15.1 — Daily Report, Mobile Tabs, Vitest & Notification Enhancements
+-----------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Seller Daily Report:** Cron otomatis jam 20:00 WITA — ringkasan harian (jumlah pesanan, total revenue, breakdown status) dikirim via notifikasi ke tiap seller.
+- **[NEW] Mobile Bottom Tab Navigation:** Tab bar fixed di bawah layar (mobile) — Beranda, Menu, Riwayat, Keranjang (+ badge count), Akun. Hanya muncul di kiosk browsing flow.
+- **[NEW] Vitest + Unit Tests:** Setup testing framework. Test pertama untuk `formatRupiah` (5 test cases) dan `useCartStore` (9 test cases). Total 14 passing.
+
+### Perbaikan:
+- **[FIX] Notification Click Handler:** Notification API fallback sekarang handle `onclick` → navigasi ke path yang dituju.
+- **[FIX] Notification Recipient Notif:** `productReturns.ts` — notifikasi retur dikirim ke `initiated_by` (buyer atau seller) sesuai asal request.
+
+### Teknis:
+- **[CHANGE] server.ts:** add `dailyReport` function + `setInterval(60s)` scheduler, query via `transaction_items` join.
+- **[CHANGE] KioskLayout.tsx:** +Bottom tab bar (sm:hidden) dengan 5 tab, padding-bottom tambahan untuk safe area.
+- **[NEW] package.json:** `"test": "vitest run"`, `"test:watch": "vitest"` scripts. DevDeps: vitest, jsdom, @testing-library/react, @testing-library/jest-dom.
+- **[NEW] src/test/:** setup.ts, utils.test.ts, cartStore.test.ts.
+- **[CHANGE] vite.config.ts:** +vitest config (globals, jsdom, setupFiles).
+
+v4.15.0 — Buyer Dashboard, Return Flow, Auth Middleware & Server Modularization
+-------------------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Buyer Dashboard:** Halaman `/kiosk/home` — ringkasan total belanja, 4 quick action cards (Belanja, Riwayat, Pre-Order, Profil), daftar 5 pesanan terakhir dengan status. Logo SPS Corner navigasi ke dashboard untuk buyer login.
+- **[NEW] Buyer Return Flow:** Tombol "Request Retur" di History.tsx per item transaksi (status paid/confirmed/processed/ready/completed). Modal dengan quantity selector + alasan retur. Endpoint baru: `POST /api/product-returns/buyer-request`, `GET /api/product-returns/my`.
+- **[NEW] Auth Middleware:** `src/middleware/auth.ts` — `requireAuth`, `requireRole`, `adminOnly` Express middleware factory functions. Blanket middleware di server.ts untuk `/api/admin`, `/api/withdrawals`, `/api/stock-requests`, `/api/product-returns`.
+- **[NEW] Cart Persistence:** Zustand `persist` middleware — cart tersimpan di localStorage key `sps-cart-storage`.
+
+### Perbaikan & Optimasi:
+- **[FIX] Email Verification:** Register.tsx — tambah `emailRedirectTo`, deteksi `identities.length === 0`, tampilkan screen "Cek Email Anda".
+- **[FIX] Kiosk Store Toggle:** Buka/Tutup Kiosk toggle di SellerDashboard. Produk dari seller yang tutup tidak muncul di Catalog. SQL migration `add_store_open_column.sql`.
+- **[FIX] Duplicate Sidebar:** Hapus duplicate "Kritik & Saran" di DashboardLayout. Tambah "Spin Doorprize" + "Family Gathering" di sidebar admin.
+- **[FIX] Search Debounce:** 300ms debounce di Catalog.tsx — tidak spam query saat mengetik.
+- **[FIX] Return Bug:** `adjustment_type: "return"` → `"correction"` di `productReturns.ts` — sesuai DB CHECK constraint. Notifikasi retur dikirim ke `initiated_by` (bukan cuma `seller_id`).
+
+### Teknis:
+- **[CHANGE] Server Modularization:** Ekstrak 3 route modules ke `src/routes/withdrawals.ts`, `src/routes/stock.ts`, `src/routes/productReturns.ts` via factory function pattern. ~220 lines dihapus dari server.ts.
+- **[CHANGE] productReturns.ts:** Tambah 2 endpoint baru: `buyer-request`, `my` (list return request milik user). Perbaiki notifikasi recipient.
+- **[CHANGE] History.tsx:** Tambah state/UI untuk return request + modal. Import `RotateCcw` icon.
+
+v4.14.0 — Bulk Restock, Quick Actions Dashboard & Image Optimization
+---------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Bulk Restock (Restock Massal):** Tombol "Restock Massal" di SellerProducts — modal dengan daftar semua produk + input quantity tiap produk. Kirim multiple stock requests sekaligus dalam satu klik.
+- **[NEW] Seller Quick Actions Dashboard:** 4 kartu aksi cepat (Pesanan Hari Ini, Request Restock, Tambah Produk Baru, Riwayat Penjualan) menggantikan section "Tips Penjualan" statis. Masing-masing dengan ikon dan navigasi langsung.
+
+### Perbaikan & Optimasi:
+- **[FIX] Image Optimization:** Upload gambar produk sekarang di-resize ke max 800x800px via canvas sebelum dikirim ke Supabase Storage — mengurangi ukuran file 50-80% tanpa kehilangan kualitas.
+- **[FIX] Security — Hardcoded Supabase URL:** Hapus fallback hardcoded URL `jofwebrbdlovwkgklwab.supabase.co` di server.ts. Sekarang throw error jika env var tidak diset.
+- **[CLEANUP] Dead Code — patch_*.cjs:** Hapus 18 file one-time migration script (`patch_bugs.cjs`, `patch_ts2.cjs`, dll) dari root — memperkecil repo.
+
+### Teknis:
+- **[CHANGE] server.ts lines 19-23:** Variabel `supabaseUrl` sekarang langsung dari `VITE_SUPABASE_URL`, tanpa fallback hardcoded.
+- **[CHANGE] SellerProducts.tsx:** Tambah `resizeImage()` helper function (canvas-based), state `showBulkRestock` + `bulkRestockItems`, modal Bulk Restock.
+- **[CHANGE] SellerDashboard.tsx:** Ganti "Tips Penjualan" → 4 kartu Quick Actions dengan ikon dan navigasi.
+
+v4.13.1 — Pre-Order Share, Stock Report Enhancements & Bugfixes
+----------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Pre-Order Share Button:** Tombol Bagikan di SellerPreOrders — tiap produk PO aktif bisa dishare ke WA/FB via native share/copy link. Link mengarah ke `/kiosk/pre-order/:id`.
+- **[NEW] Pre-Order Detail Page:** `PreOrderDetail.tsx` — halaman publik detail produk pre-order dengan gambar, harga, deskripsi, quantity selector, add-to-cart, dan native share.
+- **[NEW] Server OG Route:** `GET /kiosk/pre-order/:id` deteksi crawler sosial media → render OG tags (title, description, image, url, twitter:card) untuk preview link.
+
+### Perbaikan:
+- **[FIX] Stock Report Column:** Hapus `sku` dari query products (tidak ada di tabel) — endpoint `/api/admin/stock-report` tidak lagi crash.
+- **[FIX] Stock Report Error Handling:** Frontend tampilkan pesan error detail dari server, bukan "Gagal memuat data" generic.
+- **[FIX] Seller Registration Link Auth:** Ganti header `x-user-id` → `Authorization: Bearer <token>` di AdminSellers & AdminSettings. Backend tambah error detail.
+- **[FIX] TypeScript Error:** Perbaiki `addItem` call di PreOrderDetail.tsx (quantity properly handled).
+
+### Teknis:
+- **[NEW] Route:** `/kiosk/pre-order/:id` di App.tsx (lazy import PreOrderDetail).
+- **[CHANGE] Laporan Stok:** Ganti Export CSV → Export Excel (.xlsx) dengan template (header biru bold, auto-width, row TOTAL).
+- **[CHANGE] Sidebar:** Tambah item "Laporan Stok" (icon BarChart3) di DashboardLayout.
+
 v4.13.0 — Stock Logic Overhaul & Management Reporting
 --------------------------------------------------
 ### Perbaikan Stock (Kritis):

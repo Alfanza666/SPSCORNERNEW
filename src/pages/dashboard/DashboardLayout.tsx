@@ -310,11 +310,12 @@ export default function DashboardLayout() {
           { to: "/dashboard/admin/program-coupons", icon: Ticket, label: "Kupon Peserta" },
           { to: "/dashboard/scanner", icon: QrCode, label: "Scan QR" },
           { to: "/dashboard/admin/doorprize", icon: Gift, label: "Undian Doorprize" },
+          { to: "/dashboard/admin/doorprize-spin", icon: Gift, label: "Spin Doorprize" },
           { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
             { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
             { to: "/dashboard/admin/kritik", icon: MessageSquare, label: "Kritik & Saran" },
           { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
-          { to: "/dashboard/admin/feedbacks", icon: MessageSquare, label: "Kritik & Saran" }
+          { to: "/dashboard/admin/gathering", icon: Users, label: "Family Gathering" }
         ]
       },
       {
@@ -582,7 +583,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v4.13.0
+                      v4.15.1
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"

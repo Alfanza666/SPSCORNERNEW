@@ -153,13 +153,16 @@ export function useNotifications() {
                   url: newNotif.path || '/'
                 });
               } else {
-                // Fallback to Notification API
-                new Notification(newNotif.title, {
+                const notif = new Notification(newNotif.title, {
                   body: newNotif.message,
                   icon: '/logos/sps-logo-icon.png',
                   tag: newNotif.id,
                   data: { url: newNotif.path || '/' }
                 });
+                notif.onclick = () => {
+                  notif.close();
+                  navigate(newNotif.path || '/');
+                };
               }
             } catch (e) {
               console.warn('[Notif] Failed to show notification:', e);

@@ -7,7 +7,7 @@ import { formatRupiah } from '../../../lib/utils';
 import {
   ClipboardList, Plus, X, Settings, Calendar, Clock, CheckCircle2,
   Package, ChevronDown, ChevronUp, AlertCircle, Users, Loader2,
-  ShoppingBag, Check, XCircle, Eye, Upload, Trash2
+  ShoppingBag, Check, XCircle, Eye, Upload, Trash2, Share2
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -433,6 +433,15 @@ export default function SellerPreOrders() {
                       <p className="text-xs text-zinc-400 italic mb-3">Belum dikonfigurasi</p>
                     )}
                     <div className="flex gap-2">
+                      {cfg && cfg.is_active && (
+                        <button onClick={() => {
+                          const url = `${window.location.origin}/kiosk/pre-order/${cfg.id}`;
+                          if (navigator.share) navigator.share({ title: product.name, url }).catch(() => {});
+                          else navigator.clipboard.writeText(url).then(() => toast.success('Link disalin!')).catch(() => toast.error('Gagal copy'));
+                        }} className="px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors border border-emerald-100 dark:border-emerald-900/50" title="Bagikan ke media sosial">
+                          <Share2 className="w-4 h-4" />
+                        </button>
+                      )}
                       <button onClick={() => handleDeleteProduct(product.id)} className="px-4 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors border border-red-100 dark:border-red-900/50" title="Hapus Produk PO">
                         <Trash2 className="w-4 h-4" />
                       </button>

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface Product {
   id: string;
@@ -42,39 +43,47 @@ interface CartState {
   setReservations: (ids: string[]) => void;
 }
 
-export const useCartStore = create<CartState>((set, get) => ({
-  items: [],
-  reservations: [],
-  addItem: (product) => {
-    set((state) => {
-      const existingItem = state.items.find((item) => item.id === product.id);
-      if (existingItem) {
-        return {
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      reservations: [],
+      addItem: (product) => {
+        set((state) => {
+          const existingItem = state.items.find((item) => item.id === product.id);
+          if (existingItem) {
+            return {
+              items: state.items.map((item) =>
+                item.id === product.id
+                  ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) }
+                  : item
+              ),
+            };
+          }
+          return { items: [...state.items, { ...product, quantity: 1 }] };
+        });
+      },
+      removeItem: (productId) => {
+        set((state) => ({
+          items: state.items.filter((item) => item.id !== productId),
+        }));
+      },
+      updateQuantity: (productId, quantity) => {
+        set((state) => ({
           items: state.items.map((item) =>
-            item.id === product.id
-              ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) }
-              : item
+            item.id === productId ? { ...item, quantity } : item
           ),
-        };
-      }
-      return { items: [...state.items, { ...product, quantity: 1 }] };
-    });
-  },
-  removeItem: (productId) => {
-    set((state) => ({
-      items: state.items.filter((item) => item.id !== productId),
-    }));
-  },
-  updateQuantity: (productId, quantity) => {
-    set((state) => ({
-      items: state.items.map((item) =>
-        item.id === productId ? { ...item, quantity } : item
-      ),
-    }));
-  },
-  clearCart: () => set({ items: [], reservations: [] }),
-  getTotal: () => {
-    return get().items.reduce((total, item) => total + item.price * item.quantity, 0);
-  },
-  setReservations: (ids) => set({ reservations: ids }),
-}));
+        }));
+      },
+      clearCart: () => set({ items: [], reservations: [] }),
+      getTotal: () => {
+        return get().items.reduce((total, item) => total + item.price * item.quantity, 0);
+      },
+      setReservations: (ids) => set({ reservations: ids }),
+    }),
+    {
+      name: 'sps-cart-storage',
+      partialize: (state) => ({ items: state.items }),
+    }
+  )
+);

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCircle, ArrowLeft, Search, X, Download } from 'lucide-react';
+import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCircle, ArrowLeft, Search, X, Download, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 
@@ -41,6 +41,10 @@ export default function History() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedTxDetail, setSelectedTxDetail] = useState<Transaction | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null);
+  const [returningItem, setReturningItem] = useState<{ product_id: string; product_name: string; seller_id: string; maxQty: number } | null>(null);
+  const [returnQty, setReturnQty] = useState('1');
+  const [returnReason, setReturnReason] = useState('');
+  const [submittingReturn, setSubmittingReturn] = useState(false);
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -254,6 +258,46 @@ export default function History() {
       }
     } catch (e: any) {
       toast.error('Error: ' + e.message, { id: 'check-status' });
+    }
+  };
+
+  const handleReturnRequest = async () => {
+    if (!returningItem) return;
+    const qty = parseInt(returnQty);
+    if (qty < 1 || qty > returningItem.maxQty) {
+      toast.error(`Jumlah retur harus 1 - ${returningItem.maxQty}`);
+      return;
+    }
+    if (!returnReason.trim()) {
+      toast.error('Harap isi alasan retur');
+      return;
+    }
+    setSubmittingReturn(true);
+    try {
+      const res = await fetch('/api/product-returns/buyer-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: returningItem.product_id,
+          seller_id: returningItem.seller_id,
+          quantity: qty,
+          reason: returnReason.trim(),
+          transaction_id: selectedTxDetail?.id
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal mengirim permintaan retur');
+      } else {
+        toast.success('Permintaan retur berhasil dikirim');
+        setReturningItem(null);
+        setReturnQty('1');
+        setReturnReason('');
+      }
+    } catch {
+      toast.error('Gagal menghubungi server');
+    } finally {
+      setSubmittingReturn(false);
     }
   };
 
@@ -776,6 +820,21 @@ Sistem SPS Corner`);
                             )}
                           </div>
                         )}
+
+                        {['paid','completed','confirmed','processed','pending_pickup','ready_for_pickup'].includes(selectedTxDetail?.status || '') && !item.metadata?.is_digital && (
+                          <button
+                            onClick={() => setReturningItem({
+                              product_id: item.product_id,
+                              product_name: productName,
+                              seller_id: item.metadata?.seller_id || selectedTxDetail.metadata?.seller_id || '',
+                              maxQty: item.quantity
+                            })}
+                            className="mt-3 w-full flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 py-2 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-all active:scale-[0.98]"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Request Retur
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -808,6 +867,84 @@ Sistem SPS Corner`);
                     </button>
                   </>
                 ) : null}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Return Request Modal */}
+      <AnimatePresence>
+        {returningItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => { setReturningItem(null); setReturnQty('1'); setReturnReason(''); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6">
+                <h3 className="font-black text-lg text-zinc-900 dark:text-white mb-1">Request Retur</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-5">{returningItem.product_name}</p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Jumlah</label>
+                    <div className="flex items-center gap-3 mt-1">
+                      <button
+                        onClick={() => setReturnQty(v => Math.max(1, parseInt(v || '1') - 1).toString())}
+                        className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >-</button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={returningItem.maxQty}
+                        value={returnQty}
+                        onChange={e => setReturnQty(e.target.value)}
+                        className="w-20 text-center font-bold text-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={() => setReturnQty(v => Math.min(returningItem.maxQty, parseInt(v || '1') + 1).toString())}
+                        className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >+</button>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 mt-1">Maks. {returningItem.maxQty} item</p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Alasan Retur</label>
+                    <textarea
+                      value={returnReason}
+                      onChange={e => setReturnReason(e.target.value)}
+                      placeholder="Contoh: Produk cacat, salah barang, dll."
+                      rows={3}
+                      className="w-full mt-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => { setReturningItem(null); setReturnQty('1'); setReturnReason(''); }}
+                    className="flex-1 py-3 font-bold text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors uppercase tracking-widest"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleReturnRequest}
+                    disabled={submittingReturn}
+                    className="flex-1 py-3 font-bold text-xs text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest"
+                  >
+                    {submittingReturn ? 'Mengirim...' : 'Kirim'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

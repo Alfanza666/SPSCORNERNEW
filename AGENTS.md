@@ -146,7 +146,7 @@ Setiap kali mengeksekusi tugas atau memperbaiki bug, Anda WAJIB membalas menggun
 
 🗂️ Route Structure (App.tsx)
 - `/` → Home
-- `/kiosk/*` → Buyer flows: catalog, cart, checkout, validate, success, history, profile, digital products, pre-order
+- `/kiosk/*` → Buyer flows: home (dashboard), catalog, cart, checkout, validate, success, history, profile, digital products, pre-order
 - `/dashboard/admin/*` → Admin: sellers, categories, products, transactions, withdrawals, reports, settings, flashsale, doorprize, union programs, form builder, feedbacks, pengaduan, kritik-saran, loyalty, announcements, stock opname, pickup, payments, standby schedule, coupon reports, scanner
 - `/dashboard/seller/*` → Seller: dashboard, products, pre-orders, withdrawals, transactions
 - `/portal/*` → Union portal: dashboard, programs, flashsale, announcements, pengaduan, kritik, profile, forms
@@ -155,15 +155,13 @@ Setiap kali mengeksekusi tugas atau memperbaiki bug, Anda WAJIB membalas menggun
 - `server.ts` uses `// @ts-nocheck` — TypeScript will not catch errors in the backend. Run `tsc --noEmit` separately to check types.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts are expected and ignored.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions required in imports.
-- Version mismatch: `package.json` shows `v4.6.1` but `changelog.txt` goes up to `v4.8.2`. Always sync version in `package.json` with `changelog.txt` and the UI.
-- Many `patch_*.cjs` files in root are one-time migration/hotfix scripts. Verify if still needed before keeping.
+- Current version: `v4.15.1`. Always sync `package.json`, `changelog.txt`, and UI on version bumps.
 - `scripts/` directory may contain utility scripts — check before assuming dead code.
 - No CI/CD workflows configured (`.github/` only has a `keep` placeholder file).
 - Vite defines `process.env.GEMINI_API_KEY` directly (not `VITE_` prefix) — this is non-standard and easy to miss.
 - Digiflazz background cache update is skipped on Vercel (`if (!process.env.VERCEL)`).
 
 🗑️ Known Dead Code Candidates (verify before deleting)
-- `patch_*.cjs` files (17 files) — one-time migration scripts, likely safe to archive/delete after verifying all patches applied
 - `fix_*.sql` files — one-time SQL fixes
 - `revert_incorrect_patches.cjs` — rollback script, likely no longer needed
 - `push_to_github.bat` — Windows batch file for git push, may be redundant

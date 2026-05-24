@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, Product } from '../../store/useCartStore';
@@ -51,6 +51,7 @@ export default function Catalog() {
   const [poProducts, setPoProducts] = useState<Product[]>([]);
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const navigate = useNavigate();
@@ -73,6 +74,12 @@ export default function Catalog() {
     }
   }, [location.search]);
 
+  // Debounce search query 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const isKoperasiProduct = (p: Product) => {
     const cat = (p.category || '').toLowerCase();
     const name = (p.name || '').toLowerCase();
@@ -84,15 +91,17 @@ export default function Catalog() {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, price, stock, category, seller_id, is_active, description, image_url, profiles:seller_id(name)')
+        .select('id, name, price, stock, category, seller_id, is_active, description, image_url, profiles:seller_id(name, store_open)')
         .eq('is_active', true)
         .gt('stock', 0);
 
       if (error) throw error;
 
       if (data) {
+        // Filter out products from sellers who closed their kiosk
+        const openData = data.filter((p: any) => p.profiles?.store_open !== false);
         // Categorize Koperasi products into Roti Tawar, Roti Manis, Roti Sandwich, Kue, and Sari Choco
-        const processedProducts = data.map(p => {
+        const processedProducts = openData.map(p => {
           if (isKoperasiProduct(p as any as Product)) {
             let newCategory = p.category;
             const name = p.name.toLowerCase();
@@ -240,7 +249,7 @@ export default function Catalog() {
 
   const filteredProducts = storeProducts.filter((product) => {
     const matchesCategory = activeCategory === 'Semua' || product.category === activeCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = product.name.toLowerCase().includes(debouncedQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 

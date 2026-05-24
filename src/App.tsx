@@ -43,6 +43,8 @@ const History = lazyWithRetry(() => import('./pages/kiosk/History'));
 const Profile = lazyWithRetry(() => import('./pages/kiosk/Profile'));
 const DigitalProducts = lazyWithRetry(() => import('./pages/kiosk/DigitalProducts'));
 const PreOrder = lazyWithRetry(() => import('./pages/kiosk/PreOrder'));
+const PreOrderDetail = lazyWithRetry(() => import('./pages/kiosk/PreOrderDetail'));
+const KioskHome = lazyWithRetry(() => import('./pages/kiosk/KioskHome'));
 
 const Terms = lazyWithRetry(() => import('./pages/Terms'));
 const Contact = lazyWithRetry(() => import('./pages/Contact'));
@@ -224,6 +226,8 @@ export default function App() {
 
             <Route path="/kiosk" element={<KioskLayout />}>
               <Route index element={<Catalog />} />
+              <Route path="home" element={<KioskHome />} />
+              <Route path="home/" element={<KioskHome />} />
               <Route path="cart" element={<Cart />} />
               <Route path="cart/" element={<Cart />} />
               <Route path="checkout" element={<Checkout />} />
@@ -240,6 +244,8 @@ export default function App() {
               <Route path="digital/" element={<DigitalProducts />} />
               <Route path="preorder" element={<PreOrder />} />
               <Route path="preorder/" element={<PreOrder />} />
+              <Route path="pre-order/:id" element={<PreOrderDetail />} />
+              <Route path="pre-order/:id/" element={<PreOrderDetail />} />
             </Route>
 
             <Route path="/dashboard" element={<DashboardLayout />}>
