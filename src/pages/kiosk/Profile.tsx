@@ -97,7 +97,8 @@ export default function Profile() {
 
     // Jika user belum punya NIK, NIK wajib diisi
     const cleanNik = editNik.trim().replace(/[\s\-.]/g, '');
-    if (!user?.nik && cleanNik.length < 3) errors.nik = 'NIK wajib diisi (minimal 3 karakter)';
+    const hasNik = !!(user?.nik && user.nik.trim().length > 0);
+    if (!hasNik && cleanNik.length < 3) errors.nik = 'NIK wajib diisi (minimal 3 karakter)';
     if (cleanNik.length > 9) errors.nik = 'NIK maksimal 9 karakter';
 
     if (Object.keys(errors).length > 0) {
@@ -112,7 +113,7 @@ export default function Profile() {
         phone: editPhone.trim(),
       };
       // NIK hanya bisa diisi jika belum ada (perubahan NIK butuh admin)
-      if (!user?.nik && cleanNik) {
+      if (!hasNik && cleanNik) {
         updates.nik = cleanNik;
       }
       if (editEmail && !editEmail.endsWith('@sps.local')) {
@@ -318,7 +319,7 @@ export default function Profile() {
                 <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
                   NIK (Nomor Induk Karyawan)
                 </label>
-                {user?.nik ? (
+                {user?.nik && user.nik.trim().length > 0 ? (
                   <div className="flex items-center gap-2 px-3.5 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400">
                     <CreditCard className="w-4 h-4 text-zinc-400 shrink-0" />
                     <span>{user.nik}</span>
