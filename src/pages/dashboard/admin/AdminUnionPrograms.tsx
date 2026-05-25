@@ -189,6 +189,7 @@ export default function AdminUnionPrograms() {
       kurban_type: 'sapi', distribution_date: '', target_level: 'all',
       tournament_mode: 'individual', team_size: 0, allow_register_team: false
     });
+    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
     setBannerFile(null);
     setBannerPreview('');
     setFormConfig([]);
@@ -203,6 +204,7 @@ export default function AdminUnionPrograms() {
   const openEditModal = (program: any) => {
     const meta = program.metadata || {};
     setEditingProgram(program);
+    if (bannerPreview && bannerPreview.startsWith('blob:')) URL.revokeObjectURL(bannerPreview);
     setBannerFile(null);
     setBannerPreview(program.banner_url || '');
     setFormData({
@@ -356,7 +358,7 @@ export default function AdminUnionPrograms() {
         is_active: formData.is_active,
         is_targeted: formData.is_targeted,
         dynamic_form_id: formData.dynamic_form_id || null,
-        banner_url: formData.banner_url || bannerPreview || null,
+        banner_url: formData.banner_url || null,
         form_config: formConfig,
         metadata: {
           enable_meal: formData.enable_meal,
@@ -406,6 +408,14 @@ export default function AdminUnionPrograms() {
                     body: JSON.stringify({ program_id: programId, title: programData.name })
                 }).catch(console.error);
             });
+        }
+      }
+
+      if (bannerFile) {
+        const uploadedUrl = await uploadBanner(programId);
+        if (uploadedUrl) {
+          await supabase.from('union_programs').update({ banner_url: uploadedUrl }).eq('id', programId);
+          URL.revokeObjectURL(bannerPreview);
         }
       }
 
@@ -770,7 +780,7 @@ export default function AdminUnionPrograms() {
                         />
                         <button 
                           type="button"
-                          onClick={() => { setBannerFile(null); setBannerPreview(''); setFormData({...formData, banner_url: ''}); }}
+                          onClick={() => { if (bannerPreview) URL.revokeObjectURL(bannerPreview); setBannerFile(null); setBannerPreview(''); setFormData({...formData, banner_url: ''}); }}
                           className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg"
                         >
                           <X className="w-4 h-4" />
