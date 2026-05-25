@@ -122,7 +122,13 @@ export default function Profile() {
 
       const { error: upsertError } = await supabase
         .from('profiles')
-        .upsert({ ...updates, id: user!.id });
+        .upsert({
+          ...updates,
+          id: user!.id,
+          role: user?.role || 'buyer',
+          balance: user?.balance ?? 0,
+          loyalty_points: user?.loyalty_points ?? 0,
+        });
 
       if (upsertError) throw upsertError;
 

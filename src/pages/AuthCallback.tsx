@@ -140,9 +140,15 @@ export default function AuthCallback() {
           if (pendingNik) updates.nik = pendingNik;
           if (pendingPhone) updates.phone = pendingPhone;
 
-      const { error: savePendingError } = await supabase
+          const { error: savePendingError } = await supabase
             .from('profiles')
-            .upsert({ ...updates, id: session.user.id });
+            .upsert({
+              ...updates,
+              id: session.user.id,
+              role: profile?.role || 'buyer',
+              balance: profile?.balance ?? 0,
+              loyalty_points: profile?.loyalty_points ?? 0,
+            });
 
           if (!savePendingError) {
             Object.assign(profile, updates);
@@ -237,6 +243,9 @@ export default function AuthCallback() {
           name: name.trim(),
           nik: cleanNik,
           phone: phone.trim(),
+          role: 'buyer',
+          balance: 0,
+          loyalty_points: 0,
         });
 
       if (upsertError) throw upsertError;
