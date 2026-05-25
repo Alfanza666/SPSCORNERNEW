@@ -182,6 +182,18 @@ export default function AdminProgramCoupons() {
     }
   };
 
+  const handleDeleteCoupon = async (coupon: any) => {
+    if (!confirm(`Yakin hapus kupon ${coupon.coupon_code || coupon.nik} (${coupon.name})?`)) return;
+    try {
+      const { error } = await supabase.from('program_coupons').delete().eq('id', coupon.id);
+      if (error) throw error;
+      toast.success('Kupon berhasil dihapus');
+      fetchCoupons();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleBypass = async (nik: string) => {
     if (!confirm(`Buat kupon bypass (Doorprize) untuk NIK ${nik}?`)) return;
     try {
@@ -342,6 +354,13 @@ export default function AdminProgramCoupons() {
                             Bypass
                           </button>
                         )}
+                        <button 
+                          onClick={() => handleDeleteCoupon(c)}
+                          className="text-xs font-bold text-red-600 hover:text-red-700 border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50"
+                          title="Hapus kupon"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
                       </div>
                     </td>
                   </tr>

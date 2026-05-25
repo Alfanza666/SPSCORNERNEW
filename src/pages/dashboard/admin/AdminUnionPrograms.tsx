@@ -421,6 +421,7 @@ export default function AdminUnionPrograms() {
 
       if (formData.is_targeted && targetNiks.trim()) {
         await supabase.from('program_eligibility').delete().eq('program_id', programId);
+        await supabase.from('program_coupons').delete().eq('program_id', programId).eq('status', 'active');
         
         const nikArray = targetNiks.split(/[,\n]/).map(nik => nik.trim()).filter(nik => nik.length >= 5);
         const eligibilityData = nikArray.map(nik => ({
