@@ -22,7 +22,7 @@ import {
   Home,
   ClipboardList
 } from 'lucide-react';
-import SPSLogo from '../../components/SPSLogo';
+import LogoSidebar from '../../components/ui/logo-landscape.png';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -149,7 +149,7 @@ export default function PortalLayout() {
       <aside className="w-80 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden lg:flex relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.4)] transition-colors duration-300">
         <div className="h-32 flex flex-col items-center justify-center px-6 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-zinc-800/50 dark:to-zinc-900/50">
           <div className="cursor-pointer group mb-2" onClick={() => navigate('/')}>
-            <SPSLogo variant="stack" className="h-12 drop-shadow-sm transition-transform hover:scale-105" />
+            <img src={LogoSidebar} alt="SPS Corner" className="h-12 w-auto object-contain drop-shadow-sm transition-transform hover:scale-105" />
           </div>
           <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Portal Serikat Pekerja</p>
         </div>
@@ -289,7 +289,7 @@ export default function PortalLayout() {
                 <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-black">
                   <div className="flex h-24 shrink-0 items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-zinc-800/50 dark:to-zinc-900/50">
                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
-                      <SPSLogo variant="stack" className="h-10" />
+                      <img src={LogoSidebar} alt="SPS Corner" className="h-10 w-auto object-contain" />
                     </div>
                     <button type="button" onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none">
                       <X className="w-6 h-6" />

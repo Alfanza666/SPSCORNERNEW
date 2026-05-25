@@ -57,15 +57,20 @@ export default function KioskLayout() {
   const currentStepIndex = STEPS.findIndex(step => step.path === location.pathname);
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
+  const getBerandaPath = () => {
+    if (!user) return '/';
+    return '/portal';
+  };
+
   const handleHomeClick = () => {
-    if (user && user.role !== 'buyer') {
-      navigate(`/dashboard/${user.role}`);
-    } else if (user && isEmployeeNik(user?.nik)) {
-      navigate('/portal');
-    } else if (user) {
-      navigate('/kiosk/home');
-    } else {
+    if (!user) {
       navigate('/');
+    } else if (user.role === 'seller') {
+      navigate('/dashboard/seller');
+    } else if (user.role === 'admin' || user.role === 'superadmin') {
+      navigate('/dashboard/admin');
+    } else {
+      navigate('/portal');
     }
   };
 
@@ -255,7 +260,7 @@ export default function KioskLayout() {
                 </div>
               ) : (
                 <button
-                  onClick={() => navigate('/auth')}
+                  onClick={() => navigate('/login')}
                   className="px-4 py-2 bg-blue-600 text-white text-[10px] sm:text-xs font-black rounded-xl shadow-lg shadow-blue-600/20 active:scale-95 transition-all hover:bg-blue-700"
                 >
                   LOGIN
@@ -313,7 +318,7 @@ export default function KioskLayout() {
         <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-zinc-100 dark:border-zinc-800 safe-area-bottom">
           <div className="flex items-center justify-around h-14">
             {[
-              { path: '/kiosk/home', icon: Home, label: 'Beranda' },
+              { path: getBerandaPath(), icon: Home, label: 'Beranda' },
               { path: '/kiosk', icon: Store, label: 'Menu' },
               { path: '/kiosk/history', icon: Clock, label: 'Riwayat' },
               { path: '/kiosk/cart', icon: ShoppingCart, label: 'Keranjang', badge: items.length },

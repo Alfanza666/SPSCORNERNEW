@@ -1,3 +1,18 @@
+v4.16.0 — Fix Navigasi Mobile & Perbaikan Logo Sidebar
+-----------------------------------------------------------------------
+### Perbaikan Navigasi:
+- **[FIX] KioskLayout.tsx:** Bottom nav "Beranda" sekarang role-based — Buyer → Portal (`/portal`), Seller/Admin → Homepage (`/`). `handleHomeClick()` diselaraskan dengan logika yang sama.
+- **[FIX] KioskLayout.tsx:** Tombol "LOGIN" sebelumnya navigate ke `/auth` (route tidak ada) → diperbaiki ke `/login`.
+- **[FIX] DashboardLayout.tsx & PortalLayout.tsx:** Ganti SPSLogo component dengan `<img>` langsung agar logo tidak gagal render karena `onError` false-positive pada component SPSLogo.
+
+### Perbaikan Logo:
+- **[FIX] PortalDashboard.tsx:** Tambah `onError` fallback (ShieldCheck icon) untuk FederasiLogo jika gambar gagal load.
+- **[CLEANUP] Hapus `logo.png`:** File 0 bytes (dead code) dihapus.
+- **[CHANGE] Sidebar logo:** Menggunakan `logo-landscape.png` langsung (import Vite) di kedua sidebar (Dashboard & Portal) untuk konsistensi dan keandalan.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.15.5 → v4.16.0 (MINOR: fitur navigasi role-based).
+
 v4.15.5 — Fix React Error #520 (Hydration Mismatch) di Halaman Kiosk
 -----------------------------------------------------------------------
 ### Perbaikan Bug:

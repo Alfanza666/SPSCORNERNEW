@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
-import SPSLogo from '../../components/SPSLogo';
+import LogoSidebar from '../../components/ui/logo-landscape.png';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 import toast from 'react-hot-toast';
 
@@ -405,9 +405,7 @@ export default function DashboardLayout() {
       <aside className="w-80 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden lg:flex relative z-30 shadow-[4px_0_24px_rgba(0,0,0,0.05)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.4)] transition-colors duration-300">
         <div className="h-28 flex items-center px-10 border-b border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate('/')}>
-            <div className="relative">
-              <SPSLogo variant="wide" className="h-16 drop-shadow-md transition-transform hover:scale-105 hover:rotate-2" />
-            </div>
+            <img src={LogoSidebar} alt="SPS Corner" className="h-16 w-auto object-contain drop-shadow-md transition-transform hover:scale-105 hover:rotate-2" />
           </div>
         </div>
         <div className="flex-1 flex flex-col min-h-0">
@@ -517,7 +515,7 @@ export default function DashboardLayout() {
                 <div className="flex h-full w-full flex-col bg-white dark:bg-zinc-900 shadow-2xl dark:shadow-black">
                   <div className="flex h-20 shrink-0 items-center justify-between px-6 border-b border-zinc-100 dark:border-zinc-800">
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
-                      <SPSLogo variant="wide" className="h-12" />
+                      <img src={LogoSidebar} alt="SPS Corner" className="h-12 w-auto object-contain" />
                     </div>
                     <button type="button" onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none">
                       <X className="w-6 h-6" />
@@ -583,7 +581,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v4.15.5
+                      v4.16.0
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
