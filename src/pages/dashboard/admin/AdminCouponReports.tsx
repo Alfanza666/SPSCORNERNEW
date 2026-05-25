@@ -243,8 +243,8 @@ export default function AdminCouponReports() {
           {/* KOP SURAT */}
           <div className="flex items-center gap-6 mb-2 border-b-4 border-double border-black pb-4">
             <img 
-              src="/logos/sps-logo-icon.png" 
-              alt="Logo SPS" 
+              src="/logos/serikat-logo.png" 
+              alt="Logo Serikat" 
               className="w-24 h-24 object-contain"
               crossOrigin="anonymous" 
             />

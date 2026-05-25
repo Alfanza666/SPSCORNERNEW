@@ -99,6 +99,89 @@ export default function AdminProgramCoupons() {
     }
   };
 
+  const downloadTicket = async (coupon: any) => {
+    try {
+      const canvas = document.createElement('canvas');
+      const size = 500;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#1e3a5f';
+      ctx.fillRect(0, 0, size, 80);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      const loadImg = new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        img.src = '/logos/serikat-logo.png';
+      });
+      await loadImg;
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, 12, 12, 56, 56);
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 22px Arial';
+      ctx.fillText((coupon.union_programs?.name || 'PROGRAM').toUpperCase(), size / 2, 35);
+      ctx.font = '12px Arial';
+      ctx.fillText('TANDA TERIMA', size / 2, 55);
+      ctx.fillStyle = '#1e3a5f';
+      ctx.font = 'bold 16px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText('Nama:', 30, 120);
+      ctx.font = '15px Arial';
+      ctx.fillText(coupon.name || '-', 110, 120);
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText('NIK:', 30, 150);
+      ctx.font = '15px Arial';
+      ctx.fillText(coupon.nik || '-', 110, 150);
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText('Gate:', 30, 180);
+      ctx.font = '15px Arial';
+      ctx.fillText((coupon.gate_type || '-').toUpperCase(), 110, 180);
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText('Kode:', 30, 210);
+      ctx.font = 'bold 15px Courier New';
+      ctx.fillText(coupon.coupon_code || '-', 110, 210);
+      const qrValue = coupon.coupon_code || coupon.nik;
+      const qrCanvas = document.createElement('canvas');
+      const qrSize = 220;
+      qrCanvas.width = qrSize;
+      qrCanvas.height = qrSize;
+      const QRlib = (await import('qr.js')).default;
+      const qr = QRlib(qrValue, { typeNumber: -1, errorCorrectLevel: 'H' });
+      const mods = qr.modules;
+      const cellSize = qrSize / mods.length;
+      const qrCtx = qrCanvas.getContext('2d');
+      if (!qrCtx) return;
+      qrCtx.fillStyle = '#ffffff';
+      qrCtx.fillRect(0, 0, qrSize, qrSize);
+      qrCtx.fillStyle = '#000000';
+      for (let r = 0; r < mods.length; r++) {
+        for (let c = 0; c < mods.length; c++) {
+          if (mods[r][c]) {
+            qrCtx.fillRect(c * cellSize, r * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
+          }
+        }
+      }
+      ctx.drawImage(qrCanvas, (size - qrSize) / 2, 240, qrSize, qrSize);
+      ctx.fillStyle = '#888888';
+      ctx.font = '11px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Federasi Serikat Pekerja Sukses', size / 2, size - 15);
+      const link = document.createElement('a');
+      link.download = `tiket-${coupon.name || coupon.nik}-${coupon.coupon_code || ''}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Download ticket error:', err);
+      toast.error('Gagal mendownload tiket');
+    }
+  };
+
   const handleBypass = async (nik: string) => {
     if (!confirm(`Buat kupon bypass (Doorprize) untuk NIK ${nik}?`)) return;
     try {
@@ -242,14 +325,24 @@ export default function AdminProgramCoupons() {
                       )}
                     </td>
                     <td className="p-4 text-right">
-                      {c.gate_type === 'attendance' && c.status === 'active' && (
+                      <div className="flex items-center justify-end gap-1">
                         <button 
-                          onClick={() => handleBypass(c.nik)}
-                          className="text-xs font-bold text-amber-600 hover:text-amber-700 border border-amber-200 px-2 py-1 rounded-lg hover:bg-amber-50"
+                          onClick={() => downloadTicket(c)}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-700 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-50"
+                          title="Download Tiket"
                         >
-                          Bypass
+                          <Download className="w-3 h-3 inline-block mr-0.5" />Tiket
                         </button>
-                      )}
+                        {c.gate_type === 'attendance' && c.status === 'active' && (
+                          <button 
+                            onClick={() => handleBypass(c.nik)}
+                            className="text-xs font-bold text-amber-600 hover:text-amber-700 border border-amber-200 px-2 py-1 rounded-lg hover:bg-amber-50"
+                            title="Bypass presensi"
+                          >
+                            Bypass
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
