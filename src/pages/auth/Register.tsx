@@ -23,8 +23,8 @@ export default function Register() {
     setError('');
 
     const cleanNik = nik.trim().replace(/[\s-.]/g, '');
-    if (cleanNik.length < 3) {
-      setError('NIK tidak valid');
+    if (cleanNik.length < 3 || cleanNik.length > 9) {
+      setError('NIK tidak valid (minimal 3, maksimal 9 karakter)');
       setLoading(false);
       return;
     }

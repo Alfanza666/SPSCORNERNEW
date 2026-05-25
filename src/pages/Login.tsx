@@ -35,7 +35,7 @@ export default function Login() {
     setPreGoogleError('');
     const cleanNik = preGoogleNik.trim().replace(/[\s\-.]/g, '');
     if (!preGoogleName.trim()) { setPreGoogleError('Nama lengkap wajib diisi'); return; }
-    if (cleanNik.length < 3) { setPreGoogleError('NIK tidak valid (minimal 3 karakter)'); return; }
+    if (cleanNik.length < 3 || cleanNik.length > 9) { setPreGoogleError('NIK tidak valid (minimal 3, maksimal 9 karakter)'); return; }
     if (!preGooglePhone.trim() || preGooglePhone.trim().length < 10) { setPreGoogleError('Nomor HP tidak valid (minimal 10 digit)'); return; }
 
     // Simpan ke sessionStorage agar bisa dibaca oleh AuthCallback

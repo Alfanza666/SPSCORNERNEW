@@ -208,7 +208,7 @@ export default function AuthCallback() {
     const cleanNik = nik.trim().replace(/[\s\-.]/g, '');
 
     if (!name.trim()) errors.name = 'Nama lengkap wajib diisi';
-    if (cleanNik.length < 3) errors.nik = 'NIK tidak valid (minimal 3 karakter)';
+    if (cleanNik.length < 3 || cleanNik.length > 9) errors.nik = 'NIK tidak valid (minimal 3, maksimal 9 karakter)';
     if (!phone.trim() || phone.trim().length < 10) errors.phone = 'Nomor HP tidak valid (minimal 10 digit)';
 
     if (Object.keys(errors).length > 0) {
