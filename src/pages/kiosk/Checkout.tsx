@@ -21,6 +21,7 @@ export default function Checkout() {
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [verifyingReceipt, setVerifyingReceipt] = useState(false);
   const [qrisUrl, setQrisUrl] = useState<string>('/qris.png');
+  const [qrisError, setQrisError] = useState(false);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const [pointPaymentLoading, setPointPaymentLoading] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState({
@@ -876,7 +877,17 @@ buyer_email: buyerEmail,
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
               <div className="max-w-[280px] mx-auto mb-6">
-                <img src={qrisUrl} alt="QRIS Manual" className="w-full aspect-square object-contain rounded-xl shadow-md" />
+                {qrisError || !qrisUrl || qrisUrl === '/qris.png' ? (
+                  <div className="w-full aspect-square rounded-xl shadow-md bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-700">
+                    <div className="text-center p-6">
+                      <QrCode className="w-12 h-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
+                      <p className="text-[10px] text-zinc-400 font-bold">QRIS tidak tersedia</p>
+                      <p className="text-[8px] text-zinc-300 dark:text-zinc-600 mt-1">Silakan hubungi kasir</p>
+                    </div>
+                  </div>
+                ) : (
+                  <img src={qrisUrl} alt="QRIS Manual" className="w-full aspect-square object-contain rounded-xl shadow-md" onError={() => setQrisError(true)} />
+                )}
               </div>
 
               <div className="space-y-2 mb-8">
