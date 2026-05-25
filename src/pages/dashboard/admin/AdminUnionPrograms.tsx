@@ -490,12 +490,13 @@ export default function AdminUnionPrograms() {
   };
 
   const deleteProgram = async (id: string) => {
-    if (!confirm('Yakin hapus program ini?')) return;
+    if (!confirm('Yakin hapus program ini? Semua kupon terkait akan ikut terhapus.')) return;
     try {
+      await supabase.from('program_coupons').delete().eq('program_id', id);
       await supabase.from('program_eligibility').delete().eq('program_id', id);
       const { error } = await supabase.from('union_programs').delete().eq('id', id);
       if (error) throw error;
-      toast.success('Program dihapus');
+      toast.success('Program dan seluruh kuponnya dihapus');
       fetchPrograms();
     } catch (error) {
       toast.error('Gagal menghapus program');

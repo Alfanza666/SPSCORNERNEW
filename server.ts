@@ -4285,8 +4285,26 @@ app.post("/api/admin/programs/notify", async (req, res) => {
     const { program_id, title } = req.body;
     if (!program_id || !title) return res.status(400).json({ error: "program_id and title required" });
 
-    const { data: program } = await supabase.from("union_programs").select("is_targeted, name").eq("id", program_id).single();
+    const { data: program } = await supabase.from("union_programs").select("is_targeted, name, start_date, end_date").eq("id", program_id).single();
     if (!program) return res.status(404).json({ error: "Program not found" });
+
+    const formatDate = (d) => {
+      if (!d) return null;
+      const date = new Date(d);
+      return date.toLocaleDateString("id-ID", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      });
+    };
+
+    const startStr = formatDate(program.start_date);
+    const endStr = formatDate(program.end_date);
+    let scheduleMsg = "";
+    if (startStr && endStr) {
+      scheduleMsg = `\n🗓 Pelaksanaan: ${startStr} - ${endStr}`;
+    } else if (startStr) {
+      scheduleMsg = `\n🗓 Mulai: ${startStr}`;
+    }
 
     // Get all employee users (NIK starts with digit or M)
     const { data: users } = await supabase.from("profiles").select("id, nik");
@@ -4304,14 +4322,14 @@ app.post("/api/admin/programs/notify", async (req, res) => {
           await sendNotification(u.id, {
             type: "system",
             title: `🎯 Program Baru: ${title}`,
-            message: `Program "${title}" telah dibuka! Anda terdaftar sebagai peserta dan berhak menerima manfaat program ini. Cek kupon Anda di menu Program.`,
+            message: `Program "${title}" telah dibuka! Anda terdaftar sebagai peserta dan berhak menerima manfaat program ini. Cek kupon Anda di menu Program.${scheduleMsg}`,
             path: "/portal/program"
           });
         } else {
           await sendNotification(u.id, {
             type: "system",
             title: `📢 Program Baru: ${title}`,
-            message: `Program "${title}" telah dibuka di Portal Serikat. Segera cek informasi dan jadwalnya!`,
+            message: `Program "${title}" telah dibuka di Portal Serikat. Segera cek informasi dan jadwalnya!${scheduleMsg}`,
             path: "/portal/program"
           });
         }
@@ -4321,7 +4339,7 @@ app.post("/api/admin/programs/notify", async (req, res) => {
       await Promise.allSettled(employeeUsers.map(u => sendNotification(u.id, {
         type: "system",
         title: `📢 Program Baru: ${title}`,
-        message: `Program "${title}" telah dibuka di Portal Serikat. Segera cek informasi dan jadwalnya!`,
+        message: `Program "${title}" telah dibuka di Portal Serikat. Segera cek informasi dan jadwalnya!${scheduleMsg}`,
         path: "/portal/program"
       })));
     }
@@ -4628,6 +4646,50 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
       }
     }, "dailyReport");
     setInterval(dailyReport, 60 * 1e3);
+
+    // ── Program start notifications every 30 seconds ─────────────────────
+    const notifiedProgramStarts = new Set();
+    async function checkProgramStartNotifications() {
+      try {
+        const now = new Date().toISOString();
+        const { data: programs } = await supabase
+          .from("union_programs")
+          .select("id, name")
+          .eq("is_active", true)
+          .lte("start_date", now)
+          .gte("start_date", new Date(Date.now() - 120 * 1e3).toISOString());
+
+        if (!programs || programs.length === 0) return;
+
+        for (const prog of programs) {
+          if (notifiedProgramStarts.has(prog.id)) continue;
+          notifiedProgramStarts.add(prog.id);
+
+          const { data: couponHolders } = await supabase
+            .from("program_coupons")
+            .select("user_id")
+            .eq("program_id", prog.id)
+            .not("user_id", "is", null);
+
+          if (!couponHolders || couponHolders.length === 0) continue;
+
+          const uniqueUserIds = [...new Set(couponHolders.map(c => c.user_id))];
+          for (const userId of uniqueUserIds) {
+            await sendNotification(userId, {
+              type: "system",
+              title: `🎫 Program Dimulai: ${prog.name}`,
+              message: `Program "${prog.name}" telah dimulai! Segera tukarkan kupon Anda dan hadiri acaranya. Cek detail & kupon di menu Program.`,
+              path: "/portal/program"
+            });
+          }
+          console.log(`[ProgramStartNotif] Sent to ${uniqueUserIds.length} users for "${prog.name}"`);
+        }
+      } catch (e) {
+        console.error("[ProgramStartNotif] Error:", e);
+      }
+    }
+    checkProgramStartNotifications();
+    setInterval(checkProgramStartNotifications, 30 * 1e3);
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
