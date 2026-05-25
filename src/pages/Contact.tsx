@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, Mail, Phone, MapPin, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
-import Logo from '../components/ui/logo-utama.png';
+import Logo from '../components/ui/logo-utama.webp';
 
 export default function Contact() {
   const navigate = useNavigate();

@@ -73,6 +73,20 @@ export default function Register() {
 
       if (signUpError) throw signUpError;
 
+      if (data.user) {
+        // Explicitly create profile row (defensive: DB trigger might not fire)
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          name: name.trim(),
+          nik: cleanNik,
+          phone: phone.trim(),
+          email: email.trim(),
+          role: 'buyer',
+          balance: 0,
+          loyalty_points: 0,
+        }, { onConflict: 'id' });
+      }
+
       if (data.user?.identities?.length === 0) {
         setNeedsEmailConfirm(true);
       } else if (data.user) {

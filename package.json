@@ -1,7 +1,7 @@
 {
   "name": "sps-corner",
   "private": true,
-  "version": "4.16.1",
+  "version": "4.16.2",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -68,6 +68,7 @@
     "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.21",
     "jsdom": "^29.1.1",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",

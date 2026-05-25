@@ -140,10 +140,9 @@ export default function AuthCallback() {
           if (pendingNik) updates.nik = pendingNik;
           if (pendingPhone) updates.phone = pendingPhone;
 
-          const { error: savePendingError } = await supabase
+      const { error: savePendingError } = await supabase
             .from('profiles')
-            .update(updates)
-            .eq('id', session.user.id);
+            .upsert({ ...updates, id: session.user.id });
 
           if (!savePendingError) {
             Object.assign(profile, updates);
@@ -231,16 +230,16 @@ export default function AuthCallback() {
         return;
       }
 
-      const { error: updateError } = await supabase
+      const { error: upsertError } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: sessionUser.id,
           name: name.trim(),
           nik: cleanNik,
           phone: phone.trim(),
-        })
-        .eq('id', sessionUser.id);
+        });
 
-      if (updateError) throw updateError;
+      if (upsertError) throw upsertError;
 
       toast.success('Profil berhasil dilengkapi!');
 

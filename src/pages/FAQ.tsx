@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, HelpCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
-import Logo from '../components/ui/logo-utama.png';
+import Logo from '../components/ui/logo-utama.webp';
 
 export default function FAQ() {
   const navigate = useNavigate();

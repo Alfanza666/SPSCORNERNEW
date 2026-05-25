@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import LogoIcon from './ui/logo-icon.png';
-import LogoUtama from './ui/logo-utama.png';
-import LogoLandscape from './ui/logo-landscape.png';
+import LogoIcon from './ui/logo-icon.webp';
+import LogoUtama from './ui/logo-utama.webp';
+import LogoLandscape from './ui/logo-landscape.webp';
 import { ShieldCheck } from 'lucide-react';
 
 interface SPSLogoProps {

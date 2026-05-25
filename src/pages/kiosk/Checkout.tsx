@@ -20,7 +20,7 @@ export default function Checkout() {
   const [directPaymentData, setDirectPaymentData] = useState<any>(null);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [verifyingReceipt, setVerifyingReceipt] = useState(false);
-  const [qrisUrl, setQrisUrl] = useState<string>('/qris.png');
+  const [qrisUrl, setQrisUrl] = useState<string>('');
   const [qrisError, setQrisError] = useState(false);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const [pointPaymentLoading, setPointPaymentLoading] = useState(false);

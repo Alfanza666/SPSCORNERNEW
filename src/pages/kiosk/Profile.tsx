@@ -120,12 +120,11 @@ export default function Profile() {
         updates.email = editEmail.trim();
       }
 
-      const { error: updateError } = await supabase
+      const { error: upsertError } = await supabase
         .from('profiles')
-        .update(updates)
-        .eq('id', user!.id);
+        .upsert({ ...updates, id: user!.id });
 
-      if (updateError) throw updateError;
+      if (upsertError) throw upsertError;
 
       await fetchProfile(user!.id);
       toast.success('Profil berhasil diperbarui!');

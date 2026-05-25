@@ -1,3 +1,31 @@
+v4.16.2 — Fix Profil Tidak Tersimpan (Upsert Profile) & Kompresi Logo WebP
+-----------------------------------------------------------------------
+### Perbaikan Profil (Data kembali ke default "User", NIK/HP hilang):
+- **[FIX] `Profile.tsx`:** Ganti `.update()` ke `.upsert()` pada `handleSaveProfile`. Sebelumnya, jika row di tabel `profiles` tidak ada (trigger DB gagal atau user lama), `.update()` silent no-op dan data hilang. Sekarang `.upsert()` akan insert jika belum ada, update jika sudah.
+- **[FIX] `AuthCallback.tsx`:** Sama, ganti `.update()` ke `.upsert()` di form "Lengkapi Profil" dan saat simpan data pending dari `sessionStorage`.
+- **[FIX] `Register.tsx`:** Tambah `.upsert()` eksplisit ke tabel `profiles` setelah `auth.signUp()` sukses, sebagai fallback jika trigger DB tidak jalan.
+- **[FIX] `Checkout.tsx`:** Ubah default `qrisUrl` dari `'/qris.png'` (404) ke string kosong — fallback placeholder sudah handle.
+
+### Optimasi Build:
+- **[CHANGE] Logo WebP:** Kompresi `logo-icon.png` (2.3MB → 180KB, -92%), `logo-utama.png` (2.0MB → 190KB, -90%), `logo-landscape.png` (292KB → 63KB, -78%) ke WebP. Update semua import di `SPSLogo.tsx`, `Home.tsx`, `DashboardLayout.tsx`, `PortalLayout.tsx`, `RefundPolicy.tsx`, `Terms.tsx`, `Contact.tsx`, `FAQ.tsx`.
+- **[CHANGE] `public/qris.png`:** Dibuat placeholder QRIS (5KB) untuk menghindari 404.
+
+v4.16.2 — Fix Profil Kembali ke Default (Profile Tidak Tersimpan)
+-----------------------------------------------------------------------
+### Perbaikan Profile Hilang (Root Cause):
+- **[FIX] `Profile.tsx`:** Ganti `.update()` jadi `.upsert()` pada `handleSaveProfile`. Sebelumnya jika row di tabel `profiles` tidak ada (trigger DB gagal/tidak sempat jalan), `.update()` adalah silent no-op — data tidak tersimpan. Setelah refresh, `fetchProfile()` gagal → fallback ke default "User" tanpa NIK/phone.
+- **[FIX] `AuthCallback.tsx`:** Ganti `.update()` jadi `.upsert()` pada kedua lokasi save profile (pending data dari sessionStorage & form "Lengkapi Profil"). Sama, mencegah silent no-op jika row profile belum ada.
+- **[FIX] `Register.tsx`:** Tambah `upsert()` eksplisit ke tabel `profiles` setelah `supabase.auth.signUp()` berhasil. Sebelumnya hanya mengandalkan DB trigger `handle_new_user()` — jika trigger tidak ada/gagal, user baru tidak punya profil.
+
+### Perbaikan Lain:
+- **[FIX] `Checkout.tsx`:** Ubah default `qrisUrl` dari `'/qris.png'` (file tidak ada → 404) jadi string kosong. Fallback UI (QrCode icon + "QRIS tidak tersedia") sudah handle case ini.
+- **[CHANGE] `src/components/ui/logo-*.png`:** Konversi logo ke WebP — `logo-icon.png` 2.3MB → 180KB (92%), `logo-utama.png` 2.0MB → 190KB (90%), `logo-landscape.png` 292KB → 63KB (78%). Semua import di SPSLogo.tsx, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx, RefundPolicy.tsx, Terms.tsx, Contact.tsx, FAQ.tsx diupdate ke `.webp`.
+- **[ADD] `public/qris.png`:** Placeholder QRIS untuk fallback.
+- **[ADD] `changelog.txt`:** Catatan riwayat error & perbaikan.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.16.1 → v4.16.2 (PATCH: perbaikan profil tidak tersimpan).
+
 v4.16.1 — Fix Service Worker Konflik & Pre-Google Registration Form
 -----------------------------------------------------------------------
 ### Perbaikan Routing (Penyebab utama "routing salah" di HP lain):

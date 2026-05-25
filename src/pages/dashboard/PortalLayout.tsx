@@ -22,7 +22,7 @@ import {
   Home,
   ClipboardList
 } from 'lucide-react';
-import LogoSidebar from '../../components/ui/logo-landscape.png';
+import LogoSidebar from '../../components/ui/logo-landscape.webp';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
