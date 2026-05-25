@@ -65,7 +65,11 @@ export default function AdminDashboard() {
 
   const handleAutoCleanup = async () => {
     try {
-      await fetch('/api/admin/transactions/cleanup', { method: 'POST' });
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch('/api/admin/transactions/cleanup', {
+        method: 'POST',
+        headers: session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}
+      });
     } catch (e) {
       console.error('Auto-cleanup failed', e);
     }
