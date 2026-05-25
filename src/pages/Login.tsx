@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore, isEmployeeNik } from '../store/useAuthStore';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, X, User, CreditCard, Phone, ArrowRight } from 'lucide-react';
 import SPSLogo from '../components/SPSLogo';
 
 export default function Login() {
@@ -13,6 +13,12 @@ export default function Login() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   
+  const [showPreGoogleForm, setShowPreGoogleForm] = useState(false);
+  const [preGoogleName, setPreGoogleName] = useState('');
+  const [preGoogleNik, setPreGoogleNik] = useState('');
+  const [preGooglePhone, setPreGooglePhone] = useState('');
+  const [preGoogleError, setPreGoogleError] = useState('');
+
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -25,15 +31,24 @@ export default function Login() {
   
   const { fetchProfile } = useAuthStore();
 
-  const handleGoogleLogin = async () => {
-    setGoogleLoading(true);
-    setError('');
-    try {
-      if (from) {
-        sessionStorage.setItem('returnUrl', from);
-      }
-      const redirectTo = `${window.location.origin}/auth/callback`;
+  const handlePreGoogleSubmit = async () => {
+    setPreGoogleError('');
+    const cleanNik = preGoogleNik.trim().replace(/[\s\-.]/g, '');
+    if (!preGoogleName.trim()) { setPreGoogleError('Nama lengkap wajib diisi'); return; }
+    if (cleanNik.length < 3) { setPreGoogleError('NIK tidak valid (minimal 3 karakter)'); return; }
+    if (!preGooglePhone.trim() || preGooglePhone.trim().length < 10) { setPreGoogleError('Nomor HP tidak valid (minimal 10 digit)'); return; }
 
+    // Simpan ke sessionStorage agar bisa dibaca oleh AuthCallback
+    sessionStorage.setItem('pendingGoogleName', preGoogleName.trim());
+    sessionStorage.setItem('pendingGoogleNik', cleanNik);
+    sessionStorage.setItem('pendingGooglePhone', preGooglePhone.trim());
+
+    setShowPreGoogleForm(false);
+    if (from) sessionStorage.setItem('returnUrl', from);
+    setGoogleLoading(true);
+
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -49,6 +64,15 @@ export default function Login() {
       setError(err.message || 'Gagal login dengan Google.');
       setGoogleLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    // Tampilkan form input NIK & nomor HP sebelum redirect ke Google
+    setPreGoogleError('');
+    setPreGoogleName('');
+    setPreGoogleNik('');
+    setPreGooglePhone('');
+    setShowPreGoogleForm(true);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -270,6 +294,98 @@ export default function Login() {
           </div>
         </motion.div>
       </div>
+
+      {/* Pre-Google form: kumpulkan NIK & nomor HP sebelum redirect */}
+      <AnimatePresence>
+        {showPreGoogleForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
+              className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-2xl p-6"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-black text-zinc-900 dark:text-white">Lengkapi Data Diri</h3>
+                <button onClick={() => setShowPreGoogleForm(false)} className="p-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                  <X className="w-5 h-5 text-zinc-400" />
+                </button>
+              </div>
+
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mb-5 leading-relaxed">
+                Data berikut diperlukan untuk verifikasi akun sebelum lanjut login dengan Google.
+              </p>
+
+              {preGoogleError && (
+                <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl p-3 mb-4 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-600 dark:text-red-400 font-medium">{preGoogleError}</p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1 uppercase tracking-widest">Nama Lengkap</label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <input
+                      type="text"
+                      placeholder="Sesuai KTP"
+                      value={preGoogleName}
+                      onChange={e => setPreGoogleName(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm font-medium bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1 uppercase tracking-widest">NIK (Nomor Induk Karyawan)</label>
+                  <div className="relative">
+                    <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <input
+                      type="text"
+                      placeholder="Masukkan NIK Anda"
+                      value={preGoogleNik}
+                      onChange={e => setPreGoogleNik(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm font-medium bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1 uppercase tracking-widest">Nomor Handphone</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                    <input
+                      type="tel"
+                      placeholder="Contoh: 08123456789"
+                      value={preGooglePhone}
+                      onChange={e => setPreGooglePhone(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 text-sm font-medium bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition-all"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handlePreGoogleSubmit}
+                className="w-full mt-5 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/25 active:scale-[0.98]"
+              >
+                Lanjutkan ke Google <ArrowRight className="w-4 h-4" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

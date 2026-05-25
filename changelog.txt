@@ -1,3 +1,16 @@
+v4.16.1 — Fix Service Worker Konflik & Pre-Google Registration Form
+-----------------------------------------------------------------------
+### Perbaikan Routing (Penyebab utama "routing salah" di HP lain):
+- **[FIX] Hapus `public/sw.js`:** Service worker manual v4.5.9 dihapus. SW ini menyimpan HTML shell lama dengan referensi JS chunk hash outdated, menyebabkan komponen gagal load (404 chunk) pada user yang sudah pernah mengunjungi web sebelumnya. Cukup gunakan `src/sw.ts` yang dikelola VitePWA.
+- **[FIX] `src/main.tsx`:** Tambah script unregister otomatis untuk semua service worker lama saat aplikasi dimuat, membersihkan cache bermasalah dari perangkat user.
+
+### Perbaikan Registrasi (NIK & nomor HP hilang):
+- **[FIX] `Login.tsx`:** Tambah form modal sebelum redirect Google OAuth untuk收集 NIK, nama lengkap, dan nomor HP. Data disimpan ke `sessionStorage` sebelum redirect ke Google.
+- **[FIX] `AuthCallback.tsx`:** Baca data pending dari `sessionStorage` setelah Google callback dan simpan ke profil. Jika user sebelumnya sudah input data di form pre-Google, data tidak akan hilang.
+
+### Perbaikan Lain:
+- **[FIX] `App.tsx`:** Tambah route `/privacy` yang hilang (direferensi oleh KioskLayout footer).
+
 v4.16.0 — Fix Navigasi Mobile & Perbaikan Logo Sidebar
 -----------------------------------------------------------------------
 ### Perbaikan Navigasi:

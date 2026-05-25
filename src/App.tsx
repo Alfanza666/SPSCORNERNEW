@@ -51,6 +51,7 @@ const Contact = lazyWithRetry(() => import('./pages/Contact'));
 const HelpCenter = lazyWithRetry(() => import('./pages/HelpCenter'));
 const FAQ = lazyWithRetry(() => import('./pages/FAQ'));
 const RefundPolicy = lazyWithRetry(() => import('./pages/RefundPolicy'));
+const PrivacyPolicy = lazyWithRetry(() => import('./pages/PrivacyPolicy'));
 
 const DashboardLayout = lazyWithRetry(() => import('./pages/dashboard/DashboardLayout'));
 const AdminDashboard = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDashboard'));
@@ -203,6 +204,7 @@ export default function App() {
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/refund" element={<RefundPolicy />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
 
             <Route path="/portal" element={<PortalLayout />}>

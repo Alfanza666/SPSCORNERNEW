@@ -128,16 +128,42 @@ export default function AuthCallback() {
           }
         }
 
+        // Ambil data pending dari pre-Google form (Login.tsx)
+        const pendingNik = sessionStorage.getItem('pendingGoogleNik');
+        const pendingPhone = sessionStorage.getItem('pendingGooglePhone');
+        const pendingName = sessionStorage.getItem('pendingGoogleName');
+
+        // Jika ada data pending dari pre-Google form, simpan ke profil
+        if (pendingNik || pendingPhone || pendingName) {
+          const updates: Record<string, string> = {};
+          if (pendingName) updates.name = pendingName;
+          if (pendingNik) updates.nik = pendingNik;
+          if (pendingPhone) updates.phone = pendingPhone;
+
+          const { error: savePendingError } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', session.user.id);
+
+          if (!savePendingError) {
+            Object.assign(profile, updates);
+          }
+
+          sessionStorage.removeItem('pendingGoogleNik');
+          sessionStorage.removeItem('pendingGooglePhone');
+          sessionStorage.removeItem('pendingGoogleName');
+        }
+
         const googleName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
         const googleEmail = session.user.email || '';
 
         setSessionUser(session.user);
-        setName(profile.name || googleName);
+        setName(profile.name || pendingName || googleName);
         setEmail(googleEmail);
-        setPhone(profile.phone || '');
-        setNik(profile.nik || '');
+        setPhone(profile.phone || pendingPhone || '');
+        setNik(profile.nik || pendingNik || '');
 
-        const needsCompletion = !profile.nik || !profile.phone;
+        const needsCompletion = !(profile.nik || pendingNik) || !(profile.phone || pendingPhone);
 
         if (needsCompletion) {
           setStep('complete_profile');
