@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'motion/react';
-import { UserPlus, ArrowLeft, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { UserPlus, ArrowLeft, ShieldCheck, AlertCircle, CheckCircle2, Mail } from 'lucide-react';
 import SPSLogo from '../../components/SPSLogo';
 
 export default function Register() {
@@ -14,6 +14,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
   const navigate = useNavigate();
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -65,13 +66,16 @@ export default function Register() {
             name: name.trim(),
             phone: phone.trim(),
             role: 'buyer'
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
       if (signUpError) throw signUpError;
 
-      if (data.user) {
+      if (data.user?.identities?.length === 0) {
+        setNeedsEmailConfirm(true);
+      } else if (data.user) {
         setSuccess(true);
         setTimeout(() => {
           navigate('/login');
@@ -115,6 +119,30 @@ export default function Register() {
               className="h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
             />
           </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (needsEmailConfirm) {
+    return (
+      <div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center p-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full clay-card p-8 text-center"
+        >
+          <div className="w-20 h-20 bg-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+            <Mail className="w-10 h-10 text-white" />
+          </div>
+          <h2 className="text-2xl font-black text-zinc-900 mb-3">Cek Email Anda</h2>
+          <p className="text-sm text-zinc-500 mb-8 leading-relaxed font-bold">
+            Kami telah mengirimkan email konfirmasi ke <span className="text-zinc-900">{email}</span>.<br />
+            Klik link di email untuk mengaktifkan akun Anda.
+          </p>
+          <button onClick={() => navigate('/login')} className="btn-clay-primary w-full">
+            Ke Halaman Login
+          </button>
         </motion.div>
       </div>
     );

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { Trash2, Plus, Minus, ArrowRight, ArrowLeft, ShoppingCart, ShoppingBag, Loader2, User, Info, CreditCard, ShieldCheck, Phone } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ArrowLeft, ShoppingCart, ShoppingBag, Loader2, User, Info, CreditCard, ShieldCheck, Phone, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
@@ -54,6 +54,16 @@ export default function Cart() {
     releaseExistingReservations();
   }, []);
 
+  // --- LOGIKA PEMULIHAN KERANJANG (RESTORE CART) ---
+  useEffect(() => {
+    const backupCart = localStorage.getItem('sps_guest_cart_backup');
+    if (backupCart && items.length === 0) {
+      useCartStore.setState({ items: JSON.parse(backupCart) });
+      localStorage.removeItem('sps_guest_cart_backup'); // Bersihkan brankas setelah dipakai
+    }
+  }, [items.length]);
+  // -------------------------------------------------
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 sm:p-6">
@@ -88,6 +98,20 @@ export default function Cart() {
   }
 
   const handleCheckout = async () => {
+    // --- PENCEGAT & BACKUP KERANJANG SAAT BELUM LOGIN ---
+    if (!user) {
+      // Simpan item ke brankas localStorage sebelum dilempar ke login
+      localStorage.setItem('sps_guest_cart_backup', JSON.stringify(items));
+      
+      toast('Silakan masuk ke akun Anda terlebih dahulu untuk melanjutkan pembayaran.', {
+        icon: '🔒',
+        duration: 3000,
+      });
+      navigate(`/login?redirect=${encodeURIComponent('/kiosk/cart')}`);
+      return;
+    }
+    // ----------------------------------------------------
+
     if (!buyerName.trim()) {
       toast.error('Mohon masukkan nama Anda');
       return;
@@ -97,8 +121,7 @@ export default function Cart() {
       return;
     }
 
-    // Guest checkout requires email for all products (for pickup notification)
-    if (!user && !buyerEmail.trim()) {
+    if (!buyerEmail.trim() && !user) {
       toast.error('Mohon masukkan email untuk receive notifikasi pengambilan pesanan');
       return;
     }
@@ -112,8 +135,7 @@ export default function Cart() {
       const newReservations: string[] = [];
       
       for (const item of items) {
-        // Skip reservation for digital products as they don't have physical stock in the database
-        if (item.is_digital) continue;
+        if (item.is_digital || item.is_preorder) continue;
 
         const { data: resId, error } = await supabase.rpc('reserve_stock', {
           p_product_id: item.id,
@@ -206,6 +228,17 @@ export default function Cart() {
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter">Digital</span>
                           <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">{item.target_number}</span>
+                        </div>
+                      )}
+                      {item.is_preorder && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5" />
+                            Pre-Order
+                          </span>
+                          {item.pickup_notes && (
+                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium truncate max-w-[120px]">{item.pickup_notes}</span>
+                          )}
                         </div>
                       )}
                       <p className="text-blue-600 dark:text-blue-400 font-black text-[10px] sm:text-xs mt-0.5 tracking-tighter">
@@ -371,7 +404,7 @@ export default function Cart() {
 
             <button
               onClick={handleCheckout}
-              disabled={!buyerName.trim() || isReserving}
+              disabled={isReserving}
               className="btn-clay-primary w-full h-10 sm:h-12 text-xs sm:text-sm group flex items-center justify-center gap-1.5 sm:gap-2 guide-cart-checkout-btn"
             >
               {isReserving ? (

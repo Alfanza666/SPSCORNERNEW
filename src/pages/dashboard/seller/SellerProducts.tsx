@@ -42,10 +42,12 @@ export default function SellerProducts() {
   const [returnReason, setReturnReason] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [importingCSV, setImportingCSV] = useState(false);
-  const [isStandbyActive, setIsStandbyActive] = useState(true); // Default true to prevent flicker
+  const [isStandbyActive, setIsStandbyActive] = useState(true);
   const [activeStandbyPic, setActiveStandbyPic] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showBulkRestock, setShowBulkRestock] = useState(false);
+  const [bulkRestockItems, setBulkRestockItems] = useState<Record<string, string>>({});
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
@@ -134,10 +136,11 @@ export default function SellerProducts() {
       if (!e.target.files || e.target.files.length === 0) return;
       
       const file = e.target.files[0];
-      if (file.size > 2 * 1024 * 1024) {
-        throw new Error('Ukuran file terlalu besar. Maksimal 2MB.');
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Ukuran file terlalu besar. Maksimal 5MB.');
       }
 
+      const resizedBlob = await resizeImage(file, 800, 800);
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
       const filePath = `${user?.id}/${fileName}`;
@@ -146,7 +149,7 @@ export default function SellerProducts() {
 
       const { error: uploadError } = await supabase.storage
         .from('products')
-        .upload(filePath, file, {
+        .upload(filePath, resizedBlob, {
           cacheControl: '3600',
           upsert: false
         });
@@ -218,12 +221,15 @@ export default function SellerProducts() {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select('*, pre_order_configs(id)')
         .eq('seller_id', user?.id)
         .order('created_at', { ascending: false });
         
       if (error) throw error;
-      setProducts(data || []);
+      
+      // Filter out products that have an entry in pre_order_configs
+      const normalProducts = (data || []).filter(p => !p.pre_order_configs || p.pre_order_configs.length === 0);
+      setProducts(normalProducts);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -300,15 +306,17 @@ export default function SellerProducts() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('stock_requests').insert({
-        product_id: restockingProduct.id,
-        seller_id: user.id,
-        requested_quantity: quantity,
-        notes: restockNotes,
-        status: 'pending'
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/stock-requests/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ product_id: restockingProduct.id, requested_quantity: quantity, notes: restockNotes })
       });
-
-      if (error) throw error;
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
 
       toast.success('Permintaan restock berhasil dikirim ke Admin');
       setRestockingProduct(null);
@@ -320,6 +328,38 @@ export default function SellerProducts() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBulkRestock = async () => {
+    if (!user?.id) return;
+    const entries = Object.entries(bulkRestockItems).filter(([, qty]) => Number(qty) > 0);
+    if (entries.length === 0) { toast.error('Pilih minimal 1 produk dengan jumlah > 0'); return; }
+
+    setLoading(true);
+    let success = 0;
+    let failed = 0;
+    const { data: { session } } = await supabase.auth.getSession();
+
+    for (const [productId, qty] of entries) {
+      try {
+        const res = await fetch('/api/stock-requests/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+          },
+          body: JSON.stringify({ product_id: productId, requested_quantity: Number(qty), notes: 'Restock massal' })
+        });
+        const data = await res.json();
+        if (data.success) success++; else failed++;
+      } catch { failed++; }
+    }
+
+    if (success > 0) toast.success(`${success} permintaan restock berhasil dikirim`);
+    if (failed > 0) toast.error(`${failed} permintaan gagal`);
+    setShowBulkRestock(false);
+    setBulkRestockItems({});
+    setLoading(false);
   };
 
   const handleRequestReturn = async (e: React.FormEvent) => {
@@ -334,16 +374,17 @@ export default function SellerProducts() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('product_returns').insert({
-        product_id: returningProduct.id,
-        seller_id: user.id,
-        quantity: quantity,
-        reason: returnReason,
-        status: 'pending',
-        initiated_by: user.id
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/product-returns/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ product_id: returningProduct.id, quantity, reason: returnReason })
       });
-
-      if (error) throw error;
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
 
       toast.success('Permintaan retur berhasil dikirim ke Admin');
       setReturningProduct(null);
@@ -463,6 +504,14 @@ export default function SellerProducts() {
             onChange={handleImportCSV}
             className="hidden"
           />
+          <button 
+            onClick={() => setShowBulkRestock(true)}
+            disabled={!isStandbyActive}
+            className="btn-clay-secondary h-12 px-6 flex items-center gap-3"
+          >
+            <RotateCcw className="w-5 h-5" />
+            <span className="hidden sm:inline">Restock Massal</span>
+          </button>
           <button 
             onClick={() => fileInputRef.current?.click()} 
             disabled={importingCSV}
@@ -1110,6 +1159,87 @@ export default function SellerProducts() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showBulkRestock && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 dark:bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col"
+            >
+              <div className="p-6 md:p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between shrink-0">
+                <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Restock Massal</h2>
+                <button onClick={() => { setShowBulkRestock(false); setBulkRestockItems({}); }} className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 md:p-8 overflow-y-auto space-y-3">
+                {products.filter(p => p.stock >= 0).map(product => {
+                  const qty = bulkRestockItems[product.id] || '';
+                  return (
+                    <div key={product.id} className="flex items-center gap-4 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-700 overflow-hidden shrink-0">
+                        {product.image_url ? <img src={product.image_url} className="w-full h-full object-cover" /> : <Package className="w-5 h-5 text-zinc-400 m-2.5" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-zinc-900 dark:text-white truncate">{product.name}</p>
+                        <p className="text-xs text-zinc-500">Stok: {product.stock}</p>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={qty}
+                        onChange={(e) => setBulkRestockItems(prev => ({ ...prev, [product.id]: e.target.value }))}
+                        className="w-24 input-clay text-center"
+                      />
+                    </div>
+                  );
+                })}
+                {products.length === 0 && <p className="text-center text-zinc-400 py-8">Belum ada produk</p>}
+              </div>
+              <div className="p-6 md:p-8 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-3 shrink-0">
+                <button onClick={() => { setShowBulkRestock(false); setBulkRestockItems({}); }} className="btn-clay-secondary px-6">Batal</button>
+                <button onClick={handleBulkRestock} disabled={loading} className="btn-clay-primary px-6">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Kirim Semua'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
+}
+
+function resizeImage(file: File, maxWidth: number, maxHeight: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+      if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Gagal meresize gambar'));
+      }, file.type || 'image/jpeg', 0.85);
+    };
+    img.onerror = () => reject(new Error('Gagal membaca gambar'));
+    img.src = URL.createObjectURL(file);
+  });
 }

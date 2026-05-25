@@ -341,8 +341,7 @@ export default function AdminProducts() {
           .from('products')
           .insert({
             ...payload,
-            seller_id: editingProduct.seller_id || user?.id,
-            is_digital: categories.find(c => c.name === editingProduct.category)?.is_digital || false
+            seller_id: editingProduct.seller_id || user?.id
           });
         if (error) throw error;
         toast.success(`Berhasil menambahkan produk: ${editingProduct.name}`);

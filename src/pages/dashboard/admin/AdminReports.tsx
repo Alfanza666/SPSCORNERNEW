@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Bug, CheckCircle2, Clock, XCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { Bug, CheckCircle2, Clock, XCircle, RefreshCw, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: 'Menunggu', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
@@ -67,6 +68,98 @@ export default function AdminReports() {
 
   const filtered = filterStatus === 'all' ? reports : reports.filter(r => r.status === filterStatus);
 
+  const exportToExcel = () => {
+    const data = filtered.map(r => ({
+      ID: r.id?.slice(0, 8) || '',
+      Tipe: r.type === 'crash' ? 'Crash/Otomatis' : 'Bug/Manual',
+      Status: STATUS_MAP[r.status]?.label || r.status,
+      Pesan: r.message,
+      User: r.user_name || 'Anonymous',
+      Halaman: r.metadata?.url || '',
+      'User Agent': r.metadata?.userAgent || '',
+      'Stack Trace': r.metadata?.stack || '',
+      'Waktu Dibuat': format(new Date(r.created_at), 'dd MMM yyyy HH:mm', { locale: id }),
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [
+      { wch: 10 }, { wch: 16 }, { wch: 12 },
+      { wch: 60 }, { wch: 20 }, { wch: 50 },
+      { wch: 40 }, { wch: 80 }, { wch: 20 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Laporan & Bug');
+    XLSX.writeFile(wb, `laporan-bug-spscorner-${format(new Date(), 'yyyyMMdd-HHmm')}.xlsx`);
+    toast.success(`Berhasil mengekspor ${data.length} laporan ke Excel`);
+  };
+
+  const exportToMarkdown = () => {
+    const lines: string[] = [];
+    lines.push('# Laporan & Bug — SPS Corner');
+    lines.push('');
+    lines.push(`> **Diekspor pada:** ${format(new Date(), 'dd MMMM yyyy, HH:mm', { locale: id })}`);
+    lines.push(`> **Filter status:** ${filterStatus === 'all' ? 'Semua' : STATUS_MAP[filterStatus]?.label || filterStatus}`);
+    lines.push(`> **Total laporan:** ${filtered.length}`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+    filtered.forEach((r, i) => {
+      lines.push(`## ${i + 1}. ${r.message?.slice(0, 80)}`);
+      lines.push('');
+      lines.push(`| Field | Detail |`);
+      lines.push(`|-------|--------|`);
+      lines.push(`| **ID** | \`${r.id || '-'}\` |`);
+      lines.push(`| **Tipe** | ${r.type === 'crash' ? 'Crash / Otomatis' : 'Bug / Manual'} |`);
+      lines.push(`| **Status** | ${STATUS_MAP[r.status]?.label || r.status} |`);
+      lines.push(`| **User** | ${r.user_name || 'Anonymous'} |`);
+      lines.push(`| **Pesan** | ${r.message || '-'} |`);
+      lines.push(`| **Halaman** | ${r.metadata?.url || '-'} |`);
+      lines.push(`| **Browser / OS** | ${r.metadata?.userAgent || '-'} |`);
+      lines.push(`| **Screen** | ${r.metadata?.screen || '-'} |`);
+      lines.push(`| **Language** | ${r.metadata?.language || '-'} |`);
+      lines.push(`| **Connection** | ${r.metadata?.connection || '-'} |`);
+      lines.push(`| **Waktu** | ${format(new Date(r.created_at), 'dd MMM yyyy HH:mm', { locale: id })} |`);
+      lines.push('');
+      if (r.metadata?.stack) {
+        lines.push('### Stack Trace');
+        lines.push('');
+        lines.push('```');
+        lines.push(r.metadata.stack);
+        lines.push('```');
+        lines.push('');
+      }
+      if (r.metadata?.breadcrumbs?.length > 0) {
+        lines.push('### Riwayat Aksi (Breadcrumbs)');
+        lines.push('');
+        lines.push('| Waktu | Tipe | Detail |');
+        lines.push('|-------|------|--------|');
+        r.metadata.breadcrumbs.forEach((b: any) => {
+          lines.push(`| ${format(new Date(b.time), 'HH:mm:ss')} | ${b.type} | ${b.value} |`);
+        });
+        lines.push('');
+      }
+      if (r.metadata?.timestamp) {
+        lines.push(`> *Auto-capture timestamp: ${r.metadata.timestamp}*`);
+        lines.push('');
+      }
+      lines.push('---');
+      lines.push('');
+    });
+    lines.push('---');
+    lines.push('');
+    lines.push(`*Dibuat secara otomatis oleh SPS Corner — ${format(new Date(), 'yyyy-MM-dd HH:mm')}*`);
+    const content = lines.join('\n');
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `laporan-bug-spscorner-${format(new Date(), 'yyyyMMdd-HHmm')}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Berhasil mengekspor ${filtered.length} laporan ke Markdown`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -74,9 +167,17 @@ export default function AdminReports() {
           <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Laporan & Bug</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Pantau laporan bug dan saran dari pengguna</p>
         </div>
-        <button onClick={fetchReports} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-colors shadow-sm">
-          <RefreshCw className="w-4 h-4" /> Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={exportToMarkdown} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-colors shadow-sm">
+            <FileText className="w-4 h-4" /> Export .md
+          </button>
+          <button onClick={exportToExcel} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+            <FileSpreadsheet className="w-4 h-4" /> Export .xlsx
+          </button>
+          <button onClick={fetchReports} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-colors shadow-sm">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

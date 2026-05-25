@@ -1,3 +1,255 @@
+v4.15.5 — Fix React Error #520 (Hydration Mismatch) di Halaman Kiosk
+-----------------------------------------------------------------------
+### Perbaikan Bug:
+- **[FIX] Catalog.tsx:** Stabilkan `new Date()` di render path dengan `useMemo` untuk mencegah React mendeteksi ketidakkonsistenan render tree (#520). Mengubah `isWithinCutoff` & `isTodayOpenDay` menerima parameter `now?: Date` opsional agar render path pakai tanggal stabil sementara event handler tetap real-time.
+- **[FIX] Success.tsx:** Pindahkan `window.innerHeight` dari module scope ke dalam komponen via `useState` lazy initializer — mencegah crash saat modul dievaluasi di konteks non-browser (PWA/service worker edge case). Gunakan lazy initializer `useState(() => new Date())`.
+- **[FIX] Checkout.tsx:** Bungkus akses `sessionStorage` di render path dengan try-catch IIFE agar tidak throw error jika storage tidak tersedia.
+- **[FIX] Validate.tsx:** Sama, bungkus `sessionStorage` dengan try-catch.
+- **[FIX] Home.tsx, DashboardLayout.tsx:** Sinkronisasi versi UI ke v4.15.5.
+
+### Teknis:
+- **[CHANGE] package.json:** v4.15.4 → v4.15.5.
+- Root cause: React 19 mendeteksi non-deterministic values (`new Date()`, `sessionStorage`, `window.innerHeight`) dalam render tree sebagai potensi hydration inconsistency, memicu error #520 pada halaman `/kiosk` dan `/kiosk/cart`.
+
+### QA Checklist (Zero Regression):
+1. Buka `/kiosk` — pastikan katalog produk tampil normal, filter kategori bekerja, search berfungsi.
+2. Buka tab Pre-Order — pastikan cutoff time & open days masih berfungsi, tombol dinonaktifkan jika lewat cutoff.
+3. Buka modal detail produk — pastikan info Pre-Order (cutoff, open days) benar.
+4. Buka `/kiosk/cart` — tambah produk, lanjut ke checkout, pastikan data guest dari sessionStorage (buyerName, buyerPhone) terisi.
+5. Buka `/kiosk/checkout` — pastikan pembayaran bisa diproses.
+6. Buka `/kiosk/success` — pastikan halaman sukses tampil dengan bottom sheet drag-able.
+7. Test di mobile Chrome dan desktop Chrome.
+
+v4.15.4 — Export Laporan Bug & Crash ke Excel/Markdown
+-----------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Export Excel (.xlsx):** AdminReports.tsx — tombol "Export .xlsx" untuk mengekspor laporan bug & crash ke format Excel. Menggunakan library `xlsx` (SheetJS) dengan kolom: ID, Tipe, Status, Pesan, User, Halaman, User Agent, Stack Trace, Waktu.
+- **[NEW] Export Markdown (.md):** AdminReports.tsx — tombol "Export .md" untuk mengekspor laporan ke file Markdown rapi dengan tabel, stack trace, breadcrumbs, dan metadata teknis per laporan.
+- **[NEW] Export Buttons:** Dua tombol ekspor di header halaman AdminReports, mengekspor data sesuai filter status aktif saat itu.
+
+### Teknis:
+- **[CHANGE] AdminReports.tsx:** +import XLSX, +exportToExcel(), +exportToMarkdown(), +2 tombol (FileSpreadsheet, FileText) di header.
+- **[CHANGE] package.json:** v4.15.3 → v4.15.4.
+
+v4.15.3 — Dead Code Cleanup: Hapus 21 file tidak terpakai
+-----------------------------------------------------------------------
+### Perbaikan:
+- **[CLEANUP] Dead Code Removal:** Hapus 21 file one-time patch/script/log yang tidak direferensi source code:
+  - 7 file `.cjs` (fix.cjs, fix_checkout.cjs, fix_globe.cjs, fix_layout.cjs, fix_layout2.cjs, patch.cjs, revert_incorrect_patches.cjs)
+  - 7 file `.sql` migrasi one-time (add_store_open_column.sql, fix_add_increment_stock.sql, fix_categories.sql, fix_confirm_stock_deduction.sql, fix_stock_correction_v2.sql, flashsale_setup.sql, reports_setup.sql)
+  - 3 file `scripts/` (create_mock_user.ts, migration_form_builder_storage.sql, migration_program_push_v1.sql)
+  - 4 file lain (push_to_github.bat, session-ses_1c94.md, walkthrough.md, 'Perbaikan program')
+  - Direktori `scripts/` (sekarang kosong) ikut dihapus
+- **[CLEANUP] Build Size:** Mengurangi ukuran project root ~15 file + 1 direktori
+
+### Teknis:
+- **[CHANGE] package.json:** v4.15.2 → v4.15.3.
+
+v4.15.2 — Fix Inconsistent Transaction Status & Duplicate Creation
+-----------------------------------------------------------------------
+### Perbaikan:
+- **[FIX] Duplikasi Transaksi (Critical):** Checkout.tsx — tambah mutex `isCreatingTx` ref di SEMUA handler pembayaran (DirectPayment, ManualQris, PointPayment, Payment) untuk mencegah pembuatan 2+ transaksi jika user klik 2 tombol berbeda secara cepat.
+- **[FIX] Duplikasi Transaksi (Backend):** Server.ts — tambah idempotency check di `/api/transactions/create`: jika buyer_id sama membuat transaksi pending dengan total_amount + jumlah item yg identik dalam 60 detik, kembalikan transaksi yg sudah ada.
+- **[FIX] iPaymu Callback Race Condition:** Server.ts — tambah guard agar callback "gagal" tidak menimpa transaksi yang sudah berstatus "paid"/"success". Jika item digital sudah terkirim (delivered), status dikembalikan ke "paid".
+- **[FIX] Status Badge di Detail Modal:** History.tsx — tambah badge status transaksi (Selesai/Terbayar/Diproses/Menunggu/Gagal) di bagian atas modal detail agar user bisa melihat status transaksi secara konsisten dengan tampilan list.
+
+### Teknis:
+- **[CHANGE] Checkout.tsx:** +isCreatingTx mutex ref, guard di 4 handler, reset di finally/catch.
+- **[CHANGE] server.ts:** +idempotency check di create endpoint + ipaymu callback guard + delivered item detection.
+- **[CHANGE] History.tsx:** +status badge global di modal detail transaksi.
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.15.1 → v4.15.2.
+
+v4.15.1 — Daily Report, Mobile Tabs, Vitest & Notification Enhancements
+-----------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Seller Daily Report:** Cron otomatis jam 20:00 WITA — ringkasan harian (jumlah pesanan, total revenue, breakdown status) dikirim via notifikasi ke tiap seller.
+- **[NEW] Mobile Bottom Tab Navigation:** Tab bar fixed di bawah layar (mobile) — Beranda, Menu, Riwayat, Keranjang (+ badge count), Akun. Hanya muncul di kiosk browsing flow.
+- **[NEW] Vitest + Unit Tests:** Setup testing framework. Test pertama untuk `formatRupiah` (5 test cases) dan `useCartStore` (9 test cases). Total 14 passing.
+
+### Perbaikan:
+- **[FIX] Notification Click Handler:** Notification API fallback sekarang handle `onclick` → navigasi ke path yang dituju.
+- **[FIX] Notification Recipient Notif:** `productReturns.ts` — notifikasi retur dikirim ke `initiated_by` (buyer atau seller) sesuai asal request.
+
+### Teknis:
+- **[CHANGE] server.ts:** add `dailyReport` function + `setInterval(60s)` scheduler, query via `transaction_items` join.
+- **[CHANGE] KioskLayout.tsx:** +Bottom tab bar (sm:hidden) dengan 5 tab, padding-bottom tambahan untuk safe area.
+- **[NEW] package.json:** `"test": "vitest run"`, `"test:watch": "vitest"` scripts. DevDeps: vitest, jsdom, @testing-library/react, @testing-library/jest-dom.
+- **[NEW] src/test/:** setup.ts, utils.test.ts, cartStore.test.ts.
+- **[CHANGE] vite.config.ts:** +vitest config (globals, jsdom, setupFiles).
+
+v4.15.0 — Buyer Dashboard, Return Flow, Auth Middleware & Server Modularization
+-------------------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Buyer Dashboard:** Halaman `/kiosk/home` — ringkasan total belanja, 4 quick action cards (Belanja, Riwayat, Pre-Order, Profil), daftar 5 pesanan terakhir dengan status. Logo SPS Corner navigasi ke dashboard untuk buyer login.
+- **[NEW] Buyer Return Flow:** Tombol "Request Retur" di History.tsx per item transaksi (status paid/confirmed/processed/ready/completed). Modal dengan quantity selector + alasan retur. Endpoint baru: `POST /api/product-returns/buyer-request`, `GET /api/product-returns/my`.
+- **[NEW] Auth Middleware:** `src/middleware/auth.ts` — `requireAuth`, `requireRole`, `adminOnly` Express middleware factory functions. Blanket middleware di server.ts untuk `/api/admin`, `/api/withdrawals`, `/api/stock-requests`, `/api/product-returns`.
+- **[NEW] Cart Persistence:** Zustand `persist` middleware — cart tersimpan di localStorage key `sps-cart-storage`.
+
+### Perbaikan & Optimasi:
+- **[FIX] Email Verification:** Register.tsx — tambah `emailRedirectTo`, deteksi `identities.length === 0`, tampilkan screen "Cek Email Anda".
+- **[FIX] Kiosk Store Toggle:** Buka/Tutup Kiosk toggle di SellerDashboard. Produk dari seller yang tutup tidak muncul di Catalog. SQL migration `add_store_open_column.sql`.
+- **[FIX] Duplicate Sidebar:** Hapus duplicate "Kritik & Saran" di DashboardLayout. Tambah "Spin Doorprize" + "Family Gathering" di sidebar admin.
+- **[FIX] Search Debounce:** 300ms debounce di Catalog.tsx — tidak spam query saat mengetik.
+- **[FIX] Return Bug:** `adjustment_type: "return"` → `"correction"` di `productReturns.ts` — sesuai DB CHECK constraint. Notifikasi retur dikirim ke `initiated_by` (bukan cuma `seller_id`).
+
+### Teknis:
+- **[CHANGE] Server Modularization:** Ekstrak 3 route modules ke `src/routes/withdrawals.ts`, `src/routes/stock.ts`, `src/routes/productReturns.ts` via factory function pattern. ~220 lines dihapus dari server.ts.
+- **[CHANGE] productReturns.ts:** Tambah 2 endpoint baru: `buyer-request`, `my` (list return request milik user). Perbaiki notifikasi recipient.
+- **[CHANGE] History.tsx:** Tambah state/UI untuk return request + modal. Import `RotateCcw` icon.
+
+v4.14.0 — Bulk Restock, Quick Actions Dashboard & Image Optimization
+---------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Bulk Restock (Restock Massal):** Tombol "Restock Massal" di SellerProducts — modal dengan daftar semua produk + input quantity tiap produk. Kirim multiple stock requests sekaligus dalam satu klik.
+- **[NEW] Seller Quick Actions Dashboard:** 4 kartu aksi cepat (Pesanan Hari Ini, Request Restock, Tambah Produk Baru, Riwayat Penjualan) menggantikan section "Tips Penjualan" statis. Masing-masing dengan ikon dan navigasi langsung.
+
+### Perbaikan & Optimasi:
+- **[FIX] Image Optimization:** Upload gambar produk sekarang di-resize ke max 800x800px via canvas sebelum dikirim ke Supabase Storage — mengurangi ukuran file 50-80% tanpa kehilangan kualitas.
+- **[FIX] Security — Hardcoded Supabase URL:** Hapus fallback hardcoded URL `jofwebrbdlovwkgklwab.supabase.co` di server.ts. Sekarang throw error jika env var tidak diset.
+- **[CLEANUP] Dead Code — patch_*.cjs:** Hapus 18 file one-time migration script (`patch_bugs.cjs`, `patch_ts2.cjs`, dll) dari root — memperkecil repo.
+
+### Teknis:
+- **[CHANGE] server.ts lines 19-23:** Variabel `supabaseUrl` sekarang langsung dari `VITE_SUPABASE_URL`, tanpa fallback hardcoded.
+- **[CHANGE] SellerProducts.tsx:** Tambah `resizeImage()` helper function (canvas-based), state `showBulkRestock` + `bulkRestockItems`, modal Bulk Restock.
+- **[CHANGE] SellerDashboard.tsx:** Ganti "Tips Penjualan" → 4 kartu Quick Actions dengan ikon dan navigasi.
+
+v4.13.1 — Pre-Order Share, Stock Report Enhancements & Bugfixes
+----------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Pre-Order Share Button:** Tombol Bagikan di SellerPreOrders — tiap produk PO aktif bisa dishare ke WA/FB via native share/copy link. Link mengarah ke `/kiosk/pre-order/:id`.
+- **[NEW] Pre-Order Detail Page:** `PreOrderDetail.tsx` — halaman publik detail produk pre-order dengan gambar, harga, deskripsi, quantity selector, add-to-cart, dan native share.
+- **[NEW] Server OG Route:** `GET /kiosk/pre-order/:id` deteksi crawler sosial media → render OG tags (title, description, image, url, twitter:card) untuk preview link.
+
+### Perbaikan:
+- **[FIX] Stock Report Column:** Hapus `sku` dari query products (tidak ada di tabel) — endpoint `/api/admin/stock-report` tidak lagi crash.
+- **[FIX] Stock Report Error Handling:** Frontend tampilkan pesan error detail dari server, bukan "Gagal memuat data" generic.
+- **[FIX] Seller Registration Link Auth:** Ganti header `x-user-id` → `Authorization: Bearer <token>` di AdminSellers & AdminSettings. Backend tambah error detail.
+- **[FIX] TypeScript Error:** Perbaiki `addItem` call di PreOrderDetail.tsx (quantity properly handled).
+
+### Teknis:
+- **[NEW] Route:** `/kiosk/pre-order/:id` di App.tsx (lazy import PreOrderDetail).
+- **[CHANGE] Laporan Stok:** Ganti Export CSV → Export Excel (.xlsx) dengan template (header biru bold, auto-width, row TOTAL).
+- **[CHANGE] Sidebar:** Tambah item "Laporan Stok" (icon BarChart3) di DashboardLayout.
+
+v4.13.0 — Stock Logic Overhaul & Management Reporting
+--------------------------------------------------
+### Perbaikan Stock (Kritis):
+- **[FIX] Server-side Stock Deduction:** Stock fisik sekarang langsung terpotong di server (`/api/transactions/create`) saat transaksi dibuat, bukan di frontend. Menghilangkan race condition dan silent bypass saat reservasi expired.
+- **[FIX] confirm_stock_deduction Fix:** SQL function `confirm_stock_deduction` kini throw error jika reservasi tidak ditemukan (sebelumnya diam-diam return sukses → stock tidak terkurangi tapi tetap direstore → inflasi).
+- **[FIX] restoreTransactionStock Safety:** Helper `restoreTransactionStock` kini cek flag `stock_deducted` di metadata transaksi sebelum merestore stock — mencegah restore stock yang tidak pernah terpotong.
+- **[FIX] Frontend Cleanup:** Semua panggilan `confirm_stock_deduction` di Checkout.tsx (4 path pembayaran) dan Validate.tsx dihapus — server yang handle.
+
+### Fitur Baru:
+- **[NEW] Laporan Stok:** Halaman `AdminStockReport` di dashboard admin menampilkan pergerakan stok per produk (stok awal, total restock, total terjual, retur, stok akhir) dengan filter seller dan pencarian.
+- **[NEW] Export CSV:** Tombol Export CSV di halaman Laporan Stok untuk download data pergerakan stok.
+- **[NEW] Backend Endpoint `/api/admin/stock-report`:** Endpoint baru dengan aggregasi dari tabel `products` dan `stock_adjustments`.
+
+### Teknis:
+- **[CHANGE] Stock Deduction:** Pindah dari client-side (via `confirm_stock_deduction` RPC) ke server-side (di `/api/transactions/create` dengan `stock_deducted` flag).
+- **[NEW] SQL Fix File:** `fix_confirm_stock_deduction.sql` — perbaikan function agar throw exception jika reservasi tidak ditemukan (perlu dijalankan di Supabase SQL Editor).
+
+v4.12.0 — Audit Fixes: Security, Crash, & Code Quality
+--------------------------------------------------
+### Perbaikan Keamanan (Kritis):
+- **[SECURITY] Hardcoded Service Key Dihapus:** Fallback string SUPABASE_SERVICE_ROLE_KEY di source code diganti throw error. Key hanya dari env var.
+- **[SECURITY] Password Reset Aman:** Password reset tidak lagi pakai "123456" — sekarang generate random 8-char + dikirim via email ke user.
+- **[SECURITY] Auth Cleanup Endpoint:** `POST /api/admin/transactions/cleanup` kini butuh JWT + role admin (sebelumnya tanpa auth).
+- **[SECURITY] x-user-id → JWT:** Endpoint seller-registration-links ganti dari header `x-user-id` rapuh ke JWT verification.
+- **[SECURITY] Debug Endpoints Diguard:** 6 debug/test endpoints (`/api/debug-*`, `/api/test-db*`, `/api/fix-sariroti`, `/api/payment/ipaymu/debug`) hanya aktif saat `NODE_ENV !== 'production'`.
+
+### Perbaikan Crash:
+- **[FIX] Broadcast Crash:** `subs` undefined → diganti `employeeUsers.length`. Broadcast notifikasi kini berfungsi.
+- **[FIX] Digiflazz Webhook Crash:** Guard `if (!status) return` sebelum `status.toLowerCase()` mencegah crash saat payload tanpa status.
+- **[FIX] Duplicate Route:** Hapus duplikat `app.get("/api/transactions/:id")` kedua yang shadow route pertama.
+- **[FIX] PortalLayout ErrorBoundary:** Tambah ErrorBoundary wrapping Outlet agar child page crash tidak bikin layout putih total.
+- **[FIX] Increment Stock:** Hapus dependensi SQL function `increment_stock` (rpc) — ganti dengan direct `supabase.from("products").update()` agar tidak perlu SQL function di database. Mencegah crash auto-cleanup stock.
+
+### Perbaikan Kualitas:
+- **[FIX] AudioContext Leak:** Scanner QR reuse 1 instance AudioContext + close() otomatis, mencegah memory leak (Chrome batasi ~6 instance).
+- **[FIX] Unused Imports:** Hapus `MonitorSmartphone` (DashboardLayout), `Search/KeyRound/ChevronRight/ChevronDown/Loader2/Pin` (PortalLayout), `supabase` (App.tsx), `updateSW` + manual SW register (main.tsx).
+- **[FIX] .vercelignore:** Hapus `dist` dari exclude list agar build output terpakai.
+- **[FIX] Portal Ganti Password:** Tambah tombol "Ganti Password" di sidebar Portal (sebelumnya modal ada tapi tidak bisa diakses).
+- **[FIX] PortalLayout Unused Imports:** Dihapus 6 icon import tidak terpakai.
+- **[FIX] Duplicate Token:** Rename `token` → `regToken` di endpoint seller-registration-links untuk mencegah esbuild TransformError.
+- **[FIX] Ganti Password:** Perbaiki `supabase.auth.admin.updateUser()` → `updateUserById()` yang tidak tersedia di @supabase/supabase-js v2. Seller sekarang bisa ganti password dari modal.
+- **[FIX] Stock Inflasi:** Auto-cleanup restore stock untuk transaksi `pending` DAN `failed` → tiap 3 menit restore ulang transaksi yang sudah gagal, bikin stock naik terus. Diubah hanya restore untuk `pending` saja.
+
+v4.11.0 - Push Notification untuk Program Kerja Baru (Targeted NIK)
+--------------------------------------------------
+### Fitur Baru:
+- **[NEW] Notifikasi Program Kerja Baru:** Saat admin membuat/mengaktifkan program serikat, notifikasi push + panel bell otomatis terkirim ke semua karyawan.
+- **[NEW] Targeted NIK Notification:** Program yang di-set `is_targeted` akan otomatis mendeteksi peserta dari tabel `program_eligibility`. Peserta terdaftar mendapat notifikasi "🎯 Program Baru: Anda berhak menerima...", non-peserta mendapat "📢 Program Baru: Segera cek informasi...".
+- **[FIX] Endpoint `/api/admin/programs/notify`:** Endpoint yang sebelumnya tidak ada (404) kini sudah dibuat dan berfungsi penuh.
+- **[FIX] Authorization Header:** Fetch call dari frontend kini menyertakan token JWT agar endpoint tidak return 401.
+
+v4.10.0 - Push Notification untuk Withdrawal, Restock, & Retur
+--------------------------------------------------
+### Fitur Baru:
+- **[NEW] Withdrawal Request → Admin:** Seller ajukan penarikan saldo → admin dapat notifikasi "💰 Permintaan Penarikan Baru" di panel bell + push HP.
+- **[NEW] Restock Request → Admin:** Seller ajukan restock → admin dapat notifikasi "📦 Permintaan Restock Baru".
+- **[NEW] Retur Request → Admin:** Seller ajukan retur → admin dapat notifikasi "🔄 Permintaan Retur Baru".
+- **[NEW] Admin Approve/Reject → Seller:** Saat admin setujui/tolak withdrawal, restock, atau retur → seller dapat notifikasi status (✅ disetujui / ❌ ditolak) + push HP.
+- **[NEW] Enam Server Endpoint:** `POST /api/withdrawals/request`, `POST /api/withdrawals/process`, `POST /api/stock-requests/create`, `POST /api/stock-requests/process`, `POST /api/product-returns/create`, `POST /api/product-returns/process`.
+- **[CHANGE] Frontend → Server:** Operasi Supabase langsung dari browser diganti dengan panggilan API ke backend, memungkinkan validasi + notifikasi terpusat.
+
+v4.9.4 - Fix: VAPID Public Key Fallback & Vercel Build Compatibility
+--------------------------------------------------
+### Perbaikan Bug:
+- **[FIX] VITE_VAPID_PUBLIC_KEY Missing di Vercel:** Menambahkan fallback fetch dari server endpoint `/api/config/public` jika env var tidak tersedia saat build. Client sekarang coba `import.meta.env` dulu, lalu fallback ke server.
+- **[NEW] Server Endpoint `/api/config/public`:** Endpoint yang return VAPID public key dari `.env` VPS, memastikan key tetap tersedia walau build-time env var gagal.
+- **[NEW] Test Push Endpoint (localhost only):** Menambahkan `POST /api/push/test` untuk debugging push notification langsung dari VPS tanpa auth admin.
+- **[FIX] Vite `define` Fallback:** Menambahkan `|| ''` pada define `VITE_VAPID_PUBLIC_KEY` agar tidak menghasilkan `undefined` saat env var kosong.
+
+v4.9.3 - Fix: Push Notification, Stock Logic, & Unsubscribe Flow
+--------------------------------------------------
+### Perbaikan Bug:
+- **[FIX] Cleanup Expired Subscriptions di `sendNotification`:** Menambahkan penghapusan otomatis subscription yang expired (HTTP 404/410) pada fungsi `sendNotification` di server, agar database `push_subscriptions` tidak menumpuk data stale.
+- **[FIX] Tag Field pada Push Payload:** Menambahkan field `tag` ke payload push di `sendNotification` agar notifikasi yang sama bisa di-group dan tidak bertumpuk di notification tray.
+- **[NEW] Unsubscribe Endpoint:** Menambahkan `POST /api/push/unsubscribe` di server untuk menghapus subscription dari database.
+- **[NEW] `unsubscribeFromWebPush`:** Menambahkan fungsi unsubscribe di client (`useNotifications.ts`) yang mencabut izin push dari browser dan menghapus subscription dari server.
+- **[FIX] Foreground Push Suppression:** Push notification tidak lagi tampil di status bar saat aplikasi sedang dibuka (ada window client aktif), karena user sudah bisa melihat notifikasi di panel bell in-app.
+- **[NEW] Tombol Nonaktifkan Push:** Menambahkan tombol "Nonaktifkan" berwarna merah di panel notifikasi DashboardLayout dan PortalLayout ketika `Notification.permission === 'granted'`, sehingga user bisa mematikan push notifikasi dari dalam app.
+- **[FIX] Stock Not Restored on Failed iPaymu Payment:** Menambahkan `restoreTransactionStock()` di callback iPaymu saat status "gagal" agar stock tidak hilang permanen.
+- **[FIX] Stock Not Restored on Cancel Transaction:** Menambahkan `restoreTransactionStock()` di endpoint `/api/transactions/cancel` sebelum transaksi dihapus.
+- **[FIX] Stock Not Restored on Failed Status Cleanup:** Memperbaiki cleanup endpoint agar juga memproses transaksi dengan status "failed" (sebelumnya hanya "pending").
+- **[FIX] Missing `increment_stock` Function:** Membuat SQL file (`fix_add_increment_stock.sql`) untuk function `increment_stock` yang diperlukan oleh cleanup/cancel/failed callback.
+- **[FIX] Shared Helper `restoreTransactionStock`:** Membuat fungsi reusable di `server.ts` untuk restore stock + log ke `stock_adjustments`, menggantikan kode duplikat yang manual.
+- **[NEW] Auto-Cleanup Interval:** Menambahkan `setInterval` 3 menit di `server.ts` yang otomatis mengecek dan merestore stock dari transaksi pending/failed >5 menit, tanpa perlu nunggu admin buka dashboard.
+
+v4.9.2 - Fix: Kamera Tidak Berfungsi di Chrome & Mode PWA Android
+--------------------------------------------------
+### Perbaikan Bug:
+- **[FIX] Chrome getUserMedia Transient Activation:** Menghapus `await setTimeout(100)` sebelum `getUserMedia` yang memutus rantai user gesture (transient activation). Chrome kehilangan konteks klik pengguna setelah `await`, sehingga kamera ditolak. Firefox lebih toleran terhadap jeda ini.
+- **[FIX] Race Condition Stop/Start Kamera:** Menghapus pola pre-permission `getUserMedia` → `stop()` → `start()` ulang yang menyebabkan race condition pada Chrome Android. Kamera sekarang langsung dikelola oleh `html5-qrcode` tanpa siklus stop/start manual.
+- **[FIX] DOM Readiness:** Memindahkan elemen `#qr-reader-scanner` agar selalu di-render di DOM (tidak kondisional), sehingga `html5-qrcode` bisa langsung attach tanpa perlu jeda render.
+- **[FIX] Layout Scanner Terpisah (Kiri-Kanan):** Memperbaiki struktur DOM scanner yang sebelumnya memisahkan video kamera dan overlay panduan menjadi dua anak flex container, menyebabkan overlay tidak menumpuk di atas video. Sekarang `#qr-reader-scanner` sebagai block element normal mengisi parent, semua overlay di-position absolute di atasnya.
+- **[FIX] Permissions-Policy Header:** Memperbaiki header `Permissions-Policy` di `vercel.json` dari `camera=()` menjadi `camera=(self)` agar origin sendiri diizinkan mengakses kamera.
+- **[FIX] Sinkronisasi Versi UI:** Menyeragamkan tampilan versi di halaman utama dan dashboard agar konsisten dengan `package.json`.
+
+v4.9.1 - Pemisahan Manajemen Produk Pre-Order (PO)
+--------------------------------------------------
+### Fitur Baru & Optimasi:
+- **[ENHANCEMENT] Independensi Form PO:** Form penambahan produk di halaman Pre-Order kini sudah mendukung upload gambar, kategori, dan deskripsi penuh. Penjual bisa langsung meracik produk baru beserta konfigurasi PO-nya dari satu menu.
+- **[ENHANCEMENT] Separasi Data Katalog:** Produk yang sudah diset sebagai Pre-Order kini dihilangkan/disembunyikan dari halaman "Produk Saya", sehingga manajemen produk reguler dan PO tidak lagi tercampur dan meminimalisir kesalahan stok.
+- **[NEW] Hapus Produk PO:** Menambahkan fungsionalitas untuk menghapus produk dari database langsung dari halaman pengaturan PO.
+
+v4.9.0 - Unified Pre-Order Shopping Experience
+--------------------------------------------------
+### Fitur Baru & Optimasi:
+- **[NEW] Integrasi Pre-Order ke Katalog:** Mengubah sistem Pre-Order dari halaman terpisah menjadi tab ke-4 di Katalog utama (Kantin | Koperasi | Digital | Pre-Order).
+- **[NEW] Unified Checkout Flow:** Produk PO sekarang dapat dimasukkan ke keranjang dan di-checkout bersama produk lain dengan alur pembayaran yang sama.
+- **[ENHANCEMENT] PO Metadata di Keranjang:** Menambahkan badge khusus "Pre-Order" dan informasi waktu ready (pickup time) pada item di keranjang.
+- **[ENHANCEMENT] Smart Stock Reservation:** Sistem keranjang kini cukup pintar untuk melakukan *bypass* pemotongan stok pada produk PO (karena belum ready stock), sembari tetap membuat record `pre_orders` setelah pembayaran.
+- **[ENHANCEMENT] Redirect Halaman Lama:** Akses ke `/kiosk/preorder` akan di-redirect secara halus ke tab Pre-Order di Katalog untuk menjaga kompatibilitas link lama.
+
+v4.8.1 - Critical Bug Fixes: Double Deductions
+--------------------------------------------------
+### Perbaikan Bug (Hotfix):
+- **[FIX] Saldo Seller (Double Fee Deduction):** Memperbaiki bug di mana saldo penjual terpotong fee 8% dua kali (sekali saat transaksi, sekali saat penarikan). Potongan sekarang HANYA terjadi saat saldo masuk ke akun penjual. Penarikan kini diproses penuh tanpa potongan (0%).
+- **[FIX] Stok Produk (Double Stock Deduction):** Memperbaiki bug di mana stok fisik berkurang dua kali dalam satu transaksi. Sistem kini hanya mengurangi stok via `confirm_stock_deduction` di frontend untuk mencegah duplikasi.
+- **[FIX] Dead Code:** Menghapus endpoint API duplikat di backend (`/api/transactions/create`) yang menyebabkan eksekusi redundan.
+- **[MAINTENANCE] SQL Data Fix:** Menyediakan script SQL koreksi untuk memulihkan (`refund`) sisa stok yang sempat terpotong ganda, dan menyesuaikan total keuntungan platform (`total_fee_paid`).
+
 v4.8.0 - Autonomous Error Reporting & Category Fixes
 --------------------------------------------------
 ### Fitur Baru & Optimasi:
@@ -31,3 +283,5 @@ v4.6.1 - Admin Form Builder & Export Excel
   - **Reordering Control:** Menambahkan ikon "Grip" dan tombol pindah (Up/Down) yang selalu terlihat untuk memudahkan penyusunan pertanyaan.
   - **Visual Feedback:** Peningkatan indikator fokus pada pertanyaan yang sedang diedit.
 - **[FIX] Routing Admin:** Perbaikan 404 pada AdminFormBuilder yang disebabkan oleh ketidakkonsistenan case-sensitive pada path file.
+
+v4.8.2 - Memperbaiki issue Notifikasi PWA tidak bersuara dan terhapus otomatis, serta menambah sistem Broadcast Push untuk Pengumuman Portal. Optimasi kompatibilitas akses WebRTC (Kamera) PWA Android/iOS.

@@ -24,7 +24,7 @@ export default function Home() {
       >
         <div className="mb-10 sm:mb-16">
           {/* H1 ─ SEO: visually hidden but present for crawlers */}
-          <h1 className="sr-only">SPS Corner — Platform Kantin Digital dan Koperasi Internal Karyawan Sariroti Banjarmasin</h1>
+          <h1 className="sr-only">SPS Corner — Portal Digital Anggota FSPS Banjarmasin</h1>
 
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -33,7 +33,7 @@ export default function Home() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-zinc-900/80 text-blue-700 dark:text-blue-400 text-[10px] sm:text-xs font-bold mb-6 sm:mb-8 shadow-sm dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] border border-zinc-200/50 dark:border-zinc-800/50 uppercase tracking-widest backdrop-blur-xl transition-all"
           >
             <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-amber-500" />
-            Pusat Belanja Karyawan Sariroti
+            Portal Anggota & Ekosistem Karyawan
           </motion.div>
 
           <div className="flex justify-center mb-6 sm:mb-8 relative">
@@ -49,7 +49,7 @@ export default function Home() {
           </div>
 
           <p className="text-sm sm:text-lg text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed px-4 font-medium tracking-tight transition-colors mt-6">
-            Solusi cerdas untuk transaksi berbagai kebutuhan karyawan &mdash; mulai dari produk digital, produk roti Sariroti, hingga makanan &amp; minuman kantin. Didukung sistem QRIS dan pembayaran digital yang aman, cepat, dan terintegrasi penuh.
+            Ekosistem digital serikat pekerja. Menggabungkan portal layanan anggota dengan pusat transaksi harian dalam satu platform pintar, didukung kemudahan pembayaran digital dan QRIS modern.
           </p>
         </div>
 
@@ -74,7 +74,7 @@ export default function Home() {
                   <ArrowRight className="w-5 h-5 text-blue-600 dark:text-blue-400 group-hover:translate-x-2 transition-transform duration-300" />
                 </h3>
                 <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base leading-relaxed font-medium transition-colors relative z-10">
-                  Pesan makanan dan minuman favoritmu secara mandiri dengan sistem pembayaran yang mudah dan cepat.
+                  Pengalaman self-service yang seamless. Pesan makanan dan minuman lebih cepat dengan sistem pembayaran digital instan dan aman.
                 </p>
               </div>
             </Link>
@@ -167,20 +167,12 @@ export default function Home() {
 
             <div className="flex flex-col items-center gap-1 mt-2">
               <div className="px-3 py-1 rounded-full bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-300/50 dark:border-zinc-700/50 backdrop-blur-sm">
-                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v4.8.0</p>
+                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v4.15.5</p>
               </div>
-              <p className="text-[10px] sm:text-xs text-zinc-500 mt-2">
-                Ide &amp; Dikembangkan oleh <span className="font-bold text-zinc-700 dark:text-zinc-300">Alif Irfansyah</span>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                &copy; 2026 SPS Corner. Designed &amp; Engineered by <span className="font-bold text-zinc-700 dark:text-zinc-300">Alif Irfansyah</span>
               </p>
               {/* Outgoing link ─ SEO: fixes 'page has no outgoing links' */}
-              <a
-                href="https://www.sariroti.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[9px] text-zinc-400 dark:text-zinc-600 hover:text-blue-500 transition-colors mt-1"
-              >
-                PT Nippon Indosari Corpindo Tbk (Sariroti)
-              </a>
             </div>
           </div>
         </motion.div>

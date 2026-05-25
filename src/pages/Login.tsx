@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
-import { useAuthStore } from '../store/useAuthStore';
-import { LogIn, ArrowLeft, UserPlus, ShieldCheck, AlertCircle } from 'lucide-react';
+import { useAuthStore, isEmployeeNik } from '../store/useAuthStore';
+import { AlertCircle } from 'lucide-react';
 import SPSLogo from '../components/SPSLogo';
 
 export default function Login() {
@@ -12,10 +12,17 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+  
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Membaca parameter URL jika user dialihkan dari keranjang
+  const [searchParams] = useSearchParams();
+  const cartRedirect = searchParams.get('redirect');
+
   const fromPath = (location.state as any)?.from?.pathname;
-  const from = fromPath && fromPath !== 'undefined' ? fromPath + ((location.state as any)?.from?.search || '') : null;
+  const from = cartRedirect || (fromPath && fromPath !== 'undefined' ? fromPath + ((location.state as any)?.from?.search || '') : null);
+  
   const { fetchProfile } = useAuthStore();
 
   const handleGoogleLogin = async () => {
@@ -25,7 +32,6 @@ export default function Login() {
       if (from) {
         sessionStorage.setItem('returnUrl', from);
       }
-      // Gunakan URL canonical dengan www agar konsisten dengan Supabase Redirect URL setting
       const redirectTo = `${window.location.origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
@@ -34,12 +40,11 @@ export default function Login() {
           redirectTo,
           queryParams: {
             access_type: 'offline',
-            prompt: 'select_account', // Tampilkan pilihan akun Google setiap kali
+            prompt: 'select_account',
           },
         },
       });
       if (error) throw error;
-      // Browser akan redirect — tidak perlu aksi lanjutan
     } catch (err: any) {
       setError(err.message || 'Gagal login dengan Google.');
       setGoogleLoading(false);
@@ -53,252 +58,218 @@ export default function Login() {
 
     try {
       const rawInput = nik.trim();
-      const input = rawInput.replace(/[\s-.]/g, '');
-
       let email: string;
       
-      if (input.includes('@')) {
-        // User memasukkan email langsung
-        email = input.toLowerCase();
+      // 1. Cek dari input mentah, apakah ini email?
+      if (rawInput.includes('@')) {
+        email = rawInput.toLowerCase();
       } else {
-        // User memasukkan NIK - cari email dari profiles berdasarkan NIK
-        // Gunakan ilike untuk case-insensitive search
+        // 2. Jika bukan email (berarti NIK), baru bersihkan spasi, strip, dan titik
+        const inputNik = rawInput.replace(/[\s-.]/g, '');
+        
         const { data: profileByNik, error: nikError } = await supabase
           .from('profiles')
           .select('email, id')
-          .ilike('nik', input)
+          .ilike('nik', inputNik)
           .single();
         
         if (nikError || !profileByNik?.email) {
-          // Fallback ke format email lama jika tidak ketemu di profiles
-          email = `${input.toLowerCase()}@sps.local`;
+          email = `${inputNik.toLowerCase()}@sps.local`;
         } else {
           email = profileByNik.email;
         }
       }
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      // 3. Eksekusi Login ke Supabase
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (data.user) {
-        // Query hanya kolom inti yang pasti ada
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, role, name, balance, is_active')
-          .eq('id', data.user.id)
-          .single();
+      if (signInError) throw signInError;
 
-        // Fallback: jika kolom is_active belum ada, coba tanpanya
-        let resolvedProfile = profile;
-        if (profileError || !profile) {
-          const { data: basicProfile, error: basicError } = await supabase
-            .from('profiles')
-            .select('id, role, name, balance')
-            .eq('id', data.user.id)
-            .single();
+      if (data?.user) {
+        // Update state profile
+        await fetchProfile(data.user.id);
 
-          if (basicError || !basicProfile) {
-            throw new Error(
-              `Profil tidak ditemukan. (${basicError?.message || profileError?.message || 'unknown'})`
-            );
+        // ==========================================================
+        // 4. LOGIKA SINKRONISASI KERANJANG (GUEST CART) SETELAH LOGIN
+        // ==========================================================
+        const guestCart = localStorage.getItem('sps_guest_cart');
+        
+        if (guestCart) {
+          try {
+            const parsedCart = JSON.parse(guestCart);
+            
+            if (parsedCart.length > 0) {
+              for (const item of parsedCart) {
+                await supabase.from('cart_items').upsert({
+                  user_id: data.user.id,
+                  product_id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  quantity: item.quantity,
+                  image_url: item.image_url
+                }, { onConflict: 'user_id,product_id' });
+              }
+              localStorage.removeItem('sps_guest_cart');
+            }
+          } catch (syncErr) {
+            console.error('Gagal memindahkan keranjang guest:', syncErr);
           }
-          resolvedProfile = basicProfile as any;
         }
+        // ==========================================================
 
-        // Cek is_active (aman jika field tidak ada → undefined → tidak block)
-        if (resolvedProfile!.is_active === false) {
-          await supabase.auth.signOut();
-          throw new Error('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');
-        }
-
-        // Set store langsung agar DashboardLayout tidak redirect balik
-        useAuthStore.getState().setUser({
-          id: resolvedProfile!.id,
-          role: resolvedProfile!.role,
-          name: resolvedProfile!.name,
-          balance: resolvedProfile!.balance ?? 0,
-          email: data.user.email,
-        });
-
-        // Navigate setelah store diisi
-        if (from) {
-          navigate(from);
-        } else if (resolvedProfile!.role === 'admin' || resolvedProfile!.role === 'superadmin') {
-          navigate('/dashboard/admin');
-        } else if (resolvedProfile!.role === 'seller') {
-          navigate('/dashboard/seller');
-        } else {
-          navigate('/portal');
-        }
+        // 5. Arahkan user ke halaman checkout atau tujuan awal
+        const profile = useAuthStore.getState().user;
+        const isEmployee = isEmployeeNik(profile?.nik) || profile?.role === 'admin' || profile?.role === 'superadmin';
+        const defaultRoute = isEmployee ? '/portal' : '/kiosk';
+        navigate(from || defaultRoute, { replace: true });
       }
+
     } catch (err: any) {
-      console.error('Login error:', err);
-      if (err.message === 'Invalid login credentials') {
-        setError('NIK atau password salah.');
-      } else {
-        setError(err.message || 'Gagal login');
-      }
+      setError(err.message || 'Login gagal. Periksa kembali NIK/Email dan Password Anda.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5] flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-      {/* Decorative Background */}
-      <div className="absolute top-0 left-0 w-full h-full -z-10 opacity-40">
-        <div className="absolute top-[10%] left-[5%] w-48 h-48 sm:w-64 sm:h-64 bg-blue-200 rounded-full blur-3xl" />
-        <div className="absolute bottom-[10%] right-[5%] w-64 h-64 sm:w-96 sm:h-96 bg-amber-200 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-300">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-center cursor-pointer"
+          onClick={() => navigate('/')}
+        >
+          <SPSLogo className="w-auto h-16" />
+        </motion.div>
+        <h2 className="mt-6 text-center text-3xl font-black text-zinc-900 dark:text-white tracking-tight">
+          Masuk ke Akun Anda
+        </h2>
+        <p className="mt-2 text-center text-sm text-zinc-600 dark:text-zinc-400">
+          Belum punya akun?{' '}
+          <Link to="/register" className="font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400">
+            Daftar sekarang
+          </Link>
+        </p>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, type: "spring" }}
-        className="w-full max-w-sm"
-      >
-        <div className="text-center mb-6 sm:mb-8">
-          <div className="flex justify-center mb-4 sm:mb-6">
-            <motion.div
-              whileHover={{ rotate: 5, scale: 1.1 }}
-            >
-              <SPSLogo variant="stack" className="h-16 sm:h-20" />
-            </motion.div>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 tracking-tight">Selamat Datang</h1>
-          <p className="text-zinc-500 mt-1.5 sm:mt-2 text-xs sm:text-sm font-medium">Masuk ke akun SPS Corner Anda</p>
-        </div>
-
-        <div className="clay-card p-5 sm:p-8">
-          {/* Google Login Button */}
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={googleLoading || loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 sm:py-3 bg-white border border-zinc-200 rounded-xl font-bold text-zinc-700 text-sm hover:bg-zinc-50 hover:border-zinc-300 transition-all active:scale-95 shadow-sm disabled:opacity-60 disabled:pointer-events-none mb-5 sm:mb-6"
-          >
-            {googleLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
-                <span>Menghubungkan ke Google...</span>
-              </>
-            ) : (
-              <>
-                {/* Google Icon SVG */}
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                <span className="text-xs sm:text-sm">Masuk dengan Google</span>
-              </>
-            )}
-          </button>
-
-          {/* Divider */}
-          <div className="relative mb-5 sm:mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-100" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-white px-3 text-[10px] text-zinc-400 font-bold tracking-widest uppercase">Atau masuk dengan NIK</span>
-            </div>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white dark:bg-zinc-900 py-8 px-4 shadow-xl shadow-zinc-200/20 dark:shadow-black/40 sm:rounded-[2rem] sm:px-10 border border-zinc-100 dark:border-zinc-800"
+        >
+          <form className="space-y-6" onSubmit={handleLogin}>
             {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-50 text-red-600 p-3 sm:p-4 rounded-xl text-[10px] sm:text-xs flex items-start gap-2 sm:gap-3 shadow-inner"
-              >
-                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                <span className="font-bold">{error}</span>
-              </motion.div>
+              <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                <p className="text-sm text-red-600 dark:text-red-400 font-medium">{error}</p>
+              </div>
             )}
 
-            <div className="space-y-3 sm:space-y-4">
-              <div>
-                <label className="block text-[10px] sm:text-xs font-bold text-zinc-700 mb-1.5 sm:mb-2 ml-1">
-                  NIK / Email
+            <div>
+              <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+                NIK atau Email
+              </label>
+              <input
+                type="text"
+                required
+                value={nik}
+                onChange={(e) => setNik(e.target.value)}
+                className="appearance-none block w-full px-4 py-3 border border-zinc-300 dark:border-zinc-700 rounded-2xl shadow-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent text-zinc-900 dark:text-white transition-all"
+                placeholder="Masukkan NIK atau Email Anda"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+                Kata Sandi
+              </label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none block w-full px-4 py-3 border border-zinc-300 dark:border-zinc-700 rounded-2xl shadow-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-transparent text-zinc-900 dark:text-white transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-zinc-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-zinc-900 dark:text-zinc-300">
+                  Ingat saya
                 </label>
-                <input
-                  type="text"
-                  placeholder="Masukkan NIK atau Email"
-                  value={nik}
-                  onChange={(e) => setNik(e.target.value)}
-                  required
-                  className="input-clay"
-                />
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-1.5 sm:mb-2 ml-1">
-                  <label className="block text-[10px] sm:text-xs font-bold text-zinc-700">
-                    Password
-                  </label>
-                  <Link 
-                    to="/forgot-password" 
-                    className="text-[8px] sm:text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    Lupa Password?
-                  </Link>
-                </div>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="input-clay"
-                />
+
+              <div className="text-sm">
+                <Link to="/forgot-password" className="font-bold text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                  Lupa sandi?
+                </Link>
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="btn-clay-primary w-full"
-              disabled={loading || googleLoading}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Memproses...
-                </span>
-              ) : 'Login ke Akun Anda'}
-            </button>
-
-            <div className="relative py-2 sm:py-3">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-zinc-100"></div>
-              </div>
-              <div className="relative flex justify-center text-[8px] sm:text-[10px] uppercase">
-                <span className="bg-white px-2 sm:px-3 text-zinc-400 font-bold tracking-widest">Atau</span>
-              </div>
+            <div>
+              <button
+                type="submit"
+                disabled={loading || googleLoading}
+                className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-2xl shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-all active:scale-[0.98]"
+              >
+                {loading ? 'Memproses...' : 'Masuk Sekarang'}
+              </button>
             </div>
-
-            <button
-              type="button"
-              className="btn-clay-secondary w-full text-[10px] sm:text-xs"
-              onClick={() => navigate('/register')}
-            >
-              <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-              Daftar Akun Baru
-            </button>
           </form>
-        </div>
 
-        <div className="mt-6 sm:mt-8 text-center">
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="inline-flex items-center text-zinc-500 hover:text-blue-600 transition-colors font-bold text-[10px] sm:text-xs gap-1.5 sm:gap-2 group"
-          >
-            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
-            Kembali ke Beranda
-          </button>
-        </div>
-      </motion.div>
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-300 dark:border-zinc-700" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-zinc-900 text-zinc-500 font-medium">Atau lanjutkan dengan</span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <button
+                onClick={handleGoogleLogin}
+                disabled={loading || googleLoading}
+                className="w-full inline-flex justify-center py-3.5 px-4 border border-zinc-300 dark:border-zinc-700 rounded-2xl shadow-sm bg-white dark:bg-zinc-800 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all active:scale-[0.98]"
+              >
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                  <path fill="none" d="M1 1h22v22H1z" />
+                </svg>
+                {googleLoading ? 'Memproses...' : 'Google'}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }

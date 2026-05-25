@@ -22,7 +22,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index"
+      "destination": "https://api.spscorner.store/api/$1"
     },
     {
       "source": "/(.*)",
@@ -51,7 +51,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
+          "value": "camera=(self), microphone=(self), geolocation=(self)"
         }
       ]
     },

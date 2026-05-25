@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import { Dialog, Transition, Menu, Disclosure } from '@headlessui/react';
@@ -15,6 +15,7 @@ import {
   Menu as MenuIcon,
   X,
   ShieldCheck,
+  Globe,
   Bell,
   Search,
   User as UserIcon,
@@ -37,6 +38,7 @@ import {
   Zap,
   Ticket,
   Gift,
+  BarChart3,
   QrCode
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -128,7 +130,7 @@ const NavGroup = ({ label, icon: Icon, defaultOpen, children }: { label: string,
 
 export default function DashboardLayout() {
   const { user, isLoading, signOut, fetchProfile } = useAuthStore();
-  const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
+  const { notifications, unreadCount, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush, pushSubscribed } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -308,16 +310,21 @@ export default function DashboardLayout() {
           { to: "/dashboard/admin/program-coupons", icon: Ticket, label: "Kupon Peserta" },
           { to: "/dashboard/scanner", icon: QrCode, label: "Scan QR" },
           { to: "/dashboard/admin/doorprize", icon: Gift, label: "Undian Doorprize" },
+          { to: "/dashboard/admin/doorprize-spin", icon: Gift, label: "Spin Doorprize" },
           { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
+            { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
+            { to: "/dashboard/admin/kritik", icon: MessageSquare, label: "Kritik & Saran" },
           { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
-          { to: "/dashboard/admin/feedbacks", icon: MessageSquare, label: "Kritik & Saran" }
+          { to: "/dashboard/admin/gathering", icon: Users, label: "Family Gathering" }
         ]
       },
       {
         label: "Laporan & Evaluasi",
         icon: ClipboardList,
         items: [
-          { to: "/dashboard/admin/reports", icon: Bug, label: "Laporan & Bug", badge: unreadCount > 0 ? unreadCount : undefined }
+          { to: "/dashboard/admin/reports", icon: Bug, label: "Laporan & Bug", badge: unreadCount > 0 ? unreadCount : undefined },
+          { to: "/dashboard/admin/coupon-reports", icon: ClipboardList, label: "Laporan Kupon" },
+          { to: "/dashboard/admin/stock-report", icon: BarChart3, label: "Laporan Stok" }
         ]
       },
       {
@@ -359,7 +366,7 @@ export default function DashboardLayout() {
               key={gIdx} 
               label={group.label} 
               icon={group.icon} 
-              defaultOpen={menuSearchQuery ? true : gIdx < 2}
+              defaultOpen={true}
             >
               {filteredItems.map((item: any, iIdx: number) => (
                 <div key={iIdx} className={item.tourClass}>
@@ -432,6 +439,17 @@ export default function DashboardLayout() {
               Akses Cepat
             </div>
             <div className="space-y-2 tour-seller-sidebar-kiosk">
+              {isEmployeeNik(user?.nik) && (
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                  onClick={() => navigate('/portal')}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                    <Globe className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                  </div>
+                  Akses Portal
+                </button>
+              )}
               <button
                 className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
                 onClick={() => navigate('/kiosk')}
@@ -530,9 +548,20 @@ export default function DashboardLayout() {
                       <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
                         Akses Cepat
                       </div>
-                      <button
-                        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
-                        onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
+                      {isEmployeeNik(user?.nik) && (
+                        <button
+                          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
+                          onClick={() => { navigate('/portal'); setIsSidebarOpen(false); }}
+                          >
+                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                              <Globe className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                            </div>
+                            Akses Portal
+                          </button>
+                        )}
+                        <button
+                          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
+                          onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
                       >
                         <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
                           <Store className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
@@ -554,7 +583,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v4.6.0
+                      v4.15.5
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
@@ -619,6 +648,50 @@ export default function DashboardLayout() {
                       </span>
                     )}
                   </div>
+                  {'Notification' in window && Notification.permission === 'default' && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
+                      <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Nyalakan push notifikasi untuk update</p>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          subscribeToWebPush && subscribeToWebPush(true).then(() => {
+                            if (Notification.permission === 'granted') window.location.reload();
+                          });
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                      >
+                        Aktifkan
+                      </button>
+                    </div>
+                  )}
+                  {'Notification' in window && Notification.permission === 'granted' && pushSubscribed && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800 flex items-center justify-between gap-3">
+                      <p className="text-xs text-red-700 dark:text-red-400 font-medium">Push notifikasi aktif</p>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          unsubscribeFromWebPush && unsubscribeFromWebPush();
+                        }}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                      >
+                        Nonaktifkan
+                      </button>
+                    </div>
+                  )}
+                  {'Notification' in window && Notification.permission === 'granted' && !pushSubscribed && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
+                      <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Izinkan push notifikasi untuk update</p>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          subscribeToWebPush && subscribeToWebPush(true);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                      >
+                        Aktifkan
+                      </button>
+                    </div>
+                  )}
                   <div className="max-h-[32rem] overflow-y-auto custom-scrollbar">
                     {notifications.filter(n => !n.isRead).length === 0 ? (
                       <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">

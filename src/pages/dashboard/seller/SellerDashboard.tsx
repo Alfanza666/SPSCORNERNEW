@@ -15,12 +15,17 @@ import {
   ChevronRight,
   Plus,
   ShoppingBag,
-  Wallet
+  Wallet,
+  RotateCcw,
+  ListOrdered,
+  Power,
+  PowerOff
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
 
@@ -54,6 +59,8 @@ export default function SellerDashboard() {
   });
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [storeOpen, setStoreOpen] = useState(true);
+  const [togglingStore, setTogglingStore] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'seller') {
@@ -82,9 +89,11 @@ export default function SellerDashboard() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('balance, total_sales, total_withdrawn, total_fee_paid')
+        .select('balance, total_sales, total_withdrawn, total_fee_paid, store_open')
         .eq('id', user?.id)
         .single();
+
+      setStoreOpen(profile?.store_open !== false);
 
       setStats({
         totalProducts: prodCount || 0,
@@ -98,6 +107,24 @@ export default function SellerDashboard() {
       console.error('Error fetching seller data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleStore = async () => {
+    if (!user?.id) return;
+    setTogglingStore(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ store_open: !storeOpen })
+        .eq('id', user.id);
+      if (error) throw error;
+      setStoreOpen(!storeOpen);
+      toast.success(storeOpen ? 'Kiosk ditutup' : 'Kiosk dibuka');
+    } catch (err: any) {
+      toast.error('Gagal mengubah status kiosk');
+    } finally {
+      setTogglingStore(false);
     }
   };
 
@@ -146,6 +173,19 @@ export default function SellerDashboard() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <button 
+              onClick={toggleStore}
+              disabled={togglingStore}
+              className={`flex-1 sm:flex-none h-10 sm:h-12 px-3 sm:px-5 flex items-center justify-center gap-2 text-xs sm:text-sm rounded-xl font-bold transition-all shadow-sm ${
+                storeOpen
+                  ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50'
+                  : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+              }`}
+            >
+              {togglingStore ? <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : storeOpen ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
+              <span className="hidden sm:inline">{storeOpen ? 'Buka Kiosk' : 'Tutup Kiosk'}</span>
+              <span className="sm:hidden">{storeOpen ? 'Buka' : 'Tutup'}</span>
+            </button>
           <button 
             onClick={() => navigate('/dashboard/seller/products')}
             className="flex-1 sm:flex-none btn-clay-secondary h-10 sm:h-12 px-3 sm:px-5 flex items-center justify-center gap-2 tour-seller-add-product text-xs sm:text-sm"
@@ -172,7 +212,7 @@ export default function SellerDashboard() {
           value={formatRupiah(stats.balance)} 
           icon={DollarSign} 
           color="bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
-          subtitle={`Estimasi bersih: ${formatRupiah(stats.balance * 0.92)}`}
+          subtitle="Sudah termasuk potongan fee (Bersih)"
         />
         <StatCard 
           title="Total Penjualan" 
@@ -236,42 +276,59 @@ export default function SellerDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions / Tips */}
+        {/* Quick Actions */}
         <div className="space-y-6">
-          <div className="bg-zinc-900 dark:bg-zinc-800 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden border-none shadow-sm">
-            <div className="absolute top-0 right-0 w-24 h-24 sm:w-32 sm:h-32 bg-blue-500/20 blur-3xl rounded-full -mr-12 -mt-12 sm:-mr-16 sm:-mt-16" />
-            <div className="relative z-10">
-              <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest mb-4 sm:mb-6 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                Tips Penjualan
-              </h3>
-              <div className="space-y-4 sm:space-y-6">
-                <div className="flex gap-3 sm:gap-4">
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    <ShoppingBag className="w-4 h-4 text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold mb-1">Update Foto Produk</p>
-                    <p className="text-[10px] sm:text-xs text-zinc-400 leading-relaxed">Produk dengan foto yang jelas dan menarik cenderung lebih cepat laku.</p>
-                  </div>
-                </div>
-                <div className="flex gap-3 sm:gap-4">
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    <TrendingUp className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs sm:text-sm font-bold mb-1">Pantau Stok</p>
-                    <p className="text-[10px] sm:text-xs text-zinc-400 leading-relaxed">Jangan biarkan stok kosong terlalu lama agar pembeli tidak kecewa.</p>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <motion.button
+              whileHover={{ y: -2 }}
+              onClick={() => navigate('/dashboard/seller/transactions')}
+              className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-5 text-left hover:shadow-md transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
+                <ListOrdered className="w-6 h-6" />
               </div>
-            </div>
+              <p className="font-bold text-zinc-900 dark:text-white text-sm mb-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Pesanan Hari Ini</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Lihat dan kelola pesanan masuk</p>
+            </motion.button>
+            <motion.button
+              whileHover={{ y: -2 }}
+              onClick={() => navigate('/dashboard/seller/products')}
+              className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-5 text-left hover:shadow-md transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
+                <RotateCcw className="w-6 h-6" />
+              </div>
+              <p className="font-bold text-zinc-900 dark:text-white text-sm mb-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Request Restock</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Tambah stok produk yang menipis</p>
+            </motion.button>
+            <motion.button
+              whileHover={{ y: -2 }}
+              onClick={() => navigate('/dashboard/seller/products')}
+              className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-5 text-left hover:shadow-md transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
+                <Plus className="w-6 h-6" />
+              </div>
+              <p className="font-bold text-zinc-900 dark:text-white text-sm mb-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Tambah Produk Baru</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Jual produk baru di kiosk</p>
+            </motion.button>
+            <motion.button
+              whileHover={{ y: -2 }}
+              onClick={() => navigate('/dashboard/seller/transactions')}
+              className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-5 text-left hover:shadow-md transition-all group"
+            >
+              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
+                <ShoppingBag className="w-6 h-6" />
+              </div>
+              <p className="font-bold text-zinc-900 dark:text-white text-sm mb-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Riwayat Penjualan</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Cek transaksi dan pendapatan</p>
+            </motion.button>
           </div>
           
           <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-blue-100 dark:border-blue-900/50 shadow-sm p-6 sm:p-8 bg-blue-50/50 dark:bg-blue-900/10">
              <h3 className="text-xs sm:text-sm font-black text-blue-900 dark:text-blue-400 uppercase tracking-widest mb-3 sm:mb-4">Informasi Biaya</h3>
              <p className="text-[10px] sm:text-xs text-blue-800 dark:text-blue-300 leading-relaxed font-medium">
-               Setiap transaksi dikenakan biaya administrasi sebesar <b className="text-blue-900 dark:text-blue-400">8%</b>. Biaya ini digunakan untuk pemeliharaan sistem dan pengembangan fitur SPS Corner.
+               Setiap penjualan produk Anda secara otomatis dikenakan potongan biaya platform sebesar <b className="text-blue-900 dark:text-blue-400">8%</b> di awal. Saldo yang tampil di dashboard sudah merupakan uang bersih Anda dan tidak akan dipotong lagi saat penarikan.
              </p>
           </div>
         </div>

@@ -11,10 +11,16 @@ export interface UserProfile {
   avatar_url?: string;
   balance: number;
   loyalty_points?: number;
+  isEmployee?: boolean;
   profile?: {
     name: string;
     nik?: string;
   };
+}
+
+export function isEmployeeNik(nik?: string): boolean {
+  if (!nik) return false;
+  return /^[0-9Mm]/.test(nik.trim());
 }
 
 interface AuthState {
@@ -53,7 +59,8 @@ export const useAuthStore = create<AuthState>((set) => ({
           name: session?.user?.user_metadata?.full_name || 'User',
           email: sessionEmail?.endsWith('@sps.local') ? undefined : sessionEmail,
           balance: 0,
-          loyalty_points: 0
+          loyalty_points: 0,
+          isEmployee: false
         };
         set({ user: defaultUser, isLoading: false });
         return;
@@ -63,7 +70,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const isFakeEmail = sessionEmail?.endsWith('@sps.local');
       const resolvedEmail = !isFakeEmail ? sessionEmail : undefined;
 
-      set({ user: { ...data, email: resolvedEmail } as UserProfile, isLoading: false });
+      set({ user: { ...data, email: resolvedEmail, isEmployee: isEmployeeNik(data?.nik) } as UserProfile, isLoading: false });
     } catch (error: any) {
       console.error('Error fetching profile:', error?.message || error);
       // Don't set user to null on error - keep trying or let user retry

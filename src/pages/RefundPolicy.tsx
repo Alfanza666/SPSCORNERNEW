@@ -17,7 +17,7 @@ export default function RefundPolicy() {
           .from('settings')
           .select('value')
           .eq('key', 'refund_policy_content')
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         if (data && data.value) {

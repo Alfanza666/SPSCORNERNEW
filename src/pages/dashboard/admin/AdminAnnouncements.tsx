@@ -115,6 +115,27 @@ export default function AdminAnnouncements() {
           .insert(announcementData);
         if (error) throw error;
         toast.success('Pengumuman dipublikasikan');
+        
+        // Trigger push notification broadcast
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            await fetch('/api/notifications/broadcast', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+              },
+              body: JSON.stringify({
+                title: 'Pengumuman Baru: ' + form.title,
+                message: form.content.substring(0, 100) + (form.content.length > 100 ? '...' : ''),
+                url: '/portal/pengumuman'
+              })
+            });
+          }
+        } catch (e) {
+          console.error("Broadcast failed:", e);
+        }
       }
 
       setForm({ title: '', content: '', is_pinned: false, image_url: '' });

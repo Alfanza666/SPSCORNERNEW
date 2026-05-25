@@ -1,19 +1,57 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, Product } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
-import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight, Loader2, X, Store, FileText } from 'lucide-react';
+import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight, Loader2, X, Store, FileText, Clock, CalendarDays, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { Suspense } from 'react';
+import toast from 'react-hot-toast';
+
+const DAYS_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+const PICKUP_TYPE_LABELS: Record<string, string> = {
+  same_day: 'Ready Hari Ini',
+  next_day: 'Ready H+1 (Besok)',
+  custom_days: 'Ready Kustom',
+};
+
+interface PoConfig {
+  id: string;
+  product_id: string;
+  seller_id: string;
+  is_active: boolean;
+  pickup_type: string;
+  custom_days?: number;
+  order_cutoff_time?: string;
+  po_stock: number;
+  min_order: number;
+  max_order: number;
+  pickup_notes?: string;
+  open_days?: number[];
+  products: {
+    id: string;
+    name: string;
+    price: number;
+    image_url: string;
+    category?: string;
+    description?: string;
+    is_active: boolean;
+  };
+  profiles?: { name: string };
+}
 
 
 export default function Catalog() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('Semua');
-  const [storeType, setStoreType] = useState<'kantin' | 'koperasi' | 'digital'>('kantin');
+  const [storeType, setStoreType] = useState<'kantin' | 'koperasi' | 'digital' | 'preorder'>('kantin');
+  const [poConfigs, setPoConfigs] = useState<PoConfig[]>([]);
+  const [poProducts, setPoProducts] = useState<Product[]>([]);
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const navigate = useNavigate();
@@ -23,9 +61,26 @@ export default function Catalog() {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalAmount = getTotal();
 
+  const renderDate = useMemo(() => new Date(), []);
+
   useEffect(() => {
     fetchProducts();
+    fetchPoProducts();
   }, []);
+
+  // Handle navigation from PreOrder redirect or direct URL with tab param
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('tab') === 'preorder') {
+      setStoreType('preorder');
+    }
+  }, [location.search]);
+
+  // Debounce search query 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const isKoperasiProduct = (p: Product) => {
     const cat = (p.category || '').toLowerCase();
@@ -36,11 +91,33 @@ export default function Catalog() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      // Get closed sellers (fault-tolerant: skip filter if store_open column doesn't exist)
+      let closedSellerIds: string[] = [];
+      try {
+        const { data: closedSellers } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('store_open', false);
+        if (closedSellers) {
+          closedSellerIds = closedSellers.map((s: any) => s.id);
+        }
+      } catch {
+        // store_open column not available — show all products
+      }
+
+      let query = supabase
         .from('products')
         .select('id, name, price, stock, category, seller_id, is_active, description, image_url, profiles:seller_id(name)')
         .eq('is_active', true)
         .gt('stock', 0);
+
+      if (closedSellerIds.length > 0) {
+        const idList = closedSellerIds.map(id => `"${id}"`).join(',');
+        query = query.filter('seller_id', 'not.in', `(${idList})`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -77,10 +154,113 @@ export default function Catalog() {
     }
   };
 
+  const fetchPoProducts = async () => {
+    try {
+      const { data } = await supabase
+        .from('pre_order_configs')
+        .select('*, products(id, name, price, image_url, category, description, is_active), profiles:seller_id(name)')
+        .eq('is_active', true);
+
+      const activeConfigs = (data || []).filter((c: any) => c.products?.is_active) as PoConfig[];
+      setPoConfigs(activeConfigs);
+
+      // Convert PO configs to Product-compatible items for display
+      const poProds: Product[] = activeConfigs.map(cfg => ({
+        id: cfg.products.id,
+        seller_id: cfg.seller_id,
+        name: cfg.products.name,
+        price: cfg.products.price,
+        stock: cfg.po_stock,
+        category: cfg.products.category || 'Pre-Order',
+        image_url: cfg.products.image_url,
+        description: cfg.products.description,
+        is_preorder: true,
+        po_config_id: cfg.id,
+        po_seller_id: cfg.seller_id,
+        pickup_notes: cfg.pickup_notes,
+        po_pickup_type: cfg.pickup_type,
+        po_open_days: cfg.open_days,
+        po_cutoff_time: cfg.order_cutoff_time?.slice(0, 5),
+        po_stock: cfg.po_stock,
+        po_min_order: cfg.min_order,
+        po_max_order: cfg.max_order,
+        profiles: cfg.profiles,
+      }));
+      setPoProducts(poProds);
+    } catch (error) {
+      console.error('Error fetching PO configs:', error);
+    }
+  };
+
+  // Check if PO ordering is within cutoff time
+  const isWithinCutoff = (product: Product, now?: Date): boolean => {
+    if (!product.po_cutoff_time) return true;
+    const current = now || new Date();
+    const [hours, minutes] = product.po_cutoff_time.split(':').map(Number);
+    const cutoff = new Date(current);
+    cutoff.setHours(hours, minutes, 0, 0);
+    return current <= cutoff;
+  };
+
+  // Check if today is an open day for PO
+  const isTodayOpenDay = (product: Product, now?: Date): boolean => {
+    if (!product.po_open_days || product.po_open_days.length === 0) return true;
+    const current = now || new Date();
+    return product.po_open_days.includes(current.getDay());
+  };
+
+  // Get ready label for PO product
+  const getPoReadyLabel = (product: Product): string => {
+    if (!product.po_pickup_type) return '';
+    if (product.po_pickup_type === 'custom_days') {
+      const cfg = poConfigs.find(c => c.id === product.po_config_id);
+      return `Ready H+${cfg?.custom_days || '?'}`;
+    }
+    return PICKUP_TYPE_LABELS[product.po_pickup_type] || '';
+  };
+
+  // Get open days text
+  const getOpenDaysText = (days?: number[]): string => {
+    if (!days || days.length === 0 || days.length === 7) return 'Setiap Hari';
+    return days.map(d => DAYS_SHORT[d]).join(', ');
+  };
+
+  // Handle adding PO item to cart with validation
+  const handleAddPoItem = (product: Product) => {
+    if (!isTodayOpenDay(product)) {
+      toast.error(`Pre-Order ini hanya buka di hari ${getOpenDaysText(product.po_open_days)}`);
+      return;
+    }
+    if (!isWithinCutoff(product)) {
+      toast.error(`Batas pemesanan sudah lewat (cutoff ${product.po_cutoff_time} WITA)`);
+      return;
+    }
+    // Check min order
+    const existingItem = items.find(i => i.id === product.id);
+    const currentQty = existingItem?.quantity || 0;
+    if (currentQty === 0 && product.po_min_order && product.po_min_order > 1) {
+      // Add with minimum order quantity
+      addItem({ ...product, stock: product.po_stock || 999 });
+      if (product.po_min_order > 1) {
+        updateQuantity(product.id, product.po_min_order);
+        toast.success(`Minimum order ${product.po_min_order} pcs`);
+      }
+      return;
+    }
+    // Check max order
+    if (product.po_max_order && currentQty >= product.po_max_order) {
+      toast.error(`Maksimum order ${product.po_max_order} pcs`);
+      return;
+    }
+    addItem({ ...product, stock: product.po_max_order || product.po_stock || 999 });
+  };
+
   // Filter products by store type first
-  const storeProducts = products.filter(p =>
-    storeType === 'koperasi' ? isKoperasiProduct(p) : !isKoperasiProduct(p)
-  );
+  const storeProducts = storeType === 'preorder'
+    ? poProducts
+    : products.filter(p =>
+        storeType === 'koperasi' ? isKoperasiProduct(p) : !isKoperasiProduct(p)
+      );
 
   // Update categories based on store type
   useEffect(() => {
@@ -91,7 +271,7 @@ export default function Catalog() {
 
   const filteredProducts = storeProducts.filter((product) => {
     const matchesCategory = activeCategory === 'Semua' || product.category === activeCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = product.name.toLowerCase().includes(debouncedQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
@@ -173,10 +353,16 @@ export default function Catalog() {
                   Digital
                 </button>
                 <button
-                  onClick={() => navigate('/kiosk/preorder')}
-                  className="flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400"
+                  onClick={() => setStoreType('preorder')}
+                  className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${storeType === 'preorder'
+                    ? 'bg-white dark:bg-zinc-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                    : 'text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400'
+                    }`}
                 >
                   Pre-Order
+                  {poProducts.length > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center w-4 h-4 text-[8px] font-black bg-amber-500 text-white rounded-full">{poProducts.length}</span>
+                  )}
                 </button>
               </div>
 
@@ -244,7 +430,7 @@ export default function Catalog() {
                   animate={{ opacity: 1, scale: 1 }}
                   whileHover={{ y: -4 }}
                   onClick={() => setSelectedProduct(product)}
-                  className={`bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-100/80 dark:border-zinc-800 shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:shadow-none group overflow-hidden flex flex-col h-full cursor-pointer ${index === 0 ? 'guide-product-card' : ''} transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]`}
+                  className={`bg-white dark:bg-zinc-900 rounded-[1.5rem] border ${product.is_preorder ? 'border-amber-200/80 dark:border-amber-900/50' : 'border-zinc-100/80 dark:border-zinc-800'} shadow-[0_2px_10px_rgba(0,0,0,0.04)] dark:shadow-none group overflow-hidden flex flex-col h-full cursor-pointer ${index === 0 ? 'guide-product-card' : ''} transition-all duration-300 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]`}
                 >
                   <div className="p-2 sm:p-2.5 pb-0">
                     <div className="relative aspect-[4/3] sm:aspect-square overflow-hidden bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl">
@@ -259,12 +445,18 @@ export default function Catalog() {
                         decoding="async"
                         {...(index < 4 ? { fetchPriority: "high" } : {})}
                       />
-                      {product.stock <= 5 && product.stock > 0 && (
+                      {product.is_preorder && (
+                        <div className="absolute top-2 left-2 px-2 py-1 bg-amber-500/90 backdrop-blur-md text-white text-[8px] font-black rounded-lg shadow-sm uppercase tracking-wider flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" />
+                          Pre-Order
+                        </div>
+                      )}
+                      {!product.is_preorder && product.stock <= 5 && product.stock > 0 && (
                         <div className="absolute top-2 left-2 px-2 py-1 bg-amber-400/90 backdrop-blur-md text-amber-950 text-[9px] font-black rounded-lg shadow-sm uppercase tracking-wider">
                           Sisa {product.stock}
                         </div>
                       )}
-                      {product.stock === 0 && (
+                      {!product.is_preorder && product.stock === 0 && (
                         <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center">
                           <span className="px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-black rounded-xl shadow-lg uppercase tracking-widest">Habis</span>
                         </div>
@@ -274,10 +466,58 @@ export default function Catalog() {
 
                   <div className="p-3 sm:p-4 flex flex-col flex-1">
                     <h3 className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white mb-1 tracking-tight line-clamp-2 leading-snug">{product.name}</h3>
-                    <p className="text-blue-600 dark:text-blue-400 text-sm sm:text-base font-black mb-3 sm:mb-4 tracking-tight">{formatRupiah(product.price)}</p>
+                    <p className="text-blue-600 dark:text-blue-400 text-sm sm:text-base font-black tracking-tight">{formatRupiah(product.price)}</p>
+                    {product.is_preorder && (
+                      <p className="text-amber-600 dark:text-amber-400 text-[9px] sm:text-[10px] font-bold mt-0.5 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5" />
+                        {getPoReadyLabel(product)}
+                      </p>
+                    )}
+                    <div className="mb-3 sm:mb-4" />
 
                     <div className="mt-auto" onClick={(e) => e.stopPropagation()}>
-                      {quantity > 0 ? (
+                      {product.is_preorder ? (
+                        /* Pre-Order Add Button */
+                        (() => {
+                          const poQty = cartItem?.quantity || 0;
+                          const maxOrder = product.po_max_order || product.po_stock || 999;
+                          const canOrder = isTodayOpenDay(product, renderDate) && isWithinCutoff(product, renderDate);
+                          return poQty > 0 ? (
+                            <div className="flex items-center justify-between bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-1 shadow-sm">
+                              <button
+                                onClick={() => {
+                                  const minOrder = product.po_min_order || 1;
+                                  if (poQty <= minOrder) removeItem(product.id);
+                                  else updateQuantity(product.id, poQty - 1);
+                                }}
+                                className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400 rounded-lg shadow-sm hover:scale-105 active:scale-95 transition-all"
+                              >
+                                <Minus className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
+                              </button>
+                              <span className="font-black text-xs sm:text-sm text-amber-700 dark:text-amber-300 w-6 text-center">{poQty}</span>
+                              <button
+                                onClick={() => {
+                                  if (poQty < maxOrder) updateQuantity(product.id, poQty + 1);
+                                  else toast.error(`Maks. order ${maxOrder} pcs`);
+                                }}
+                                disabled={poQty >= maxOrder}
+                                className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-amber-500 text-white rounded-lg shadow-sm hover:bg-amber-600 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
+                              >
+                                <Plus className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => handleAddPoItem(product)}
+                              disabled={!canOrder}
+                              className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed guide-product-add"
+                            >
+                              <Plus className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
+                              {!canOrder ? (isTodayOpenDay(product, renderDate) ? 'Cutoff Lewat' : 'Tutup Hari Ini') : 'Pre-Order'}
+                            </button>
+                          );
+                        })()
+                      ) : quantity > 0 ? (
                         <div className="flex items-center justify-between bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-xl p-1 shadow-sm">
                           <button
                             onClick={() => {
@@ -436,17 +676,113 @@ export default function Catalog() {
                   </p>
                 )}
 
-                <div className="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500 font-medium mb-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
-                  <span>Stok tersedia</span>
-                  <span className={`font-black ${selectedProduct.stock < 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                    {selectedProduct.stock} pcs
-                  </span>
-                </div>
+                {/* PO Info Section */}
+                {selectedProduct.is_preorder && (
+                  <div className="mb-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-800/30 rounded-xl p-3.5 space-y-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">Info Pre-Order</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] mb-0.5">Jadwal Ready</p>
+                        <p className="font-black text-zinc-900 dark:text-white">{getPoReadyLabel(selectedProduct)}</p>
+                      </div>
+                      <div>
+                        <p className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] mb-0.5">Cutoff Pesan</p>
+                        <p className="font-black text-zinc-900 dark:text-white">{selectedProduct.po_cutoff_time || '-'} WITA</p>
+                      </div>
+                      <div>
+                        <p className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] mb-0.5">Hari Buka</p>
+                        <p className="font-black text-zinc-900 dark:text-white text-[11px]">{getOpenDaysText(selectedProduct.po_open_days)}</p>
+                      </div>
+                      <div>
+                        <p className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] mb-0.5">Min/Maks Order</p>
+                        <p className="font-black text-zinc-900 dark:text-white">{selectedProduct.po_min_order || 1} - {selectedProduct.po_max_order || '∞'} pcs</p>
+                      </div>
+                    </div>
+                    {selectedProduct.pickup_notes && (
+                      <div className="mt-2 pt-2 border-t border-amber-200/30 dark:border-amber-800/20">
+                        <p className="text-zinc-400 dark:text-zinc-500 font-bold text-[10px] mb-0.5 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> Catatan Pengambilan
+                        </p>
+                        <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{selectedProduct.pickup_notes}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!selectedProduct.is_preorder && (
+                  <div className="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500 font-medium mb-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                    <span>Stok tersedia</span>
+                    <span className={`font-black ${selectedProduct.stock < 5 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {selectedProduct.stock} pcs
+                    </span>
+                  </div>
+                )}
+                {selectedProduct.is_preorder && (
+                  <div className="flex items-center justify-between text-xs text-zinc-400 dark:text-zinc-500 font-medium mb-5 pb-4 border-b border-amber-100 dark:border-amber-900/30">
+                    <span>Kuota PO</span>
+                    <span className="font-black text-amber-600 dark:text-amber-400">
+                      {selectedProduct.po_stock || '∞'} pcs
+                    </span>
+                  </div>
+                )}
 
                 {/* Add to cart controls */}
                 {(() => {
                   const cartItem = items.find(i => i.id === selectedProduct.id);
                   const qty = cartItem?.quantity || 0;
+
+                  if (selectedProduct.is_preorder) {
+                    const maxOrder = selectedProduct.po_max_order || selectedProduct.po_stock || 999;
+                    const minOrder = selectedProduct.po_min_order || 1;
+                    const canOrder = isTodayOpenDay(selectedProduct, renderDate) && isWithinCutoff(selectedProduct, renderDate);
+
+                    return qty > 0 ? (
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-2 flex-1">
+                          <button
+                            onClick={() => {
+                              if (qty <= minOrder) removeItem(selectedProduct.id);
+                              else updateQuantity(selectedProduct.id, qty - 1);
+                            }}
+                            className="w-10 h-10 flex items-center justify-center bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400 rounded-xl shadow-sm hover:scale-105 active:scale-95 transition-all"
+                          >
+                            <Minus className="w-5 h-5" strokeWidth={3} />
+                          </button>
+                          <span className="flex-1 text-center font-black text-lg text-amber-700 dark:text-amber-300">{qty}</span>
+                          <button
+                            onClick={() => {
+                              if (qty < maxOrder) updateQuantity(selectedProduct.id, qty + 1);
+                              else toast.error(`Maks. order ${maxOrder} pcs`);
+                            }}
+                            disabled={qty >= maxOrder}
+                            className="w-10 h-10 flex items-center justify-center bg-amber-500 text-white rounded-xl shadow-sm hover:bg-amber-600 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                          >
+                            <Plus className="w-5 h-5" strokeWidth={3} />
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => navigate('/kiosk/cart')}
+                          className="h-14 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-sm flex items-center gap-2 transition-colors shadow-md shadow-emerald-600/20"
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          Ke Keranjang
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleAddPoItem(selectedProduct)}
+                        disabled={!canOrder}
+                        className="w-full h-14 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Plus className="w-5 h-5" strokeWidth={3} />
+                        {!canOrder ? (isTodayOpenDay(selectedProduct, renderDate) ? `Cutoff Lewat (${selectedProduct.po_cutoff_time})` : 'Tutup Hari Ini') : 'Pre-Order Sekarang'}
+                      </button>
+                    );
+                  }
+
                   return qty > 0 ? (
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl p-2 flex-1">

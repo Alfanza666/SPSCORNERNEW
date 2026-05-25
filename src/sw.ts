@@ -22,13 +22,13 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SHOW_NOTIFICATION') {
     const { title, body, url } = event.data;
     event.waitUntil(
-      self.registration.showNotification(title || 'SPS Corner', {
+      self.registration.showNotification(title || 'SPS Corner', { 
         body: body || '',
         icon: '/logos/sps-logo-icon.png',
         badge: '/logos/sps-logo-icon.png',
         tag: 'sps-notification',
         data: { url: url || '/' }
-      })
+       } as any)
     );
   }
 });
@@ -36,15 +36,29 @@ self.addEventListener('message', (event) => {
 // Listener untuk menerima tembakan Web Push (dari server - app tertutup)
 self.addEventListener('push', (event) => {
   if (!event.data) return;
-  const payload = event.data.json();
-  
+
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: '/logos/sps-logo-icon.png',
-      badge: '/logos/sps-logo-icon.png',
-      data: { url: payload.url || '/' } // Simpan URL untuk dibuka saat di-klik
-    })
+    (async () => {
+      const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      // Jika ada tab/jendela app yang terbuka, jangan tampilkan push (user sudah lihat di bell panel)
+      if (windowClients.length > 0) return;
+
+      try {
+        const payload = event.data.json();
+        await self.registration.showNotification(payload.title || 'SPS Corner', {
+          body: payload.body || 'Anda memiliki pemberitahuan baru',
+          icon: '/logos/sps-logo-icon.png',
+          badge: '/logos/sps-logo-icon.png',
+          vibrate: [200, 100, 200, 100, 200, 100, 200], // Memicu getar dan suara default OS
+          requireInteraction: true, // Menempel di status bar / lockscreen
+          renotify: true, // WAJIB ada agar notifikasi berikutnya dengan tag sama tetap bergetar & muncul di lockscreen
+          tag: payload.tag || 'sps-notification',
+          data: { url: payload.url || '/' } // Simpan URL untuk dibuka saat di-klik
+        } as any);
+      } catch (error) {
+        console.error("Push payload error", error);
+      }
+    })()
   );
 });
 

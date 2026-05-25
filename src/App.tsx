@@ -43,6 +43,8 @@ const History = lazyWithRetry(() => import('./pages/kiosk/History'));
 const Profile = lazyWithRetry(() => import('./pages/kiosk/Profile'));
 const DigitalProducts = lazyWithRetry(() => import('./pages/kiosk/DigitalProducts'));
 const PreOrder = lazyWithRetry(() => import('./pages/kiosk/PreOrder'));
+const PreOrderDetail = lazyWithRetry(() => import('./pages/kiosk/PreOrderDetail'));
+const KioskHome = lazyWithRetry(() => import('./pages/kiosk/KioskHome'));
 
 const Terms = lazyWithRetry(() => import('./pages/Terms'));
 const Contact = lazyWithRetry(() => import('./pages/Contact'));
@@ -71,6 +73,7 @@ const AdminFeedbacks = lazyWithRetry(() => import('./pages/dashboard/admin/Admin
 
 const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/SellerProducts'));
+const SellerPreOrders = lazyWithRetry(() => import('./pages/dashboard/seller/SellerPreOrders'));
 const SellerWithdrawals = lazyWithRetry(() => import('./pages/dashboard/seller/SellerWithdrawals'));
 const SellerTransactions = lazyWithRetry(() => import('./pages/dashboard/seller/SellerTransactions'));
 
@@ -94,9 +97,13 @@ const AdminGathering = lazyWithRetry(() => import('./pages/dashboard/admin/Admin
 const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
 const AdminProgramCoupons = lazyWithRetry(() => import('./pages/dashboard/admin/AdminProgramCoupons'));
 const AdminDoorprizeSpin = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprizeSpin'));
+const AdminPengaduan = lazyWithRetry(() => import('./pages/dashboard/admin/AdminPengaduan'));
+const AdminKritikSaran = lazyWithRetry(() => import('./pages/dashboard/admin/AdminKritikSaran'));
 const AdminDoorprize = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprize'));
 const AdminFormBuilder = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormBuilder'));
 const AdminFormResponses = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormResponses'));
+const AdminCouponReports = lazyWithRetry(() => import('./pages/dashboard/admin/AdminCouponReports'));
+const AdminStockReport = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockReport'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   const isChunkError = error?.message?.includes('dynamically imported') ||
@@ -219,6 +226,8 @@ export default function App() {
 
             <Route path="/kiosk" element={<KioskLayout />}>
               <Route index element={<Catalog />} />
+              <Route path="home" element={<KioskHome />} />
+              <Route path="home/" element={<KioskHome />} />
               <Route path="cart" element={<Cart />} />
               <Route path="cart/" element={<Cart />} />
               <Route path="checkout" element={<Checkout />} />
@@ -235,6 +244,8 @@ export default function App() {
               <Route path="digital/" element={<DigitalProducts />} />
               <Route path="preorder" element={<PreOrder />} />
               <Route path="preorder/" element={<PreOrder />} />
+              <Route path="pre-order/:id" element={<PreOrderDetail />} />
+              <Route path="pre-order/:id/" element={<PreOrderDetail />} />
             </Route>
 
             <Route path="/dashboard" element={<DashboardLayout />}>
@@ -270,7 +281,12 @@ export default function App() {
               <Route path="admin/announcements" element={<AdminAnnouncements />} />
               <Route path="admin/announcements/" element={<AdminAnnouncements />} />
               <Route path="admin/feedbacks" element={<AdminFeedbacks />} />
+              
               <Route path="admin/feedbacks/" element={<AdminFeedbacks />} />
+              <Route path="admin/pengaduan" element={<AdminPengaduan />} />
+              <Route path="admin/pengaduan/" element={<AdminPengaduan />} />
+              <Route path="admin/kritik-saran" element={<AdminKritikSaran />} />
+              <Route path="admin/kritik-saran/" element={<AdminKritikSaran />} />
               <Route path="admin/union-programs" element={<AdminUnionPrograms />} />
               <Route path="admin/union-programs/" element={<AdminUnionPrograms />} />
               <Route path="admin/program-coupons" element={<AdminProgramCoupons />} />
@@ -282,6 +298,10 @@ export default function App() {
               <Route path="admin/forms" element={<AdminFormBuilder />} />
               <Route path="admin/forms/" element={<AdminFormBuilder />} />
               <Route path="admin/forms/responses/:formId" element={<AdminFormResponses />} />
+              <Route path="admin/coupon-reports" element={<AdminCouponReports />} />
+              <Route path="admin/coupon-reports/" element={<AdminCouponReports />} />
+              <Route path="admin/stock-report" element={<AdminStockReport />} />
+              <Route path="admin/stock-report/" element={<AdminStockReport />} />
 
               <Route path="scanner" element={<AdminScanner />} />
               <Route path="scanner/" element={<AdminScanner />} />
@@ -299,6 +319,8 @@ export default function App() {
               <Route path="seller/products" element={<SellerProducts />} />
               <Route path="seller/products/" element={<SellerProducts />} />
               <Route path="seller/withdrawals" element={<SellerWithdrawals />} />
+              <Route path="seller/pre-orders" element={<SellerPreOrders />} />
+              <Route path="seller/pre-orders/" element={<SellerPreOrders />} />
               <Route path="seller/withdrawals/" element={<SellerWithdrawals />} />
               <Route path="seller/transactions" element={<SellerTransactions />} />
               <Route path="seller/transactions/" element={<SellerTransactions />} />

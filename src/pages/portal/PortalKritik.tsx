@@ -77,6 +77,23 @@ export default function PortalKritik() {
 
       if (error) throw error;
 
+      
+      // notifyAdmins
+      try {
+        const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+        if (admins) {
+            const notifications = admins.map(admin => ({
+                user_id: admin.id,
+                title: 'Kritik & Saran Baru',
+                message: `Terdapat kritik & saran baru dari ${user.name}`,
+                type: 'system',
+                path: '/dashboard/admin/kritik'
+            }));
+            await supabase.from('notifications').insert(notifications);
+        }
+      } catch (e) { console.error('Gagal mengirim notif admin', e); }
+      // end notifyAdmins
+
       toast.success('Terima kasih! Kritik/saran Anda telah dikirim');
       setFormData({ type: 'saran', title: '', description: '' });
       fetchMyFeedback();

@@ -3,6 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 
+let cachedVapidKey: string | null = null;
+
+async function getVapidKey(): Promise<string> {
+  if (cachedVapidKey) return cachedVapidKey;
+  const fromEnv = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+  if (fromEnv) {
+    cachedVapidKey = fromEnv;
+    return fromEnv;
+  }
+  try {
+    const res = await fetch('/api/config/public');
+    const data = await res.json();
+    cachedVapidKey = data.VITE_VAPID_PUBLIC_KEY || '';
+    return cachedVapidKey;
+  } catch {
+    return '';
+  }
+}
+
 export interface NotificationItem {
   id: string;
   type: 'transaction' | 'withdrawal' | 'system';
@@ -43,6 +62,17 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+
+  // ── Check actual push subscription status ────────────────────────────────
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    navigator.serviceWorker.ready.then(reg => {
+      reg.pushManager.getSubscription().then(sub => {
+        setPushSubscribed(!!sub);
+      });
+    });
+  }, []);
 
   // ── Get existing service worker and listen for navigate messages ──────────
   useEffect(() => {
@@ -123,13 +153,16 @@ export function useNotifications() {
                   url: newNotif.path || '/'
                 });
               } else {
-                // Fallback to Notification API
-                new Notification(newNotif.title, {
+                const notif = new Notification(newNotif.title, {
                   body: newNotif.message,
                   icon: '/logos/sps-logo-icon.png',
                   tag: newNotif.id,
                   data: { url: newNotif.path || '/' }
                 });
+                notif.onclick = () => {
+                  notif.close();
+                  navigate(newNotif.path || '/');
+                };
               }
             } catch (e) {
               console.warn('[Notif] Failed to show notification:', e);
@@ -140,8 +173,8 @@ export function useNotifications() {
       })
       .subscribe();
 
-    // Auto-subscribe to push when user is available
-    subscribeToWebPush();
+    // Auto-subscribe to push only if permission was already granted
+    subscribeToWebPush(false);
 
     return () => {
       supabase.removeChannel(notifSub);
@@ -184,15 +217,16 @@ export function useNotifications() {
     }
   };
 
-  const subscribeToWebPush = async () => {
+  const subscribeToWebPush = async (requestPermission = true) => {
     if (!user) return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       console.warn('[Push] Not supported in this browser');
       return;
     }
 
-    // Request permission first
+    // Request permission if needed and allowed
     if (Notification.permission === 'default') {
+      if (!requestPermission) return; // Do not prompt automatically
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         console.warn('[Push] Permission denied');
@@ -204,9 +238,9 @@ export function useNotifications() {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      const applicationServerKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      const applicationServerKey = await getVapidKey();
       if (!applicationServerKey) {
-        console.warn('[Push] VITE_VAPID_PUBLIC_KEY is missing');
+        console.warn('[Push] VAPID public key is missing (check env or /api/config/public)');
         return;
       }
 
@@ -236,5 +270,34 @@ export function useNotifications() {
     }
   };
 
-  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead, subscribeToWebPush };
+  const unsubscribeFromWebPush = async () => {
+    if (!user) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        await subscription.unsubscribe();
+      }
+
+      // Always clean up server-side even if browser subscription is null
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch('/api/push/unsubscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: JSON.stringify({ user_id: user.id, endpoint: subscription?.endpoint || '' })
+      });
+      setPushSubscribed(false);
+      console.log('[Push] Unsubscribed successfully');
+    } catch (error) {
+      console.error('[Push] Unsubscribe failed:', error);
+    }
+  };
+
+  return { notifications, unreadCount, isLoading, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush, pushSubscribed };
 }

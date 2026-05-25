@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, ArrowLeft, Home, Check, Clock, HelpCircle, Bell } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Home, Check, Clock, HelpCircle, Bell, Store, User, Package, ShoppingBag } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { Button } from '../../components/ui/Button';
 import { ErrorBoundary } from 'react-error-boundary';
 import { supabase } from '../../lib/supabase';
@@ -45,9 +45,6 @@ export default function KioskLayout() {
 
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
     if (user && isCatalog && !user.phone) {
       const t = setTimeout(() => setShowPhoneModal(true), 1500);
       return () => clearTimeout(t);
@@ -63,8 +60,12 @@ export default function KioskLayout() {
   const handleHomeClick = () => {
     if (user && user.role !== 'buyer') {
       navigate(`/dashboard/${user.role}`);
-    } else {
+    } else if (user && isEmployeeNik(user?.nik)) {
       navigate('/portal');
+    } else if (user) {
+      navigate('/kiosk/home');
+    } else {
+      navigate('/');
     }
   };
 
@@ -242,13 +243,15 @@ export default function KioskLayout() {
                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-0.5">Anggota</p>
                     <p className="text-xs font-black text-zinc-900 dark:text-white truncate max-w-[100px] leading-none">{user.name?.split(' ')[0]}</p>
                   </div>
-                  <button
-                    onClick={() => navigate('/portal')}
-                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group shadow-sm"
-                    title="Kembali ke Portal"
-                  >
-                    <Home className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
-                  </button>
+                  {isEmployeeNik(user?.nik) && (
+                    <button
+                      onClick={() => navigate('/portal')}
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all active:scale-95 group shadow-sm"
+                      title="Kembali ke Portal"
+                    >
+                      <Home className="w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110" />
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button
@@ -299,11 +302,48 @@ export default function KioskLayout() {
         </header>
       )}
 
-      <main className="flex-1 max-w-7xl mx-auto w-full p-3 sm:p-4">
+      <main className="flex-1 max-w-7xl mx-auto w-full p-3 sm:p-4 pb-20 sm:pb-4">
         <ErrorBoundary FallbackComponent={KioskErrorFallback} onReset={() => navigate('/kiosk')}>
           <Outlet />
         </ErrorBoundary>
       </main>
+
+      {/* Mobile Bottom Tab Navigation */}
+      {!isSuccess && !['/kiosk/cart', '/kiosk/checkout', '/kiosk/validate', '/kiosk/success'].includes(location.pathname) && (
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-t border-zinc-100 dark:border-zinc-800 safe-area-bottom">
+          <div className="flex items-center justify-around h-14">
+            {[
+              { path: '/kiosk/home', icon: Home, label: 'Beranda' },
+              { path: '/kiosk', icon: Store, label: 'Menu' },
+              { path: '/kiosk/history', icon: Clock, label: 'Riwayat' },
+              { path: '/kiosk/cart', icon: ShoppingCart, label: 'Keranjang', badge: items.length },
+              { path: '/kiosk/profile', icon: User, label: 'Akun' },
+            ].map(({ path, icon: Icon, label, badge }) => {
+              const isActive = location.pathname === path;
+              return (
+                <button
+                  key={path}
+                  onClick={() => navigate(path)}
+                  className={`flex flex-col items-center justify-center gap-0.5 min-w-0 px-2 py-1.5 rounded-xl transition-all relative ${
+                    isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300'
+                  }`}
+                >
+                  <div className="relative">
+                    <Icon className="w-5 h-5" />
+                    {badge !== undefined && badge > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold border-2 border-white dark:border-zinc-900 shadow-sm">
+                        {badge > 9 ? '9+' : badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isActive ? 'opacity-100' : 'opacity-70'}`}>{label}</span>
+                  {isActive && <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full" />}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {!isSuccess && (
         <footer className="bg-transparent py-4 mt-auto">

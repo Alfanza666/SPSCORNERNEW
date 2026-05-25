@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { supabase } from '../../../lib/supabase';
@@ -7,7 +7,7 @@ import { formatRupiah } from '../../../lib/utils';
 import {
   ClipboardList, Plus, X, Settings, Calendar, Clock, CheckCircle2,
   Package, ChevronDown, ChevronUp, AlertCircle, Users, Loader2,
-  ShoppingBag, Check, XCircle, Eye
+  ShoppingBag, Check, XCircle, Eye, Upload, Trash2, Share2
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -44,6 +44,10 @@ export default function SellerPreOrders() {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [isNewProduct, setIsNewProduct] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [productForm, setProductForm] = useState({ name: '', price: '', category: '', description: '', image_url: '' });
   const [configForm, setConfigForm] = useState({
     pickup_type: 'next_day',
     custom_days: 1,
@@ -62,14 +66,18 @@ export default function SellerPreOrders() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [prodRes, cfgRes, poRes] = await Promise.all([
-        supabase.from('products').select('id,name,price,image_url').eq('seller_id', user!.id).eq('is_active', true).order('name'),
+      const [prodRes, cfgRes, poRes, catRes] = await Promise.all([
+        supabase.from('products').select('*, pre_order_configs(id)').eq('seller_id', user!.id).eq('is_active', true).order('name'),
         supabase.from('pre_order_configs').select('*').eq('seller_id', user!.id).order('created_at', { ascending: false }),
         supabase.from('pre_orders').select('*, products(name,image_url), profiles!pre_orders_buyer_id_fkey(name)').eq('seller_id', user!.id).order('pickup_date', { ascending: true }),
+        supabase.from('categories').select('*').order('name', { ascending: true })
       ]);
-      setProducts(prodRes.data || []);
+      
+      const poProducts = (prodRes.data || []).filter(p => p.pre_order_configs && p.pre_order_configs.length > 0);
+      setProducts(poProducts);
       setPoConfigs(cfgRes.data || []);
       setPreOrders(poRes.data || []);
+      setCategories(catRes.data || []);
     } catch (e: any) {
       toast.error('Gagal memuat data: ' + e.message);
     } finally {
@@ -77,7 +85,39 @@ export default function SellerPreOrders() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!e.target.files || e.target.files.length === 0) return;
+      const file = e.target.files[0];
+      if (file.size > 2 * 1024 * 1024) throw new Error('Maksimal ukuran file 2MB.');
+
+      setUploadingImage(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${user?.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from('products').upload(filePath, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(filePath);
+      setProductForm(prev => ({ ...prev, image_url: publicUrl }));
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const openNewPoForm = () => {
+    setIsNewProduct(true);
+    setProductForm({ name: '', price: '', category: '', description: '', image_url: '' });
+    setConfigForm({ pickup_type: 'next_day', custom_days: 1, order_cutoff_time: '10:00', po_stock: 20, min_order: 1, max_order: 20, pickup_notes: 'Ambil di loket penjual, jam 07.00–11.00 WITA', open_days: [1,2,3,4,5] });
+    setSelectedProduct({ name: 'Produk Baru', id: 'new' });
+    setShowConfigForm(true);
+  };
+
   const openConfigForm = (product: any) => {
+    setIsNewProduct(false);
     const existing = poConfigs.find(c => c.product_id === product.id);
     if (existing) {
       setConfigForm({
@@ -93,6 +133,13 @@ export default function SellerPreOrders() {
     } else {
       setConfigForm({ pickup_type: 'next_day', custom_days: 1, order_cutoff_time: '10:00', po_stock: 20, min_order: 1, max_order: 20, pickup_notes: 'Ambil di loket Koperasi SPS, jam 07.00–11.00 WITA', open_days: [1,2,3,4,5] });
     }
+    setProductForm({
+      name: product.name,
+      price: product.price.toString(),
+      category: product.category || '',
+      description: product.description || '',
+      image_url: product.image_url || ''
+    });
     setSelectedProduct(product);
     setShowConfigForm(true);
   };
@@ -100,8 +147,37 @@ export default function SellerPreOrders() {
   const saveConfig = async () => {
     if (!selectedProduct || !user) return;
     try {
-      const payload = {
-        product_id: selectedProduct.id,
+      if (!productForm.name || !productForm.price || !productForm.category) {
+        throw new Error('Nama, harga, dan kategori produk harus diisi!');
+      }
+
+      setLoading(true);
+      let productId = selectedProduct.id;
+
+      // 1. Save to products table first
+      const productPayload = {
+        seller_id: user.id,
+        name: productForm.name,
+        price: Number(productForm.price),
+        category: productForm.category,
+        description: productForm.description,
+        image_url: productForm.image_url,
+        is_active: true,
+        stock: 0 // PO products don't use regular stock
+      };
+
+      if (isNewProduct) {
+        const { data: newProd, error: prodErr } = await supabase.from('products').insert(productPayload).select().single();
+        if (prodErr) throw prodErr;
+        productId = newProd.id;
+      } else {
+        const { error: prodErr } = await supabase.from('products').update(productPayload).eq('id', productId);
+        if (prodErr) throw prodErr;
+      }
+
+      // 2. Save config to pre_order_configs
+      const configPayload = {
+        product_id: productId,
         seller_id: user.id,
         is_active: true,
         pickup_type: configForm.pickup_type,
@@ -113,13 +189,17 @@ export default function SellerPreOrders() {
         pickup_notes: configForm.pickup_notes,
         open_days: configForm.open_days,
       };
-      const { error } = await supabase.from('pre_order_configs').upsert(payload, { onConflict: 'product_id' });
-      if (error) throw error;
-      toast.success('Konfigurasi PO berhasil disimpan!');
+      
+      const { error: cfgErr } = await supabase.from('pre_order_configs').upsert(configPayload, { onConflict: 'product_id' });
+      if (cfgErr) throw cfgErr;
+      
+      toast.success('Produk PO berhasil disimpan!');
       setShowConfigForm(false);
       fetchAll();
     } catch (e: any) {
       toast.error('Gagal menyimpan: ' + e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -132,11 +212,35 @@ export default function SellerPreOrders() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus produk PO ini? Semua data pesanan terkait akan ikut terhapus atau kehilangan referensi.')) return;
+    try {
+      setLoading(true);
+      const { error } = await supabase.from('products').delete().eq('id', productId);
+      if (error) throw error;
+      toast.success('Produk PO berhasil dihapus');
+      fetchAll();
+    } catch (e: any) {
+      toast.error('Gagal menghapus produk: ' + e.message);
+      setLoading(false);
+    }
+  };
+
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       const updateData: any = { status: newStatus };
       if (newStatus === 'confirmed') updateData.confirmed_at = new Date().toISOString();
-      if (newStatus === 'ready') updateData.ready_at = new Date().toISOString();
+      if (newStatus === 'ready') {
+        updateData.ready_at = new Date().toISOString();
+        const order = preOrders.find((o: any) => o.id === orderId);
+        if (order) {
+            fetch('/api/pre-orders/notify-ready', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_id: orderId, buyer_id: order.buyer_id, buyer_name: order.buyer_name })
+            }).catch(console.error);
+        }
+      }
       if (newStatus === 'picked_up') updateData.picked_up_at = new Date().toISOString();
       const { error } = await supabase.from('pre_orders').update(updateData).eq('id', orderId);
       if (error) throw error;
@@ -284,12 +388,18 @@ export default function SellerPreOrders() {
       {/* Configs Tab */}
       {tab === 'configs' && (
         <div className="space-y-4">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Pilih produk dan atur mekanisme Pre-Order-nya. Hanya produk aktif yang bisa dikonfigurasi.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Kelola produk khusus Pre-Order (PO) Anda di sini.</p>
+            <button onClick={openNewPoForm} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-sm">
+              <Plus className="w-4 h-4" />
+              Produk PO Baru
+            </button>
+          </div>
           {products.length === 0 ? (
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 p-12 text-center">
               <Package className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
-              <p className="font-bold text-zinc-900 dark:text-white">Belum ada produk aktif</p>
-              <p className="text-sm text-zinc-500 mt-1">Tambahkan produk di halaman Manajemen Produk terlebih dahulu</p>
+              <p className="font-bold text-zinc-900 dark:text-white">Belum ada produk PO</p>
+              <p className="text-sm text-zinc-500 mt-1">Klik tombol "Produk PO Baru" di atas untuk menambahkan produk Pre-Order pertama Anda.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -322,10 +432,24 @@ export default function SellerPreOrders() {
                     ) : (
                       <p className="text-xs text-zinc-400 italic mb-3">Belum dikonfigurasi</p>
                     )}
-                    <button onClick={() => openConfigForm(product)} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-xl text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors border border-blue-100 dark:border-blue-900/50">
-                      <Settings className="w-3.5 h-3.5" />
-                      {cfg ? 'Edit Konfigurasi' : 'Setup Pre-Order'}
-                    </button>
+                    <div className="flex gap-2">
+                      {cfg && cfg.is_active && (
+                        <button onClick={() => {
+                          const url = `${window.location.origin}/kiosk/pre-order/${cfg.id}`;
+                          if (navigator.share) navigator.share({ title: product.name, url }).catch(() => {});
+                          else navigator.clipboard.writeText(url).then(() => toast.success('Link disalin!')).catch(() => toast.error('Gagal copy'));
+                        }} className="px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors border border-emerald-100 dark:border-emerald-900/50" title="Bagikan ke media sosial">
+                          <Share2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button onClick={() => handleDeleteProduct(product.id)} className="px-4 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors border border-red-100 dark:border-red-900/50" title="Hapus Produk PO">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => openConfigForm(product)} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-xl text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors border border-blue-100 dark:border-blue-900/50">
+                        <Settings className="w-3.5 h-3.5" />
+                        {cfg ? 'Edit Konfigurasi' : 'Setup Pre-Order'}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -349,6 +473,66 @@ export default function SellerPreOrders() {
                   </div>
                   <button onClick={() => setShowConfigForm(false)} className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white"><X className="w-5 h-5" /></button>
                 </div>
+
+                {/* Product Details Section */}
+                <div className="space-y-4 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                  <h3 className="text-sm font-black text-zinc-900 dark:text-white mb-2">1. Detail Produk PO</h3>
+                  
+                  {/* Image Upload */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Gambar Produk</label>
+                    <div className="relative aspect-video rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 flex flex-col items-center justify-center overflow-hidden group">
+                      {productForm.image_url ? (
+                        <>
+                          <img src={productForm.image_url} alt="Preview" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-zinc-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <label className="btn-clay-secondary h-10 px-4 cursor-pointer flex items-center gap-2 text-xs">
+                              <Upload className="w-4 h-4" /> Ganti
+                              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                            </label>
+                          </div>
+                        </>
+                      ) : (
+                        <label className="cursor-pointer flex flex-col items-center gap-2 p-4 text-center w-full h-full justify-center text-zinc-400 group-hover:text-blue-500 transition-colors">
+                          {uploadingImage ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
+                          <span className="text-xs font-bold mt-1">Upload Gambar</span>
+                          <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" disabled={uploadingImage} />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Name & Category */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Nama Produk</label>
+                      <input type="text" required value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} className="input-clay" placeholder="Contoh: Brownies PO" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Kategori</label>
+                      <select required value={productForm.category} onChange={e => setProductForm(p => ({ ...p, category: e.target.value }))} className="input-clay appearance-none">
+                        <option value="">Pilih...</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Price & Desc */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Harga (Rp)</label>
+                      <input type="number" required value={productForm.price} onChange={e => setProductForm(p => ({ ...p, price: e.target.value }))} className="input-clay" placeholder="25000" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-black text-zinc-500 uppercase tracking-widest">Deskripsi</label>
+                      <textarea value={productForm.description} onChange={e => setProductForm(p => ({ ...p, description: e.target.value }))} className="input-clay h-[42px] py-2" placeholder="Detail produk..." />
+                    </div>
+                  </div>
+                </div>
+
+                <h3 className="text-sm font-black text-zinc-900 dark:text-white pt-2">2. Pengaturan PO</h3>
 
                 {/* Pickup Type */}
                 <div className="space-y-2">

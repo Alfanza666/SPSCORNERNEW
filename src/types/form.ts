@@ -56,5 +56,7 @@ export interface FormField {
 export interface FormConfig {
   title: string;
   description?: string;
+  theme_color?: string;
+  banner_url?: string;
   fields: FormField[];
 }

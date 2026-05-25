@@ -37,7 +37,7 @@ export default function AdminFeedbacks() {
     try {
       const { data, error } = await supabase
         .from('feedbacks')
-        .select('*, profiles(name, nik)')
+        .select('*, profiles!feedbacks_user_id_fkey(name, nik)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;

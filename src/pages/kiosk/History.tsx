@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCircle, ArrowLeft, Search, X, Download } from 'lucide-react';
+import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCircle, ArrowLeft, Search, X, Download, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 
@@ -40,6 +40,11 @@ export default function History() {
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedTxDetail, setSelectedTxDetail] = useState<Transaction | null>(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState<string | null>(null);
+  const [returningItem, setReturningItem] = useState<{ product_id: string; product_name: string; seller_id: string; maxQty: number } | null>(null);
+  const [returnQty, setReturnQty] = useState('1');
+  const [returnReason, setReturnReason] = useState('');
+  const [submittingReturn, setSubmittingReturn] = useState(false);
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -126,6 +131,65 @@ export default function History() {
     }
   };
 
+  
+  const handleUploadReceipt = async (e: any, tx: Transaction) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingReceipt(tx.id);
+    toast.loading('Memverifikasi bukti pembayaran...', { id: 'upload-receipt' });
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        try {
+          const response = await fetch('/api/payment/manual/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transaction_id: tx.id,
+              receipt_image: base64data,
+              expected_amount: tx.total_amount
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            let errorMsg = typeof data.error === 'string' ? data.error : 'Gagal memverifikasi bukti pembayaran';
+            try {
+              if (typeof data.error === 'string' && data.error.includes('{')) {
+                const parsed = JSON.parse(data.error);
+                if (parsed?.error?.code === 503 || parsed?.error?.status === 'UNAVAILABLE') {
+                  errorMsg = 'Sistem Verifikasi Otomatis (AI) sedang sangat sibuk. Mohon coba beberapa saat lagi.';
+                } else if (parsed?.error?.message) {
+                  errorMsg = parsed.error.message;
+                }
+              }
+            } catch (e) {}
+            throw new Error(errorMsg);
+          }
+
+          if (data.success) {
+            toast.success('Pembayaran berhasil diverifikasi!', { id: 'upload-receipt' });
+            fetchHistorySilently();
+          } else {
+            toast.error(data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai', { id: 'upload-receipt' });
+          }
+        } catch (error: any) {
+          toast.error(error.message || 'Terjadi kesalahan', { id: 'upload-receipt' });
+        } finally {
+          setUploadingReceipt(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      toast.error('Gagal membaca file', { id: 'upload-receipt' });
+      setUploadingReceipt(null);
+    }
+  };
+
   const fetchHistory = async () => {
     try {
       setLoading(true);
@@ -194,6 +258,46 @@ export default function History() {
       }
     } catch (e: any) {
       toast.error('Error: ' + e.message, { id: 'check-status' });
+    }
+  };
+
+  const handleReturnRequest = async () => {
+    if (!returningItem) return;
+    const qty = parseInt(returnQty);
+    if (qty < 1 || qty > returningItem.maxQty) {
+      toast.error(`Jumlah retur harus 1 - ${returningItem.maxQty}`);
+      return;
+    }
+    if (!returnReason.trim()) {
+      toast.error('Harap isi alasan retur');
+      return;
+    }
+    setSubmittingReturn(true);
+    try {
+      const res = await fetch('/api/product-returns/buyer-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: returningItem.product_id,
+          seller_id: returningItem.seller_id,
+          quantity: qty,
+          reason: returnReason.trim(),
+          transaction_id: selectedTxDetail?.id
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Gagal mengirim permintaan retur');
+      } else {
+        toast.success('Permintaan retur berhasil dikirim');
+        setReturningItem(null);
+        setReturnQty('1');
+        setReturnReason('');
+      }
+    } catch {
+      toast.error('Gagal menghubungi server');
+    } finally {
+      setSubmittingReturn(false);
     }
   };
 
@@ -509,6 +613,25 @@ Sistem SPS Corner`);
                     </div>
                     
                     <div className="flex items-center gap-4">
+                      
+                      {(tx.status === 'failed' || tx.status === 'pending') && (
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            id={`upload-${tx.id}`} 
+                            className="hidden" 
+                            onChange={(e) => handleUploadReceipt(e, tx)}
+                            disabled={uploadingReceipt === tx.id}
+                          />
+                          <label 
+                            htmlFor={`upload-${tx.id}`}
+                            className="cursor-pointer text-blue-600 dark:text-blue-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-800"
+                          >
+                            {uploadingReceipt === tx.id ? 'Memproses...' : 'Upload Ulang Bukti TF'}
+                          </label>
+                        </div>
+                      )}
                       {tx.status === 'pending' && (
                         <button 
                           onClick={() => handleCancelOrder(tx.id)}
@@ -517,6 +640,7 @@ Sistem SPS Corner`);
                           Batalkan Pesanan
                         </button>
                       )}
+
                       <button 
                         onClick={() => setSelectedTxDetail(tx)}
                         className="text-blue-600 dark:text-blue-400 font-bold text-[10px] sm:text-xs flex items-center gap-1 hover:gap-1.5 transition-all uppercase tracking-widest"
@@ -586,6 +710,19 @@ Sistem SPS Corner`);
                     <p className="text-sm font-bold text-zinc-900 dark:text-white">
                       {new Date(selectedTxDetail.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <div className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest shadow-inner text-center ${
+                    selectedTxDetail.status === 'success' || selectedTxDetail.status === 'paid' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' : 
+                    selectedTxDetail.status === 'processing' || selectedTxDetail.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' : 
+                    'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+                  }`}>
+                    {selectedTxDetail.status === 'success' ? 'Selesai' : 
+                     selectedTxDetail.status === 'paid' ? 'Pesanan Terbayar' : 
+                     selectedTxDetail.status === 'processing' ? 'Diproses Sistem' : 
+                     selectedTxDetail.status === 'pending' ? 'Menunggu Pembayaran' : 'Pesanan Gagal'}
                   </div>
                 </div>
 
@@ -696,6 +833,21 @@ Sistem SPS Corner`);
                             )}
                           </div>
                         )}
+
+                        {['paid','completed','confirmed','processed','pending_pickup','ready_for_pickup'].includes(selectedTxDetail?.status || '') && !item.metadata?.is_digital && (
+                          <button
+                            onClick={() => setReturningItem({
+                              product_id: item.product_id,
+                              product_name: productName,
+                              seller_id: item.metadata?.seller_id || selectedTxDetail.metadata?.seller_id || '',
+                              maxQty: item.quantity
+                            })}
+                            className="mt-3 w-full flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 py-2 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400 transition-all active:scale-[0.98]"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Request Retur
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -728,6 +880,84 @@ Sistem SPS Corner`);
                     </button>
                   </>
                 ) : null}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Return Request Modal */}
+      <AnimatePresence>
+        {returningItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => { setReturningItem(null); setReturnQty('1'); setReturnReason(''); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6">
+                <h3 className="font-black text-lg text-zinc-900 dark:text-white mb-1">Request Retur</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-5">{returningItem.product_name}</p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Jumlah</label>
+                    <div className="flex items-center gap-3 mt-1">
+                      <button
+                        onClick={() => setReturnQty(v => Math.max(1, parseInt(v || '1') - 1).toString())}
+                        className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >-</button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={returningItem.maxQty}
+                        value={returnQty}
+                        onChange={e => setReturnQty(e.target.value)}
+                        className="w-20 text-center font-bold text-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={() => setReturnQty(v => Math.min(returningItem.maxQty, parseInt(v || '1') + 1).toString())}
+                        className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                      >+</button>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 mt-1">Maks. {returningItem.maxQty} item</p>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Alasan Retur</label>
+                    <textarea
+                      value={returnReason}
+                      onChange={e => setReturnReason(e.target.value)}
+                      placeholder="Contoh: Produk cacat, salah barang, dll."
+                      rows={3}
+                      className="w-full mt-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => { setReturningItem(null); setReturnQty('1'); setReturnReason(''); }}
+                    className="flex-1 py-3 font-bold text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors uppercase tracking-widest"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleReturnRequest}
+                    disabled={submittingReturn}
+                    className="flex-1 py-3 font-bold text-xs text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest"
+                  >
+                    {submittingReturn ? 'Mengirim...' : 'Kirim'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

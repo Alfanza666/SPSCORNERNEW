@@ -150,7 +150,7 @@ export default function PortalProgram() {
     setPaymentLoading(true);
 
     // Calculate total family count from addons
-    const familyCount = Object.values(addonSelections).reduce((acc, qty) => acc + qty, 0);
+    const familyCount = Object.values(addonSelections).reduce((acc: any, qty: any) => acc + qty, 0);
 
     try {
         const response = await fetch(`/api/portal/programs/${selectedProgram?.id}/checkout-family`, {

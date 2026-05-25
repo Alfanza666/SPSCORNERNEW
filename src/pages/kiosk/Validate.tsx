@@ -23,7 +23,7 @@ export default function Validate() {
     message: string;
   } | null>(null);
 
-  const buyerName = user?.name || sessionStorage.getItem('buyerName') || 'Unknown';
+  const buyerName = user?.name || (() => { try { return sessionStorage.getItem('buyerName'); } catch { return null; } })() || 'Unknown';
   const totalAmount = getTotal();
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,12 +156,6 @@ export default function Validate() {
           txData = data.transaction;
         } catch (e) {
           throw new Error('Invalid response from server when creating transaction');
-        }
-
-        for (const resId of reservations) {
-          await supabase.rpc('confirm_stock_deduction', {
-            p_reservation_id: resId
-          });
         }
 
         setValidationResult({ valid: true, message: 'Pembayaran Berhasil Diverifikasi!' });

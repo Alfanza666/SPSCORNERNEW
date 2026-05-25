@@ -6,7 +6,6 @@ import express from "express";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import axios from "axios";
-import { HttpsProxyAgent } from "https-proxy-agent";
 import path from "path";
 import os from "os";
 import crypto from "crypto";
@@ -16,17 +15,20 @@ import webpush from "web-push";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { IpaymuClient } from "./src/services/ipaymu/client.js";
+import { requireAuth, requireRole } from "./src/middleware/auth.js";
+import { registerWithdrawalRoutes } from "./src/routes/withdrawals.js";
+import { registerStockRoutes } from "./src/routes/stock.js";
+import { registerProductReturnRoutes } from "./src/routes/productReturns.js";
 dotenv.config();
-const envUrl = process.env.VITE_SUPABASE_URL;
-const supabaseUrl =
-  typeof envUrl === "string" && envUrl.startsWith("http")
-    ? envUrl
-    : "https://jofwebrbdlovwkgklwab.supabase.co";
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+if (!supabaseUrl || !supabaseUrl.startsWith("http")) {
+  throw new Error("VITE_SUPABASE_URL is not set or invalid");
+}
 const envKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseServiceKey =
   typeof envKey === "string" && envKey.trim() !== ""
     ? envKey
-    : "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvZndlYnJiZGxvdndrZ2tsd2FiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDc5MTkwNywiZXhwIjoyMDg2MzY3OTA3fQ.Q51X1VHwEB9vnB5tXWd9ajJJ58F4OaYqUnaqi20DJxQ";
+    : (() => { throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set"); })();
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 import { GoogleGenAI } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -64,6 +66,12 @@ const authLimiter = rateLimit({
 // Terapkan rate limiter ke endpoint sensitif
 app.use('/api/payment', paymentLimiter);
 app.use('/api/auth', authLimiter);
+
+// Auth middleware — attach user to req for protected routes
+app.use('/api/admin', requireAuth(supabase), requireRole(supabase, 'admin', 'superadmin'));
+app.use('/api/withdrawals', requireAuth(supabase));
+app.use('/api/stock-requests', requireAuth(supabase));
+app.use('/api/product-returns', requireAuth(supabase));
 
 try {
   webpush.setVapidDetails(
@@ -103,6 +111,23 @@ app.post("/api/push/subscribe", async (req, res) => {
   }
 });
 
+app.post("/api/push/unsubscribe", async (req, res) => {
+  const { user_id, endpoint } = req.body;
+  if (!user_id || !endpoint) return res.status(400).json({ error: "Data tidak lengkap" });
+
+  try {
+    await supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("user_id", user_id)
+      .eq("subscription->endpoint", endpoint);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Push unsubscribe error:", error);
+    res.status(500).json({ error: "Gagal berhenti langganan" });
+  }
+});
+
 // ─── Helper: send push notification to all subscriptions of a user ────────────
 async function sendPushToUser(userId, title, body, url = "/", tag = "sps-notif") {
   try {
@@ -115,7 +140,7 @@ async function sendPushToUser(userId, title, body, url = "/", tag = "sps-notif")
 
     const payload = JSON.stringify({ title, body, url, tag });
     const results = await Promise.allSettled(
-      subs.map((row) => webpush.sendNotification(row.subscription, payload))
+      subs.map((row) => webpush.sendNotification(row.subscription, payload, { urgency: 'high' }))
     );
 
     // Clean up expired/invalid subscriptions
@@ -152,6 +177,61 @@ async function sendPushToAdmins(title, body, url = "/dashboard/admin") {
   }
 }
 
+// ─── Helper: restore stock for a cancelled/failed transaction ───────────────
+async function restoreTransactionStock(transactionId) {
+  try {
+    // Only restore if stock was actually deducted for this transaction
+    const { data: tx } = await supabase
+      .from("transactions")
+      .select("metadata")
+      .eq("id", transactionId)
+      .single();
+
+    if (!tx?.metadata?.stock_deducted) {
+      console.log(`[Stock] Skipping restore for ${transactionId.slice(0,8)} — stock was not deducted`);
+      return;
+    }
+
+    const { data: items } = await supabase
+      .from("transaction_items")
+      .select("product_id, quantity, seller_id")
+      .eq("transaction_id", transactionId);
+
+    if (!items || items.length === 0) return;
+
+    for (const item of items) {
+      if (!item.product_id) continue;
+
+      const { data: product } = await supabase
+        .from("products")
+        .select("stock")
+        .eq("id", item.product_id)
+        .single();
+
+      if (product) {
+        await supabase
+          .from("products")
+          .update({ stock: product.stock + item.quantity })
+          .eq("id", item.product_id);
+
+        // Log adjustment if we have a valid user
+        if (item.seller_id) {
+          await supabase.from("stock_adjustments").insert({
+            product_id: item.product_id,
+            user_id: item.seller_id,
+            previous_stock: product.stock,
+            new_stock: product.stock + item.quantity,
+            adjustment_type: "correction",
+            notes: `Stock restored — transaction ${transactionId} cancelled/failed`,
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`restoreTransactionStock error for ${transactionId}:`, e);
+  }
+}
+
 // ─── Insert notification helper (with specific path) ─────────────────────────
 async function createNotification(userId, type, title, message, path = "/") {
   try {
@@ -173,35 +253,56 @@ async function createNotification(userId, type, title, message, path = "/") {
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
-app.get("/api/debug-schema", async (req, res) => {
-  const { data, error } = await supabase.rpc("get_schema_info");
-  const { data: cols } = await supabase
-    .from("transaction_items")
-    .select("*")
-    .limit(1);
-  res.json({ error: null, cols: cols ? Object.keys(cols[0] || {}) : [] });
+
+app.get("/api/config/public", (req, res) => {
+  res.json({
+    VITE_VAPID_PUBLIC_KEY: process.env.VITE_VAPID_PUBLIC_KEY || "",
+    VAPID_SUBJECT: process.env.VAPID_SUBJECT || "",
+  });
 });
-app.get("/api/debug/ip", async (req, res) => {
-  try {
-    const response = await axios.get("https://ifconfig.me/ip");
-    const ip = response.data.trim();
-    let proxyIp = null;
-    if (FIXIE_URL) {
-      try {
-        const proxyResponse = await axios.get(
-          "https://ifconfig.me/ip",
-          getDigiflazzAxiosConfig(),
-        );
-        proxyIp = proxyResponse.data.trim();
-      } catch (e) {
-        proxyIp = "Error fetching proxy IP";
+
+async function getAdminIds() {
+  const { data: admins } = await supabase.from("profiles").select("id").in("role", ["admin", "superadmin"]);
+  return (admins || []).map(a => a.id);
+}
+
+function getUserId(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  return authHeader.split(" ")[1];
+}
+
+async function resolveUser(token) {
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) return null;
+  return user;
+}
+
+// --- Route modules (registered above via registerWithdrawalRoutes, registerStockRoutes, registerProductReturnRoutes) ---
+
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/debug-schema", async (req, res) => {
+    const { data, error } = await supabase.rpc("get_schema_info");
+    const { data: cols } = await supabase.from("transaction_items").select("*").limit(1);
+    res.json({ error: null, cols: cols ? Object.keys(cols[0] || {}) : [] });
+  });
+  app.get("/api/debug/ip", async (req, res) => {
+    try {
+      const response = await axios.get("https://ifconfig.me/ip");
+      const ip = response.data.trim();
+      let proxyIp = null;
+      if (FIXIE_URL) {
+        try {
+          const proxyResponse = await axios.get("https://ifconfig.me/ip", getDigiflazzAxiosConfig());
+          proxyIp = proxyResponse.data.trim();
+        } catch (e) { proxyIp = "Error fetching proxy IP"; }
       }
+      res.json({ outbound_ip: ip, proxy_ip: proxyIp, using_proxy: !!FIXIE_URL });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch outbound IP" });
     }
-    res.json({ outbound_ip: ip, proxy_ip: proxyIp, using_proxy: !!FIXIE_URL });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch outbound IP" });
-  }
-});
+  });
+}
 const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || "")
   .replace(/['"]/g, "")
   .trim();
@@ -251,8 +352,7 @@ const getIpaymuAxiosConfig = __name(() => {
 }, "getIpaymuAxiosConfig");
 const IPAYMU_VA = (process.env.IPAYMU_VA || "").replace(/['"]/g, "").trim();
 const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || "")
-  .replace(/['"]/g, "")
-  .trim();
+  .replace(/['"]/g, "").trim();
 const IPAYMU_PRODUCTION = process.env.IPAYMU_PRODUCTION !== "false";
 if (!IPAYMU_VA || !IPAYMU_API_KEY) {
   console.warn("\u26A0\uFE0F IPAYMU_VA or IPAYMU_API_KEY not configured");
@@ -294,13 +394,18 @@ const sendNotification = __name(async (userId, payload) => {
         title: payload.title,
         body: payload.message,
         url: payload.path || "/",
+        tag: `sps-${payload.type || 'notif'}`,
       });
 
-      const pushPromises = subs.map((sub) =>
-        webpush.sendNotification(sub.subscription, pushPayload).catch((err) => {
+      const pushPromises = subs.map((sub, idx) =>
+        webpush.sendNotification(sub.subscription, pushPayload, { urgency: 'high' }).catch((err) => {
           if (err.statusCode === 404 || err.statusCode === 410) {
-            // Subscription has expired or is no longer valid
-            // In a real app, delete it from the DB here
+            supabase
+              .from("push_subscriptions")
+              .delete()
+              .eq("user_id", userId)
+              .eq("subscription->endpoint", subs[idx].subscription?.endpoint)
+              .then(() => {});
           }
         })
       );
@@ -310,6 +415,12 @@ const sendNotification = __name(async (userId, payload) => {
     console.error("Failed to send notification:", err);
   }
 }, "sendNotification");
+
+// Register modular route groups
+registerWithdrawalRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
+registerStockRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
+registerProductReturnRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
+
 const processDigitalItems = __name(async (transactionId, transactionItems) => {
   const digitalItems = transactionItems.filter(
     (item) => item.metadata?.is_digital,
@@ -498,26 +609,33 @@ const updateSellerBalances = __name(async (items) => {
     const sellerTotals = {};
     for (const item of items) {
       if (item.seller_id) {
-        const itemTotal = (item.price || 0) * (item.quantity || 1);
+        // Use subtotal (which is net) if fee was already deducted, else calculate net
+        const isNetAlready = item.metadata && item.metadata.fee_deducted !== undefined;
+        const itemGross = (item.price || 0) * (item.quantity || 1);
+        const itemNet = isNetAlready ? (item.subtotal || 0) : Math.round(itemGross * 0.92);
+        const itemFee = itemGross - itemNet;
+
         if (!sellerTotals[item.seller_id]) {
-          sellerTotals[item.seller_id] = { total: 0 };
+          sellerTotals[item.seller_id] = { net: 0, gross: 0, fee: 0 };
         }
-        sellerTotals[item.seller_id].total += itemTotal;
+        sellerTotals[item.seller_id].net += itemNet;
+        sellerTotals[item.seller_id].gross += itemGross;
+        sellerTotals[item.seller_id].fee += itemFee;
       }
     }
     for (const [sellerId, data] of Object.entries(sellerTotals)) {
-      const sellerShare = Math.round(data.total * 0.92);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("balance, total_sales")
+        .select("balance, total_sales, total_fee_paid")
         .eq("id", sellerId)
         .single();
       if (profile) {
         await supabase
           .from("profiles")
           .update({
-            balance: (profile.balance || 0) + sellerShare,
-            total_sales: (profile.total_sales || 0) + data.total,
+            balance: (profile.balance || 0) + data.net,
+            total_sales: (profile.total_sales || 0) + data.gross,
+            total_fee_paid: (profile.total_fee_paid || 0) + data.fee,
           })
           .eq("id", sellerId);
       }
@@ -1758,17 +1876,31 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
         emailHtml
       ).then(() => console.log(`[Email] Konfirmasi terkirim ke ${buyerEmail}`)).catch(e => console.warn("[Email] Gagal:", e.message));
     }
-    const uniqueSellers = [
-      ...new Set(transaction.transaction_items.map((item) => item.seller_id)),
-    ];
+    const uniqueSellers = [...new Set(transaction.transaction_items.map((item) => item.seller_id))];
+    let hasKoperasi = false;
     for (const sellerId of uniqueSellers) {
       if (sellerId) {
         await sendNotification(sellerId, {
           type: "transaction",
-          title: "\u{1F4B0} Pesanan Baru Masuk!",
+          title: "💰 Pesanan Baru Masuk!",
           message: `Ada pesanan baru #${transaction_id.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
           path: `/dashboard/seller/transactions?id=${transaction_id}`,
         });
+      } else {
+        hasKoperasi = true;
+      }
+    }
+    if (hasKoperasi) {
+      const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+      if (admins) {
+        for (const admin of admins) {
+          await sendNotification(admin.id, {
+            type: 'transaction',
+            title: '🛒 Pesanan Koperasi Baru',
+            message: `Ada pesanan baru #${transaction_id.slice(0, 8)} dari ${transaction.buyer_name}.`,
+            path: `/dashboard/admin/transactions?id=${transaction_id}`
+          });
+        }
       }
     }
     res.json({ success: true, message: "Transaction approved and processed" });
@@ -1960,6 +2092,7 @@ app.post("/api/digital/callback", async (req, res) => {
       return res.status(400).json({ error: "Invalid callback data" });
     }
     const { ref_id, status, sn } = callbackData.data;
+    if (!status) return res.json({ success: true, message: "No status, skipping" });
     const secretToUse = webhookSecret || webhookId;
     if (secretToUse && hubSignature) {
       const bodyString = req.rawBody || JSON.stringify(req.body);
@@ -2086,14 +2219,16 @@ app.post("/api/digital/callback", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.get("/api/payment/ipaymu/debug", (req, res) => {
-  res.json({
-    va: IPAYMU_VA,
-    apiKeyLength: IPAYMU_API_KEY.length,
-    production: IPAYMU_PRODUCTION,
-    rawEnvProduction: process.env.IPAYMU_PRODUCTION,
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/payment/ipaymu/debug", (req, res) => {
+    res.json({
+      va: IPAYMU_VA,
+      apiKeyLength: IPAYMU_API_KEY.length,
+      production: IPAYMU_PRODUCTION,
+      rawEnvProduction: process.env.IPAYMU_PRODUCTION,
+    });
   });
-});
+}
 app.post("/api/payment/ipaymu/create", async (req, res) => {
   try {
     const {
@@ -2219,6 +2354,9 @@ app.post("/api/payment/manual/verify", async (req, res) => {
           "reason": "Alasan singkat mengapa valid/tidak valid"
         }
       `;
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ success: false, error: "GEMINI_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
+    }
     const geminiResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [
@@ -2476,6 +2614,13 @@ app.post("/api/payment/ipaymu/callback", async (req, res) => {
       console.error("Transaction not found:", refId);
       return res.status(404).json({ error: "Transaction not found" });
     }
+
+    // ─── Guard: jangan timpa transaksi yg sudah berhasil/dibayar dengan status gagal ───
+    if (txStatus === "failed" && (transaction.status === "paid" || transaction.status === "success")) {
+      console.log(`[iPaymu] Skip overwrite tx ${refId}: already ${transaction.status}, ignoring "gagal" callback`);
+      return res.json({ success: true, message: "Ignored: transaction already paid/success" });
+    }
+
     const { error: updateError } = await supabase
       .from("transactions")
       .update({
@@ -2508,19 +2653,71 @@ app.post("/api/payment/ipaymu/callback", async (req, res) => {
       if (transaction.buyer_id) {
         await sendNotification(transaction.buyer_id, {
           type: "transaction",
-          title: "\u2705 Pembayaran Berhasil!",
+          title: "✅ Pembayaran Berhasil!",
           message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
           path: `/kiosk/history?id=${refId}`,
         });
       }
+      
+      const uniqueSellers = [...new Set(transaction.transaction_items.map((item) => item.seller_id))];
+      let hasKoperasi = false;
+      for (const sellerId of uniqueSellers) {
+        if (sellerId) {
+          await sendNotification(sellerId, {
+            type: 'transaction',
+            title: '💰 Pesanan Baru Masuk!',
+            message: `Ada pesanan baru #${refId.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
+            path: `/dashboard/seller/transactions?id=${refId}`,
+          });
+        } else {
+          hasKoperasi = true;
+        }
+      }
+      
+      if (hasKoperasi) {
+        const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+        if (admins) {
+          for (const admin of admins) {
+            await sendNotification(admin.id, {
+              type: 'transaction',
+              title: '🛒 Pesanan Koperasi Baru',
+              message: `Ada pesanan baru #${refId.slice(0, 8)} dari ${transaction.buyer_name}.`,
+              path: `/dashboard/admin/transactions?id=${refId}`
+            });
+          }
+        }
+      }
     } else if (txStatus === "failed") {
-      if (transaction.buyer_id) {
-        await sendNotification(transaction.buyer_id, {
-          type: "transaction",
-          title: "\u274C Pembayaran Gagal",
-          message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
-          path: `/kiosk/history?id=${refId}`,
-        });
+      // ─── Cek apakah ada item digital yg sudah terkirim (delivered) ───
+      const hasDeliveredDigital = (transaction.transaction_items || []).some(
+        item => item.metadata?.is_digital && item.metadata?.status === 'delivered'
+      );
+      if (hasDeliveredDigital) {
+        // Jika item digital sudah terkirim, jangan set status "failed", kembalikan ke "paid"
+        console.log(`[iPaymu] Tx ${refId} has delivered digital items — reverting status to "paid" instead of "failed"`);
+        await supabase
+          .from("transactions")
+          .update({ status: "paid" })
+          .eq("id", refId);
+        if (transaction.buyer_id) {
+          await sendNotification(transaction.buyer_id, {
+            type: "transaction",
+            title: "✅ Pembayaran Berhasil!",
+            message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
+            path: `/kiosk/history?id=${refId}`,
+          });
+        }
+      } else {
+        // Restore stock since confirm_stock_deduction was already called before redirect
+        await restoreTransactionStock(refId);
+        if (transaction.buyer_id) {
+          await sendNotification(transaction.buyer_id, {
+            type: "transaction",
+            title: "\u274C Pembayaran Gagal",
+            message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
+            path: `/kiosk/history?id=${refId}`,
+          });
+        }
       }
     }
     console.log("\u2705 Transaction Updated:", {
@@ -2781,7 +2978,7 @@ app.post("/api/auth/reset-password", async (req, res) => {
     }
 
     // Update password user
-    const { error: updateError } = await supabase.auth.admin.updateUser(
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
       tokenData.user_id,
       { password: newPassword }
     );
@@ -2801,36 +2998,6 @@ app.post("/api/auth/reset-password", async (req, res) => {
   } catch (error: any) {
     console.error("Reset password error:", error);
     res.status(500).json({ error: error.message || "Terjadi kesalahan saat reset password" });
-  }
-});
-app.get("/api/transactions/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { data, error } = await supabase
-      .from("transactions")
-      .select(
-        `
-          *,
-          transaction_items (
-            *,
-            products (
-              name,
-              category
-            )
-          )
-        `,
-      )
-      .eq("id", id)
-      .single();
-    if (error) {
-      return res.status(404).json({ error: "Transaction not found" });
-    }
-    res.json({ transaction: data });
-  } catch (error) {
-    console.error("Error fetching transaction:", error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to fetch transaction" });
   }
 });
 const getDigiflazzBalance = __name(async () => {
@@ -2866,6 +3033,35 @@ app.post("/api/transactions/create", async (req, res) => {
       status,
       receipt_image,
     } = req.body;
+
+    // ─── Idempotency: cek duplikat pending/paid untuk buyer yg sama dalam 60 detik ───
+    if (buyer_id) {
+      const sixtySecAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const { data: recentTx } = await supabase
+        .from("transactions")
+        .select("id, status, total_amount, transaction_items(id, product_id, quantity, metadata)")
+        .eq("buyer_id", buyer_id)
+        .eq("status", "pending")
+        .gte("created_at", sixtySecAgo)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (recentTx && recentTx.length > 0) {
+        // Cari yg total_amount + item count sama (heuristic cukup kuat untuk cegah duplikat)
+        const duplicate = recentTx.find((tx) => {
+          if (Number(tx.total_amount) !== Number(total_amount)) return false;
+          const existingCount = (tx.transaction_items || []).length;
+          const incomingCount = (items || []).length;
+          if (existingCount !== incomingCount) return false;
+          return true;
+        });
+        if (duplicate) {
+          console.log(`[Idempotency] Returning existing transaction ${duplicate.id} for buyer ${buyer_id}`);
+          return res.json({ success: true, transaction: duplicate });
+        }
+      }
+    }
+
     const digitalItems = items.filter((item) => item.is_digital);
     if (digitalItems.length > 0) {
       const totalDigitalValue = digitalItems.reduce(
@@ -2882,17 +3078,25 @@ app.post("/api/transactions/create", async (req, res) => {
           });
       }
     }
+
+    // 1. Hitung Fee Platform (8%)
+    const feeAmount = Math.round(total_amount * 0.08);
+    // 2. Hitung Uang Bersih (Netto) yang menjadi milik Penjual
+    const netAmount = total_amount - feeAmount;
+
+    // 3. Modifikasi data transaksi utama
     const txDataToInsert = {
       buyer_name,
       buyer_phone,
-      total_amount,
+      total_amount: total_amount, 
       status: status || "pending",
+      metadata: { fee_platform: feeAmount, net_seller_amount: netAmount }
     };
     if (buyer_id) txDataToInsert.buyer_id = buyer_id;
     if (payment_method) txDataToInsert.payment_method = payment_method;
     if (receipt_image) txDataToInsert.receipt_image = receipt_image;
     if (buyer_email) txDataToInsert.payment_details = { buyer_email };
-    if (buyer_email) txDataToInsert.payment_details = { buyer_email };
+    
     const { data: txDataResult, error: txError } = await supabase
       .from("transactions")
       .insert(txDataToInsert)
@@ -2900,50 +3104,91 @@ app.post("/api/transactions/create", async (req, res) => {
       .single();
     if (txError) throw txError;
     const tx = txDataResult;
-    const txItems = items.map((item) => ({
-      transaction_id: tx.id,
-      product_id: item.is_digital ? null : item.id,
-      quantity: item.quantity,
-      price: item.price,
-      subtotal: item.price * item.quantity,
-      seller_id: item.is_digital ? null : item.seller_id,
-      metadata: item.is_digital
-        ? {
-            is_digital: true,
-            status: "processing",
-            target_number: item.target_number,
-            product_name: item.name,
-            sku: item.sku,
-            is_postpaid: item.metadata?.is_postpaid,
-            customer_name: item.metadata?.customer_name,
-            segment_power: item.metadata?.segment_power,
-          }
-        : null,
-    }));
+
+    // 4. Modifikasi tabel Items
+    const txItems = items.map((item) => {
+      const itemGrossSubtotal = item.price * item.quantity;
+      const itemFee = Math.round(itemGrossSubtotal * 0.08); 
+      const itemNetSubtotal = itemGrossSubtotal - itemFee;
+
+      return {
+        transaction_id: tx.id,
+        product_id: item.is_digital ? null : item.id,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: itemNetSubtotal, // KRUSIAL: Ini yang akan dibaca saat update saldo seller nanti!
+        seller_id: item.is_digital ? null : item.seller_id,
+        metadata: item.is_digital
+          ? {
+              is_digital: true,
+              status: "processing",
+              target_number: item.target_number,
+              product_name: item.name,
+              sku: item.sku,
+              is_postpaid: item.metadata?.is_postpaid,
+              customer_name: item.metadata?.customer_name,
+              segment_power: item.metadata?.segment_power,
+            }
+          : { fee_deducted: itemFee }, // Beri tanda di metadata kalau sudah dipotong fee
+      };
+    });
+
     const { data: insertedItems, error: itemsError } = await supabase
       .from("transaction_items")
       .insert(txItems)
       .select();
     if (itemsError) throw itemsError;
-    for (const item of items) {
-      if (!item.is_digital && item.id) {
-        const { error: stockErr } = await supabase.rpc("decrement_stock", {
-          p_id: item.id,
-          p_amount: item.quantity,
-        });
-        if (stockErr) {
-          await supabase.from("transactions").delete().eq("id", tx.id);
-          throw new Error(`Stok tidak mencukupi untuk ${item.name}`);
+
+    // ─── Server-side stock deduction (replaces frontend confirm_stock_deduction) ───
+    const physicalItems = (insertedItems || []).filter(item => !item.metadata?.is_digital && item.product_id);
+    let stockDeducted = false;
+    if (physicalItems.length > 0) {
+      let allDeducted = true;
+      for (const item of physicalItems) {
+        const { data: product } = await supabase
+          .from("products")
+          .select("stock")
+          .eq("id", item.product_id)
+          .single();
+
+        if (product && product.stock >= item.quantity) {
+          await supabase
+            .from("products")
+            .update({ stock: product.stock - item.quantity })
+            .eq("id", item.product_id);
+
+          await supabase.from("stock_adjustments").insert({
+            product_id: item.product_id,
+            user_id: item.seller_id || txDataToInsert.buyer_id,
+            previous_stock: product.stock,
+            new_stock: product.stock - item.quantity,
+            adjustment_type: "sale",
+            notes: `Stock deducted from transaction ${tx.id}`
+          });
+        } else {
+          allDeducted = false;
         }
       }
+      stockDeducted = allDeducted;
     }
+
+    // Update transaction with stock_deducted flag in metadata
+    await supabase
+      .from("transactions")
+      .update({
+        metadata: { ...(tx.metadata || {}), stock_deducted: stockDeducted }
+      })
+      .eq("id", tx.id);
+
+    // Also update local tx object for downstream use
+    tx.metadata = { ...(tx.metadata || {}), stock_deducted: stockDeducted };
+
     if (tx.status === "paid" || tx.status === "success") {
       if (insertedItems && insertedItems.length > 0) {
         await processDigitalItems(tx.id, insertedItems);
       }
-    }
-    if (tx.status === "paid" || tx.status === "success") {
       await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
+      await updateSellerBalances(insertedItems); 
     }
     res.json({ success: true, transaction: tx });
   } catch (error) {
@@ -2997,6 +3242,8 @@ app.post("/api/transactions/cancel", async (req, res) => {
         .status(400)
         .json({ error: "Hanya pesanan pending yang dapat dibatalkan." });
     }
+    // Restore stock before deleting
+    await restoreTransactionStock(transaction_id);
     const { error: deleteError } = await supabase
       .from("transactions")
       .delete()
@@ -3010,11 +3257,19 @@ app.post("/api/transactions/cancel", async (req, res) => {
 });
 app.post("/api/admin/transactions/cleanup", async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
+
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
     const { data: expired, error: fetchError } = await supabase
       .from("transactions")
       .select("id, metadata")
-      .eq("status", "pending")
+      .in("status", ["pending", "failed"])
       .lt("created_at", fiveMinsAgo);
     if (fetchError) throw fetchError;
     if (!expired || expired.length === 0) {
@@ -3032,20 +3287,7 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
       );
     if (updateError) throw updateError;
     for (const tx of expired) {
-      const { data: items } = await supabase
-        .from("transaction_items")
-        .select("product_id, quantity")
-        .eq("transaction_id", tx.id);
-      if (items) {
-        for (const item of items) {
-          if (item.product_id) {
-            await supabase.rpc("increment_stock", {
-              p_id: item.product_id,
-              p_amount: item.quantity,
-            });
-          }
-        }
-      }
+      await restoreTransactionStock(tx.id);
     }
     res.json({ success: true, count: expired.length });
   } catch (error) {
@@ -3122,8 +3364,9 @@ app.post("/api/admin/password-resets/complete", async (req, res) => {
       return res.status(404).json({ error: "Permintaan reset password tidak ditemukan." });
     }
 
+    const tempPassword = Math.random().toString(36).slice(-8) + "A1!";
     const { error: updateAuthError } = await supabase.auth.admin.updateUserById(request.user_id, {
-      password: "123456"
+      password: tempPassword
     });
 
     if (updateAuthError) throw updateAuthError;
@@ -3133,7 +3376,21 @@ app.post("/api/admin/password-resets/complete", async (req, res) => {
       .update({ status: 'completed' })
       .eq('id', id);
 
-    if (error) throw error;
+    const { data: userProfile } = await supabase.from('profiles').select('email').eq('id', request.user_id).single();
+    if (userProfile?.email) {
+      sendSarirotiEmailInternal(
+        userProfile.email,
+        'Password Baru - SPS Corner',
+        `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+          <h2>Password Anda Telah DiReset</h2>
+          <p>Berikut password sementara Anda:</p>
+          <div style="background:#f3f4f6;padding:16px;border-radius:8px;text-align:center;font-size:24px;font-family:monospace;letter-spacing:4px;margin:16px 0;">${tempPassword}</div>
+          <p style="color:#ef4444;font-weight:bold;">Segera ganti password Anda setelah login.</p>
+          <p style="color:#6b7280;font-size:12px;">Abaikan email ini jika Anda tidak meminta reset password.</p>
+        </div>`
+      ).catch(e => console.warn("[Email] Gagal kirim password reset:", e.message));
+    }
+
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -3166,95 +3423,144 @@ app.get("/api/transactions/seller/:sellerId", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-app.get("/api/test-db4", async (req, res) => {
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/test-db4", async (req, res) => {
+    try {
+      const { data: items, error } = await supabase.from('transaction_items')
+        .select(`*, products(name), transactions(id, buyer_id, buyer_name, status, created_at, payment_method)`)
+        .eq('seller_id', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e')
+        .order('created_at', { ascending: false });
+      res.json({ count: items?.length, error: error?.message, items: items?.slice(0, 2) });
+    } catch (e: any) { res.json({ error: e.message }); }
+  });
+  app.get("/api/test-db2", async (req, res) => {
+    try {
+      const { data } = await supabase.from('profiles').select('*')
+        .in('id', ['0b11d7b5-d920-4c7b-bee0-472267ba92bc', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e']);
+      res.json(data);
+    } catch (e: any) { res.json({ error: e.message }); }
+  });
+  app.get("/api/test-db", async (req, res) => {
+    try {
+      const { data: sarirotiUsers } = await supabase.from("profiles").select("id, name")
+        .eq("role", "seller").ilike("name", "%sariroti%");
+      if (!sarirotiUsers || sarirotiUsers.length === 0) return res.json({ msg: "No sariroti seller" });
+      const { data: items } = await supabase.from('transaction_items')
+        .select(`id, seller_id, products ( name, category, seller_id )`)
+        .order('created_at', { ascending: false }).limit(20);
+      res.json({ users: sarirotiUsers, items });
+    } catch (e: any) { res.json({ error: e.message }); }
+  });
+  app.get("/api/fix-sariroti", async (req, res) => {
+    try {
+      const { data: sarirotiUsers } = await supabase.from("profiles").select("id")
+        .eq("role", "seller").ilike("name", "%sariroti%").limit(1);
+      if (!sarirotiUsers || sarirotiUsers.length === 0) return res.json({ success: false, message: "Tidak ada admin sariroti" });
+      const sarirotiId = sarirotiUsers[0].id;
+      const { data: products } = await supabase.from("products").select("id")
+        .or("category.eq.Sariroti,name.ilike.%roti%");
+      if (products && products.length > 0) {
+        const ids = products.map(p => p.id);
+        await supabase.from("products").update({ seller_id: sarirotiId }).in("id", ids);
+        await supabase.from("transaction_items").update({ seller_id: sarirotiId }).in("product_id", ids);
+      }
+      res.json({ success: true, message: "Berhasil mengaitkan Roti ke Admin Sariroti!", updatedProducts: (products || []).length });
+    } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
+  });
+}
+app.get("/api/admin/stock-report", async (req, res) => {
   try {
-    const { data: items, error } = await supabase
-      .from('transaction_items')
-      .select(`
-        *,
-        products (
-          name
-        ),
-        transactions (
-          id,
-          buyer_id,
-          buyer_name,
-          status,
-          created_at,
-          payment_method
-        )
-      `)
-      .eq('seller_id', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e')
-      .order('created_at', { ascending: false });
-    res.json({ count: items?.length, error: error?.message, items: items?.slice(0, 2) });
-  } catch (e: any) { res.json({ error: e.message }); }
-});
-app.get("/api/test-db2", async (req, res) => {
-  try {
-    const { data } = await supabase.from('profiles').select('*').in('id', ['0b11d7b5-d920-4c7b-bee0-472267ba92bc', 'cc4a7d0a-8020-4549-8e71-04bcbe673d1e']);
-    res.json(data);
-  } catch (e: any) { res.json({ error: e.message }); }
-});
-app.get("/api/test-db", async (req, res) => {
-  try {
-    const { data: sarirotiUsers } = await supabase
-      .from("profiles")
-      .select("id, name")
-      .eq("role", "seller")
-      .ilike("name", "%sariroti%");
-    if (!sarirotiUsers || sarirotiUsers.length === 0) {
-      return res.json({ msg: "No sariroti seller" });
-    }
-    const sarirotiId = sarirotiUsers[0].id;
-    const { data: items } = await supabase
-      .from('transaction_items')
-      .select(`id, seller_id, products ( name, category, seller_id )`)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    res.json({ users: sarirotiUsers, items });
-  } catch (e: any) {
-    res.json({ error: e.message });
-  }
-});
-app.get("/api/fix-sariroti", async (req, res) => {
-  try {
-    const { data: sarirotiUsers } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("role", "seller")
-      .ilike("name", "%sariroti%")
-      .limit(1);
-    if (!sarirotiUsers || sarirotiUsers.length === 0) {
-      return res.json({ success: false, message: "Tidak ada admin sariroti" });
-    }
-    const sarirotiId = sarirotiUsers[0].id;
-    
-    const { data: products } = await supabase
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin' && profile?.role !== 'superadmin') return res.status(403).json({ error: "Forbidden: Admin only" });
+
+    const sellerFilter = req.query.seller_id as string | undefined;
+    const dateStart = req.query.date_start as string | undefined;
+    const dateEnd = req.query.date_end as string | undefined;
+    const categoryFilter = req.query.category as string | undefined;
+
+    // 1. Get all products
+    let query = supabase
       .from("products")
-      .select("id")
-      .or("category.eq.Sariroti,name.ilike.%roti%");
+      .select("id, name, stock, seller_id, created_at, category");
+    if (sellerFilter) query = query.eq("seller_id", sellerFilter);
+    if (dateStart) query = query.gte("created_at", dateStart + "T00:00:00+07:00");
+    if (dateEnd) query = query.lte("created_at", dateEnd + "T23:59:59+07:00");
+    if (categoryFilter) query = query.eq("category", categoryFilter);
+    const { data: products, error: productsError } = await query;
+    if (productsError) throw productsError;
 
-    let productIds = [];
-    if (products && products.length > 0) {
-      productIds = products.map((p) => p.id);
-      await supabase
-        .from("products")
-        .update({ seller_id: sarirotiId })
-        .in("id", productIds);
+    const productIds = products.map(p => p.id);
 
-      await supabase
-        .from("transaction_items")
-        .update({ seller_id: sarirotiId })
-        .in("product_id", productIds);
+    // 2. Get aggregated stock adjustments
+    const { data: adjustments, error: adjError } = await supabase
+      .from("stock_adjustments")
+      .select("product_id, adjustment_type, previous_stock, new_stock, created_at")
+      .in("product_id", productIds)
+      .order("created_at", { ascending: true });
+    if (adjError) throw adjError;
+
+    // 3. Group adjustments by product
+    const adjustmentsByProduct: Record<string, { restock: number; sold: number; returned: number; firstEntry: any }> = {};
+    for (const adj of adjustments || []) {
+      if (!adjustmentsByProduct[adj.product_id]) {
+        adjustmentsByProduct[adj.product_id] = { restock: 0, sold: 0, returned: 0, firstEntry: adj };
+      }
+      if (adj.adjustment_type === "restock") {
+        adjustmentsByProduct[adj.product_id].restock += (adj.new_stock - adj.previous_stock);
+      } else if (adj.adjustment_type === "sale") {
+        adjustmentsByProduct[adj.product_id].sold += (adj.previous_stock - adj.new_stock);
+      } else if (adj.adjustment_type === "correction") {
+        adjustmentsByProduct[adj.product_id].returned += (adj.new_stock - adj.previous_stock);
+      }
     }
-    
-    res.json({
-      success: true,
-      message: "Berhasil mengaitkan Roti ke Admin Sariroti!",
-      updatedProducts: productIds.length
+
+    // 4. Build report
+    const report = products.map(product => {
+      const adjData = adjustmentsByProduct[product.id] || { restock: 0, sold: 0, returned: 0, firstEntry: null };
+      const initialStock = adjData.firstEntry
+        ? adjData.firstEntry.previous_stock
+        : product.stock;
+
+      return {
+        id: product.id,
+        name: product.name,
+        seller_id: product.seller_id,
+        createdAt: product.created_at,
+        initialStock,
+        totalRestock: adjData.restock,
+        totalSold: adjData.sold,
+        totalReturned: adjData.returned,
+        currentStock: product.stock
+      };
     });
+
+    // 5. Get sellers info
+    const sellerIds = [...new Set(products.map(p => p.seller_id).filter(Boolean))];
+    let sellersMap: Record<string, string> = {};
+    if (sellerIds.length > 0) {
+      const { data: sellers } = await supabase.from("profiles").select("id, name").in("id", sellerIds);
+      for (const s of sellers || []) sellersMap[s.id] = s.name;
+    }
+
+    // 6. Get all categories for filter
+    let allCategories: string[] = [];
+    try {
+      const { data: categoryRows } = await supabase.from("products").select("category");
+      allCategories = [...new Set((categoryRows || []).map(c => c.category).filter(Boolean))];
+    } catch (e) {
+      // categories column may not exist — ignore
+    }
+
+    res.json({ report, sellers: sellersMap, categories: allCategories });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Stock report error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 app.post("/api/admin/test-email", async (req, res) => {
@@ -3431,19 +3737,15 @@ return { id: index.toString(), raw: line, timestamp: new Date().toISOString() };
 app.post("/api/admin/seller-registration-links", async (req, res) => {
   try {
     const { days, maxUses = 1, notes } = req.body;
-    const adminId = req.headers['x-user-id'];
-    
-    if (!adminId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized - no auth header" });
+    const token = authHeader.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "Unauthorized - no token" });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError) return res.status(401).json({ error: `Unauthorized - ${authError.message}` });
+    if (!user) return res.status(401).json({ error: "Unauthorized - no user" });
 
-    // Cek apakah admin
-    const { data: adminProfile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", adminId)
-      .single();
-
+    const { data: adminProfile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (!adminProfile || (adminProfile.role !== "admin" && adminProfile.role !== "superadmin")) {
       return res.status(403).json({ error: "Hanya admin yang dapat membuat link" });
     }
@@ -3452,14 +3754,14 @@ app.post("/api/admin/seller-registration-links", async (req, res) => {
       return res.status(400).json({ error: "Hari harus antara 1-30" });
     }
 
-    const token = crypto.randomBytes(32).toString('hex');
+    const regToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     const { data, error } = await supabase
       .from("seller_registration_links")
       .insert({
-        token,
-        created_by: adminId,
+        token: regToken,
+        created_by: user.id,
         expires_at: expiresAt.toISOString(),
         max_uses: maxUses,
         notes
@@ -3469,7 +3771,7 @@ app.post("/api/admin/seller-registration-links", async (req, res) => {
 
     if (error) throw error;
 
-    const link = `https://spscorner.store/register-seller?token=${token}`;
+    const link = `https://spscorner.store/register-seller?token=${regToken}`;
     
     console.log(`✅ Seller registration link created: ${link}`);
     res.json({ 
@@ -3954,9 +4256,179 @@ app.get("/api/portal/my-coupons", async (req, res) => {
   }
 });
 
+// Notify about new/activated program — targeted if is_targeted, else all employees
+app.post("/api/admin/programs/notify", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
+
+    const { program_id, title } = req.body;
+    if (!program_id || !title) return res.status(400).json({ error: "program_id and title required" });
+
+    const { data: program } = await supabase.from("union_programs").select("is_targeted, name").eq("id", program_id).single();
+    if (!program) return res.status(404).json({ error: "Program not found" });
+
+    // Get all employee users (NIK starts with digit or M)
+    const { data: users } = await supabase.from("profiles").select("id, nik");
+    const employeeUsers = (users || []).filter(u => u.nik && /^[0-9Mm]/.test(u.nik));
+
+    if (employeeUsers.length === 0) return res.json({ success: true, count: 0 });
+
+    if (program.is_targeted) {
+      // Get targeted NIKs from eligibility
+      const { data: eligibility } = await supabase.from("program_eligibility").select("nik").eq("program_id", program_id);
+      const targetedNikSet = new Set((eligibility || []).map(e => e.nik));
+
+      for (const u of employeeUsers) {
+        if (targetedNikSet.has(u.nik)) {
+          await sendNotification(u.id, {
+            type: "system",
+            title: `🎯 Program Baru: ${title}`,
+            message: `Program "${title}" telah dibuka! Anda terdaftar sebagai peserta dan berhak menerima manfaat program ini. Cek kupon Anda di menu Program.`,
+            path: "/portal/program"
+          });
+        } else {
+          await sendNotification(u.id, {
+            type: "system",
+            title: `📢 Program Baru: ${title}`,
+            message: `Program "${title}" telah dibuka di Portal Serikat. Segera cek informasi dan jadwalnya!`,
+            path: "/portal/program"
+          });
+        }
+      }
+    } else {
+      // Non-targeted: notify all employees
+      await Promise.allSettled(employeeUsers.map(u => sendNotification(u.id, {
+        type: "system",
+        title: `📢 Program Baru: ${title}`,
+        message: `Program "${title}" telah dibuka di Portal Serikat. Segera cek informasi dan jadwalnya!`,
+        path: "/portal/program"
+      })));
+    }
+
+    res.json({ success: true, count: employeeUsers.length });
+  } catch (error: any) {
+    console.error("Program notify error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Broadcast notification to all users
+app.post("/api/notifications/broadcast", async (req, res) => {
+  try {
+    const { title, message, url = "/" } = req.body;
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+    }
+
+    // Get all users so it appears in notification panel even if no push subscription
+    // Only send to employees (NIK starts with digit or M), not vendors (NIK starts with H)
+    const { data: users, error } = await supabase.from("profiles").select("id, nik");
+    if (error) throw error;
+    
+    const employeeUsers = (users || []).filter(u => u.nik && /^[0-9Mm]/.test(u.nik));
+    
+    if (employeeUsers.length > 0) {
+      const userIds = employeeUsers.map(u => u.id);
+      await Promise.allSettled(userIds.map(id => sendNotification(id, {
+        type: 'system',
+        title: title,
+        message: message,
+        path: url
+      })));
+    }
+    
+    res.json({ success: true, count: employeeUsers.length });
+  } catch (error: any) {
+    console.error("Broadcast push error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Test push endpoint (localhost only)
+app.post("/api/push/test", async (req, res) => {
+  try {
+    const clientIp = req.ip || req.socket.remoteAddress;
+    if (clientIp !== "127.0.0.1" && clientIp !== "::1" && clientIp !== "::ffff:127.0.0.1") {
+      return res.status(403).json({ error: "Localhost only" });
+    }
+    const { userId, title = "Test Push", message = "Test dari VPS", url = "/" } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId required" });
+
+    await sendNotification(userId, { type: "system", title, message, path: url });
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Test push error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 if (!process.env.VERCEL) {
   const PORT = 3e3;
   (async () => {
+    // ── Pre-Order Share / OG Tags Route ────────────────────────────
+    app.get("/kiosk/pre-order/:id", async (req, res, next) => {
+      const ua = (req.headers["user-agent"] || "").toLowerCase();
+      const isCrawler = /facebook|twitter|whatsapp|telegram|discord|googlebot|slack|pinterest|linkedin/.test(ua);
+
+      if (!isCrawler) return next();
+
+      try {
+        const { data: config } = await supabase
+          .from("pre_order_configs")
+          .select("*, products!inner(id, name, price, image_url, description, category)")
+          .eq("id", req.params.id)
+          .single();
+
+        if (!config) return next();
+
+        const product = config.products;
+        const title = `${product.name} - Pre-Order SPS Corner`;
+        const description = product.description || `Pre-Order ${product.name} - SPS Corner`;
+        const imageUrl = product.image_url || "https://spscorner.store/og-default.jpg";
+        const pageUrl = `https://spscorner.store/kiosk/pre-order/${req.params.id}`;
+
+        res.send(`<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>${title}</title>
+  <meta name="description" content="${description.replace(/"/g, '&quot;')}" />
+  <meta property="og:title" content="${product.name.replace(/"/g, '&quot;')}" />
+  <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+  <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:url" content="${pageUrl}" />
+  <meta property="og:type" content="product" />
+  <meta property="og:site_name" content="SPS Corner" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${product.name.replace(/"/g, '&quot;')}" />
+  <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  <script>location.replace("${pageUrl}");</script>
+</head>
+<body>
+  <h1>${product.name}</h1>
+  <p>${description}</p>
+</body>
+</html>`);
+      } catch {
+        return next();
+      }
+    });
+
     if (process.env.NODE_ENV !== "production") {
       const viteModule = "vite";
       const { createServer: createViteServer } = await import(viteModule).then(
@@ -4047,10 +4519,106 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
       }
     });
 
+    // ── Auto-cleanup expired transactions every 3 minutes ─────────────────
+    async function autoCleanup() {
+      try {
+        const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
+        const { data: expired } = await supabase
+          .from("transactions")
+          .select("id")
+          .in("status", ["pending"])
+          .lt("created_at", fiveMinsAgo);
+        if (!expired || expired.length === 0) return;
+        await supabase
+          .from("transactions")
+          .update({
+            status: "failed",
+            metadata: { cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
+          })
+          .in("id", expired.map(tx => tx.id));
+        for (const tx of expired) {
+          await restoreTransactionStock(tx.id);
+        }
+        if (expired.length > 0) {
+          console.log(`[AutoCleanup] Restored stock for ${expired.length} expired transaction(s)`);
+        }
+      } catch (e) {
+        console.error("[AutoCleanup] Error:", e);
+      }
+    }
+    autoCleanup();
+    setInterval(autoCleanup, 3 * 60 * 1e3);
+
+    let lastDailyReportDate = "";
+    const dailyReport = __name(async () => {
+      try {
+        const now = new Date();
+        const witaOffset = 8 * 60;
+        const wita = new Date(now.getTime() + witaOffset * 60 * 1000);
+        const todayStr = wita.toISOString().slice(0, 10);
+        if (lastDailyReportDate === todayStr) return;
+        const hourWITA = wita.getUTCHours();
+        const minWITA = wita.getUTCMinutes();
+        if (hourWITA !== 20 || minWITA > 5) return;
+
+        lastDailyReportDate = todayStr;
+        console.log(`[DailyReport] Sending daily report for ${todayStr}`);
+
+        const { data: sellers } = await supabase.from("profiles").select("id").eq("role", "seller");
+        if (!sellers || sellers.length === 0) return;
+
+        const dayStart = new Date(Date.UTC(wita.getUTCFullYear(), wita.getUTCMonth(), wita.getUTCDate(), 0, 0, 0) - witaOffset * 60 * 1000).toISOString();
+
+        for (const seller of sellers) {
+          try {
+            const { data: items } = await supabase
+              .from("transaction_items")
+              .select("id, transaction_id, quantity, subtotal, transactions!inner(id, total_amount, status, created_at)")
+              .eq("seller_id", seller.id)
+              .gte("transactions.created_at", dayStart);
+
+            if (!items || items.length === 0) continue;
+
+            const txMap = new Map();
+            for (const item of items) {
+              const tx = item.transactions;
+              if (!txMap.has(tx.id)) {
+                txMap.set(tx.id, { ...tx, itemCount: 0, itemRevenue: 0 });
+              }
+              const entry = txMap.get(tx.id);
+              entry.itemCount += item.quantity;
+              entry.itemRevenue += Number(item.subtotal || 0);
+            }
+            const txns = Array.from(txMap.values());
+            const totalCount = txns.length;
+            const totalRevenue = txns.reduce((s, t) => s + Number(t.total_amount || 0), 0);
+            const pendingCount = txns.filter(t => t.status === "pending").length;
+            const processedCount = txns.filter(t => t.status === "processed").length;
+            const readyCount = txns.filter(t => t.status === "ready_for_pickup" || t.status === "pending_pickup").length;
+            const completedCount = txns.filter(t => t.status === "completed" || t.status === "paid" || t.status === "success").length;
+
+            const revFormatted = totalRevenue.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+            await sendNotification(seller.id, {
+              type: "system",
+              title: "Laporan Harian",
+              message: `Ringkasan hari ini: ${totalCount} pesanan, Rp${revFormatted}. ${completedCount} selesai, ${pendingCount} pending, ${processedCount} diproses, ${readyCount} siap ambil.`,
+              path: "/dashboard/seller/dashboard"
+            });
+          } catch (e) {
+            console.error(`[DailyReport] Error for seller ${seller.id}:`, e);
+          }
+        }
+      } catch (e) {
+        console.error("[DailyReport] Error:", e);
+      }
+    }, "dailyReport");
+    setInterval(dailyReport, 60 * 1e3);
+
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
   })();
 }
+
 var server_default = app;
 export { server_default as default };

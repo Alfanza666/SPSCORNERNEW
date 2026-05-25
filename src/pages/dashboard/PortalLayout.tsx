@@ -1,8 +1,9 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
+import { ErrorBoundary } from 'react-error-boundary';
 import { Dialog, Transition, Menu } from '@headlessui/react';
 import {
   LogOut,
@@ -11,7 +12,6 @@ import {
   Bell,
   Search,
   User as UserIcon,
-  KeyRound,
   Settings,
   Megaphone,
   Gift,
@@ -20,10 +20,6 @@ import {
   Menu as MenuIcon,
   X,
   Home,
-  ChevronRight,
-  ChevronDown,
-  Loader2,
-  Pin,
   ClipboardList
 } from 'lucide-react';
 import SPSLogo from '../../components/SPSLogo';
@@ -83,9 +79,22 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick, color }: NavItemPro
   );
 };
 
+function PortalErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
+      <AlertTriangle className="w-16 h-16 text-red-400 mb-4" />
+      <h2 className="text-xl font-black text-zinc-900 dark:text-white mb-2">Terjadi Kesalahan</h2>
+      <p className="text-zinc-500 dark:text-zinc-400 mb-6 max-w-md">{error.message}</p>
+      <button onClick={resetErrorBoundary} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors">
+        Coba Lagi
+      </button>
+    </div>
+  );
+}
+
 export default function PortalLayout() {
   const { user, isLoading, signOut } = useAuthStore();
-  const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
+  const { notifications, unreadCount, markAllAsRead, markOneAsRead, subscribeToWebPush, unsubscribeFromWebPush, pushSubscribed } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -113,6 +122,10 @@ export default function PortalLayout() {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!isEmployeeNik(user?.nik) && user.role !== 'admin' && user.role !== 'superadmin') {
+    return <Navigate to="/kiosk" replace />;
   }
 
   const handleSignOut = async () => {
@@ -188,6 +201,15 @@ export default function PortalLayout() {
                   Dashboard Seller
                 </button>
               )}
+              <button
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                onClick={() => navigate('/kiosk')}
+              >
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                  <Home className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                </div>
+                Kembali ke Kiosk
+              </button>
               {(isAdmin) && (
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
@@ -215,6 +237,16 @@ export default function PortalLayout() {
               <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider">{user.role}</p>
             </div>
           </div>
+
+          <button
+            className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-black text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all group mb-2"
+            onClick={() => setIsChangePasswordModalOpen(true)}
+          >
+            <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+              <Settings className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+            </div>
+            Ganti Password
+          </button>
 
           <button
             className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-black text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
@@ -269,6 +301,15 @@ export default function PortalLayout() {
                         Portal Serikat
                       </div>
                       <div className="space-y-1.5 focus:outline-none">
+                        <button
+                          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                          onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                            <Home className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                          </div>
+                          Kembali ke Kiosk
+                        </button>
                         {NAV_ITEMS.map((item) => (
                           <NavItem
                             key={item.path}
@@ -360,6 +401,50 @@ export default function PortalLayout() {
                       </span>
                     )}
                   </div>
+                  {'Notification' in window && Notification.permission === 'default' && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
+                      <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Nyalakan push notifikasi untuk update</p>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          subscribeToWebPush && subscribeToWebPush(true).then(() => {
+                            if (Notification.permission === 'granted') window.location.reload();
+                          });
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                      >
+                        Aktifkan
+                      </button>
+                    </div>
+                  )}
+                  {'Notification' in window && Notification.permission === 'granted' && pushSubscribed && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800 flex items-center justify-between gap-3">
+                      <p className="text-xs text-red-700 dark:text-red-400 font-medium">Push notifikasi aktif</p>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          unsubscribeFromWebPush && unsubscribeFromWebPush();
+                        }}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                      >
+                        Nonaktifkan
+                      </button>
+                    </div>
+                  )}
+                  {'Notification' in window && Notification.permission === 'granted' && !pushSubscribed && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
+                      <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Izinkan push notifikasi untuk update</p>
+                      <button 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          subscribeToWebPush && subscribeToWebPush(true);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                      >
+                        Aktifkan
+                      </button>
+                    </div>
+                  )}
                   <div className="max-h-[32rem] overflow-y-auto custom-scrollbar">
                     {notifications.filter(n => !n.isRead).length === 0 ? (
                       <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
@@ -494,7 +579,9 @@ export default function PortalLayout() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
               >
-                <Outlet />
+                <ErrorBoundary FallbackComponent={PortalErrorFallback} onReset={() => window.location.reload()}>
+                  <Outlet />
+                </ErrorBoundary>
               </motion.div>
             </AnimatePresence>
           </div>

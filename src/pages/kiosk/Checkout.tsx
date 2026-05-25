@@ -7,6 +7,7 @@ import { formatRupiah } from '../../lib/utils';
 import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2, Phone, Star } from 'lucide-react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
+import { addDays } from 'date-fns';
 
 export default function Checkout() {
   const { items, getTotal, reservations, setReservations, clearCart } = useCartStore();
@@ -29,10 +30,13 @@ export default function Checkout() {
     vaMandiri: false,
     redirect: true
   });
-  const [guestPhone, setGuestPhone] = useState(sessionStorage.getItem('buyerPhone') || '');
+  const [guestPhone, setGuestPhone] = useState(() => {
+    try { return sessionStorage.getItem('buyerPhone') || ''; } catch { return ''; }
+  });
   const [countdown, setCountdown] = useState<number | null>(null);
-  // Ref untuk mencegah pembuatan transaksi duplikat
+  // Ref untuk mencegah pembuatan transaksi duplikat (mutex antar semua handler)
   const txIdRef = useRef<string | null>(null);
+  const isCreatingTx = useRef(false);
 
   const subtotal = getTotal();
   
@@ -42,8 +46,8 @@ export default function Checkout() {
 
   const grandTotal = subtotal; // Real base amount untuk backend & iPaymu
 
-  const buyerName = user?.name || sessionStorage.getItem('buyerName');
-  const buyerEmail = user?.email || sessionStorage.getItem('buyerEmail') || null;
+  const buyerName = user?.name || (() => { try { return sessionStorage.getItem('buyerName'); } catch { return ''; } })();
+  const buyerEmail = user?.email || (() => { try { return sessionStorage.getItem('buyerEmail'); } catch { return null; } })() || null;
 
   const saveGuestTransaction = (txId: string) => {
     // Always save last transaction to sessionStorage for success page access (even for guests)
@@ -74,7 +78,7 @@ export default function Checkout() {
   };
 
   useEffect(() => {
-    if (items.length === 0 || !buyerName) {
+    if (!transactionId && (items.length === 0 || !buyerName)) {
       navigate('/kiosk');
       return;
     }
@@ -122,11 +126,44 @@ export default function Checkout() {
 
     fetchSettings();
 
-    // Request push notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
+    // We no longer automatically request Notification permission here.
+
+
+
   }, [items, buyerName, navigate]);
+
+  // Helper: Create pre_orders records for PO items in cart after successful payment
+  const createPreOrderRecords = async (txId: string) => {
+    const poItems = items.filter(item => item.is_preorder);
+    if (poItems.length === 0) return;
+    for (const item of poItems) {
+      try {
+        let pickupDays = 1;
+        if (item.po_pickup_type === 'same_day') pickupDays = 0;
+        const pickupDate = addDays(new Date(), pickupDays);
+        const poData = {
+          product_id: item.id,
+          seller_id: item.po_seller_id || item.seller_id,
+          buyer_id: user?.id || null,
+          buyer_name: buyerName,
+          buyer_phone: user?.phone || sessionStorage.getItem('buyerPhone') || null,
+          quantity: item.quantity,
+          unit_price: item.price,
+          total_price: item.price * item.quantity,
+          pickup_date: pickupDate.toISOString(),
+          order_date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          status: 'pending',
+          notes: `PO via Cart | Tx: ${txId.slice(0, 8)}`,
+          po_config_id: item.po_config_id || null,
+        };
+        const { error } = await supabase.from('pre_orders').insert([poData]);
+        if (error) console.error('Failed to create PO record for', item.name, error);
+      } catch (e) {
+        console.error('Error creating PO record:', e);
+      }
+    }
+  };
 
   // Countdown timer for QRIS payment (15 minutes)
   useEffect(() => {
@@ -157,6 +194,8 @@ export default function Checkout() {
 
   const handleDirectPayment = async (method: string, channel: string) => {
     if (!buyerName) return;
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handleDirectPayment)'); return; }
+    isCreatingTx.current = true;
     setLoading(true);
     setLoadingMessage('Menyiapkan pesanan...');
 
@@ -266,21 +305,19 @@ export default function Checkout() {
       setDirectPaymentData(data);
       setPaymentStep('ipaymu_direct');
 
-      // 3. Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
-
     } catch (error: any) {
       console.error('Direct Payment error:', error);
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
     } finally {
       setLoading(false);
+      isCreatingTx.current = false;
     }
   };
 
   const handleManualQris = async () => {
     if (!buyerName) return;
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handleManualQris)'); return; }
+    isCreatingTx.current = true;
     setLoading(true);
 
     try {
@@ -340,25 +377,24 @@ export default function Checkout() {
       saveGuestTransaction(transaction.id);
       setPaymentStep('manual_qris');
 
-      // 2. Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
-
     } catch (error: any) {
       console.error('Manual QRIS error:', error);
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
     } finally {
       setLoading(false);
+      isCreatingTx.current = false;
     }
   };
 
   const handlePointPayment = async () => {
     if (!buyerName || !user) return;
-    
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handlePointPayment)'); return; }
+    isCreatingTx.current = true;
+
     // Check if points are sufficient locally before sending request
     const total = getTotal();
     if ((user.loyalty_points || 0) < total) {
+      isCreatingTx.current = false;
       toast.error('Points Anda tidak mencukupi untuk pembayaran ini');
       return;
     }
@@ -415,11 +451,6 @@ export default function Checkout() {
       const { transaction } = await txRes.json();
       setTransactionId(transaction.id);
 
-      // Confirm reservations
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
-
       // 2. Pay using points
       const payRes = await fetch('/api/payment/points/pay', {
         method: 'POST',
@@ -440,7 +471,7 @@ export default function Checkout() {
       }
 
       toast.success('Berhasil membayar dengan Points!');
-      clearCart();
+      await createPreOrderRecords(transaction.id);
       setReservations([]);
       navigate('/kiosk/success', { state: { transactionId: transaction.id } });
 
@@ -450,6 +481,7 @@ export default function Checkout() {
     } finally {
       setLoading(false);
       setPointPaymentLoading(false);
+      isCreatingTx.current = false;
     }
   };
 
@@ -487,9 +519,8 @@ export default function Checkout() {
 
       if (data.success) {
         toast.success('Pembayaran berhasil diverifikasi!');
-        clearCart();
+        await createPreOrderRecords(transactionId);
         setReservations([]);
-        sessionStorage.removeItem('buyerName');
         navigate('/kiosk/success', { state: { transactionId } });
       } else {
         toast.error(data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai');
@@ -504,6 +535,8 @@ export default function Checkout() {
 
   const handlePayment = async () => {
     if (!buyerName) return;
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handlePayment)'); return; }
+    isCreatingTx.current = true;
     setLoading(true);
 
     try {
@@ -623,10 +656,8 @@ buyer_email: buyerEmail,
 
       const { payment_url } = await ipaymuRes.json();
 
-      // 3. Confirm reservations before redirecting
-      for (const resId of reservations) {
-        await supabase.rpc('confirm_stock_deduction', { p_reservation_id: resId });
-      }
+      // 3. Create PO records before redirect
+      await createPreOrderRecords(tx.id);
 
       // 4. Redirect to IPaymu
       window.location.href = payment_url;
@@ -634,6 +665,7 @@ buyer_email: buyerEmail,
       console.error('Payment error:', error);
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
       setLoading(false);
+      isCreatingTx.current = false;
     }
   };
 
@@ -1040,8 +1072,6 @@ buyer_email: buyerEmail,
             <div className="space-y-4">
               <button
                 onClick={() => {
-                  clearCart();
-                  sessionStorage.removeItem('buyerName');
                   navigate('/kiosk/success', { state: { transactionId } });
                 }}
                 className="btn-clay-primary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3"
