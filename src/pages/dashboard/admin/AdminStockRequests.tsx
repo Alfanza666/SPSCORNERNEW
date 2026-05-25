@@ -48,6 +48,10 @@ export default function AdminStockRequests() {
         },
         body: JSON.stringify({ id, status: newStatus })
       });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text ? (JSON.parse(text).error || 'Gagal memproses permintaan') : 'Gagal memproses permintaan');
+      }
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
 

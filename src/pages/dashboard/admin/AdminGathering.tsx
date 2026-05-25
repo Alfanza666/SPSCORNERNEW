@@ -16,7 +16,7 @@ export default function AdminGathering() {
     try {
       const { data } = await supabase
         .from('program_responses')
-        .select('*, union_programs(name), profiles!program_coupons_user_id_fkey(name, nik)')
+        .select('*, union_programs(name), profiles!program_responses_user_id_fkey(name, nik)')
         .order('created_at', { ascending: false });
       if (data) setResponses(data);
     } catch (error) {

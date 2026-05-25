@@ -1,3 +1,10 @@
+v4.16.5 — Fix 502 Bad Gateway & Query 400 Errors
+-----------------------------------------------------------------------
+### Bug Fixes:
+- **[FIX] `server.ts` (stock-report):** Perbaiki `ReferenceError: d is not defined` pada loop adjustment. Variabel `d` tidak pernah dideklarasikan — menyebabkan crash endpoint dan 502 Bad Gateway.
+- **[FIX] `AdminGathering.tsx`:** Ganti foreign key `program_coupons_user_id_fkey` (FK milik tabel `program_coupons`) menjadi `program_responses_user_id_fkey` yang sesuai dengan tabel `program_responses`. Sebelumnya menyebabkan 400 Bad Request dari Supabase.
+- **[FIX] `AdminStockRequests.tsx`:** Tambah pengecekan `res.ok` sebelum parsing JSON. Sebelumnya jika server mengembalikan HTML (502), `res.json()` gagal dengan "Unexpected token '<'" — sekarang menampilkan pesan error yang lebih informatif.
+
 v4.16.4 — Fix Laporan Stok & Security API Key
 -----------------------------------------------------------------------
 ### Security:

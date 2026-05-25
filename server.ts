@@ -3513,22 +3513,24 @@ app.get("/api/admin/stock-report", async (req, res) => {
       restock: number; sold: number; returned: number; restored: number; manualUpdate: number;
     }> = {};
     for (const adj of adjustments || []) {
-      if (!adjustmentsByProduct[adj.product_id]) {
-        adjustmentsByProduct[adj.product_id] = { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
+      const productId = adj.product_id;
+      if (!adjustmentsByProduct[productId]) {
+        adjustmentsByProduct[productId] = { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
       }
+      const entry = adjustmentsByProduct[productId];
       if (adj.adjustment_type === "restock") {
-        d.restock += (adj.new_stock - adj.previous_stock);
+        entry.restock += (adj.new_stock - adj.previous_stock);
       } else if (adj.adjustment_type === "sale") {
-        d.sold += (adj.previous_stock - adj.new_stock);
+        entry.sold += (adj.previous_stock - adj.new_stock);
       } else if (adj.adjustment_type === "correction") {
         const diff = adj.new_stock - adj.previous_stock;
         if (diff > 0) {
-          d.restored += diff; // stock up = restore from cancelled transaction
+          entry.restored += diff;
         } else {
-          d.returned += Math.abs(diff); // stock down = actual retur
+          entry.returned += Math.abs(diff);
         }
       } else if (adj.adjustment_type === "manual_update") {
-        d.manualUpdate += (adj.new_stock - adj.previous_stock);
+        entry.manualUpdate += (adj.new_stock - adj.previous_stock);
       }
     }
 
