@@ -152,7 +152,7 @@ export default function AdminProgramCoupons() {
       qrCanvas.width = qrSize;
       qrCanvas.height = qrSize;
       const QRlib = (await import('qr.js')).default;
-      const qr = QRlib(qrValue, { typeNumber: -1, errorCorrectLevel: 'H' });
+      const qr = QRlib(qrValue, { typeNumber: -1, errorCorrectLevel: QRlib.ErrorCorrectLevel.H });
       const mods = qr.modules;
       const cellSize = qrSize / mods.length;
       const qrCtx = qrCanvas.getContext('2d');
