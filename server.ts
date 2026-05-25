@@ -3497,35 +3497,46 @@ app.get("/api/admin/stock-report", async (req, res) => {
 
     const productIds = products.map(p => p.id);
 
-    // 2. Get aggregated stock adjustments
-    const { data: adjustments, error: adjError } = await supabase
+    // 2. Get stock adjustments within date range (or all if no range)
+    let adjQuery = supabase
       .from("stock_adjustments")
       .select("product_id, adjustment_type, previous_stock, new_stock, created_at")
-      .in("product_id", productIds)
-      .order("created_at", { ascending: true });
+      .in("product_id", productIds);
+    if (dateStart) adjQuery = adjQuery.gte("created_at", dateStart + "T00:00:00+07:00");
+    if (dateEnd) adjQuery = adjQuery.lte("created_at", dateEnd + "T23:59:59+07:00");
+    adjQuery = adjQuery.order("created_at", { ascending: true });
+    const { data: adjustments, error: adjError } = await adjQuery;
     if (adjError) throw adjError;
 
-    // 3. Group adjustments by product
-    const adjustmentsByProduct: Record<string, { restock: number; sold: number; returned: number; firstEntry: any }> = {};
+    // 3. Group adjustments by product — separate retur (stock down) vs restore (stock up from cancel)
+    const adjustmentsByProduct: Record<string, {
+      restock: number; sold: number; returned: number; restored: number; manualUpdate: number;
+    }> = {};
     for (const adj of adjustments || []) {
       if (!adjustmentsByProduct[adj.product_id]) {
-        adjustmentsByProduct[adj.product_id] = { restock: 0, sold: 0, returned: 0, firstEntry: adj };
+        adjustmentsByProduct[adj.product_id] = { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
       }
       if (adj.adjustment_type === "restock") {
-        adjustmentsByProduct[adj.product_id].restock += (adj.new_stock - adj.previous_stock);
+        d.restock += (adj.new_stock - adj.previous_stock);
       } else if (adj.adjustment_type === "sale") {
-        adjustmentsByProduct[adj.product_id].sold += (adj.previous_stock - adj.new_stock);
+        d.sold += (adj.previous_stock - adj.new_stock);
       } else if (adj.adjustment_type === "correction") {
-        adjustmentsByProduct[adj.product_id].returned += (adj.new_stock - adj.previous_stock);
+        const diff = adj.new_stock - adj.previous_stock;
+        if (diff > 0) {
+          d.restored += diff; // stock up = restore from cancelled transaction
+        } else {
+          d.returned += Math.abs(diff); // stock down = actual retur
+        }
+      } else if (adj.adjustment_type === "manual_update") {
+        d.manualUpdate += (adj.new_stock - adj.previous_stock);
       }
     }
 
-    // 4. Build report
+    // 4. Build report — initialStock derived: StokAwal = StokAkhir - Restock + Terjual + Retur - Restore +/- Manual
     const report = products.map(product => {
-      const adjData = adjustmentsByProduct[product.id] || { restock: 0, sold: 0, returned: 0, firstEntry: null };
-      const initialStock = adjData.firstEntry
-        ? adjData.firstEntry.previous_stock
-        : product.stock;
+      const d = adjustmentsByProduct[product.id] || { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
+      const netChange = d.restock - d.sold - d.returned + d.restored + d.manualUpdate;
+      const initialStock = product.stock - netChange;
 
       return {
         id: product.id,
@@ -3533,9 +3544,11 @@ app.get("/api/admin/stock-report", async (req, res) => {
         seller_id: product.seller_id,
         createdAt: product.created_at,
         initialStock,
-        totalRestock: adjData.restock,
-        totalSold: adjData.sold,
-        totalReturned: adjData.returned,
+        totalRestock: d.restock,
+        totalSold: d.sold,
+        totalReturned: d.returned,
+        totalRestored: d.restored,
+        totalManualUpdate: d.manualUpdate,
         currentStock: product.stock
       };
     });

@@ -54,11 +54,31 @@ export default function AdminStockOpname() {
     if (newStock < 0) return;
     try {
       setSaving(productId);
-      const { error } = await supabase
+      const product = products.find(p => p.id === productId);
+      if (!product) { toast.error('Produk tidak ditemukan'); return; }
+      if (product.stock === newStock) { toast('Stok sudah sama, tidak ada perubahan'); setSaving(null); return; }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+
+      const { error: logError } = await supabase
+        .from('stock_adjustments')
+        .insert({
+          product_id: productId,
+          user_id: userId,
+          previous_stock: product.stock,
+          new_stock: newStock,
+          adjustment_type: 'manual_update',
+          notes: `Stock opname: ${product.stock} → ${newStock}`,
+        });
+      if (logError) console.error('Gagal log stock_adjustments:', logError);
+
+      const { error: updateError } = await supabase
         .from('products')
         .update({ stock: newStock })
         .eq('id', productId);
-      if (error) throw error;
+      if (updateError) throw updateError;
+
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
       setAdjustments(prev => { const n = { ...prev }; delete n[productId]; return n; });
       toast.success('Stok berhasil diperbarui');
