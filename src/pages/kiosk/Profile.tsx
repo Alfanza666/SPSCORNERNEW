@@ -24,7 +24,9 @@ import {
   Phone,
   Mail,
   Loader2,
-  Save
+  Save,
+  LogOut,
+  CreditCard
 } from 'lucide-react';
 
 import { Link } from 'react-router-dom';
@@ -50,6 +52,7 @@ export default function Profile() {
   
   const [editName, setEditName] = useState(user?.name || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [editNik, setEditNik] = useState(user?.nik || '');
   const [editEmail, setEditEmail] = useState(user?.email || '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileFieldErrors, setProfileFieldErrors] = useState<Record<string, string>>({});
@@ -78,6 +81,7 @@ export default function Profile() {
     if (user) {
       setEditName(user.name || '');
       setEditPhone(user.phone || '');
+      setEditNik(user.nik || '');
       setEditEmail(user.email || '');
     }
   }, [user]);
@@ -91,6 +95,11 @@ export default function Profile() {
     if (!editPhone.trim() || editPhone.replace(/\D/g, '').length < 10) errors.phone = 'Nomor HP tidak valid (minimal 10 digit)';
     if (editEmail && (!editEmail.includes('@') || !editEmail.includes('.'))) errors.email = 'Format email tidak valid';
 
+    // Jika user belum punya NIK, NIK wajib diisi
+    const cleanNik = editNik.trim().replace(/[\s\-.]/g, '');
+    if (!user?.nik && cleanNik.length < 3) errors.nik = 'NIK wajib diisi (minimal 3 karakter)';
+    if (cleanNik.length > 9) errors.nik = 'NIK maksimal 9 karakter';
+
     if (Object.keys(errors).length > 0) {
       setProfileFieldErrors(errors);
       return;
@@ -102,6 +111,10 @@ export default function Profile() {
         name: editName.trim(),
         phone: editPhone.trim(),
       };
+      // NIK hanya bisa diisi jika belum ada (perubahan NIK butuh admin)
+      if (!user?.nik && cleanNik) {
+        updates.nik = cleanNik;
+      }
       if (editEmail && !editEmail.endsWith('@sps.local')) {
         updates.email = editEmail.trim();
       }
@@ -299,6 +312,33 @@ export default function Profile() {
                   />
                 </div>
                 {profileFieldErrors.name && <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{profileFieldErrors.name}</p>}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
+                  NIK (Nomor Induk Karyawan)
+                </label>
+                {user?.nik ? (
+                  <div className="flex items-center gap-2 px-3.5 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                    <CreditCard className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span>{user.nik}</span>
+                    <span className="ml-auto text-[9px] text-amber-600 dark:text-amber-500 font-bold">(Tidak bisa diubah sendiri, hubungi admin)</span>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 dark:text-zinc-600" />
+                    <input
+                      type="text"
+                      placeholder="Masukkan NIK Anda"
+                      value={editNik}
+                      onChange={e => setEditNik(e.target.value)}
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 transition-all ${
+                        profileFieldErrors.nik ? 'border-red-300 focus:ring-red-200' : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
+                      }`}
+                    />
+                  </div>
+                )}
+                {profileFieldErrors.nik && <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{profileFieldErrors.nik}</p>}
               </div>
 
               <div>
@@ -512,6 +552,25 @@ export default function Profile() {
             </form>
           </motion.div>
         </div>
+      </div>
+
+      {/* Logout Section */}
+      <div className="pt-2 pb-16 sm:pb-20">
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          onClick={async () => {
+            const { signOut } = useAuthStore.getState();
+            await signOut();
+            navigate('/login', { replace: true });
+            toast.success('Berhasil keluar');
+          }}
+          className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl border border-red-100 dark:border-red-900/50 font-black text-sm transition-all active:scale-[0.98] shadow-inner"
+        >
+          <LogOut className="w-4 h-4" />
+          Keluar Akun
+        </motion.button>
       </div>
     </div>
   );
