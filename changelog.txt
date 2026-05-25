@@ -1,3 +1,16 @@
+v4.16.4 — Fix Laporan Stok & Security API Key
+-----------------------------------------------------------------------
+### Security:
+- **[SECURITY] `.env`:** Hapus dari git tracking. Semua API key (Supabase, iPaymu, Digiflazz, Gmail, Gemini) sebelumnya terpublish di GitHub. Buat `.env.example` sebagai template.
+- **[UPDATE] Gemini API Key:** Ganti key yang terekspos.
+
+### Perbaikan Laporan Stok (Angka tidak masuk akal):
+- **[FIX] `AdminStockOpname.tsx`:** Sekarang log ke `stock_adjustments` dengan tipe `manual_update` saat admin mengubah stok. Sebelumnya langsung update `products.stock` tanpa catatan → menyebabkan selisih antara stok awal + adjustment ≠ stok akhir.
+- **[FIX] `server.ts` (stock-report):** Tambah filter tanggal di query `stock_adjustments`. Sebelumnya semua adjustment dari awal waktu diakumulasi tanpa filter.
+- **[FIX] `server.ts` (stock-report):** Pisahkan tipe `correction` jadi **Retur** (stok turun/actual return) vs **Restore** (stok naik/dari transaksi batal). Sebelumnya digabung jadi angka retur membengkak.
+- **[FIX] `server.ts` (stock-report):** Handle tipe `manual_update` dalam perhitungan (sebelumnya diabaikan).
+- **[FIX] `AdminStockReport.tsx`:** Tambah kolom **Restore** di tabel, summary cards, dan export Excel agar transparan.
+
 v4.16.3 — Fix Floating Cart Tertutup Bottom Nav & Optimasi Logo
 -----------------------------------------------------------------------
 ### Perbaikan UI Mobile:
