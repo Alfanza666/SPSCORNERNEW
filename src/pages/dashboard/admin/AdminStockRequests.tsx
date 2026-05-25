@@ -50,7 +50,9 @@ export default function AdminStockRequests() {
       });
       if (!res.ok) {
         const text = await res.text();
-        throw new Error(text ? (JSON.parse(text).error || 'Gagal memproses permintaan') : 'Gagal memproses permintaan');
+        let message = 'Gagal memproses permintaan';
+        try { if (text) { const parsed = JSON.parse(text); message = parsed.error || message; } } catch {}
+        throw new Error(message);
       }
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
