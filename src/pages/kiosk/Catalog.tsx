@@ -567,7 +567,7 @@ export default function Catalog() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-40 safe-area-bottom"
+            className="fixed bottom-[72px] left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 z-[60] safe-area-bottom"
           >
             <div className="max-w-3xl mx-auto clay-card-blue p-2.5 sm:p-3 flex items-center justify-between gap-2.5 sm:gap-4">
               <div className="flex items-center gap-2.5 sm:gap-3">
