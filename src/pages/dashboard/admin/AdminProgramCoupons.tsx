@@ -197,16 +197,22 @@ export default function AdminProgramCoupons() {
   const handleBypass = async (nik: string) => {
     if (!confirm(`Buat kupon bypass (Doorprize) untuk NIK ${nik}?`)) return;
     try {
-      const { data, error } = await supabase.rpc('bypass_attendance_coupon', {
-        p_program_id: selectedProgram,
-        p_nik: nik
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (!token) { toast.error('Sesi habis, silakan login ulang'); return; }
+
+      const res = await fetch(`/api/admin/programs/${selectedProgram}/bypass-attendance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ nik })
       });
-      if (error) throw error;
-      if (data.success) {
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal bypass');
+      if (result.success) {
         toast.success('Kupon Bypass diterbitkan!');
         fetchCoupons();
       } else {
-        toast.error(data.error);
+        toast.error(result.data?.error || 'Gagal bypass');
       }
     } catch (err: any) {
       toast.error(err.message);
