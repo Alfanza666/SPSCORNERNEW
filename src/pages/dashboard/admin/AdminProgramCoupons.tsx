@@ -45,7 +45,7 @@ export default function AdminProgramCoupons() {
     setLoading(true);
     let query = supabase
       .from('program_coupons')
-      .select('*, union_programs(name)')
+      .select('*, union_programs(name), profiles!program_coupons_user_id_fkey(name)')
       .eq('program_id', selectedProgram);
 
     if (filterStatus !== 'all') query = query.eq('status', filterStatus);
@@ -309,7 +309,7 @@ export default function AdminProgramCoupons() {
               ) : (
                 coupons.map((c) => (
                   <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                    <td className="p-4 font-bold text-zinc-900 dark:text-white">{c.name}</td>
+                    <td className="p-4 font-bold text-zinc-900 dark:text-white">{c.profiles?.name || c.name}</td>
                     <td className="p-4 font-mono text-sm text-zinc-600 dark:text-zinc-400">{c.nik}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">

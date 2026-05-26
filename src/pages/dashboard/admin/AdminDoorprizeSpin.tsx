@@ -125,7 +125,7 @@ export default function AdminDoorprizeSpin() {
     try {
       const { data, error } = await supabase
         .from('program_coupons')
-        .select('id, name, nik, qr_code, coupon_type, status')
+        .select('id, name, nik, qr_code, coupon_type, status, profiles!program_coupons_user_id_fkey(name)')
         .eq('program_id', selectedProgram)
         .eq('coupon_type', 'doorprize')
         .in('status', ['active', 'claimed']); 
@@ -134,9 +134,9 @@ export default function AdminDoorprizeSpin() {
       
       if (error) throw error;
       
-      const mapped = (data || []).map(d => ({
+      const mapped = (data || []).map((d: any) => ({
         id: d.id,
-        name: d.name,
+        name: d.profiles?.name || d.name,
         nik: d.nik,
         coupon_code: d.qr_code
       }));

@@ -127,7 +127,7 @@ export default function AdminDoorprize() {
         
         const { data: allCoupons } = await supabase
             .from('program_coupons')
-            .select('id, name, nik')
+            .select('id, name, nik, profiles!program_coupons_user_id_fkey(name)')
             .eq('program_id', selectedProgramId)
             .eq('gate_type', 'doorprize')
             .eq('status', 'active');
@@ -139,7 +139,8 @@ export default function AdminDoorprize() {
         }
 
         const winnerIndex = Math.floor(Math.random() * allCoupons.length);
-        const finalWinner = allCoupons[winnerIndex];
+        const coupon = allCoupons[winnerIndex] as any;
+        const finalWinner = { ...coupon, _name: coupon.profiles?.name || coupon.name };
 
         // 2. Mark as claimed (or won)
         await supabase
@@ -153,16 +154,16 @@ export default function AdminDoorprize() {
             .insert({
                 program_id: selectedProgramId,
                 coupon_id: finalWinner.id,
-                winner_name: finalWinner.name,
+                winner_name: finalWinner._name,
                 winner_nik: finalWinner.nik,
                 prize_name: prizeName
             });
 
         if (logError) throw logError;
 
-        setWinner(finalWinner);
-        setCurrentName(finalWinner.name);
-        toast.success(`Pemenang: ${finalWinner.name} (${finalWinner.nik})`);
+        setWinner({ ...finalWinner, name: finalWinner._name });
+        setCurrentName(finalWinner._name);
+        toast.success(`Pemenang: ${finalWinner._name} (${finalWinner.nik})`);
         checkEligible(); // Update count
         fetchLogs(); // Refresh log
     } catch (err: any) {
