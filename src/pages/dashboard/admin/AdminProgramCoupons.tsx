@@ -45,7 +45,7 @@ export default function AdminProgramCoupons() {
     setLoading(true);
     let query = supabase
       .from('program_coupons')
-      .select('*, union_programs(name)')
+      .select('*, union_programs(name), profiles!program_coupons_user_id_fkey(name)')
       .eq('program_id', selectedProgram);
 
     if (filterStatus !== 'all') query = query.eq('status', filterStatus);
@@ -197,16 +197,22 @@ export default function AdminProgramCoupons() {
   const handleBypass = async (nik: string) => {
     if (!confirm(`Buat kupon bypass (Doorprize) untuk NIK ${nik}?`)) return;
     try {
-      const { data, error } = await supabase.rpc('bypass_attendance_coupon', {
-        p_program_id: selectedProgram,
-        p_nik: nik
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (!token) { toast.error('Sesi habis, silakan login ulang'); return; }
+
+      const res = await fetch(`/api/admin/programs/${selectedProgram}/bypass-attendance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ nik })
       });
-      if (error) throw error;
-      if (data.success) {
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal bypass');
+      if (result.success) {
         toast.success('Kupon Bypass diterbitkan!');
         fetchCoupons();
       } else {
-        toast.error(data.error);
+        toast.error(result.data?.error || 'Gagal bypass');
       }
     } catch (err: any) {
       toast.error(err.message);
@@ -309,7 +315,7 @@ export default function AdminProgramCoupons() {
               ) : (
                 coupons.map((c) => (
                   <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                    <td className="p-4 font-bold text-zinc-900 dark:text-white">{c.name}</td>
+                    <td className="p-4 font-bold text-zinc-900 dark:text-white">{c.profiles?.name || c.name}</td>
                     <td className="p-4 font-mono text-sm text-zinc-600 dark:text-zinc-400">{c.nik}</td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">

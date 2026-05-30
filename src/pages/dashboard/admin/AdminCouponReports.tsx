@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Printer, Search, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Printer, Search, FileSpreadsheet, Loader2, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
@@ -9,8 +9,11 @@ export default function AdminCouponReports() {
   const [selectedProgram, setSelectedProgram] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+  const [nomorSurat, setNomorSurat] = useState<string>('');
   const [reportData, setReportData] = useState<any[]>([]);
   const [fetchingData, setFetchingData] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
 
   useEffect(() => {
     fetchPrograms();
@@ -81,6 +84,7 @@ export default function AdminCouponReports() {
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelData);
+    if (nomorSurat) XLSX.utils.sheet_add_aoa(ws, [[`Nomor Surat: ${nomorSurat}`]], { origin: -1 });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Laporan Scan Kupon");
     XLSX.writeFile(wb, `Laporan_Kupon_SPS_${startDate}_to_${endDate}.xlsx`);
@@ -94,6 +98,31 @@ export default function AdminCouponReports() {
     window.print();
   };
 
+  const startEditTime = (row: any) => {
+    setEditingId(row.id);
+    setEditValue(new Date(row.claimed_at).toISOString().slice(0, 16));
+  };
+
+  const saveEditTime = async (row: any) => {
+    if (!editValue) return;
+    try {
+      const newDate = new Date(editValue).toISOString();
+      const { error } = await supabase
+        .from('program_coupons')
+        .update({ claimed_at: newDate })
+        .eq('id', row.id);
+      if (error) throw error;
+      setReportData(prev => prev.map(r => r.id === row.id ? { ...r, claimed_at: newDate } : r));
+      toast.success('Waktu berhasil diubah');
+    } catch (e: any) {
+      toast.error('Gagal menyimpan: ' + e.message);
+    } finally {
+      setEditingId(null);
+    }
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
   return (
     <div className="space-y-6">
       {/* HEADER UTAMA (TIDAK TER-PRINT) */}
@@ -104,7 +133,7 @@ export default function AdminCouponReports() {
 
       {/* KONTROL FILTER (TIDAK TER-PRINT) */}
       <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm print:hidden">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Program Serikat</label>
             <select
@@ -133,6 +162,16 @@ export default function AdminCouponReports() {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">No. Surat</label>
+            <input
+              type="text"
+              value={nomorSurat}
+              onChange={(e) => setNomorSurat(e.target.value)}
+              placeholder="contoh: 001/F-SPS/V/2026"
               className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -181,9 +220,31 @@ export default function AdminCouponReports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {reportData.slice(0, 10).map((row, i) => (
-                  <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20">
-                    <td className="py-3 px-6 text-sm whitespace-nowrap">{new Date(row.claimed_at).toLocaleString('id-ID')}</td>
+                {reportData.map((row, i) => (
+                  <tr key={row.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20">
+                    <td className="py-3 px-6 text-sm whitespace-nowrap">
+                      {editingId === row.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="datetime-local"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="p-1 border border-blue-400 rounded text-xs w-44"
+                            autoFocus
+                          />
+                          <button onClick={() => saveEditTime(row)} className="text-green-600 hover:text-green-700 font-bold text-xs px-1">✓</button>
+                          <button onClick={cancelEdit} className="text-red-500 hover:text-red-600 font-bold text-xs px-1">✕</button>
+                        </div>
+                      ) : (
+                        <span
+                          onClick={() => startEditTime(row)}
+                          className="cursor-pointer hover:text-blue-600 hover:underline decoration-dotted"
+                          title="Klik untuk edit waktu"
+                        >
+                          {new Date(row.claimed_at).toLocaleString('id-ID')}
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 px-6 text-sm font-bold">{row.nik}</td>
                     <td className="py-3 px-6 text-sm">{row.name || row.profiles?.name}</td>
                     <td className="py-3 px-6 text-sm">{row.union_programs?.name}</td>
@@ -198,7 +259,7 @@ export default function AdminCouponReports() {
             </table>
             {reportData.length > 10 && (
               <div className="p-4 text-center text-sm font-medium text-zinc-500 bg-zinc-50 dark:bg-zinc-800/30">
-                Menampilkan 10 dari total {reportData.length} baris data. Unduh Excel untuk data lengkap.
+                Menampilkan {reportData.length} baris data. Klik waktu untuk edit.
               </div>
             )}
           </div>
@@ -260,6 +321,9 @@ export default function AdminCouponReports() {
           <div className="text-center my-6">
             <h3 className="text-[16px] font-bold uppercase underline">Laporan Validasi Kupon Program</h3>
             <p className="text-[12px] mt-2">
+              Nomor: {nomorSurat || '_________________________'}
+            </p>
+            <p className="text-[12px] mt-1">
               Periode: {new Date(startDate).toLocaleDateString('id-ID')} s/d {new Date(endDate).toLocaleDateString('id-ID')}
             </p>
           </div>
