@@ -1,7 +1,7 @@
 {
   "name": "sps-corner",
   "private": true,
-  "version": "4.16.6",
+  "version": "4.17.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",

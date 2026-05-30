@@ -1,3 +1,26 @@
+v4.17.0 — Dead Code Cleanup, Professional Setup & Code Quality
+-----------------------------------------------------------------------
+### Cleanup:
+- **[DELETE] `src/services/ipaymu/paymentService.ts`:** Hapus file dead code — tidak diimport/digunakan oleh komponen mana pun. Berisi placeholder API key dan URL sandbox yang tidak aktif.
+- **[DELETE] `CHANGELOG.md`:** Hapus duplicate changelog — konten sudah ada di `changelog.txt`.
+- **[DELETE] `env.example`:** Hapus duplicate env example — `.env.example` sudah ada.
+- **[DELETE] `src/context/CartContext.tsx`:** Hapus CartContext/Provider — dead code. Hook `useCart` tidak pernah diimport oleh komponen mana pun. Zustand `useCartStore` yang aktif digunakan.
+- **[DELETE] CartProvider wrapper di `src/main.tsx`:** Hapus wrapping `<CartProvider>` yang tidak memiliki konsumen.
+
+### Perbaikan:
+- **[FIX] `PortalDashboard.tsx`:** Rename file logo dari `FEDERASI RIKAT PEKERJ SUKSES.png` → `federasi-logo.png` (spasi di nama file berpotensi menyebabkan issue path).
+- **[FIX] PANDUAN_*.md:** Pindahkan 6 file dokumentasi dari root ke `docs/` untuk mengurangi clutter root directory.
+
+### Infrastruktur:
+- **[NEW] `.prettierrc`:** Konfigurasi Prettier (singleQuote, trailingComma, printWidth 120).
+- **[NEW] `.github/workflows/ci.yml`:** GitHub Actions CI — otomatis type-check + test pada setiap push/PR ke branch main.
+
+### Dokumentasi:
+- **[NEW] `README.md`:** Isi file yang sebelumnya kosong — tambah tech stack, cara install, environment variables, project structure.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.16.6 → v4.17.0 (MINOR: cleanup & professional setup).
+
 v4.16.6 — Fix Push Notification, Stock Anomaly, & Status Transaksi Inkonsisten
 -----------------------------------------------------------------------
 ### Bug Fixes:

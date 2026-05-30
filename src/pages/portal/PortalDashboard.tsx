@@ -15,7 +15,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import FederasiLogo from '../../components/ui/FEDERASI RIKAT PEKERJ SUKSES.png';
+import FederasiLogo from '../../components/ui/federasi-logo.png';
 
 export default function PortalDashboard() {
   const { user, isLoading: isAuthLoading } = useAuthStore();

@@ -2,7 +2,6 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { CartProvider } from './context/CartContext';
 
 // Unregister stale service worker (public/sw.js v4.5.9) to prevent
 // cached HTML shell with broken JS chunk references on user devices.
@@ -20,8 +19,6 @@ import { CartProvider } from './context/CartContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <CartProvider>
-      <App />
-    </CartProvider>
+    <App />
   </StrictMode>,
 );
