@@ -192,6 +192,11 @@ async function restoreTransactionStock(transactionId) {
       return;
     }
 
+    if (tx?.metadata?.stock_restored) {
+      console.log(`[Stock] Skipping restore for ${transactionId.slice(0,8)} — stock already restored`);
+      return;
+    }
+
     const { data: items } = await supabase
       .from("transaction_items")
       .select("product_id, quantity, seller_id")
@@ -227,6 +232,14 @@ async function restoreTransactionStock(transactionId) {
         }
       }
     }
+
+    // Mark as restored in metadata to prevent double-restore
+    await supabase
+      .from("transactions")
+      .update({
+        metadata: { ...(tx.metadata || {}), stock_restored: true },
+      })
+      .eq("id", transactionId);
   } catch (e) {
     console.error(`restoreTransactionStock error for ${transactionId}:`, e);
   }
@@ -2708,8 +2721,17 @@ app.post("/api/payment/ipaymu/callback", async (req, res) => {
           });
         }
       } else {
-        // Restore stock since confirm_stock_deduction was already called before redirect
-        await restoreTransactionStock(refId);
+        // Check if stock was already restored (prevent double-restore with auto-cleanup)
+        const { data: existingTx } = await supabase
+          .from("transactions")
+          .select("metadata")
+          .eq("id", refId)
+          .single();
+        if (existingTx?.metadata?.stock_restored) {
+          console.log(`[iPaymu] Tx ${refId} stock already restored — skipping`);
+        } else {
+          await restoreTransactionStock(refId);
+        }
         if (transaction.buyer_id) {
           await sendNotification(transaction.buyer_id, {
             type: "transaction",
@@ -3269,24 +3291,21 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
     const { data: expired, error: fetchError } = await supabase
       .from("transactions")
       .select("id, metadata")
-      .in("status", ["pending", "failed"])
+      .in("status", ["pending"])
       .lt("created_at", fiveMinsAgo);
     if (fetchError) throw fetchError;
     if (!expired || expired.length === 0) {
       return res.json({ success: true, count: 0 });
     }
-    const { error: updateError } = await supabase
-      .from("transactions")
-      .update({
-        status: "failed",
-        metadata: { cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
-      })
-      .in(
-        "id",
-        expired.map((tx) => tx.id),
-      );
-    if (updateError) throw updateError;
     for (const tx of expired) {
+      const { error: updateError } = await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
+        })
+        .eq("id", tx.id);
+      if (updateError) throw updateError;
       await restoreTransactionStock(tx.id);
     }
     res.json({ success: true, count: expired.length });
@@ -4558,18 +4577,18 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
         const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
         const { data: expired } = await supabase
           .from("transactions")
-          .select("id")
+          .select("id, metadata")
           .in("status", ["pending"])
           .lt("created_at", fiveMinsAgo);
         if (!expired || expired.length === 0) return;
-        await supabase
-          .from("transactions")
-          .update({
-            status: "failed",
-            metadata: { cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
-          })
-          .in("id", expired.map(tx => tx.id));
         for (const tx of expired) {
+          await supabase
+            .from("transactions")
+            .update({
+              status: "failed",
+              metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
+            })
+            .eq("id", tx.id);
           await restoreTransactionStock(tx.id);
         }
         if (expired.length > 0) {

@@ -1,3 +1,17 @@
+v4.16.6 — Fix Push Notification, Stock Anomaly, & Status Transaksi Inkonsisten
+-----------------------------------------------------------------------
+### Bug Fixes:
+- **[FIX] `sw.ts`:** Hapus pengecekan `windowClients.length > 0` di push handler. Sebelumnya, push notification tidak muncul saat tab SPS Corner sedang terbuka karena service worker menekan semua notifikasi.
+- **[FIX] `server.ts` (auto-cleanup admin endpoint):** Ubah filter status dari `["pending", "failed"]` menjadi `["pending"]` saja — mencegah restore stock ganda pada transaksi yang sudah di-restore oleh iPaymu callback.
+- **[FIX] `server.ts` (auto-cleanup interval):** Perbaiki metadata merge agar tidak menimpa `stock_deducted` flag. Sebelumnya `stock_deducted` hilang karena metadata ditimpa dengan `{ cancel_reason: "..." }`.
+- **[FIX] `server.ts` (restoreTransactionStock):** Tambah guard `stock_restored` flag — cek apakah stock sudah pernah di-restore sebelumnya. Set `stock_restored: true` di metadata setelah berhasil restore untuk mencegah double-restore.
+- **[FIX] `server.ts` (iPaymu callback):** Cek `stock_restored` flag sebelum restore stock — mencegah double-restore saat callback "gagal" tiba setelah auto-cleanup sudah merestore stock.
+- **[FIX] `AdminTransactions.tsx` (detail modal):** Ubah label status dari `activeTab`-based menjadi `selectedTx.status`-based. Sebelumnya, transaksi failed di tab Sukses tetap tampil "Berhasil" dan transaksi paid di tab Gagal tetap tampil "Gagal".
+- **[FIX] `AdminTransactions.tsx` (item status):** Produk fisik tanpa `metadata.status` kini menampilkan "Selesai" jika parent transaction sudah paid/success, bukan "Pending".
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.16.5 → v4.16.6 (PATCH: perbaikan 3 bug kritis).
+
 v4.16.5 — Fix 502 Bad Gateway, Query 400, & 401 Cleanup
 -----------------------------------------------------------------------
 ### Bug Fixes:

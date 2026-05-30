@@ -619,7 +619,11 @@ export default function AdminTransactions() {
             >
               <div className="p-6 md:p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
                 <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center ${activeTab === 'success' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'}`}>
+                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center ${
+                    selectedTx.status === 'success' || selectedTx.status === 'paid' ? 'bg-blue-500 text-white' :
+                    selectedTx.status === 'processing' || selectedTx.status === 'pending' ? 'bg-amber-500 text-white' :
+                    'bg-red-500 text-white'
+                  }`}>
                     <Receipt className="w-5 h-5 md:w-6 md:h-6" />
                   </div>
                   <div>
@@ -660,9 +664,14 @@ export default function AdminTransactions() {
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Status</span>
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                          activeTab === 'success' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
+                          selectedTx.status === 'success' || selectedTx.status === 'paid' ? 'bg-blue-500 text-white' :
+                          selectedTx.status === 'processing' || selectedTx.status === 'pending' ? 'bg-amber-500 text-white' :
+                          'bg-red-500 text-white'
                         }`}>
-                          {activeTab === 'success' ? 'Berhasil' : 'Gagal'}
+                          {selectedTx.status === 'success' ? 'Selesai' :
+                           selectedTx.status === 'paid' ? 'Dibayar' :
+                           selectedTx.status === 'processing' ? 'Proses' :
+                           selectedTx.status === 'pending' ? 'Menunggu' : 'Gagal'}
                         </span>
                       </div>
                       {activeTab === 'failed' && (
@@ -673,8 +682,11 @@ export default function AdminTransactions() {
                       )}
                       <div className="pt-8 border-t border-zinc-200/60 dark:border-zinc-700/50 flex flex-col md:flex-row md:justify-between md:items-end gap-2">
                         <span className="text-xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Total Bayar</span>
-                        <span className={`text-3xl md:text-4xl font-black tracking-tighter ${activeTab === 'success' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
-                          {formatRupiah(activeTab === 'success' ? selectedTx.total_amount : selectedTx.attempted_amount)}
+                        <span className={`text-3xl md:text-4xl font-black tracking-tighter ${
+                          selectedTx.status === 'success' || selectedTx.status === 'paid' ? 'text-blue-600 dark:text-blue-400' :
+                          'text-zinc-900 dark:text-white'
+                        }`}>
+                          {formatRupiah(selectedTx.total_amount || selectedTx.attempted_amount || 0)}
                         </span>
                       </div>
                     </div>
@@ -736,7 +748,7 @@ export default function AdminTransactions() {
                                           {item.metadata?.status === 'delivered' ? 'Sukses' : 
                                            item.metadata?.status === 'failed' ? 'Gagal' : 
                                            item.metadata?.status === 'processing' ? 'Proses' : 
-                                           item.metadata?.status || 'Pending'}
+                                           item.metadata?.status || (selectedTx.status === 'paid' || selectedTx.status === 'success' ? 'Selesai' : 'Pending')}
                                         </span>
                                       </td>
                                       <td className="px-4 md:px-6 py-4 text-right text-zinc-900 dark:text-white font-black">{formatRupiah(item.subtotal)}</td>

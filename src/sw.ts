@@ -39,10 +39,6 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     (async () => {
-      const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      // Jika ada tab/jendela app yang terbuka, jangan tampilkan push (user sudah lihat di bell panel)
-      if (windowClients.length > 0) return;
-
       try {
         const payload = event.data.json();
         await self.registration.showNotification(payload.title || 'SPS Corner', {
