@@ -14,12 +14,24 @@ import nodemailer from "nodemailer";
 import webpush from "web-push";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import * as Sentry from "@sentry/node";
 import { IpaymuClient } from "./src/services/ipaymu/client.js";
 import { requireAuth, requireRole } from "./src/middleware/auth.js";
 import { registerWithdrawalRoutes } from "./src/routes/withdrawals.js";
 import { registerStockRoutes } from "./src/routes/stock.js";
 import { registerProductReturnRoutes } from "./src/routes/productReturns.js";
 dotenv.config();
+
+try {
+  if (process.env.SENTRY_DSN) {
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      tracesSampleRate: 0.1,
+    });
+  }
+} catch (e) {
+  console.warn("Sentry init failed:", e);
+}
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 if (!supabaseUrl || !supabaseUrl.startsWith("http")) {
   throw new Error("VITE_SUPABASE_URL is not set or invalid");
@@ -34,6 +46,13 @@ import { GoogleGenAI } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const app = express();
+
+// Sentry request handler (must be first middleware)
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+}
+
 app.use(
   express.json({
     limit: "50mb",
@@ -4709,6 +4728,11 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
     }
     checkProgramStartNotifications();
     setInterval(checkProgramStartNotifications, 30 * 1e3);
+
+    // Sentry error handler (must be last middleware)
+    if (process.env.SENTRY_DSN) {
+      app.use(Sentry.Handlers.errorHandler());
+    }
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);

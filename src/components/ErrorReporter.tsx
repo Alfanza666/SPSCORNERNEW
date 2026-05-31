@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import * as Sentry from '@sentry/react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { Bug, X, Send, Loader2, CheckCircle2, Terminal, Info, Globe, Monitor } from 'lucide-react';
@@ -39,6 +40,15 @@ export default function ErrorReporter() {
       msg.includes('non-error promise rejection') ||
       msg.includes('extension')
     ) return;
+
+    // Forward to Sentry if configured
+    if (errorData.stack) {
+      Sentry.captureException(new Error(errorData.message), {
+        extra: { ...errorData, breadcrumbs: breadcrumbs.current },
+      });
+    } else {
+      Sentry.captureMessage(errorData.message, 'error');
+    }
 
     try {
       await supabase.from('reports').insert({

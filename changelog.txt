@@ -1,3 +1,18 @@
+v4.18.0 — Sentry Error Monitoring, Supabase Migrations & Testing Checklist
+-----------------------------------------------------------------------
+### Fitur Baru:
+- **[NEW] Sentry Error Monitoring (Frontend):** Integrasi `@sentry/react` di `main.tsx` — otomatis capture unhandled exceptions + promise rejections. Aktif jika env `VITE_SENTRY_DSN` diisi.
+- **[NEW] Sentry Error Monitoring (Backend):** Integrasi `@sentry/node` di `server.ts` — request handler + error handler middleware + tracing. Aktif jika env `SENTRY_DSN` diisi.
+- **[NEW] ErrorReporter → Sentry Bridge:** Auto-capture error di `ErrorReporter.tsx` kini juga forward ke Sentry via `captureException`/`captureMessage`, tidak hanya ke tabel `reports` Supabase.
+- **[NEW] Supabase Migrations Directory:** `supabase/migrations/README.md` — panduan setup Supabase CLI, cara buat migrasi, dan best practices.
+- **[NEW] Testing Checklist:** `docs/testing-checklist.md` — 60+ item testing untuk regresi di setiap rilis (Auth, Kiosk, Admin, Seller, Portal, Push Notification, Stock, PWA, Security).
+
+### Perbaikan:
+- **[CHANGE] `.env.example`:** Tambah `SENTRY_DSN` entry.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.17.0 → v4.18.0 (MINOR: fitur error monitoring & tooling).
+
 v4.17.0 — Dead Code Cleanup, Professional Setup & Code Quality
 -----------------------------------------------------------------------
 ### Cleanup:

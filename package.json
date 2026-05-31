@@ -1,7 +1,7 @@
 {
   "name": "sps-corner",
   "private": true,
-  "version": "4.17.0",
+  "version": "4.18.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -16,6 +16,8 @@
   "dependencies": {
     "@google/genai": "^1.50.1",
     "@headlessui/react": "^2.2.10",
+    "@sentry/node": "^10.55.0",
+    "@sentry/react": "^10.55.0",
     "@supabase/supabase-js": "^2.104.1",
     "@tabler/icons-react": "^3.43.0",
     "@tailwindcss/typography": "^0.5.19",
