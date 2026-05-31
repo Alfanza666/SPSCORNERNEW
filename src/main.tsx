@@ -9,6 +9,17 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     dsn: import.meta.env.VITE_SENTRY_DSN,
     integrations: [Sentry.browserTracingIntegration()],
     tracesSampleRate: 0.1,
+    beforeSend(event) {
+      if (
+        event.message?.includes('updateFrom') ||
+        event.exception?.values?.some(v => v.stacktrace?.frames?.some(f =>
+          f.filename?.includes('backbone') || f.filename?.includes('chunk')
+        ))
+      ) {
+        return null;
+      }
+      return event;
+    },
   });
 }
 
