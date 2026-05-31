@@ -9,6 +9,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     dsn: import.meta.env.VITE_SENTRY_DSN,
     integrations: [Sentry.browserTracingIntegration()],
     tracesSampleRate: 0.1,
+    sendDefaultPii: true,
     beforeSend(event) {
       if (
         event.message?.includes('updateFrom') ||
