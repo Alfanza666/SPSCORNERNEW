@@ -2661,33 +2661,62 @@ app.post("/api/payment/ipaymu/direct", async (req, res) => {
 });
 app.post("/api/payment/ipaymu/callback", async (req, res) => {
   try {
-    const { status, reference_id, trx_id, sid, transaction_id } =
-      req.body || {};
-    console.log("\u{1F514} Ipaymu Callback Received:", {
-      status,
-      reference_id,
-      trx_id,
-      sid,
-      transaction_id,
+    console.log("\u{1F514} Ipaymu Callback RAW:", {
+      body: req.body,
+      headers: req.headers,
+      contentType: req.headers['content-type'],
       timestamp: new Date().toISOString(),
     });
+    const body = req.body || {};
+    const statusRaw = body.status || body.Status || body.payment_status || '';
+    const reference_id = body.reference_id || body.referenceId || '';
+    const trx_id = body.trx_id || body.trxId || '';
+    const sid = body.sid || body.session_id || '';
+    const transaction_id = body.transaction_id || body.transactionId || '';
+
     const refId = reference_id || transaction_id;
     if (!refId) {
       return res.status(400).json({ error: "Missing reference_id" });
     }
+
+    const statusLower = String(statusRaw).toLowerCase().trim();
     const txStatus =
-      status === "berhasil"
+      statusLower === "berhasil"
         ? "paid"
-        : status === "gagal"
+        : statusLower === "gagal"
           ? "failed"
-          : "pending";
-    const { data: transaction, error: fetchError } = await supabase
+          : statusLower === "success" || statusLower === "sukses" || statusLower === "completed" || statusLower === "settlement"
+            ? "paid"
+            : statusLower === "fail" || statusLower === "expired" || statusLower === "deny" || statusLower === "cancel"
+              ? "failed"
+              : "pending";
+
+    let transaction;
+    let fetchError;
+    // Coba cari pake reference_id dulu
+    const lookupResult = await supabase
       .from("transactions")
       .select("*, transaction_items(*)")
       .eq("id", refId)
-      .single();
-    if (fetchError) {
-      console.error("Transaction not found:", refId);
+      .maybeSingle();
+    transaction = lookupResult.data;
+    fetchError = lookupResult.error;
+
+    // Fallback: cari via payment_details->ipaymu_trx_id
+    if (!transaction && transaction_id && transaction_id !== refId) {
+      const fallbackResult = await supabase
+        .from("transactions")
+        .select("*, transaction_items(*)")
+        .filter("payment_details->>ipaymu_trx_id", "eq", transaction_id)
+        .maybeSingle();
+      transaction = fallbackResult.data;
+      if (transaction) {
+        console.log(`[iPaymu] Found tx ${transaction.id} via ipaymu_trx_id fallback`);
+      }
+    }
+
+    if (!transaction) {
+      console.error("[iPaymu] Transaction not found for refId:", refId, "transaction_id:", transaction_id);
       return res.status(404).json({ error: "Transaction not found" });
     }
 
@@ -2705,7 +2734,7 @@ app.post("/api/payment/ipaymu/callback", async (req, res) => {
           ...(transaction.payment_details || {}),
           ipaymu_trx_id: trx_id || transaction_id,
           ipaymu_sid: sid,
-          ipaymu_status: status,
+          ipaymu_status: statusRaw,
           paid_at: txStatus === "paid" ? new Date().toISOString() : null,
         },
       })

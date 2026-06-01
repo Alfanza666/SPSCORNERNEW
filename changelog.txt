@@ -1,3 +1,14 @@
+v4.18.2 — Fix iPaymu callback status not updating (strict status matching)
+-----------------------------------------------------------------------
+### Perbaikan:
+- **[FIX] `server.ts`:** iPaymu callback handler — status matching sekarang case-insensitive + handle variasi status (`success`, `sukses`, `completed`, `settlement`, `fail`, `expired`, `deny`, `cancel`) agar callback otomatis iPaymu tidak ter-mapping ke "pending".
+- **[FIX] `server.ts`:** Tambah fallback lookup transaksi via `payment_details->ipaymu_trx_id` jika `reference_id` tidak ditemukan di database.
+- **[FIX] `server.ts`:** Ganti `.single()` → `.maybeSingle()` agar tidak throw error jika transaksi tidak ditemukan.
+- **[FIX] `server.ts`:** Ekstraksi field callback lebih fleksibel (camelCase, uppercase fallback).
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.18.1 → v4.18.2 (PATCH: perbaikan callback iPaymu).
+
 v4.18.1 — Fix API 404, stock restore on admin reject & CI/CD auto-deploy
 -----------------------------------------------------------------------
 ### Perbaikan:
