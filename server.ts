@@ -47,6 +47,9 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const app = express();
 
+// Trust proxy — VPS di belakang Vercel reverse proxy, X-Forwarded-For header perlu di-trust
+app.set("trust proxy", 1);
+
 // Sentry request handler (must be first middleware)
 if (process.env.SENTRY_DSN) {
   app.use(Sentry.Handlers.requestHandler());
