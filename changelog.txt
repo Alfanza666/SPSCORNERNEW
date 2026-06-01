@@ -1,3 +1,13 @@
+v4.18.1 — Fix API 404 catch-all & JSON parse error handling
+-----------------------------------------------------------------------
+### Perbaikan:
+- **[FIX] `server.ts`:** Tambah `app.use('/api/*')` catch-all middleware sebelum SPA fallback — mengembalikan JSON 404 untuk endpoint API yang tidak terdaftar, bukan HTML. Mencegah "Unexpected token '<'" pada `res.json()`.
+- **[FIX] `SellerProducts.tsx`:** Ubah `res.json()` → `res.text()` + `JSON.parse()` dengan try/catch agar error non-JSON tidak memunculkan pesan mentah `"Unexpected token '<'...`.
+- **[FIX] `SellerTransactions.tsx`:** Ubah `res.json()` → `res.text()` + `JSON.parse()` dengan try/catch agar error non-JSON tidak memunculkan pesan mentah.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.18.0 → v4.18.1 (PATCH: perbaikan error handling API).
+
 v4.18.0 — Sentry Error Monitoring, Supabase Migrations & Testing Checklist
 -----------------------------------------------------------------------
 ### Fitur Baru:

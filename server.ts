@@ -4500,6 +4500,11 @@ if (!process.env.VERCEL) {
       }
     });
 
+    // API 404 catch-all — return JSON instead of HTML for unmatched API routes
+    app.use('/api/*', (req, res) => {
+      res.status(404).json({ error: 'API endpoint not found' });
+    });
+
     if (process.env.NODE_ENV !== "production") {
       const viteModule = "vite";
       const { createServer: createViteServer } = await import(viteModule).then(

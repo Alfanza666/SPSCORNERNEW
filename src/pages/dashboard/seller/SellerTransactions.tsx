@@ -26,10 +26,10 @@ export default function SellerTransactions() {
       setLoading(true);
       if (!user?.id) return;
       const res = await fetch(`/api/transactions/seller/${user.id}`);
-      if (!res.ok) {
-        throw new Error('Gagal mengambil data');
-      }
-      const data = await res.json();
+      const responseText = await res.text();
+      let data;
+      try { data = JSON.parse(responseText); } catch { throw new Error('Server returned unexpected response'); }
+      if (!res.ok) throw new Error(data?.error || 'Gagal mengambil data');
       setItems(data || []);
     } catch (error) {
       console.error('Error fetching transactions:', error);

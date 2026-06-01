@@ -315,8 +315,10 @@ export default function SellerProducts() {
         },
         body: JSON.stringify({ product_id: restockingProduct.id, requested_quantity: quantity, notes: restockNotes })
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
+      const responseText = await res.text();
+      let data;
+      try { data = JSON.parse(responseText); } catch { throw new Error('Server returned unexpected response'); }
+      if (!data.success) throw new Error(data.error || 'Unknown error');
 
       toast.success('Permintaan restock berhasil dikirim ke Admin');
       setRestockingProduct(null);
@@ -350,8 +352,8 @@ export default function SellerProducts() {
           },
           body: JSON.stringify({ product_id: productId, requested_quantity: Number(qty), notes: 'Restock massal' })
         });
-        const data = await res.json();
-        if (data.success) success++; else failed++;
+        const t = await res.text();
+        try { const d = JSON.parse(t); if (d.success) success++; else failed++; } catch { failed++; }
       } catch { failed++; }
     }
 
