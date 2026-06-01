@@ -133,7 +133,7 @@ export default function AdminDashboard() {
       const { data: txData } = await supabase
         .from('transactions')
         .select('total_amount')
-        .eq('status', 'success');
+        .in('status', ['success', 'paid']);
         
       const totalSales = txData?.reduce((sum, tx) => sum + tx.total_amount, 0) || 0;
       
@@ -414,21 +414,14 @@ export default function AdminDashboard() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-      // Use backend endpoint so stock is properly released and seller balance corrected
       const response = await fetch('/api/admin/transactions/reject', {
         method: 'POST',
         headers,
         body: JSON.stringify({ transaction_id: txId })
       });
 
-      if (!response.ok) {
-        // Fallback: if endpoint doesn't exist yet, update directly
-        const { error } = await supabase
-          .from('transactions')
-          .update({ status: 'failed' })
-          .eq('id', txId);
-        if (error) throw error;
-      }
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Gagal menolak transaksi');
 
       toast.success('Transaksi ditolak');
       setPendingTransactions(prev => prev.filter(tx => tx.id !== txId));

@@ -129,11 +129,66 @@ Setiap kali mengeksekusi tugas atau memperbaiki bug, Anda WAJIB membalas menggun
 
 🏛️ Architecture
 - **Monolithic single-file backend**: All Express routes live in `server.ts` (line 1+). It uses `// @ts-nocheck` — TypeScript errors are suppressed at runtime.
-- **Vercel deployment**: `api/index.ts` re-exports `server.ts` as default for Vercel serverless functions. `vercel.json` handles SPA rewrites (`/(.*)` → `/index.html`) and API routing (`/api/(.*)` → `/api/index`).
+- **Vercel deployment (Frontend only)**: `api/index.ts` re-exports `server.ts` as default for Vercel serverless functions. `vercel.json` handles SPA rewrites (`/(.*)` → `/index.html`) and API routing (`/api/(.*)` → `https://api.spscorner.store/api/$1`).
+- **VPS (Backend API)**: Express server runs on VPS `45.158.126.76` via PM2 (`sps-backend`). All `/api/*` requests from Vercel frontend are proxied to `https://api.spscorner.store` (the VPS).
 - **Frontend entry**: `src/main.tsx` → `src/App.tsx` (React 19, lazy-loaded routes with retry logic for chunk errors).
 - **State management**: Zustand stores in `src/store/` — `useAuthStore.ts` (auth + profile), `useCartStore.ts` (shopping cart).
 - **Path alias**: `@/*` resolves to `./src/*` (tsconfig + vite.config.ts).
 - **PWA**: `vite-plugin-pwa` with `injectManifest` strategy. Service worker source is `src/sw.ts`.
+
+🔄 VPS DEPLOYMENT CHECKLIST (WAJIB diikuti setiap update backend)
+Setiap kali ada perubahan di `server.ts`, WAJIB melakukan langkah berikut secara berurutan:
+
+1. **SCP file yang diubah ke VPS:**
+   ```bash
+   scp server.ts root@45.158.126.76:/opt/sps-backend/server.ts
+   scp src/pages/dashboard/seller/SellerProducts.tsx root@45.158.126.76:/opt/sps-backend/src/pages/dashboard/seller/
+   # ...dan seterusnya untuk file lain yang berubah
+   ```
+
+2. **Install dependensi baru jika ada** (cek apakah ada import package baru di `server.ts`):
+   ```bash
+   ssh root@45.158.126.76 "cd /opt/sps-backend && npm install <package-name>"
+   ```
+   ⚠️ Frontend (Vercel) dan Backend (VPS) bisa tidak sinkron versi. Setiap ada dependency baru di `server.ts` (contoh: `@sentry/node`), VPS harus di `npm install` juga sebelum restart. Cek `package.json` + `package-lock.json` untuk melihat perubahan dependensi.
+
+3. **Restart PM2:**
+   ```bash
+   ssh root@45.158.126.76 "pm2 restart sps-backend --update-env"
+   ```
+
+4. **Verifikasi server jalan:**
+   ```bash
+   curl -s https://api.spscorner.store/api/test-ping
+   # Harus return JSON, BUKAN HTML
+   ```
+
+5. **Cek log error jika server tidak jalan:**
+   ```bash
+   ssh root@45.158.126.76 "pm2 logs sps-backend --lines 20 --nostream --err"
+   ```
+
+6. **Commit & push ke GitHub** (setelah deploy VPS berhasil) agar Vercel frontend juga terupdate.
+
+> **💡 Alternatif:** Gunakan `.\scripts\deploy-vps.ps1` untuk deploy otomatis dalam satu perintah (lint → build → SCP → npm install → restart → verify).
+
+🤖 CI/CD — Auto Deploy via VPS Cron (Git Pull)
+Karena GitHub Actions terkendala billing, auto-deploy dihandle langsung oleh VPS:
+
+| Komponen | Deskripsi |
+|---|---|
+| `scripts/auto-deploy.sh` | Script di VPS: `git fetch` → `git pull` → `npm install` (jika deps berubah) → `pm2 restart` → health check |
+| Cron job | `*/5 * * * *` — jalan tiap 5 menit, cek commit baru dari GitHub |
+| Log | `/var/log/sps-deploy.log` — riwayat deploy otomatis |
+
+**Alur:** Push ke GitHub → cron deteksi commit baru dalam ≤5 menit → deploy otomatis ke VPS.
+
+> **Alternatif deploy manual (langsung, tanpa nunggu cron):**
+> ```powershell
+> .\scripts\deploy-vps.ps1        # full deploy (lint + build + scp + restart)
+> .\scripts\deploy-vps.ps1 -SkipLint   # skip type check
+> .\scripts\deploy-vps.ps1 -SkipBuild -SkipLint  # SCP & restart saja
+> ```
 
 🔌 External Integrations (all configured via `.env`)
 - **Supabase** (PostgreSQL): Primary database. Uses `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (client) and `SUPABASE_SERVICE_ROLE_KEY` (server). ⚠️ `server.ts` has hardcoded fallback credentials — these are security risks if leaked.
@@ -155,16 +210,19 @@ Setiap kali mengeksekusi tugas atau memperbaiki bug, Anda WAJIB membalas menggun
 - `server.ts` uses `// @ts-nocheck` — TypeScript will not catch errors in the backend. Run `tsc --noEmit` separately to check types.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts are expected and ignored.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions required in imports.
-- Current version: `v4.15.1`. Always sync `package.json`, `changelog.txt`, and UI on version bumps.
+- Current version: `v4.18.1`. Always sync `package.json`, `changelog.txt`, and UI on version bumps.
 - `scripts/` directory may contain utility scripts — check before assuming dead code.
-- No CI/CD workflows configured (`.github/` only has a `keep` placeholder file).
+- CI/CD via VPS cron (git pull otomatis tiap 5 menit). Detail di section 🤖 CI/CD.
+- ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1` untuk deploy manual.
 - Vite defines `process.env.GEMINI_API_KEY` directly (not `VITE_` prefix) — this is non-standard and easy to miss.
 - Digiflazz background cache update is skipped on Vercel (`if (!process.env.VERCEL)`).
+- **⚠️ API 404 catch-all di `server.ts`**: Wajib ada `app.use('/api/*', (req, res) => res.status(404).json({ error: 'API endpoint not found' }))` SEBELUM SPA fallback (`app.get("*")`). Tanpa ini, request API yang tidak terdaftar mengembalikan HTML (index.html) → frontend error `"Unexpected token '<'"`.
+- **⚠️ `@sentry/node` sering missing di VPS**: Setiap ada update `server.ts`, cek apakah ada import package baru (contoh: `@sentry/node`). Frontend (Vercel) dan Backend (VPS) tidak sinkron versi — dependency baru di `server.ts` harus di `npm install` di VPS sebelum restart PM2. Cek `package.json` + `package-lock.json` untuk melihat perubahan dependensi.
 
 🗑️ Known Dead Code Candidates (verify before deleting)
 - `fix_*.sql` files — one-time SQL fixes
 - `revert_incorrect_patches.cjs` — rollback script, likely no longer needed
-- `push_to_github.bat` — Windows batch file for git push, may be redundant
+- ~~`push_to_github.bat`~~ — **sudah dihapus**, ganti dengan `scripts/deploy-vps.ps1`
 - `Perbaikan program/` directory — unclear purpose, verify contents
 - `session-ses_1c94.md` — session log, likely temporary
 - `walkthrough.md` — documentation, verify if still relevant

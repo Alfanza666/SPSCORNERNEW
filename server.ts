@@ -1941,6 +1941,50 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
+app.post("/api/admin/transactions/reject", async (req, res) => {
+  try {
+    const { transaction_id } = req.body;
+    if (!transaction_id) return res.status(400).json({ error: "Transaction ID is required" });
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin")
+      return res.status(403).json({ error: "Forbidden: Admin only" });
+
+    const { data: transaction } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("id", transaction_id)
+      .single();
+    if (!transaction) return res.status(404).json({ error: "Transaction not found" });
+    if (transaction.status === "failed") return res.status(400).json({ error: "Transaction already failed" });
+
+    // Restore stock before marking as failed
+    await restoreTransactionStock(transaction_id);
+
+    await supabase.from("transactions").update({ status: "failed" }).eq("id", transaction_id);
+
+    if (transaction.buyer_id) {
+      await sendNotification(transaction.buyer_id, {
+        type: "transaction",
+        title: "\u274C Pesanan Ditolak",
+        message: `Pesanan Anda #${transaction_id.slice(0, 8)} telah ditolak oleh admin. Hubungi admin untuk detail lebih lanjut.`,
+        path: `/kiosk/history?id=${transaction_id}`,
+      });
+    }
+
+    res.json({ success: true, message: "Transaction rejected and stock restored" });
+  } catch (error) {
+    console.error("Error rejecting transaction:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
 app.post("/api/admin/transactions/confirm-sariroti", async (req, res) => {
   try {
     const { transaction_id } = req.body;
