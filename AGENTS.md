@@ -210,7 +210,7 @@ Karena GitHub Actions terkendala billing, auto-deploy dihandle langsung oleh VPS
 - `server.ts` uses `// @ts-nocheck` — TypeScript will not catch errors in the backend. Run `tsc --noEmit` separately to check types.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts are expected and ignored.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions required in imports.
-- Current version: `v4.18.1`. Always sync `package.json`, `changelog.txt`, and UI on version bumps.
+- Current version: `v4.19.0`. Always sync `package.json`, `changelog.txt`, and UI on version bumps.
 - `scripts/` directory may contain utility scripts — check before assuming dead code.
 - CI/CD via VPS cron (git pull otomatis tiap 5 menit). Detail di section 🤖 CI/CD.
 - ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1` untuk deploy manual.

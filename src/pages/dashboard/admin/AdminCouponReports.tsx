@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Printer, Search, FileSpreadsheet, Loader2, FileText } from 'lucide-react';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { Printer, Search, FileSpreadsheet, Loader2, FileText, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 
 export default function AdminCouponReports() {
+  const { user } = useAuthStore();
   const [programs, setPrograms] = useState<any[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
@@ -15,12 +17,24 @@ export default function AdminCouponReports() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
+  // State untuk modal tambah data scan manual
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addingData, setAddingData] = useState(false);
+  const [newRecord, setNewRecord] = useState({
+    programId: '',
+    nik: '',
+    name: '',
+    claimedAt: new Date().toISOString().slice(0, 16),
+    couponType: 'attendance'
+  });
+
   useEffect(() => {
     fetchPrograms();
-    // Default rentang hari ini
-    const today = new Date().toISOString().split('T')[0];
-    setStartDate(today);
-    setEndDate(today);
+    // Default: awal bulan sampai hari ini
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    setStartDate(firstOfMonth);
+    setEndDate(today.toISOString().split('T')[0]);
   }, []);
 
   const fetchPrograms = async () => {
@@ -123,6 +137,76 @@ export default function AdminCouponReports() {
 
   const cancelEdit = () => setEditingId(null);
 
+  const handleManualClaim = async () => {
+    if (!newRecord.programId || !newRecord.nik || !newRecord.name || !newRecord.claimedAt) {
+      toast.error('Harap isi semua field');
+      return;
+    }
+    setAddingData(true);
+    try {
+      // Cek apakah kupon sudah ada untuk NIK + Program ini
+      const { data: existing } = await supabase
+        .from('program_coupons')
+        .select('id, status')
+        .eq('nik', newRecord.nik)
+        .eq('program_id', newRecord.programId)
+        .maybeSingle();
+
+      let couponId: string | null = existing?.id || null;
+
+      if (!couponId) {
+        // Generate kupon baru via RPC
+        const { error: genError } = await supabase.rpc('generate_manual_coupon', {
+          p_program_id: newRecord.programId,
+          p_nik: newRecord.nik,
+          p_name: newRecord.name
+        });
+        if (genError) throw genError;
+
+        // Ambil ID kupon yang baru dibuat
+        const { data: newCoupon } = await supabase
+          .from('program_coupons')
+          .select('id')
+          .eq('nik', newRecord.nik)
+          .eq('program_id', newRecord.programId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        couponId = newCoupon?.id || null;
+        if (!couponId) throw new Error('Gagal menemukan kupon yang baru dibuat');
+      }
+
+      // Update status menjadi claimed dengan timestamp kustom
+      const { error: updateError } = await supabase
+        .from('program_coupons')
+        .update({
+          status: 'claimed',
+          claimed_at: new Date(newRecord.claimedAt).toISOString(),
+          gate_type: newRecord.couponType
+        })
+        .eq('id', couponId);
+
+      if (updateError) throw updateError;
+
+      toast.success('Data scan berhasil ditambahkan');
+      setShowAddModal(false);
+      setNewRecord(prev => ({
+        ...prev,
+        programId: '',
+        nik: '',
+        name: '',
+        claimedAt: new Date().toISOString().slice(0, 16),
+        couponType: 'attendance'
+      }));
+      handleFetchData();
+    } catch (e: any) {
+      toast.error('Gagal menambah data: ' + e.message);
+    } finally {
+      setAddingData(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* HEADER UTAMA (TIDAK TER-PRINT) */}
@@ -203,7 +287,110 @@ export default function AdminCouponReports() {
             </button>
           </div>
         )}
+
+        {/* Tombol Tambah Data Scan Manual */}
+        <div className="mt-4">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all"
+          >
+            <Plus className="w-5 h-5" /> Tambah Data Scan
+          </button>
+        </div>
       </div>
+
+      {/* ─── MODAL TAMBAH DATA SCAN MANUAL ─── */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm print:hidden">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 w-full max-w-lg shadow-2xl border border-zinc-200 dark:border-zinc-800 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-black text-zinc-900 dark:text-white">Tambah Data Scan</h2>
+              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Program Serikat</label>
+                <select
+                  value={newRecord.programId}
+                  onChange={(e) => setNewRecord(prev => ({ ...prev, programId: e.target.value }))}
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">-- Pilih Program --</option>
+                  {programs.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">NIK</label>
+                  <input
+                    type="text"
+                    value={newRecord.nik}
+                    onChange={(e) => setNewRecord(prev => ({ ...prev, nik: e.target.value }))}
+                    placeholder="1234567890"
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Nama Karyawan</label>
+                  <input
+                    type="text"
+                    value={newRecord.name}
+                    onChange={(e) => setNewRecord(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Nama lengkap"
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Waktu Scan</label>
+                <input
+                  type="datetime-local"
+                  value={newRecord.claimedAt}
+                  onChange={(e) => setNewRecord(prev => ({ ...prev, claimedAt: e.target.value }))}
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Jenis Kupon</label>
+                <select
+                  value={newRecord.couponType}
+                  onChange={(e) => setNewRecord(prev => ({ ...prev, couponType: e.target.value }))}
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="attendance">Attendance</option>
+                  <option value="doorprize">Doorprize</option>
+                  <option value="sembako">Sembako</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 py-3 px-6 rounded-xl font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleManualClaim}
+                  disabled={addingData}
+                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50"
+                >
+                  {addingData ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                  {addingData ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PREVIEW TABEL (TIDAK TER-PRINT) */}
       {reportData.length > 0 && (

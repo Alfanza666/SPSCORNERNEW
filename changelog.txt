@@ -1,3 +1,15 @@
+v4.19.0 — Tambah input manual data scan kupon & perbaikan default tanggal
+------------------------------------------------------------------------
+### Fitur Baru:
+- **[FEAT] `AdminCouponReports.tsx`:** Tambah modal "Tambah Data Scan" untuk input manual data scan kupon (NIK, Nama, Waktu Scan, Jenis Kupon) — memungkinkan admin mencatat klaim kupon secara retroaktif untuk acara-acara yang tidak terekam scan.
+
+### Perbaikan:
+- **[CHANGE] `AdminCouponReports.tsx`:** Default tanggal diubah dari hari ini → awal bulan sampai hari ini, agar data tidak perlu diubah manual setiap kali buka laporan.
+- **[CHANGE] `AdminCouponReports.tsx`:** Layout filter ditata ulang dan tombol "Tambah Data Scan" selalu terlihat.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.18.2 → v4.19.0 (MINOR: fitur input manual data scan kupon).
+
 v4.18.2 — Fix iPaymu callback status not updating & rate limiter crash (X-Forwarded-For)
 -----------------------------------------------------------------------
 ### Perbaikan:
