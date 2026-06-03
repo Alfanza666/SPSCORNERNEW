@@ -94,7 +94,7 @@ export default function AdminCouponReports() {
       'Program': row.union_programs?.name || '-',
       'NIK': row.nik,
       'Nama Karyawan': row.name || row.profiles?.name || '-',
-      'Jenis Kupon': row.coupon_type.toUpperCase()
+      'Jenis Kupon': (row.coupon_type || row.gate_type || '-').toUpperCase()
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelData);
@@ -183,7 +183,8 @@ export default function AdminCouponReports() {
         .update({
           status: 'claimed',
           claimed_at: new Date(newRecord.claimedAt).toISOString(),
-          gate_type: newRecord.couponType
+          gate_type: newRecord.couponType,
+          coupon_type: newRecord.couponType
         })
         .eq('id', couponId);
 
@@ -437,7 +438,7 @@ export default function AdminCouponReports() {
                     <td className="py-3 px-6 text-sm">{row.union_programs?.name}</td>
                     <td className="py-3 px-6 text-sm text-center">
                       <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-xs font-bold rounded-full uppercase">
-                        {row.coupon_type}
+                        {(row.coupon_type || row.gate_type || '-')}
                       </span>
                     </td>
                   </tr>
@@ -535,7 +536,7 @@ export default function AdminCouponReports() {
                   <td className="border border-black p-2 text-left">{row.nik}</td>
                   <td className="border border-black p-2 text-left">{row.name || row.profiles?.name}</td>
                   <td className="border border-black p-2 text-left">{row.union_programs?.name}</td>
-                  <td className="border border-black p-2 text-center uppercase">{row.coupon_type}</td>
+                  <td className="border border-black p-2 text-center uppercase">{(row.coupon_type || row.gate_type || '-')}</td>
                 </tr>
               ))}
             </tbody>
