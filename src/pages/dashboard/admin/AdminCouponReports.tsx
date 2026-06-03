@@ -114,7 +114,7 @@ export default function AdminCouponReports() {
 
   const startEditTime = (row: any) => {
     setEditingId(row.id);
-    setEditValue(new Date(row.claimed_at).toISOString().slice(0, 16));
+    setEditValue(new Date(row.claimed_at).toISOString().slice(0, 19));
   };
 
   const saveEditTime = async (row: any) => {
@@ -355,6 +355,7 @@ export default function AdminCouponReports() {
                   type="datetime-local"
                   value={newRecord.claimedAt}
                   onChange={(e) => setNewRecord(prev => ({ ...prev, claimedAt: e.target.value }))}
+                  step="1"
                   className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -417,7 +418,8 @@ export default function AdminCouponReports() {
                             type="datetime-local"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
-                            className="p-1 border border-blue-400 rounded text-xs w-44"
+                            step="1"
+                            className="p-1 border border-blue-400 rounded text-xs w-52"
                             autoFocus
                           />
                           <button onClick={() => saveEditTime(row)} className="text-green-600 hover:text-green-700 font-bold text-xs px-1">✓</button>
