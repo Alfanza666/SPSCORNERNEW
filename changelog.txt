@@ -1,3 +1,8 @@
+v4.21.1 — Fitur Pilihan NIK (Checkbox) Laporan Kupon
+----------------------------------------------------------------------------------
+### Fitur Baru:
+- **[FEAT] `AdminCouponReports.tsx`:** Tambah fitur checkbox pilihan NIK untuk laporan kupon. Admin dapat mencentang/memilih NIK mana saja yang ingin disertakan ke dalam ekspor PDF maupun Excel, dengan indikator status dinamis "Terpilih X dari Y data".
+
 v4.21.0 — Optimasi Database, Pengamanan RLS, dan Pembersihan Teknis
 ----------------------------------------------------------------------------------
 ### Perbaikan Utama:

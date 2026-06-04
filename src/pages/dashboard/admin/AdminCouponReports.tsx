@@ -30,6 +30,31 @@ export default function AdminCouponReports() {
     couponType: 'attendance'
   });
   const [downloading, setDownloading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
+
+  const toggleSelectRow = (id: string) => {
+    setSelectedIds(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  const allSelected = reportData.length > 0 && reportData.every(row => selectedIds[row.id]);
+  const selectedCount = Object.values(selectedIds).filter(Boolean).length;
+
+  const toggleSelectAll = () => {
+    const newSelected: Record<string, boolean> = {};
+    if (allSelected) {
+      reportData.forEach(row => {
+        newSelected[row.id] = false;
+      });
+    } else {
+      reportData.forEach(row => {
+        newSelected[row.id] = true;
+      });
+    }
+    setSelectedIds(newSelected);
+  };
 
   useEffect(() => {
     fetchPrograms();
@@ -72,6 +97,15 @@ export default function AdminCouponReports() {
       const { data, error } = await query;
       if (error) throw error;
       setReportData(data || []);
+      if (data) {
+        const initialSelected: Record<string, boolean> = {};
+        data.forEach((row: any) => {
+          initialSelected[row.id] = true;
+        });
+        setSelectedIds(initialSelected);
+      } else {
+        setSelectedIds({});
+      }
       
       if (data?.length === 0) {
         toast.error('Tidak ada data scan ditemukan pada rentang waktu tersebut.');
@@ -86,12 +120,13 @@ export default function AdminCouponReports() {
   };
 
   const exportToExcel = () => {
-    if (reportData.length === 0) {
-      toast.error('Tarik data terlebih dahulu');
+    const selectedData = reportData.filter(row => selectedIds[row.id]);
+    if (selectedData.length === 0) {
+      toast.error('Pilih minimal satu NIK/data untuk diekspor');
       return;
     }
 
-    const excelData = reportData.map((row, index) => ({
+    const excelData = selectedData.map((row, index) => ({
       No: index + 1,
       'Waktu Scan': new Date(row.claimed_at).toLocaleString('id-ID'),
       'Program': row.union_programs?.name || '-',
@@ -108,8 +143,9 @@ export default function AdminCouponReports() {
   };
 
   const downloadPDF = async () => {
-    if (reportData.length === 0) {
-      toast.error('Tarik data terlebih dahulu');
+    const selectedData = reportData.filter(row => selectedIds[row.id]);
+    if (selectedData.length === 0) {
+      toast.error('Pilih minimal satu NIK/data untuk diekspor');
       return;
     }
     setDownloading(true);
@@ -180,7 +216,7 @@ export default function AdminCouponReports() {
         usable * 0.12,
       ];
 
-      const rows = reportData.map((row, idx) => [
+      const rows = selectedData.map((row, idx) => [
         (idx + 1).toString(),
         new Date(row.claimed_at).toLocaleString('id-ID'),
         row.nik,
@@ -421,21 +457,26 @@ export default function AdminCouponReports() {
         </div>
 
         {reportData.length > 0 && (
-          <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-800 flex flex-wrap gap-4">
-            <button
-              onClick={exportToExcel}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-all"
-            >
-              <FileSpreadsheet className="w-5 h-5" /> Export Excel
-            </button>
-            <button
-              onClick={downloadPDF}
-              disabled={downloading}
-              className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-900 dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg disabled:opacity-50"
-            >
-              {downloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-              {downloading ? 'Mengunduh...' : 'Download PDF'}
-            </button>
+          <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-4 uppercase tracking-wider">
+              Terpilih <span className="text-blue-600 dark:text-blue-400 font-extrabold">{selectedCount}</span> dari <span className="text-zinc-800 dark:text-zinc-200 font-extrabold">{reportData.length}</span> baris data kupon
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={exportToExcel}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-all"
+              >
+                <FileSpreadsheet className="w-5 h-5" /> Export Excel
+              </button>
+              <button
+                onClick={downloadPDF}
+                disabled={downloading}
+                className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-900 dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg disabled:opacity-50"
+              >
+                {downloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                {downloading ? 'Mengunduh...' : 'Download PDF'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -551,6 +592,14 @@ export default function AdminCouponReports() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-zinc-50 dark:bg-zinc-800/50">
+                  <th className="py-4 px-6 text-xs font-black uppercase tracking-widest text-zinc-500 w-12 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                    />
+                  </th>
                   <th className="py-4 px-6 text-xs font-black uppercase tracking-widest text-zinc-500">Waktu</th>
                   <th className="py-4 px-6 text-xs font-black uppercase tracking-widest text-zinc-500">NIK</th>
                   <th className="py-4 px-6 text-xs font-black uppercase tracking-widest text-zinc-500">Karyawan</th>
@@ -559,42 +608,53 @@ export default function AdminCouponReports() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {reportData.map((row, i) => (
-                  <tr key={row.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20">
-                    <td className="py-3 px-6 text-sm whitespace-nowrap">
-                      {editingId === row.id ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="datetime-local"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            step="1"
-                            className="p-1 border border-blue-400 rounded text-xs w-52"
-                            autoFocus
-                          />
-                          <button onClick={() => saveEditTime(row)} className="text-green-600 hover:text-green-700 font-bold text-xs px-1">✓</button>
-                          <button onClick={cancelEdit} className="text-red-500 hover:text-red-600 font-bold text-xs px-1">✕</button>
-                        </div>
-                      ) : (
-                        <span
-                          onClick={() => startEditTime(row)}
-                          className="cursor-pointer hover:text-blue-600 hover:underline decoration-dotted"
-                          title="Klik untuk edit waktu"
-                        >
-                          {new Date(row.claimed_at).toLocaleString('id-ID')}
+                {reportData.map((row, i) => {
+                  const isChecked = !!selectedIds[row.id];
+                  return (
+                    <tr key={row.id} className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/20 transition-opacity ${isChecked ? '' : 'opacity-50 bg-zinc-50/30 dark:bg-zinc-900/30'}`}>
+                      <td className="py-3 px-6 text-center w-12">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleSelectRow(row.id)}
+                          className="rounded border-zinc-300 dark:border-zinc-700 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-3 px-6 text-sm whitespace-nowrap">
+                        {editingId === row.id ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="datetime-local"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              step="1"
+                              className="p-1 border border-blue-400 rounded text-xs w-52"
+                              autoFocus
+                            />
+                            <button onClick={() => saveEditTime(row)} className="text-green-600 hover:text-green-700 font-bold text-xs px-1">✓</button>
+                            <button onClick={cancelEdit} className="text-red-500 hover:text-red-600 font-bold text-xs px-1">✕</button>
+                          </div>
+                        ) : (
+                          <span
+                            onClick={() => startEditTime(row)}
+                            className="cursor-pointer hover:text-blue-600 hover:underline decoration-dotted"
+                            title="Klik untuk edit waktu"
+                          >
+                            {new Date(row.claimed_at).toLocaleString('id-ID')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-6 text-sm font-bold">{row.nik}</td>
+                      <td className="py-3 px-6 text-sm">{row.name || row.profiles?.name}</td>
+                      <td className="py-3 px-6 text-sm">{row.union_programs?.name}</td>
+                      <td className="py-3 px-6 text-sm text-center">
+                        <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-xs font-bold rounded-full uppercase">
+                          {(row.coupon_type || row.gate_type || '-')}
                         </span>
-                      )}
-                    </td>
-                    <td className="py-3 px-6 text-sm font-bold">{row.nik}</td>
-                    <td className="py-3 px-6 text-sm">{row.name || row.profiles?.name}</td>
-                    <td className="py-3 px-6 text-sm">{row.union_programs?.name}</td>
-                    <td className="py-3 px-6 text-sm text-center">
-                      <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-xs font-bold rounded-full uppercase">
-                        {(row.coupon_type || row.gate_type || '-')}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {reportData.length > 10 && (
