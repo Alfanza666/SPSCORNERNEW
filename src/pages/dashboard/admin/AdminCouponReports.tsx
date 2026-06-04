@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { Printer, Search, FileSpreadsheet, Loader2, FileText, Plus, X } from 'lucide-react';
+import { Printer, Search, FileSpreadsheet, Loader2, FileText, Plus, X, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
+import html2pdf from 'html2pdf.js';
 
 export default function AdminCouponReports() {
   const { user } = useAuthStore();
@@ -28,6 +28,8 @@ export default function AdminCouponReports() {
     claimedAt: new Date().toISOString().slice(0, 16),
     couponType: 'attendance'
   });
+  const pdfContentRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetchPrograms();
@@ -105,12 +107,29 @@ export default function AdminCouponReports() {
     XLSX.writeFile(wb, `Laporan_Kupon_SPS_${startDate}_to_${endDate}.xlsx`);
   };
 
-  const printPDF = () => {
+  const downloadPDF = async () => {
     if (reportData.length === 0) {
       toast.error('Tarik data terlebih dahulu');
       return;
     }
-    window.print();
+    if (!pdfContentRef.current) return;
+    setDownloading(true);
+    try {
+      const opt = {
+        margin: [10, 8, 10, 8] as [number, number, number, number],
+        filename: `Laporan_Kupon_SPS_${startDate}_to_${endDate}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
+        pagebreak: { mode: 'avoid-all' as const }
+      };
+      await html2pdf().set(opt).from(pdfContentRef.current).save();
+      toast.success('PDF berhasil di download');
+    } catch (e: any) {
+      toast.error('Gagal download PDF: ' + e.message);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const startEditTime = (row: any) => {
@@ -281,10 +300,12 @@ export default function AdminCouponReports() {
               <FileSpreadsheet className="w-5 h-5" /> Export Excel
             </button>
             <button
-              onClick={printPDF}
-              className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-900 dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg"
+              onClick={downloadPDF}
+              disabled={downloading}
+              className="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-900 dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-900 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg disabled:opacity-50"
             >
-              <Printer className="w-5 h-5" /> Cetak PDF Resmi
+              {downloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+              {downloading ? 'Mengunduh...' : 'Download PDF'}
             </button>
           </div>
         )}
@@ -457,137 +478,99 @@ export default function AdminCouponReports() {
       )}
 
       {/* ──────────────────────────────────────────────────────────── */}
-      {/* AREA KHUSUS PRINT PDF BER-KOP SURAT (via Portal ke body)    */}
+      {/* KONTEN PDF TERSEMBUNYI (untuk html2pdf)                     */}
       {/* ──────────────────────────────────────────────────────────── */}
-      <style>
-        {`
-          @media print {
-            @page {
-              size: A4 portrait;
-              margin: 20mm 15mm 20mm 15mm;
-            }
-            /* Sembunyikan semua konten web */
-            body > *:not(.print-pdf-wrapper) {
-              display: none !important;
-            }
-            .print-pdf-wrapper {
-              display: block !important;
-              position: relative !important;
-              background: white !important;
-              color: black !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              width: 100% !important;
-              font-family: serif !important;
-            }
-            .print-pdf-wrapper * {
-              background: transparent !important;
-              color: black !important;
-              box-shadow: none !important;
-              text-shadow: none !important;
-            }
-            .print-kop {
-              display: flex !important;
-              page-break-after: avoid;
-            }
-            .print-judul {
-              page-break-after: avoid;
-            }
-            .print-table {
-              width: 100% !important;
-              border-collapse: collapse !important;
-            }
-            .print-table thead {
-              display: table-header-group;
-            }
-            .print-table tbody tr {
-              page-break-inside: avoid;
-            }
-            .print-ttd {
-              page-break-inside: avoid;
-              margin-top: 32px !important;
-            }
-            .print-table thead tr th {
-              background-color: #e5e7eb !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-          }
-        `}
-      </style>
+      <style>{`
+        .pdf-content-hidden {
+          position: absolute;
+          left: -9999px;
+          top: 0;
+          width: 210mm;
+          background: white;
+          color: black;
+          font-family: serif;
+          line-height: 1.3;
+          padding: 20mm 15mm;
+          z-index: -1;
+        }
+        .pdf-content-hidden table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 10px;
+        }
+        .pdf-content-hidden table th,
+        .pdf-content-hidden table td {
+          border: 1px solid black;
+          padding: 6px;
+        }
+        .pdf-content-hidden table th {
+          font-weight: 700;
+          text-align: center;
+          background-color: #e5e7eb;
+        }
+      `}</style>
 
-      {reportData.length > 0 && typeof document !== 'undefined' && createPortal(
-        <div className="print-pdf-wrapper hidden print:block">
-          {/* KOP SURAT */}
-          <div className="print-kop flex items-center gap-6 mb-2 border-b-4 border-double border-black pb-4">
-            <img 
-              src="/logos/serikat-logo.png" 
-              alt="Logo Serikat" 
-              className="w-24 h-24 object-contain"
-              crossOrigin="anonymous" 
-            />
-            <div className="flex-1">
-              <h1 className="text-[18px] font-bold leading-tight">FEDERASI SERIKAT PEKERJA SUKSES (F-SPS)</h1>
-              <h2 className="text-[14px] font-bold leading-tight">PT.NIPPON INDOSARI CORPINDO, TBK. PLANT BANJARMASIN</h2>
-              <p className="text-[11px] leading-tight mt-1">No.Pencatatan Disnaker: 500.15.15.1/325/Disnaker/2024</p>
-              <p className="text-[11px] leading-tight">BIZPARK COMMERCIAL ESTATE Blok C2 No. 6 Jl. Gubernur Soebardjo (Lingkar Selatan),</p>
-              <p className="text-[11px] leading-tight">Kayu Bawang, Kec. Gambut Banjar, Kalimantan Selatan</p>
-            </div>
+      <div ref={pdfContentRef} className="pdf-content-hidden">
+        {/* KOP SURAT */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '8px', borderBottom: '4px double black', paddingBottom: '16px' }}>
+          <img src="/logos/serikat-logo.png" alt="Logo Serikat" style={{ width: '96px', height: '96px', objectFit: 'contain' }} crossOrigin="anonymous" />
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.2, margin: 0 }}>FEDERASI SERIKAT PEKERJA SUKSES (F-SPS)</h1>
+            <h2 style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.2, margin: '4px 0' }}>PT.NIPPON INDOSARI CORPINDO, TBK. PLANT BANJARMASIN</h2>
+            <p style={{ fontSize: '11px', lineHeight: 1.2, margin: '4px 0 0' }}>No.Pencatatan Disnaker: 500.15.15.1/325/Disnaker/2024</p>
+            <p style={{ fontSize: '11px', lineHeight: 1.2, margin: '2px 0' }}>BIZPARK COMMERCIAL ESTATE Blok C2 No. 6 Jl. Gubernur Soebardjo (Lingkar Selatan),</p>
+            <p style={{ fontSize: '11px', lineHeight: 1.2, margin: '2px 0' }}>Kayu Bawang, Kec. Gambut Banjar, Kalimantan Selatan</p>
           </div>
+        </div>
 
-          <div className="print-judul text-center my-6">
-            <h3 className="text-[16px] font-bold uppercase underline">Laporan Validasi Kupon Program</h3>
-            <p className="text-[12px] mt-2">
-              Nomor: {nomorSurat || '_________________________'}
-            </p>
-            <p className="text-[12px] mt-1">
-              Periode: {new Date(startDate).toLocaleDateString('id-ID')} s/d {new Date(endDate).toLocaleDateString('id-ID')}
-            </p>
-          </div>
+        {/* JUDUL */}
+        <div style={{ textAlign: 'center', margin: '24px 0' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', textDecoration: 'underline', margin: 0 }}>Laporan Validasi Kupon Program</h3>
+          <p style={{ fontSize: '12px', margin: '8px 0 0' }}>Nomor: {nomorSurat || '_________________________'}</p>
+          <p style={{ fontSize: '12px', margin: '4px 0 0' }}>Periode: {new Date(startDate).toLocaleDateString('id-ID')} s/d {new Date(endDate).toLocaleDateString('id-ID')}</p>
+        </div>
 
-          {/* TABEL DATA */}
-          <table className="print-table border border-black text-[10px] mb-10">
-            <thead>
-              <tr>
-                <th className="border border-black p-[6px] font-bold text-center bg-gray-200">NO</th>
-                <th className="border border-black p-[6px] font-bold text-center bg-gray-200">WAKTU SCAN</th>
-                <th className="border border-black p-[6px] font-bold text-left bg-gray-200">NIK</th>
-                <th className="border border-black p-[6px] font-bold text-left bg-gray-200">NAMA KARYAWAN</th>
-                <th className="border border-black p-[6px] font-bold text-left bg-gray-200">NAMA PROGRAM</th>
-                <th className="border border-black p-[6px] font-bold text-center bg-gray-200">JENIS</th>
+        {/* TABEL */}
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: '5%' }}>NO</th>
+              <th style={{ width: '22%' }}>WAKTU SCAN</th>
+              <th style={{ width: '15%' }}>NIK</th>
+              <th style={{ width: '23%' }}>NAMA KARYAWAN</th>
+              <th style={{ width: '23%' }}>NAMA PROGRAM</th>
+              <th style={{ width: '12%' }}>JENIS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {reportData.map((row, idx) => (
+              <tr key={idx}>
+                <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{new Date(row.claimed_at).toLocaleString('id-ID')}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{row.nik}</td>
+                <td>{row.name || row.profiles?.name}</td>
+                <td>{row.union_programs?.name}</td>
+                <td style={{ textAlign: 'center', textTransform: 'uppercase' }}>{(row.coupon_type || row.gate_type || '-')}</td>
               </tr>
-            </thead>
-            <tbody>
-              {reportData.map((row, idx) => (
-                <tr key={idx}>
-                  <td className="border border-black p-[6px] text-center">{idx + 1}</td>
-                  <td className="border border-black p-[6px] text-center whitespace-nowrap">{new Date(row.claimed_at).toLocaleString('id-ID')}</td>
-                  <td className="border border-black p-[6px] text-left whitespace-nowrap">{row.nik}</td>
-                  <td className="border border-black p-[6px] text-left">{row.name || row.profiles?.name}</td>
-                  <td className="border border-black p-[6px] text-left">{row.union_programs?.name}</td>
-                  <td className="border border-black p-[6px] text-center uppercase">{(row.coupon_type || row.gate_type || '-')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
 
-          {/* TANDA TANGAN */}
-          <div className="print-ttd flex justify-end mt-12 text-[12px]">
-            <div className="text-center w-64">
-              <p>Banjarmasin, {new Date().toLocaleDateString('id-ID')}</p>
-              <p className="mb-16">Panitia Penyelenggara / Admin</p>
-              <p className="font-bold underline">( ............................................. )</p>
-            </div>
+        {/* TANDA TANGAN */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '48px', fontSize: '12px' }}>
+          <div style={{ textAlign: 'center', width: '256px' }}>
+            <p style={{ margin: 0 }}>Banjarmasin, {new Date().toLocaleDateString('id-ID')}</p>
+            <p style={{ margin: '4px 0 64px' }}>Panitia Penyelenggara / Admin</p>
+            <p style={{ fontWeight: 700, textDecoration: 'underline', margin: 0 }}>( ............................................. )</p>
           </div>
+        </div>
 
-          {/* FOOTER */}
-          <div className="mt-8 pt-4 text-[10px] italic border-t border-gray-300">
-            <p className="font-bold">Federasi Serikat Pekerja Sukses (F-SPS)</p>
-            <p>PT. Nippon Indosari Corpindo Tbk Plant Banjarmasin - Harmonis.bjm@sariroti.com</p>
-          </div>
-        </div>,
-        document.body
-      )}
+        {/* FOOTER */}
+        <div style={{ marginTop: '32px', paddingTop: '16px', fontSize: '10px', fontStyle: 'italic', borderTop: '1px solid #999' }}>
+          <p style={{ fontWeight: 700, margin: 0 }}>Federasi Serikat Pekerja Sukses (F-SPS)</p>
+          <p style={{ margin: '2px 0 0' }}>PT. Nippon Indosari Corpindo Tbk Plant Banjarmasin - Harmonis.bjm@sariroti.com</p>
+        </div>
+      </div>
     </div>
   );
 }
