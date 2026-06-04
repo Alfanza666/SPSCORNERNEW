@@ -462,36 +462,63 @@ export default function AdminCouponReports() {
         {`
           @media print {
             @page {
-              size: A4;
-              margin: 15mm;
+              size: A4 portrait;
+              margin: 20mm 15mm 20mm 15mm;
             }
-            body * {
-              visibility: hidden;
+            /* Sembunyikan komponen non-print */
+            body > *:not(.print-wrapper) {
+              display: none !important;
             }
-            .print-area, .print-area * {
-              visibility: visible;
+            .print-wrapper {
+              display: block !important;
+              background: white !important;
+              color: black !important;
             }
-            .print-area {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-            }
-            /* Hilangkan shadow & warna background khusus print */
-            * {
+            .print-wrapper * {
               background: transparent !important;
               color: black !important;
               box-shadow: none !important;
               text-shadow: none !important;
+            }
+            .print-kop {
+              display: flex !important;
+              page-break-after: avoid;
+            }
+            .print-judul {
+              page-break-after: avoid;
+            }
+            .print-table {
+              page-break-before: auto;
+              width: 100% !important;
+            }
+            .print-table thead {
+              display: table-header-group;
+            }
+            .print-table tbody tr {
+              page-break-inside: avoid;
+            }
+            .print-ttd {
+              page-break-inside: avoid;
+              page-break-before: auto;
+              margin-top: 32px !important;
+            }
+            .print-footer {
+              page-break-after: avoid;
+            }
+            /* Force table header background tetap ada */
+            .print-table thead tr th {
+              background-color: #e5e7eb !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
           }
         `}
       </style>
 
       {reportData.length > 0 && (
-        <div className="print-area hidden print:block bg-white text-black p-0 w-full font-serif leading-tight">
+        <div className="print-wrapper hidden print:block bg-white text-black p-0 w-full font-serif leading-tight">
           {/* KOP SURAT */}
-          <div className="flex items-center gap-6 mb-2 border-b-4 border-double border-black pb-4">
+          <div className="print-kop flex items-center gap-6 mb-2 border-b-4 border-double border-black pb-4">
             <img 
               src="/logos/serikat-logo.png" 
               alt="Logo Serikat" 
@@ -499,15 +526,15 @@ export default function AdminCouponReports() {
               crossOrigin="anonymous" 
             />
             <div className="flex-1">
-              <h1 className="text-[20px] font-bold leading-tight">FEDERASI SERIKAT PEKERJA SUKSES (F-SPS)</h1>
-              <h2 className="text-[16px] font-bold leading-tight">PT.NIPPON INDOSARI CORPINDO, TBK. PLANT BANJARMASIN</h2>
-              <p className="text-[12px] leading-tight mt-1">No.Pencatatan Disnaker: 500.15.15.1/325/Disnaker/2024</p>
-              <p className="text-[12px] leading-tight">BIZPARK COMMERCIAL ESTATE Blok C2 No. 6 Jl. Gubernur Soebardjo (Lingkar Selatan),</p>
-              <p className="text-[12px] leading-tight">Kayu Bawang, Kec. Gambut Banjar, Kalimantan Selatan</p>
+              <h1 className="text-[18px] font-bold leading-tight">FEDERASI SERIKAT PEKERJA SUKSES (F-SPS)</h1>
+              <h2 className="text-[14px] font-bold leading-tight">PT.NIPPON INDOSARI CORPINDO, TBK. PLANT BANJARMASIN</h2>
+              <p className="text-[11px] leading-tight mt-1">No.Pencatatan Disnaker: 500.15.15.1/325/Disnaker/2024</p>
+              <p className="text-[11px] leading-tight">BIZPARK COMMERCIAL ESTATE Blok C2 No. 6 Jl. Gubernur Soebardjo (Lingkar Selatan),</p>
+              <p className="text-[11px] leading-tight">Kayu Bawang, Kec. Gambut Banjar, Kalimantan Selatan</p>
             </div>
           </div>
           
-          <div className="text-center my-6">
+          <div className="print-judul text-center my-6">
             <h3 className="text-[16px] font-bold uppercase underline">Laporan Validasi Kupon Program</h3>
             <p className="text-[12px] mt-2">
               Nomor: {nomorSurat || '_________________________'}
@@ -518,33 +545,33 @@ export default function AdminCouponReports() {
           </div>
 
           {/* TABEL DATA PADA PDF */}
-          <table className="w-full border-collapse border border-black text-[11px] mb-10">
+          <table className="print-table w-full border-collapse border border-black text-[10px] mb-10">
             <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-black p-2 font-bold text-center">NO</th>
-                <th className="border border-black p-2 font-bold text-center">WAKTU SCAN</th>
-                <th className="border border-black p-2 font-bold text-left">NIK</th>
-                <th className="border border-black p-2 font-bold text-left">NAMA KARYAWAN</th>
-                <th className="border border-black p-2 font-bold text-left">NAMA PROGRAM</th>
-                <th className="border border-black p-2 font-bold text-center">JENIS</th>
+              <tr>
+                <th className="border border-black p-[6px] font-bold text-center bg-gray-200">NO</th>
+                <th className="border border-black p-[6px] font-bold text-center bg-gray-200">WAKTU SCAN</th>
+                <th className="border border-black p-[6px] font-bold text-left bg-gray-200">NIK</th>
+                <th className="border border-black p-[6px] font-bold text-left bg-gray-200">NAMA KARYAWAN</th>
+                <th className="border border-black p-[6px] font-bold text-left bg-gray-200">NAMA PROGRAM</th>
+                <th className="border border-black p-[6px] font-bold text-center bg-gray-200">JENIS</th>
               </tr>
             </thead>
             <tbody>
               {reportData.map((row, idx) => (
                 <tr key={idx}>
-                  <td className="border border-black p-2 text-center">{idx + 1}</td>
-                  <td className="border border-black p-2 text-center">{new Date(row.claimed_at).toLocaleString('id-ID')}</td>
-                  <td className="border border-black p-2 text-left">{row.nik}</td>
-                  <td className="border border-black p-2 text-left">{row.name || row.profiles?.name}</td>
-                  <td className="border border-black p-2 text-left">{row.union_programs?.name}</td>
-                  <td className="border border-black p-2 text-center uppercase">{(row.coupon_type || row.gate_type || '-')}</td>
+                  <td className="border border-black p-[6px] text-center">{idx + 1}</td>
+                  <td className="border border-black p-[6px] text-center whitespace-nowrap">{new Date(row.claimed_at).toLocaleString('id-ID')}</td>
+                  <td className="border border-black p-[6px] text-left whitespace-nowrap">{row.nik}</td>
+                  <td className="border border-black p-[6px] text-left">{row.name || row.profiles?.name}</td>
+                  <td className="border border-black p-[6px] text-left">{row.union_programs?.name}</td>
+                  <td className="border border-black p-[6px] text-center uppercase">{(row.coupon_type || row.gate_type || '-')}</td>
                 </tr>
               ))}
             </tbody>
           </table>
 
           {/* KOLOM TANDA TANGAN */}
-          <div className="flex justify-end mt-12 mb-20 text-[12px]">
+          <div className="print-ttd flex justify-end mt-12 mb-20 text-[12px]">
             <div className="text-center w-64">
               <p>Banjarmasin, {new Date().toLocaleDateString('id-ID')}</p>
               <p className="mb-16">Panitia Penyelenggara / Admin</p>
@@ -553,7 +580,7 @@ export default function AdminCouponReports() {
           </div>
 
           {/* FOOTER PDF */}
-          <div className="mt-8 pt-4 text-[10px] italic border-t border-gray-300">
+          <div className="print-footer mt-8 pt-4 text-[10px] italic border-t border-gray-300">
             <p className="font-bold">Federasi Serikat Pekerja Sukses (F-SPS)</p>
             <p>PT. Nippon Indosari Corpindo Tbk Plant Banjarmasin - Harmonis.bjm@sariroti.com</p>
           </div>
