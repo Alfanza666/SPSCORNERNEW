@@ -183,8 +183,7 @@ export default function AdminCouponReports() {
         .update({
           status: 'claimed',
           claimed_at: new Date(newRecord.claimedAt).toISOString(),
-          gate_type: newRecord.couponType,
-          coupon_type: newRecord.couponType
+          gate_type: newRecord.couponType
         })
         .eq('id', couponId);
 
