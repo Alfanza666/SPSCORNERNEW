@@ -6,7 +6,7 @@ import {
   ClipboardList, ChevronLeft, Loader2, Send, 
   CheckCircle2, AlertCircle, Calendar, Info, UploadCloud, X, Plus, Trash2, Star
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { FormConfig, FormField, AddonItem } from '../../types/form';
 

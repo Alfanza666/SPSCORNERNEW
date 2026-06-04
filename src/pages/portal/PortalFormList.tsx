@@ -6,7 +6,7 @@ import {
   ClipboardList, ChevronRight, Loader2, Search, 
   Filter, FileText, Calendar, ArrowRight, Info
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface DynamicForm {
   id: string;

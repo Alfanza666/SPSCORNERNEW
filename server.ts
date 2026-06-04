@@ -50,11 +50,7 @@ const app = express();
 // Trust proxy — VPS di belakang Vercel reverse proxy, X-Forwarded-For header perlu di-trust
 app.set("trust proxy", 1);
 
-// Sentry request handler (must be first middleware)
-if (process.env.SENTRY_DSN) {
-  app.use(Sentry.Handlers.requestHandler());
-  app.use(Sentry.Handlers.tracingHandler());
-}
+// Sentry auto-instruments Express requests in SDK v8+, so manual requestHandler and tracingHandler are not needed.
 
 app.use(
   express.json({
@@ -4812,7 +4808,7 @@ app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => 
 
     // Sentry error handler (must be last middleware)
     if (process.env.SENTRY_DSN) {
-      app.use(Sentry.Handlers.errorHandler());
+      Sentry.setupExpressErrorHandler(app);
     }
 
     app.listen(PORT, "0.0.0.0", () => {

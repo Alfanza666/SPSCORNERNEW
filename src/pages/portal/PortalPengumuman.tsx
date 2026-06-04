@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Megaphone, Calendar, Clock, ChevronRight, ChevronLeft, X, Pin, FileText, Search } from 'lucide-react';
+import { Megaphone, Calendar, Clock, ChevronRight, ChevronLeft, X, Pin, Search, Users, Trophy, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+import WhatsAppShare from '../../components/ui/WhatsAppShare';
+import GatheringVoting from '../../components/portal/GatheringVoting';
+import GatheringSurveys from '../../components/portal/GatheringSurveys';
 
 interface Announcement {
   id: string;
@@ -12,9 +15,29 @@ interface Announcement {
   content: string;
   image_url?: string;
   is_pinned: boolean;
+  announcement_type?: string;
+  gathering_config?: {
+    voting_enabled: boolean;
+    voting_deadline?: string;
+    surveys: Array<{
+      id: string;
+      title: string;
+      description?: string;
+      form_id?: string;
+      external_url?: string;
+    }>;
+  };
+  target_niks?: string[];
   created_by: string;
   profiles?: { name: string };
   created_at: string;
+}
+
+interface Candidate {
+  id: string;
+  name: string;
+  photo_url?: string;
+  sort_order: number;
 }
 
 export default function PortalPengumuman() {
@@ -25,6 +48,8 @@ export default function PortalPengumuman() {
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredAnnouncements, setFilteredAnnouncements] = useState<Announcement[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -33,7 +58,7 @@ export default function PortalPengumuman() {
 
   useEffect(() => {
     if (searchQuery.trim()) {
-      const filtered = announcements.filter(a => 
+      const filtered = announcements.filter(a =>
         a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.content.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -63,7 +88,37 @@ export default function PortalPengumuman() {
     }
   };
 
+  const handleSelectAnnouncement = async (announcement: Announcement) => {
+    setSelectedAnnouncement(announcement);
+
+    // Fetch candidates if gathering type with voting
+    if (announcement.announcement_type === 'gathering' && announcement.gathering_config?.voting_enabled) {
+      setLoadingCandidates(true);
+      try {
+        const { data } = await supabase
+          .from('gathering_candidates')
+          .select('*')
+          .eq('announcement_id', announcement.id)
+          .order('sort_order');
+        if (data) setCandidates(data);
+      } catch (error) {
+        console.error('Error fetching candidates:', error);
+      } finally {
+        setLoadingCandidates(false);
+      }
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedAnnouncement(null);
+    setCandidates([]);
+  };
+
   if (!user) return <Navigate to="/login" />;
+
+  const isGathering = selectedAnnouncement?.announcement_type === 'gathering';
+  const gatheringConfig = selectedAnnouncement?.gathering_config;
+  const targetNiks = selectedAnnouncement?.target_niks || [];
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6">
@@ -137,11 +192,13 @@ export default function PortalPengumuman() {
               transition={{ delay: idx * 0.03 }}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
-              onClick={() => setSelectedAnnouncement(announcement)}
+              onClick={() => handleSelectAnnouncement(announcement)}
               className={`flex flex-col bg-white dark:bg-zinc-900 rounded-2xl md:rounded-3xl text-left border shadow-md md:shadow-lg transition-all cursor-pointer group overflow-hidden ${
-                announcement.is_pinned 
-                  ? 'border-l-4 border-l-amber-500 border-t-amber-200 border-r-amber-200 dark:border-amber-800' 
-                  : 'border-zinc-100 dark:border-zinc-800 hover:border-blue-200 dark:hover:border-blue-800'
+                announcement.is_pinned
+                  ? 'border-l-4 border-l-amber-500 border-t-amber-200 border-r-amber-200 dark:border-amber-800'
+                  : announcement.announcement_type === 'gathering'
+                    ? 'border-l-4 border-l-purple-500 border-t-purple-200 border-r-purple-200 dark:border-purple-800'
+                    : 'border-zinc-100 dark:border-zinc-800 hover:border-blue-200 dark:hover:border-blue-800'
               }`}
             >
               {announcement.image_url && (
@@ -152,14 +209,19 @@ export default function PortalPengumuman() {
               <div className="p-5 flex-1 flex flex-col">
                 <div className="flex-1">
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {announcement.is_pinned && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-black rounded-full">
                           PENTING
                         </span>
                       )}
+                      {announcement.announcement_type === 'gathering' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] font-black rounded-full">
+                          <Users className="w-2.5 h-2.5" /> GATHERING
+                        </span>
+                      )}
                     </div>
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider shrink-0">
                       {format(new Date(announcement.created_at), 'dd MMM yyyy')}
                     </span>
                   </div>
@@ -193,7 +255,7 @@ export default function PortalPengumuman() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => setSelectedAnnouncement(null)}
+            onClick={closeModal}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -202,37 +264,52 @@ export default function PortalPengumuman() {
               className="bg-white dark:bg-zinc-900 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-4 md:p-6 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
+              {/* Modal Header */}
+              <div className="p-4 md:p-6 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    selectedAnnouncement.is_pinned 
-                      ? 'bg-gradient-to-br from-amber-500 to-orange-600' 
-                      : 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                    isGathering
+                      ? 'bg-gradient-to-br from-purple-500 to-indigo-600'
+                      : selectedAnnouncement.is_pinned
+                        ? 'bg-gradient-to-br from-amber-500 to-orange-600'
+                        : 'bg-gradient-to-br from-blue-500 to-indigo-600'
                   }`}>
-                    <Megaphone className="w-5 h-5 text-white" />
+                    {isGathering ? <Users className="w-5 h-5 text-white" /> : <Megaphone className="w-5 h-5 text-white" />}
                   </div>
-                  {selectedAnnouncement.is_pinned && (
-                    <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full">
-                      PENTING
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {selectedAnnouncement.is_pinned && (
+                      <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full">
+                        PENTING
+                      </span>
+                    )}
+                    {isGathering && (
+                      <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs font-bold rounded-full">
+                        GATHERING
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <button
-                  onClick={() => setSelectedAnnouncement(null)}
-                  className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
-                >
-                  <X className="w-6 h-6 text-zinc-500" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <WhatsAppShare title={selectedAnnouncement.title} compact />
+                  <button
+                    onClick={closeModal}
+                    className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+                  >
+                    <X className="w-6 h-6 text-zinc-500" />
+                  </button>
+                </div>
               </div>
-              
+
+              {/* Modal Body */}
               <div className="flex-1 overflow-y-auto">
                 {selectedAnnouncement.image_url && (
                   <div className="w-full bg-zinc-100 dark:bg-zinc-800">
                     <img src={selectedAnnouncement.image_url} alt={selectedAnnouncement.title} className="w-full h-auto" />
                   </div>
                 )}
-                
+
                 <div className="p-6 md:p-8 space-y-6">
+                  {/* Title & Meta */}
                   <div>
                     <h2 className="font-black text-2xl text-zinc-900 dark:text-white mb-4 leading-tight">{selectedAnnouncement.title}</h2>
                     <div className="flex items-center gap-4 text-xs font-bold text-zinc-400 uppercase tracking-widest">
@@ -246,13 +323,51 @@ export default function PortalPengumuman() {
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
-                  
+
+                  {/* Content */}
                   <div className="text-sm md:text-base text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap leading-relaxed">
                     {selectedAnnouncement.content}
                   </div>
-                  
+
+                  {/* ═══════════════════════════════════════ */}
+                  {/* GATHERING-SPECIFIC SECTIONS */}
+                  {/* ═══════════════════════════════════════ */}
+                  {isGathering && (
+                    <div className="space-y-6">
+                      <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
+
+                      {/* Voting Section */}
+                      {gatheringConfig?.voting_enabled && (
+                        <GatheringVoting
+                          announcementId={selectedAnnouncement.id}
+                          candidates={candidates}
+                          targetNiks={targetNiks}
+                          votingDeadline={gatheringConfig.voting_deadline}
+                          votingEnabled={gatheringConfig.voting_enabled}
+                        />
+                      )}
+
+                      {/* Surveys Section */}
+                      {gatheringConfig?.surveys && gatheringConfig.surveys.length > 0 && (
+                        <>
+                          {gatheringConfig.voting_enabled && <div className="h-px bg-zinc-100 dark:bg-zinc-800" />}
+                          <GatheringSurveys
+                            surveys={gatheringConfig.surveys}
+                            targetNiks={targetNiks}
+                          />
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* WhatsApp Share - Full button at bottom */}
+                  <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                    <WhatsAppShare title={selectedAnnouncement.title} />
+                  </div>
+
+                  {/* Author */}
                   <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
                       <span className="text-white font-bold text-xl">{selectedAnnouncement.profiles?.name?.charAt(0) || 'A'}</span>

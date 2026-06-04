@@ -1,3 +1,59 @@
+v4.21.0 — Optimasi Database, Pengamanan RLS, dan Pembersihan Teknis
+----------------------------------------------------------------------------------
+### Perbaikan Utama:
+- **[FIX] `server.ts` (Auth Middleware):** Perbaikan security dan race condition pada `checkAccess` untuk role `member` (jenis_anggota).
+  - Sebelumnya: Query terpisah dan manipulasi state di level middleware → tidak aman saat concurrency tinggi.
+  - Sekarang: Query tunggal `getMemberRole(user.id)` via JOIN dengan `user_members` → hanya satu query per request.
+  - Menghapus flag `isModerator` dari auth state — sekarang ditentukan langsung dari `user_members.role` saat autentikasi (1 query instead of 2).
+  - Mengurangi total query per request dari 2 → 1, dengan konsistensi data yang lebih baik.
+
+- **[FIX] `server.ts` (Transaction Logic):** Perbaikan race condition di `POST /api/transaction/sell` dan `POST /api/transaction/buy`.
+  - Sebelumnya: `stock.decrement()` dan `balance.decrement()` dilakukan di level middleware setelah authorization, bukan di dalam transaction block.
+  - Sekarang: Semua operasi database critical (stock decrement, balance decrement) dipindahkan ke dalam database transaction menggunakan `client.tx()`.
+  - Menambahkan `FOR UPDATE` clause untuk mencegah lost updates saat high concurrency.
+  - Stock yang "dipinjam" otomatis dikembalikan jika gagal di tengah proses (rollback), mencegah over-selling atau stock negatif.
+
+- **[FIX] `server.ts` (Catalog Logic):** Perbaikan race condition di `POST /api/seller/products/publish`.
+  - Menambahkan `FOR UPDATE` di query update stock.
+
+- **[FIX] `server.ts` (Security):** Mengganti username/password PostgreSQL dengan environment variables `SUPABASE_DB_PASSWORD` dan `SUPABASE_DB_USERNAME`.
+  - Menggunakan client dengan SSL/TLS强制, mematikan `rejectUnauthorized` untuk kompatibilitas SSL-on-demand provider.
+
+- **[FIX] `server.ts` (Error Handling):** Memperbaiki parse error untuk JSON dari external APIs (Pusher, Stripe, iPaymu) dengan menambahkan `try/catch`.
+
+### Refactoring & Cleanup:
+- **[Refactor] `server.ts`:** Menghapus redundant code, menyederhanakan endpoint, mengkonsolidasikan logic authentication, dan memisahkan middleware auth dari business logic.
+- **[Refactor] `DashboardLayout.tsx`:** Menghapus duplikat state `member` yang mengarah ke multiple queries.
+- **[Delete] `clean.bat`:** Dihapus karena tidak digunakan.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.20.0 → v4.21.0 (PATCH: critical race condition fixes & security improvements).
+
+v4.20.1 — Fix Sentry startup crash & clean up layout version display
+-----------------------------------------------------------------------
+### Perbaikan:
+- **[FIX] `server.ts`:** Hapus middleware `Sentry.Handlers.requestHandler()` & `tracingHandler()` yang deprecated, dan ganti `app.use(Sentry.Handlers.errorHandler())` dengan `Sentry.setupExpressErrorHandler(app)` untuk kompatibilitas penuh dengan Sentry SDK Node v10. Mencegah crash startup server.
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** Update versi ke `v4.20.1` (PATCH: perbaikan crash startup).
+
+v4.20.0 — Pengumuman Gathering: Voting Ketua Panitia, Survei, Share WhatsApp & Target NIK
+----------------------------------------------------------------------------------
+### Fitur Baru:
+- **[FEAT] `PortalPengumuman.tsx`:** Pengumuman tipe "Gathering" — mendukung voting kandidat ketua panitia dengan foto, link survei internal (dynamic forms), dan share ke WhatsApp.
+- **[FEAT] `AdminAnnouncements.tsx`:** Admin bisa membuat pengumuman Gathering: pilih tipe (Umum/Gathering), kelola kandidat (nama + foto), tambah survei, target NIK, toggle voting, dan deadline voting.
+- **[NEW] `GatheringVoting.tsx`:** Komponen voting kandidat — card grid dengan foto, bar chart hasil real-time (hanya terlihat setelah user vote), bisa ubah pilihan, access control berbasis NIK.
+- **[NEW] `GatheringSurveys.tsx`:** Komponen link survei — integrasi dengan dynamic forms internal, access control berbasis NIK.
+- **[NEW] `WhatsAppShare.tsx`:** Tombol share pengumuman ke WhatsApp — generate link wa.me dengan judul pengumuman dan URL portal.
+- **[DB] Migration SQL:** Tabel baru `gathering_candidates` dan `gathering_votes`, kolom baru di `announcements` (`announcement_type`, `gathering_config`, `target_niks`) + RLS policies.
+
+### Pengaturan Akses:
+- Semua anggota bisa melihat pengumuman Gathering.
+- Hanya NIK yang ditargetkan oleh admin yang bisa ikut voting dan mengakses survei.
+- Voting: 1 user = 1 vote, bisa diubah sebelum deadline.
+- Hasil voting (bar chart persentase) hanya terlihat setelah user sudah memilih.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.19.0 → v4.20.0 (MINOR: fitur baru Gathering).
+
 v4.19.0 — Tambah input manual data scan, download PDF langsung, & export Excel fix
 ----------------------------------------------------------------------------------
 ### Fitur Baru:
