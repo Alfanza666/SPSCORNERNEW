@@ -115,6 +115,11 @@ export default function AdminCouponReports() {
     if (!pdfContentRef.current) return;
     setDownloading(true);
     try {
+      const el = pdfContentRef.current;
+      el?.classList.remove('pdf-content-hidden');
+      el?.classList.add('pdf-content-visible');
+      await new Promise(r => setTimeout(r, 150));
+
       const opt = {
         margin: [10, 8, 10, 8] as [number, number, number, number],
         filename: `Laporan_Kupon_SPS_${startDate}_to_${endDate}.pdf`,
@@ -123,11 +128,13 @@ export default function AdminCouponReports() {
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
         pagebreak: { mode: 'avoid-all' as const }
       };
-      await html2pdf().set(opt).from(pdfContentRef.current).save();
+      await html2pdf().set(opt).from(el).save();
       toast.success('PDF berhasil di download');
     } catch (e: any) {
       toast.error('Gagal download PDF: ' + e.message);
     } finally {
+      pdfContentRef.current?.classList.remove('pdf-content-visible');
+      pdfContentRef.current?.classList.add('pdf-content-hidden');
       setDownloading(false);
     }
   };
@@ -482,16 +489,32 @@ export default function AdminCouponReports() {
       {/* ──────────────────────────────────────────────────────────── */}
       <style>{`
         .pdf-content-hidden {
-          position: absolute;
-          left: -9999px;
+          position: fixed;
           top: 0;
+          left: 0;
           width: 210mm;
           background: white;
           color: black;
           font-family: serif;
           line-height: 1.3;
           padding: 20mm 15mm;
+          opacity: 0;
+          pointer-events: none;
           z-index: -1;
+        }
+        .pdf-content-visible {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 210mm !important;
+          background: white !important;
+          color: black !important;
+          font-family: serif !important;
+          line-height: 1.3 !important;
+          padding: 20mm 15mm !important;
+          opacity: 1 !important;
+          pointer-events: none !important;
+          z-index: 9999 !important;
         }
         .pdf-content-hidden table {
           width: 100%;
