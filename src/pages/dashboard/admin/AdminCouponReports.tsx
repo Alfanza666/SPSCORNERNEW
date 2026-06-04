@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Printer, Search, FileSpreadsheet, Loader2, FileText, Plus, X } from 'lucide-react';
@@ -456,7 +457,7 @@ export default function AdminCouponReports() {
       )}
 
       {/* ──────────────────────────────────────────────────────────── */}
-      {/* AREA KHUSUS PRINT PDF BER-KOP SURAT (HANYA MUNCUL SAAT PRINT)*/}
+      {/* AREA KHUSUS PRINT PDF BER-KOP SURAT (via Portal ke body)    */}
       {/* ──────────────────────────────────────────────────────────── */}
       <style>
         {`
@@ -465,16 +466,21 @@ export default function AdminCouponReports() {
               size: A4 portrait;
               margin: 20mm 15mm 20mm 15mm;
             }
-            /* Sembunyikan komponen non-print */
-            body > *:not(.print-wrapper) {
+            /* Sembunyikan semua konten web */
+            body > *:not(.print-pdf-wrapper) {
               display: none !important;
             }
-            .print-wrapper {
+            .print-pdf-wrapper {
               display: block !important;
+              position: relative !important;
               background: white !important;
               color: black !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              width: 100% !important;
+              font-family: serif !important;
             }
-            .print-wrapper * {
+            .print-pdf-wrapper * {
               background: transparent !important;
               color: black !important;
               box-shadow: none !important;
@@ -488,8 +494,8 @@ export default function AdminCouponReports() {
               page-break-after: avoid;
             }
             .print-table {
-              page-break-before: auto;
               width: 100% !important;
+              border-collapse: collapse !important;
             }
             .print-table thead {
               display: table-header-group;
@@ -499,13 +505,8 @@ export default function AdminCouponReports() {
             }
             .print-ttd {
               page-break-inside: avoid;
-              page-break-before: auto;
               margin-top: 32px !important;
             }
-            .print-footer {
-              page-break-after: avoid;
-            }
-            /* Force table header background tetap ada */
             .print-table thead tr th {
               background-color: #e5e7eb !important;
               -webkit-print-color-adjust: exact !important;
@@ -515,8 +516,8 @@ export default function AdminCouponReports() {
         `}
       </style>
 
-      {reportData.length > 0 && (
-        <div className="print-wrapper hidden print:block bg-white text-black p-0 w-full font-serif leading-tight">
+      {reportData.length > 0 && typeof document !== 'undefined' && createPortal(
+        <div className="print-pdf-wrapper hidden print:block">
           {/* KOP SURAT */}
           <div className="print-kop flex items-center gap-6 mb-2 border-b-4 border-double border-black pb-4">
             <img 
@@ -533,7 +534,7 @@ export default function AdminCouponReports() {
               <p className="text-[11px] leading-tight">Kayu Bawang, Kec. Gambut Banjar, Kalimantan Selatan</p>
             </div>
           </div>
-          
+
           <div className="print-judul text-center my-6">
             <h3 className="text-[16px] font-bold uppercase underline">Laporan Validasi Kupon Program</h3>
             <p className="text-[12px] mt-2">
@@ -544,8 +545,8 @@ export default function AdminCouponReports() {
             </p>
           </div>
 
-          {/* TABEL DATA PADA PDF */}
-          <table className="print-table w-full border-collapse border border-black text-[10px] mb-10">
+          {/* TABEL DATA */}
+          <table className="print-table border border-black text-[10px] mb-10">
             <thead>
               <tr>
                 <th className="border border-black p-[6px] font-bold text-center bg-gray-200">NO</th>
@@ -570,8 +571,8 @@ export default function AdminCouponReports() {
             </tbody>
           </table>
 
-          {/* KOLOM TANDA TANGAN */}
-          <div className="print-ttd flex justify-end mt-12 mb-20 text-[12px]">
+          {/* TANDA TANGAN */}
+          <div className="print-ttd flex justify-end mt-12 text-[12px]">
             <div className="text-center w-64">
               <p>Banjarmasin, {new Date().toLocaleDateString('id-ID')}</p>
               <p className="mb-16">Panitia Penyelenggara / Admin</p>
@@ -579,13 +580,13 @@ export default function AdminCouponReports() {
             </div>
           </div>
 
-          {/* FOOTER PDF */}
-          <div className="print-footer mt-8 pt-4 text-[10px] italic border-t border-gray-300">
+          {/* FOOTER */}
+          <div className="mt-8 pt-4 text-[10px] italic border-t border-gray-300">
             <p className="font-bold">Federasi Serikat Pekerja Sukses (F-SPS)</p>
             <p>PT. Nippon Indosari Corpindo Tbk Plant Banjarmasin - Harmonis.bjm@sariroti.com</p>
           </div>
-
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
