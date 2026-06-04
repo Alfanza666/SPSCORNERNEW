@@ -2,7 +2,7 @@ v4.19.0 — Tambah input manual data scan, download PDF langsung, & export Excel
 ----------------------------------------------------------------------------------
 ### Fitur Baru:
 - **[FEAT] `AdminCouponReports.tsx`:** Tambah modal "Tambah Data Scan" untuk input manual data scan kupon (NIK, Nama, Waktu Scan, Jenis Kupon) — memungkinkan admin mencatat klaim kupon secara retroaktif untuk acara-acara yang tidak terekam scan.
-- **[FEAT] `AdminCouponReports.tsx`:** Ganti "Cetak PDF Resmi" (window.print) → "Download PDF" langsung via html2pdf.js. Unduh file PDF dengan kop surat resmi tanpa dialog print browser.
+- **[FEAT] `AdminCouponReports.tsx`:** Ganti "Cetak PDF Resmi" (window.print/print dialog) → "Download PDF" langsung via jsPDF + autotable. Unduh file PDF dengan kop surat resmi, tabel multi-page dengan header berulang, tanpa dialog print browser.
 
 ### Perbaikan:
 - **[CHANGE] `AdminCouponReports.tsx`:** Default tanggal diubah dari hari ini → awal bulan sampai hari ini.
@@ -11,7 +11,7 @@ v4.19.0 — Tambah input manual data scan, download PDF langsung, & export Excel
 
 ### Teknis:
 - **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.18.2 → v4.19.0 (MINOR).
-- **[NEW] Dependensi:** `html2pdf.js` untuk generate PDF client-side.
+- **[NEW] Dependensi:** `jspdf` + `jspdf-autotable` untuk generate PDF client-side.
 
 v4.18.2 — Fix iPaymu callback status not updating & rate limiter crash (X-Forwarded-For)
 -----------------------------------------------------------------------

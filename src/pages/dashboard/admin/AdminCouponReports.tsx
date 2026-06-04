@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Printer, Search, FileSpreadsheet, Loader2, FileText, Plus, X, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-import html2pdf from 'html2pdf.js';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function AdminCouponReports() {
   const { user } = useAuthStore();
@@ -28,7 +29,6 @@ export default function AdminCouponReports() {
     claimedAt: new Date().toISOString().slice(0, 16),
     couponType: 'attendance'
   });
-  const pdfContentRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
@@ -112,29 +112,151 @@ export default function AdminCouponReports() {
       toast.error('Tarik data terlebih dahulu');
       return;
     }
-    if (!pdfContentRef.current) return;
     setDownloading(true);
     try {
-      const el = pdfContentRef.current;
-      el?.classList.remove('pdf-content-hidden');
-      el?.classList.add('pdf-content-visible');
-      await new Promise(r => setTimeout(r, 150));
+      const mm = (v: number) => v;
+      const pageW = 210;
+      const margin = 15;
+      const usable = pageW - margin * 2;
 
-      const opt = {
-        margin: [10, 8, 10, 8] as [number, number, number, number],
-        filename: `Laporan_Kupon_SPS_${startDate}_to_${endDate}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const },
-        pagebreak: { mode: 'avoid-all' as const }
-      };
-      await html2pdf().set(opt).from(el).save();
+      const doc = new jsPDF('p', 'mm', 'a4');
+      let y = margin;
+
+      // ── KOP SURAT ──
+      // Logo
+      const logoUrl = '/logos/serikat-logo.png';
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = logoUrl;
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => {
+            try { doc.addImage(img, 'PNG', margin, y, 24, 24); } catch {}
+            resolve();
+          };
+          img.onerror = () => resolve();
+          if (img.complete) img.onload(null as any);
+        });
+      } catch {}
+
+      // Teks kop
+      doc.setFont('Times', 'Bold');
+      doc.setFontSize(14);
+      doc.text('FEDERASI SERIKAT PEKERJA SUKSES (F-SPS)', margin + 28, y + 6);
+      doc.setFontSize(12);
+      doc.text('PT.NIPPON INDOSARI CORPINDO, TBK. PLANT BANJARMASIN', margin + 28, y + 12);
+      doc.setFont('Times', 'Normal');
+      doc.setFontSize(9);
+      doc.text('No.Pencatatan Disnaker: 500.15.15.1/325/Disnaker/2024', margin + 28, y + 18);
+      doc.text('BIZPARK COMMERCIAL ESTATE Blok C2 No. 6 Jl. Gubernur Soebardjo (Lingkar Selatan),', margin + 28, y + 23);
+      doc.text('Kayu Bawang, Kec. Gambut Banjar, Kalimantan Selatan', margin + 28, y + 28);
+
+      y += 32;
+      // Garis kop (double)
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, pageW - margin, y);
+      doc.line(margin, y + 0.8, pageW - margin, y + 0.8);
+      y += 8;
+
+      // ── JUDUL ──
+      doc.setFont('Times', 'Bold');
+      doc.setFontSize(13);
+      doc.text('LAPORAN VALIDASI KUPON PROGRAM', pageW / 2, y, { align: 'center' });
+      y += 7;
+      doc.setFont('Times', 'Normal');
+      doc.setFontSize(10);
+      doc.text(`Nomor: ${nomorSurat || '_________________________'}`, pageW / 2, y, { align: 'center' });
+      y += 5;
+      doc.text(`Periode: ${new Date(startDate).toLocaleDateString('id-ID')} s/d ${new Date(endDate).toLocaleDateString('id-ID')}`, pageW / 2, y, { align: 'center' });
+      y += 10;
+
+      // ── TABEL ──
+      const colW = [
+        usable * 0.05,
+        usable * 0.22,
+        usable * 0.15,
+        usable * 0.23,
+        usable * 0.23,
+        usable * 0.12,
+      ];
+
+      const rows = reportData.map((row, idx) => [
+        (idx + 1).toString(),
+        new Date(row.claimed_at).toLocaleString('id-ID'),
+        row.nik,
+        row.name || row.profiles?.name || '-',
+        row.union_programs?.name || '-',
+        ((row.coupon_type || row.gate_type || '-') as string).toUpperCase()
+      ]);
+
+      autoTable(doc, {
+        head: [['NO', 'WAKTU SCAN', 'NIK', 'NAMA KARYAWAN', 'NAMA PROGRAM', 'JENIS']],
+        body: rows,
+        startY: y,
+        margin: { left: margin, right: margin },
+        tableWidth: usable,
+        columnStyles: {
+          0: { cellWidth: colW[0], halign: 'center' },
+          1: { cellWidth: colW[1], halign: 'center' },
+          2: { cellWidth: colW[2], halign: 'left' },
+          3: { cellWidth: colW[3], halign: 'left' },
+          4: { cellWidth: colW[4], halign: 'left' },
+          5: { cellWidth: colW[5], halign: 'center' },
+        },
+        headStyles: {
+          font: 'Times',
+          fontStyle: 'bold',
+          fontSize: 8,
+          fillColor: [200, 200, 200],
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.3,
+        },
+        bodyStyles: {
+          font: 'Times',
+          fontSize: 8,
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          lineWidth: 0.3,
+        },
+        styles: {
+          cellPadding: 2,
+        },
+        pageBreak: 'auto',
+        showHead: 'everyPage',
+        didDrawPage: (data) => {
+          // Footer setiap halaman
+          const pw = doc.internal.pageSize.getWidth();
+          doc.setFont('Times', 'Italic');
+          doc.setFontSize(7);
+          doc.text('Federasi Serikat Pekerja Sukses (F-SPS) - PT. Nippon Indosari Corpindo Tbk Plant Banjarmasin', pw / 2, 290, { align: 'center' });
+        },
+      });
+
+      // ── TANDA TANGAN ──
+      const lastY = (doc as any).lastAutoTable.finalY || y;
+      let sigY = lastY + 20;
+
+      // Jika tanda tangan tidak cukup, halaman baru
+      if (sigY > 260) {
+        doc.addPage();
+        sigY = 30;
+      }
+
+      doc.setFont('Times', 'Normal');
+      doc.setFontSize(10);
+      const tgl = new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+      doc.text(`Banjarmasin, ${tgl}`, pageW - margin - 50, sigY);
+      doc.text('Panitia Penyelenggara / Admin', pageW - margin - 50, sigY + 5);
+
+      // Garis tanda tangan
+      doc.line(pageW - margin - 50, sigY + 18, pageW - margin, sigY + 18);
+
+      doc.save(`Laporan_Kupon_SPS_${startDate}_to_${endDate}.pdf`);
       toast.success('PDF berhasil di download');
     } catch (e: any) {
       toast.error('Gagal download PDF: ' + e.message);
     } finally {
-      pdfContentRef.current?.classList.remove('pdf-content-visible');
-      pdfContentRef.current?.classList.add('pdf-content-hidden');
       setDownloading(false);
     }
   };
@@ -484,116 +606,7 @@ export default function AdminCouponReports() {
         </div>
       )}
 
-      {/* ──────────────────────────────────────────────────────────── */}
-      {/* KONTEN PDF TERSEMBUNYI (untuk html2pdf)                     */}
-      {/* ──────────────────────────────────────────────────────────── */}
-      <style>{`
-        .pdf-content-hidden {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 210mm;
-          background: white;
-          color: black;
-          font-family: serif;
-          line-height: 1.3;
-          padding: 20mm 15mm;
-          opacity: 0;
-          pointer-events: none;
-          z-index: -1;
-        }
-        .pdf-content-visible {
-          position: fixed !important;
-          top: 0 !important;
-          left: 0 !important;
-          width: 210mm !important;
-          background: white !important;
-          color: black !important;
-          font-family: serif !important;
-          line-height: 1.3 !important;
-          padding: 20mm 15mm !important;
-          opacity: 1 !important;
-          pointer-events: none !important;
-          z-index: 9999 !important;
-        }
-        .pdf-content-hidden table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 10px;
-        }
-        .pdf-content-hidden table th,
-        .pdf-content-hidden table td {
-          border: 1px solid black;
-          padding: 6px;
-        }
-        .pdf-content-hidden table th {
-          font-weight: 700;
-          text-align: center;
-          background-color: #e5e7eb;
-        }
-      `}</style>
 
-      <div ref={pdfContentRef} className="pdf-content-hidden">
-        {/* KOP SURAT */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '8px', borderBottom: '4px double black', paddingBottom: '16px' }}>
-          <img src="/logos/serikat-logo.png" alt="Logo Serikat" style={{ width: '96px', height: '96px', objectFit: 'contain' }} crossOrigin="anonymous" />
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.2, margin: 0 }}>FEDERASI SERIKAT PEKERJA SUKSES (F-SPS)</h1>
-            <h2 style={{ fontSize: '14px', fontWeight: 700, lineHeight: 1.2, margin: '4px 0' }}>PT.NIPPON INDOSARI CORPINDO, TBK. PLANT BANJARMASIN</h2>
-            <p style={{ fontSize: '11px', lineHeight: 1.2, margin: '4px 0 0' }}>No.Pencatatan Disnaker: 500.15.15.1/325/Disnaker/2024</p>
-            <p style={{ fontSize: '11px', lineHeight: 1.2, margin: '2px 0' }}>BIZPARK COMMERCIAL ESTATE Blok C2 No. 6 Jl. Gubernur Soebardjo (Lingkar Selatan),</p>
-            <p style={{ fontSize: '11px', lineHeight: 1.2, margin: '2px 0' }}>Kayu Bawang, Kec. Gambut Banjar, Kalimantan Selatan</p>
-          </div>
-        </div>
-
-        {/* JUDUL */}
-        <div style={{ textAlign: 'center', margin: '24px 0' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, textTransform: 'uppercase', textDecoration: 'underline', margin: 0 }}>Laporan Validasi Kupon Program</h3>
-          <p style={{ fontSize: '12px', margin: '8px 0 0' }}>Nomor: {nomorSurat || '_________________________'}</p>
-          <p style={{ fontSize: '12px', margin: '4px 0 0' }}>Periode: {new Date(startDate).toLocaleDateString('id-ID')} s/d {new Date(endDate).toLocaleDateString('id-ID')}</p>
-        </div>
-
-        {/* TABEL */}
-        <table>
-          <thead>
-            <tr>
-              <th style={{ width: '5%' }}>NO</th>
-              <th style={{ width: '22%' }}>WAKTU SCAN</th>
-              <th style={{ width: '15%' }}>NIK</th>
-              <th style={{ width: '23%' }}>NAMA KARYAWAN</th>
-              <th style={{ width: '23%' }}>NAMA PROGRAM</th>
-              <th style={{ width: '12%' }}>JENIS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reportData.map((row, idx) => (
-              <tr key={idx}>
-                <td style={{ textAlign: 'center' }}>{idx + 1}</td>
-                <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{new Date(row.claimed_at).toLocaleString('id-ID')}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>{row.nik}</td>
-                <td>{row.name || row.profiles?.name}</td>
-                <td>{row.union_programs?.name}</td>
-                <td style={{ textAlign: 'center', textTransform: 'uppercase' }}>{(row.coupon_type || row.gate_type || '-')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* TANDA TANGAN */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '48px', fontSize: '12px' }}>
-          <div style={{ textAlign: 'center', width: '256px' }}>
-            <p style={{ margin: 0 }}>Banjarmasin, {new Date().toLocaleDateString('id-ID')}</p>
-            <p style={{ margin: '4px 0 64px' }}>Panitia Penyelenggara / Admin</p>
-            <p style={{ fontWeight: 700, textDecoration: 'underline', margin: 0 }}>( ............................................. )</p>
-          </div>
-        </div>
-
-        {/* FOOTER */}
-        <div style={{ marginTop: '32px', paddingTop: '16px', fontSize: '10px', fontStyle: 'italic', borderTop: '1px solid #999' }}>
-          <p style={{ fontWeight: 700, margin: 0 }}>Federasi Serikat Pekerja Sukses (F-SPS)</p>
-          <p style={{ margin: '2px 0 0' }}>PT. Nippon Indosari Corpindo Tbk Plant Banjarmasin - Harmonis.bjm@sariroti.com</p>
-        </div>
-      </div>
     </div>
   );
 }
