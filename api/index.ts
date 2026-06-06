@@ -1,15 +1,16 @@
 // @ts-nocheck
-let app;
-try {
-  const mod = await import('../server.js');
-  app = mod.default;
-} catch (e) {
-  console.error('[api/index] Failed to load server:', e);
-}
+let appPromise;
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
+  if (!appPromise) {
+    appPromise = import('../server.js').then(m => m.default).catch(e => {
+      console.error('[api] Failed to load server:', e);
+      return null;
+    });
+  }
+  const app = await appPromise;
   if (!app) {
-    res.status(500).json({ error: 'Server module not loaded' });
+    res.status(500).json({ error: 'Server module not loaded', module: String(appPromise) });
     return;
   }
   return app(req, res);
