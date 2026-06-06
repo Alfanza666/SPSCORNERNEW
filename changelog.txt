@@ -1,3 +1,28 @@
+v4.22.0 — Auto-Failover: VPS mati otomatis pindah ke Vercel
+----------------------------------------------------------------------------------
+### Fitur Baru:
+- **[FEAT] `workers/failover.js`:** Cloudflare Worker untuk auto-routing. Di `api.spscorner.store`, Worker cek health VPS tiap 30 detik. Kalau VPS hidup → proxy ke VPS. Kalau mati → fallback ke Vercel (`www.spscorner.store`).
+- **[FEAT] `src/lib/api.ts`:** Fetch wrapper dengan 2-layer failover:
+  1. Coba `api.spscorner.store` (Worker → VPS/Vercel)
+  2. Kalau Worker unreachable, fallback ke relative path (Vercel serverless langsung)
+- **[FEAT] `src/main.tsx`:** Patch global `window.fetch` — semua `/api/*` request otomatis kena failover tanpa perlu ubah 65+ file.
+
+### Arsitektur Failover:
+```
+Frontend (/api/...)
+  ├── Layer 1: api.spscorner.store (Cloudflare Worker)
+  │     ├── VPS hidup → proxy ke VPS (45.158.126.76:3000)
+  │     └── VPS mati → proxy ke www.spscorner.store (Vercel serverless)
+  └── Layer 2: Worker unreachable → fallback ke relative path (Vercel direct)
+```
+
+### Perbaikan:
+- **[FIX] `server.ts`:** Tambah import `HttpsProxyAgent` dari `https-proxy-agent` yang hilang (Fixie error).
+- **[ENV] `.env`:** Isi `FIXIE_URL` untuk Fixie proxy.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.21.1 → v4.22.0 (MINOR: fitur baru auto-failover).
+
 v4.21.1 — Fitur Pilihan NIK (Checkbox) Laporan Kupon
 ----------------------------------------------------------------------------------
 ### Fitur Baru:

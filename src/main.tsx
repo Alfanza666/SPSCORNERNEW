@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App';
 import './index.css';
+import { patchGlobalFetch } from './lib/api';
+
+patchGlobalFetch();
 
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
