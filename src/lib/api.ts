@@ -53,6 +53,7 @@ async function checkPrimary(): Promise<boolean> {
 
 export function patchGlobalFetch() {
   if (typeof window === 'undefined') return;
+  checkPrimary();
   const orig = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const req = input instanceof Request ? input : new Request(input, init);
