@@ -34,6 +34,23 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
   return fetch(path, { ...init, credentials: 'include' });
 }
 
+let primaryAlive = true;
+let primaryCheckAt = 0;
+const PRIMARY_CHECK_TTL = 30_000;
+
+async function checkPrimary(): Promise<boolean> {
+  const now = Date.now();
+  if (now - primaryCheckAt < PRIMARY_CHECK_TTL) return primaryAlive;
+  primaryCheckAt = now;
+  try {
+    await fetch(`${PRIMARY_API}/api/health`, { signal: AbortSignal.timeout(3000) });
+    primaryAlive = true;
+  } catch {
+    primaryAlive = false;
+  }
+  return primaryAlive;
+}
+
 export function patchGlobalFetch() {
   if (typeof window === 'undefined') return;
   const orig = window.fetch.bind(window);
@@ -42,10 +59,15 @@ export function patchGlobalFetch() {
     const url = req.url;
     if (url.startsWith('/api/') || url.startsWith(`${window.location.origin}/api/`)) {
       const path = url.startsWith(window.location.origin) ? url.slice(window.location.origin.length) : url;
-      try {
-        const res = await orig(`${PRIMARY_API}${path}`, init);
-        if (res.ok || res.status < 500) return res;
-      } catch {}
+      const alive = await checkPrimary();
+      if (alive) {
+        try {
+          const res = await orig(`${PRIMARY_API}${path}`, init);
+          if (res.ok || res.status < 500) return res;
+        } catch {
+          primaryAlive = false;
+        }
+      }
       return orig(path, init);
     }
     return orig(input, init);
