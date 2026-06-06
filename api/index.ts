@@ -1,17 +1,11 @@
 // @ts-nocheck
-let appPromise;
+import express from 'express';
 
-export default async function handler(req, res) {
-  if (!appPromise) {
-    appPromise = import('../server.js').then(m => m.default).catch(e => {
-      console.error('[api] Failed to load server:', e);
-      return null;
-    });
-  }
-  const app = await appPromise;
-  if (!app) {
-    res.status(500).json({ error: 'Server module not loaded', module: String(appPromise) });
-    return;
-  }
-  return app(req, res);
+const testApp = express();
+testApp.get('/api/test-ping', (req, res) => {
+  res.json({ ok: true, from: 'vercel-minimal' });
+});
+
+export default function handler(req, res) {
+  return testApp(req, res);
 }
