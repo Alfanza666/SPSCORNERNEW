@@ -1,4 +1,5 @@
 Riwayat Error & Fix:
+- [FIXED] 502 Bad Gateway (Cloudflare sin1::m64wr-17807) — VPS down total (ping, SSH, HTTP semua timeout). Solusi: Implementasi auto-failover ke Vercel via Cloudflare Worker + frontend fetch patch. (v4.22.0)
 - [FIXED] PWA cache conflicts resolved via vite-plugin-pwa.
 - [FIXED] Info icon lucide-react tidak ditemukan di SellerProducts.
 - [FIXED] API /api/standby/check Failed to fetch.

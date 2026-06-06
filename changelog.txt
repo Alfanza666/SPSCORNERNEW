@@ -18,6 +18,9 @@ Frontend (/api/...)
 
 ### Perbaikan:
 - **[FIX] `server.ts`:** Tambah import `HttpsProxyAgent` dari `https-proxy-agent` yang hilang (Fixie error).
+- **[FIX] `api/index.ts`:** Fix Vercel serverless function handler — restore original URL dari rewrite query param `__api`.
+- **[FIX] `vercel.json`:** Tambah rewrite `/api/(.*)` → `/api?__api=$1` agar serverless function menangani semua sub-path API.
+- **[DELETE] `api/[...slug].ts`:** Dihapus — catch-all pattern tidak berfungsi di Vercel standard serverless.
 - **[ENV] `.env`:** Isi `FIXIE_URL` untuk Fixie proxy.
 
 ### Teknis:
