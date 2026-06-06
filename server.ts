@@ -14,6 +14,7 @@ import nodemailer from "nodemailer";
 import webpush from "web-push";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import { HttpsProxyAgent } from "https-proxy-agent";
 import * as Sentry from "@sentry/node";
 import { IpaymuClient } from "./src/services/ipaymu/client.js";
 import { requireAuth, requireRole } from "./src/middleware/auth.js";

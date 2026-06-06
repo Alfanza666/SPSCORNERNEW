@@ -21,10 +21,6 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://api.spscorner.store/api/$1"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
