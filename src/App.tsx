@@ -94,7 +94,6 @@ const PortalFormList = lazyWithRetry(() => import('./pages/portal/PortalFormList
 
 const AdminScanner = lazyWithRetry(() => import('./pages/dashboard/admin/AdminScanner'));
 const AdminFlashsale = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFlashsale'));
-const AdminGathering = lazyWithRetry(() => import('./pages/dashboard/admin/AdminGathering'));
 const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
 const AdminProgramCoupons = lazyWithRetry(() => import('./pages/dashboard/admin/AdminProgramCoupons'));
 const AdminDoorprizeSpin = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprizeSpin'));
@@ -309,8 +308,6 @@ export default function App() {
               <Route path="scanner/" element={<AdminScanner />} />
               <Route path="admin/flashsale" element={<AdminFlashsale />} />
               <Route path="admin/flashsale/" element={<AdminFlashsale />} />
-              <Route path="admin/gathering" element={<AdminGathering />} />
-              <Route path="admin/gathering/" element={<AdminGathering />} />
               <Route path="admin/programs" element={<AdminUnionPrograms />} />
               <Route path="admin/programs/" element={<AdminUnionPrograms />} />
               <Route path="admin/doorprize" element={<AdminDoorprize />} />

@@ -314,8 +314,7 @@ export default function DashboardLayout() {
           { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
             { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
             { to: "/dashboard/admin/kritik-saran", icon: MessageSquare, label: "Kritik & Saran" },
-          { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
-          { to: "/dashboard/admin/gathering", icon: Users, label: "Family Gathering" }
+          { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" }
         ]
       },
       {

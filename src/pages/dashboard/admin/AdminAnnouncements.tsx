@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { Megaphone, Plus, X, Pin, Trash2, Loader2, Edit, Upload, Image as ImageIcon, Users, Trophy, ClipboardList, Calendar, ChevronDown, ChevronUp, UserPlus, FileText } from 'lucide-react';
+import { Megaphone, Plus, X, Pin, Trash2, Loader2, Edit, Upload, Image as ImageIcon, Users, Trophy, ClipboardList, Calendar, ChevronDown, ChevronUp, UserPlus, FileText, BarChart3, CheckCheck } from 'lucide-react';
 import RichTextEditor from '../../../components/ui/RichTextEditor';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -73,6 +73,49 @@ export default function AdminAnnouncements() {
   const [showGatheringSection, setShowGatheringSection] = useState(false);
   const [dynamicForms, setDynamicForms] = useState<{ id: string; title: string }[]>([]);
   const [uploadingCandidate, setUploadingCandidate] = useState<string | null>(null);
+
+  // Voting results modal
+  const [showVoteResults, setShowVoteResults] = useState(false);
+  const [voteResultsAnnouncement, setVoteResultsAnnouncement] = useState<Announcement | null>(null);
+  const [voteResultsCandidates, setVoteResultsCandidates] = useState<{ id: string; name: string; photo_url?: string; count: number }[]>([]);
+  const [voteResultsLoading, setVoteResultsLoading] = useState(false);
+
+  const handleViewVoteResults = async (announcement: Announcement) => {
+    setVoteResultsAnnouncement(announcement);
+    setShowVoteResults(true);
+    setVoteResultsLoading(true);
+    try {
+      const { data: candidates } = await supabase
+        .from('gathering_candidates')
+        .select('*')
+        .eq('announcement_id', announcement.id)
+        .order('sort_order');
+
+      const { data: allVotes } = await supabase
+        .from('gathering_votes')
+        .select('candidate_id')
+        .eq('announcement_id', announcement.id);
+
+      const counts: Record<string, number> = {};
+      if (allVotes) {
+        allVotes.forEach(v => { counts[v.candidate_id] = (counts[v.candidate_id] || 0) + 1; });
+      }
+
+      setVoteResultsCandidates(
+        (candidates || []).map(c => ({
+          id: c.id,
+          name: c.name,
+          photo_url: c.photo_url,
+          count: counts[c.id] || 0,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching vote results:', error);
+      toast.error('Gagal memuat hasil voting');
+    } finally {
+      setVoteResultsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (user && (user.role === 'admin' || user.role === 'superadmin')) {
@@ -757,6 +800,119 @@ export default function AdminAnnouncements() {
           )}
         </AnimatePresence>
 
+        {/* Vote Results Modal */}
+        <AnimatePresence>
+          {showVoteResults && voteResultsAnnouncement && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => { setShowVoteResults(false); setVoteResultsAnnouncement(null); }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white dark:bg-zinc-900 rounded-3xl max-w-lg w-full max-h-[80vh] overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                      <BarChart3 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-zinc-900 dark:text-white">Hasil Voting</h3>
+                      <p className="text-xs text-zinc-500 truncate max-w-[250px]">{voteResultsAnnouncement.title}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setShowVoteResults(false); setVoteResultsAnnouncement(null); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+                    <X className="w-5 h-5 text-zinc-500" />
+                  </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
+                  {voteResultsLoading ? (
+                    <div className="flex justify-center py-10">
+                      <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+                    </div>
+                  ) : voteResultsCandidates.length === 0 ? (
+                    <div className="text-center py-10 text-zinc-400">
+                      <p className="font-bold">Belum ada kandidat</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {(() => {
+                        const totalVotes = voteResultsCandidates.reduce((sum, c) => sum + c.count, 0);
+                        return (
+                          <>
+                            <div className="text-center mb-4">
+                              <p className="text-3xl font-black text-zinc-900 dark:text-white">{totalVotes}</p>
+                              <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Total Suara</p>
+                            </div>
+                            {voteResultsCandidates.map((candidate, idx) => {
+                              const percentage = totalVotes > 0 ? (candidate.count / totalVotes) * 100 : 0;
+                              const isWinner = totalVotes > 0 && candidate.count === Math.max(...voteResultsCandidates.map(c => c.count));
+                              return (
+                                <div
+                                  key={candidate.id}
+                                  className={`p-4 rounded-2xl border-2 transition-all ${
+                                    isWinner
+                                      ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/10'
+                                      : 'border-zinc-100 dark:border-zinc-800'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 mb-3">
+                                    {candidate.photo_url ? (
+                                      <img src={candidate.photo_url} alt={candidate.name} className="w-12 h-12 rounded-xl object-cover" />
+                                    ) : (
+                                      <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 font-bold">
+                                        {candidate.name.charAt(0)}
+                                      </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-bold text-zinc-900 dark:text-white truncate">{candidate.name}</p>
+                                        {isWinner && (
+                                          <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[10px] font-black rounded-full">
+                                            <CheckCheck className="w-3 h-3" /> PEMENANG
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-zinc-500">Kandidat #{idx + 1}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-2xl font-black text-zinc-900 dark:text-white">{candidate.count}</p>
+                                      <p className="text-[10px] text-zinc-500 font-bold">{percentage.toFixed(1)}%</p>
+                                    </div>
+                                  </div>
+                                  <div className="w-full h-3 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${percentage}%` }}
+                                      transition={{ duration: 1, ease: 'easeOut' }}
+                                      className={`h-full rounded-full ${
+                                        isWinner
+                                          ? 'bg-gradient-to-r from-amber-400 to-orange-500'
+                                          : 'bg-zinc-300 dark:bg-zinc-600'
+                                      }`}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* List */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -813,6 +969,15 @@ export default function AdminAnnouncements() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
+                      {announcement.announcement_type === 'gathering' && announcement.gathering_config?.voting_enabled && (
+                        <button
+                          onClick={() => handleViewVoteResults(announcement)}
+                          className="p-2.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-500 hover:text-amber-600 rounded-xl transition-all border border-amber-200 dark:border-amber-800"
+                          title="Lihat Hasil Voting"
+                        >
+                          <BarChart3 className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEdit(announcement)}
                         className="p-2.5 bg-zinc-50 dark:bg-zinc-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-all border border-zinc-100 dark:border-zinc-700"

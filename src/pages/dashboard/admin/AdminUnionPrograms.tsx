@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, RotateCcw } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, RotateCcw, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -23,6 +23,31 @@ export default function AdminUnionPrograms() {
   const [saving, setSaving] = useState(false);
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [showEligibility, setShowEligibility] = useState(false);
+
+  // Registrant viewer
+  const [showRegistrants, setShowRegistrants] = useState(false);
+  const [registrantProgram, setRegistrantProgram] = useState<any>(null);
+  const [registrants, setRegistrants] = useState<any[]>([]);
+  const [registrantsLoading, setRegistrantsLoading] = useState(false);
+
+  const handleViewRegistrants = async (program: any) => {
+    setRegistrantProgram(program);
+    setShowRegistrants(true);
+    setRegistrantsLoading(true);
+    try {
+      const { data } = await supabase
+        .from('program_responses')
+        .select('*, profiles!program_responses_user_id_fkey(name, nik)')
+        .eq('program_id', program.id)
+        .order('created_at', { ascending: false });
+      setRegistrants(data || []);
+    } catch (error) {
+      console.error(error);
+      toast.error('Gagal memuat data pendaftar');
+    } finally {
+      setRegistrantsLoading(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     name: '',
@@ -566,6 +591,13 @@ export default function AdminUnionPrograms() {
                     }`}
                   >
                     {prog.is_active ? 'Aktif' : 'Nonaktif'}
+                  </button>
+                  <button
+                    onClick={() => handleViewRegistrants(prog)}
+                    className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
+                    title="Lihat Pendaftar"
+                  >
+                    <Users className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => openEditModal(prog)}
@@ -1323,6 +1355,91 @@ export default function AdminUnionPrograms() {
             </motion.div>
           </motion.div>
         )}
+
+        {/* Registrant Modal */}
+        <AnimatePresence>
+          {showRegistrants && registrantProgram && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => { setShowRegistrants(false); setRegistrantProgram(null); }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white dark:bg-zinc-900 rounded-3xl max-w-3xl w-full max-h-[85vh] overflow-hidden shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-zinc-900 dark:text-white">Pendaftar Program</h3>
+                      <p className="text-xs text-zinc-500 truncate max-w-[300px]">{registrantProgram.name}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => { setShowRegistrants(false); setRegistrantProgram(null); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+                    <X className="w-5 h-5 text-zinc-500" />
+                  </button>
+                </div>
+
+                <div className="overflow-y-auto max-h-[calc(85vh-80px)]">
+                  {registrantsLoading ? (
+                    <div className="flex justify-center py-16">
+                      <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                    </div>
+                  ) : registrants.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Users className="w-12 h-12 text-zinc-300 mx-auto mb-3" />
+                      <p className="font-bold text-zinc-500">Belum ada pendaftar</p>
+                      <p className="text-xs text-zinc-400 mt-1">Belum ada yang mendaftar program ini</p>
+                    </div>
+                  ) : (
+                    <div className="p-6 space-y-4">
+                      <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{registrants.length} Pendaftar</p>
+                      {registrants.map((resp) => (
+                        <div key={resp.id} className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
+                                {resp.profiles?.name?.charAt(0) || '?'}
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm text-zinc-900 dark:text-white">{resp.profiles?.name}</p>
+                                <p className="text-[10px] text-zinc-500 font-mono">{resp.profiles?.nik}</p>
+                              </div>
+                            </div>
+                            <div className="text-right text-[10px] text-zinc-400">
+                              {resp.additional_family > 0 && (
+                                <p className="font-bold text-zinc-600 dark:text-zinc-300">+{resp.additional_family} keluarga</p>
+                              )}
+                              <p>{resp.payment_status === 'paid' ? 'Lunas' : 'Pending'}</p>
+                            </div>
+                          </div>
+                          {resp.answers && Object.keys(resp.answers).length > 0 && (
+                            <div className="bg-white dark:bg-zinc-900 rounded-xl p-3 border border-zinc-100 dark:border-zinc-800">
+                              {Object.entries(resp.answers).map(([key, val]) => (
+                                <div key={key} className="text-xs flex gap-2 py-1">
+                                  <span className="font-bold text-zinc-500 shrink-0">{key}:</span>
+                                  <span className="text-zinc-700 dark:text-zinc-300">{String(val)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </AnimatePresence>
     </div>
   );

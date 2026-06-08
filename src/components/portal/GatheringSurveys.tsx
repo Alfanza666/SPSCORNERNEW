@@ -19,7 +19,7 @@ interface GatheringSurveysProps {
 export default function GatheringSurveys({ surveys, targetNiks }: GatheringSurveysProps) {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const isTargeted = user?.nik && targetNiks?.includes(user.nik);
+  const isTargeted = !targetNiks || targetNiks.length === 0 || targetNiks.includes(user?.nik || '');
 
   if (!surveys || surveys.length === 0) return null;
 
