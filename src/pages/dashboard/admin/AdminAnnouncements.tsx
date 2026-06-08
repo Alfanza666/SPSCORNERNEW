@@ -27,12 +27,21 @@ interface GatheringConfig {
   surveys: GatheringSurvey[];
 }
 
+interface SurveyQuestion {
+  id: string;
+  label: string;
+  type: 'text' | 'radio' | 'checkbox' | 'textarea';
+  required: boolean;
+  options?: string[];
+}
+
 interface GatheringSurvey {
   id: string;
   title: string;
   description?: string;
   form_id?: string;
   external_url?: string;
+  questions?: SurveyQuestion[];
 }
 
 interface CandidateInput {
@@ -248,10 +257,89 @@ export default function AdminAnnouncements() {
     });
   };
 
-  const updateSurvey = (id: string, field: string, value: string) => {
+  const updateSurvey = (id: string, field: string, value: any) => {
     setGatheringConfig({
       ...gatheringConfig,
       surveys: gatheringConfig.surveys.map(s => s.id === id ? { ...s, [field]: value } : s)
+    });
+  };
+
+  // Inline question management
+  const addQuestion = (surveyId: string) => {
+    setGatheringConfig({
+      ...gatheringConfig,
+      surveys: gatheringConfig.surveys.map(s =>
+        s.id === surveyId
+          ? { ...s, questions: [...(s.questions || []), { id: crypto.randomUUID(), label: '', type: 'text' as const, required: false, options: [] }] }
+          : s
+      )
+    });
+  };
+
+  const removeQuestion = (surveyId: string, questionId: string) => {
+    setGatheringConfig({
+      ...gatheringConfig,
+      surveys: gatheringConfig.surveys.map(s =>
+        s.id === surveyId
+          ? { ...s, questions: (s.questions || []).filter(q => q.id !== questionId) }
+          : s
+      )
+    });
+  };
+
+  const updateQuestion = (surveyId: string, questionId: string, field: string, value: any) => {
+    setGatheringConfig({
+      ...gatheringConfig,
+      surveys: gatheringConfig.surveys.map(s =>
+        s.id === surveyId
+          ? { ...s, questions: (s.questions || []).map(q => q.id === questionId ? { ...q, [field]: value } : q) }
+          : s
+      )
+    });
+  };
+
+  const addOption = (surveyId: string, questionId: string) => {
+    setGatheringConfig({
+      ...gatheringConfig,
+      surveys: gatheringConfig.surveys.map(s =>
+        s.id === surveyId
+          ? { ...s, questions: (s.questions || []).map(q =>
+              q.id === questionId
+                ? { ...q, options: [...(q.options || []), ''] }
+                : q
+            ) }
+          : s
+      )
+    });
+  };
+
+  const removeOption = (surveyId: string, questionId: string, optionIdx: number) => {
+    setGatheringConfig({
+      ...gatheringConfig,
+      surveys: gatheringConfig.surveys.map(s =>
+        s.id === surveyId
+          ? { ...s, questions: (s.questions || []).map(q =>
+              q.id === questionId
+                ? { ...q, options: (q.options || []).filter((_, i) => i !== optionIdx) }
+                : q
+            ) }
+          : s
+      )
+    });
+  };
+
+  const updateOption = (surveyId: string, questionId: string, optionIdx: number, value: string) => {
+    setGatheringConfig({
+      ...gatheringConfig,
+      surveys: gatheringConfig.surveys.map(s =>
+        s.id === surveyId
+          ? { ...s, questions: (s.questions || []).map(q =>
+              q.id === questionId
+                ? { ...q, options: (q.options || []).map((o, i) => i === optionIdx ? value : o) }
+                : q
+            ) }
+          : s
+      )
     });
   };
 
@@ -743,16 +831,99 @@ export default function AdminAnnouncements() {
                             className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
                             placeholder="Deskripsi singkat (opsional)"
                           />
+
+                          {/* Link ke form internal (opsional) */}
                           <select
                             value={survey.form_id || ''}
                             onChange={(e) => updateSurvey(survey.id, 'form_id', e.target.value)}
                             className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
                           >
-                            <option value="">Pilih formulir internal...</option>
+                            <option value="">Pilih formulir internal (opsional)...</option>
                             {dynamicForms.map(f => (
                               <option key={f.id} value={f.id}>{f.title}</option>
                             ))}
                           </select>
+
+                          {/* Inline Questions */}
+                          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Pertanyaan Langsung</p>
+                              <button
+                                type="button"
+                                onClick={() => addQuestion(survey.id)}
+                                className="flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg text-[10px] font-bold hover:bg-purple-200"
+                              >
+                                <Plus className="w-3 h-3" /> Tambah
+                              </button>
+                            </div>
+
+                            {(survey.questions || []).length === 0 && (
+                              <p className="text-[10px] text-zinc-400 text-center py-2">Belum ada pertanyaan. Klik "Tambah" untuk buat pertanyaan langsung.</p>
+                            )}
+
+                            {(survey.questions || []).map((q, qIdx) => (
+                              <div key={q.id} className="mb-2 p-2 bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 space-y-1.5">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={q.label}
+                                    onChange={(e) => updateQuestion(survey.id, q.id, 'label', e.target.value)}
+                                    className="flex-1 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    placeholder={`Pertanyaan #${qIdx + 1}`}
+                                  />
+                                  <select
+                                    value={q.type}
+                                    onChange={(e) => updateQuestion(survey.id, q.id, 'type', e.target.value)}
+                                    className="w-20 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-1 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                  >
+                                    <option value="text">Teks</option>
+                                    <option value="textarea">Paragraf</option>
+                                    <option value="radio">Pilih 1</option>
+                                    <option value="checkbox">Pilih Banyak</option>
+                                  </select>
+                                  <label className="flex items-center gap-1 text-[10px] text-zinc-500 cursor-pointer shrink-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={q.required}
+                                      onChange={(e) => updateQuestion(survey.id, q.id, 'required', e.target.checked)}
+                                      className="w-3 h-3 accent-purple-500"
+                                    />
+                                    Wajib
+                                  </label>
+                                  <button type="button" onClick={() => removeQuestion(survey.id, q.id)} className="p-1 text-zinc-400 hover:text-red-500">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                {(q.type === 'radio' || q.type === 'checkbox') && (
+                                  <div className="pl-2 space-y-1">
+                                    {(q.options || []).map((opt, oIdx) => (
+                                      <div key={oIdx} className="flex items-center gap-1">
+                                        <span className="text-[10px] text-zinc-400 w-4">{oIdx + 1}.</span>
+                                        <input
+                                          type="text"
+                                          value={opt}
+                                          onChange={(e) => updateOption(survey.id, q.id, oIdx, e.target.value)}
+                                          className="flex-1 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-2 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                          placeholder="Opsi jawaban"
+                                        />
+                                        <button type="button" onClick={() => removeOption(survey.id, q.id, oIdx)} className="text-zinc-400 hover:text-red-500">
+                                          <X className="w-2.5 h-2.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <button
+                                      type="button"
+                                      onClick={() => addOption(survey.id, q.id)}
+                                      className="flex items-center gap-0.5 text-[10px] text-purple-600 font-bold hover:text-purple-700"
+                                    >
+                                      <Plus className="w-2.5 h-2.5" /> Tambah opsi
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>

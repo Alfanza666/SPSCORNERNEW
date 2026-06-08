@@ -355,6 +355,7 @@ export default function PortalPengumuman() {
                         <>
                           {gatheringConfig.voting_enabled && <div className="h-px bg-zinc-100 dark:bg-zinc-800" />}
                           <GatheringSurveys
+                            announcementId={selectedAnnouncement.id}
                             surveys={gatheringConfig.surveys}
                             targetNiks={targetNiks}
                           />
