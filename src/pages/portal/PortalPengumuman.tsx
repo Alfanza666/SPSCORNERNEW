@@ -226,7 +226,7 @@ export default function PortalPengumuman() {
                     </span>
                   </div>
                   <h3 className="font-bold text-base text-zinc-900 dark:text-white leading-tight mb-2 line-clamp-2">{announcement.title}</h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed mb-4">{announcement.content}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed mb-4">{announcement.content.replace(/<[^>]*>/g, '')}</p>
                 </div>
                 <div className="flex items-center justify-between mt-auto pt-4 border-t border-zinc-50 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
@@ -327,9 +327,10 @@ export default function PortalPengumuman() {
                   <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
 
                   {/* Content */}
-                  <div className="text-sm md:text-base text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap leading-relaxed">
-                    {selectedAnnouncement.content}
-                  </div>
+                  <div
+                    className="text-sm md:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: selectedAnnouncement.content }}
+                  />
 
                   {/* ═══════════════════════════════════════ */}
                   {/* GATHERING-SPECIFIC SECTIONS */}

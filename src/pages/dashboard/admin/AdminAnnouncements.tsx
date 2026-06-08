@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Megaphone, Plus, X, Pin, Trash2, Loader2, Edit, Upload, Image as ImageIcon, Users, Trophy, ClipboardList, Calendar, ChevronDown, ChevronUp, UserPlus, FileText } from 'lucide-react';
+import RichTextEditor from '../../../components/ui/RichTextEditor';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -281,7 +282,7 @@ export default function AdminAnnouncements() {
               },
               body: JSON.stringify({
                 title: 'Pengumuman Baru: ' + form.title,
-                message: form.content.substring(0, 100) + (form.content.length > 100 ? '...' : ''),
+                message: form.content.replace(/<[^>]*>/g, '').substring(0, 100) + (form.content.replace(/<[^>]*>/g, '').length > 100 ? '...' : ''),
                 url: '/portal/pengumuman'
               })
             });
@@ -519,12 +520,10 @@ export default function AdminAnnouncements() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-zinc-500 mb-1">Konten</label>
-                  <textarea
-                    value={form.content}
-                    onChange={(e) => setForm({ ...form, content: e.target.value })}
-                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-4 py-3 text-sm h-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <RichTextEditor
+                    content={form.content}
+                    onChange={(html) => setForm({ ...form, content: html })}
                     placeholder="Isi pengumuman..."
-                    required
                   />
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -805,7 +804,7 @@ export default function AdminAnnouncements() {
                         </span>
                       </div>
                       <h3 className="font-bold text-zinc-900 dark:text-white leading-tight text-lg mb-2">{announcement.title}</h3>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-3 leading-relaxed">{announcement.content}</p>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-3 leading-relaxed">{announcement.content.replace(/<[^>]*>/g, '')}</p>
                       <div className="flex items-center gap-2 mt-4 text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
                         <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
                           {announcement.profiles?.name?.charAt(0) || 'A'}
