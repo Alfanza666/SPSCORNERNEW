@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../lib/supabase';
@@ -102,6 +102,27 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [checkingSubmission, setCheckingSubmission] = useState(true);
+
+  // Check if user already submitted this survey
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user) { setCheckingSubmission(false); return; }
+      const { data } = await supabase
+        .from('announcement_survey_responses')
+        .select('id')
+        .eq('announcement_id', announcementId)
+        .eq('survey_id', survey.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!cancelled) {
+        if (data) setSubmitted(true);
+        setCheckingSubmission(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, announcementId, survey.id]);
 
   const handleOpenSurvey = () => {
     if (hasInlineQuestions) {
@@ -155,6 +176,14 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
       return { ...prev, [qId]: current.filter((o: string) => o !== option) };
     });
   };
+
+  if (checkingSubmission) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
+      </div>
+    );
+  }
 
   if (showForm && hasInlineQuestions) {
     if (submitted) {
@@ -278,6 +307,23 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
             {submitting ? 'Mengirim...' : 'Kirim Survei'}
           </button>
         </form>
+      </motion.div>
+    );
+  }
+
+  // Already submitted — show success state
+  if (submitted && hasInlineQuestions) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-6 bg-white dark:bg-zinc-800/50 rounded-2xl border border-green-200 dark:border-green-800 text-center"
+      >
+        <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-3">
+          <CheckCircle2 className="w-7 h-7 text-green-600" />
+        </div>
+        <p className="font-bold text-zinc-900 dark:text-white text-sm">{survey.title}</p>
+        <p className="text-xs text-zinc-500 mt-1">Terima kasih, jawaban Anda sudah tercatat.</p>
       </motion.div>
     );
   }

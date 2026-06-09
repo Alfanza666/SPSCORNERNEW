@@ -1,3 +1,12 @@
+v4.22.1 — Fix: Vote & survey terduplikasi saat edit pengumuman gathering
+----------------------------------------------------------------------------------
+### Perbaikan:
+- **[FIX] `AdminAnnouncements.tsx`:** Saat edit pengumuman gathering, kandidat di-`DELETE`+`INSERT` ulang dengan UUID baru → vote jadi orphan (hilang referensi). Diperbaiki dengan hanya `UPDATE` kandidat existing (pertahankan ID), `INSERT` kandidat baru, dan `DELETE` hanya kandidat yang dihapus beserta vote-nya. Vote lama tetap utuh.
+- **[FIX] `GatheringSurveys.tsx`:** User bisa submit survei berkali-kali karena tidak ada pengecekan duplikat. Ditambahkan `useEffect` yang mengecek `announcement_survey_responses` saat mount — jika sudah pernah submit, tampilkan status "sudah tercatat" dan disable form.
+
+### Teknis:
+- **[CHANGE] package.json:** v4.22.0 → v4.22.1 (PATCH: perbaikan duplikasi data).
+
 v4.22.0 — Auto-Failover: VPS mati otomatis pindah ke Vercel
 ----------------------------------------------------------------------------------
 ### Fitur Baru:

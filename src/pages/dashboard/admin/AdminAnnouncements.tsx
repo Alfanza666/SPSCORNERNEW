@@ -425,24 +425,52 @@ export default function AdminAnnouncements() {
 
       // Save candidates for gathering type
       if (form.announcement_type === 'gathering' && gatheringConfig.voting_enabled) {
-        // Delete existing candidates first (for edit mode)
         if (editingId) {
-          await supabase.from('gathering_candidates').delete().eq('announcement_id', announcementId);
-        }
-
-        // Insert candidates
-        if (candidates.length > 0) {
-          const candidateData = candidates.map((c, i) => ({
-            announcement_id: announcementId,
-            name: c.name,
-            photo_url: c.photo_url || null,
-            sort_order: i
-          }));
-
-          const { error: candError } = await supabase
+          // Get existing candidate IDs from DB to detect removals
+          const { data: dbCandidates } = await supabase
             .from('gathering_candidates')
-            .insert(candidateData);
-          if (candError) throw candError;
+            .select('id')
+            .eq('announcement_id', announcementId);
+          const dbIds = new Set(dbCandidates?.map(c => c.id) || []);
+          const currentIds = new Set(candidates.filter(c => c.id).map(c => c.id));
+
+          // Delete votes and candidates that were removed from the list
+          const removedIds = [...dbIds].filter(id => !currentIds.has(id));
+          if (removedIds.length > 0) {
+            await supabase.from('gathering_votes').delete().in('candidate_id', removedIds);
+            await supabase.from('gathering_candidates').delete().in('id', removedIds);
+          }
+
+          // Update existing and insert new candidates
+          for (let i = 0; i < candidates.length; i++) {
+            const c = candidates[i];
+            if (c.id) {
+              const { error } = await supabase
+                .from('gathering_candidates')
+                .update({ name: c.name, photo_url: c.photo_url || null, sort_order: i })
+                .eq('id', c.id);
+              if (error) throw error;
+            } else {
+              const { error } = await supabase
+                .from('gathering_candidates')
+                .insert({ announcement_id: announcementId, name: c.name, photo_url: c.photo_url || null, sort_order: i });
+              if (error) throw error;
+            }
+          }
+        } else {
+          // New announcement — just insert all candidates
+          if (candidates.length > 0) {
+            const candidateData = candidates.map((c, i) => ({
+              announcement_id: announcementId,
+              name: c.name,
+              photo_url: c.photo_url || null,
+              sort_order: i
+            }));
+            const { error: candError } = await supabase
+              .from('gathering_candidates')
+              .insert(candidateData);
+            if (candError) throw candError;
+          }
         }
       }
 
