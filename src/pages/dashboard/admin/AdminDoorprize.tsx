@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Gift, Users, Trophy, Loader2, Play, Download, Sparkles, Upload, Plus, X, UserPlus, Clock, Image, PartyPopper, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -19,13 +19,21 @@ interface Prize {
 
 interface Winner {
   id: string;
-  program_id: string;
+  program_id: string | null;
   winner_name: string;
   winner_nik: string;
   prize_name: string;
-  draw_sequence: number;
   drawn_at: string;
 }
+
+const SEGMENT_COLORS = [
+  '#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EC4899',
+  '#F97316', '#06B6D4', '#8B5CF6', '#EF4444', '#14B8A6',
+  '#6366F1', '#84CC16', '#D946EF', '#0EA5E9', '#22C55E',
+  '#EAB308', '#A855F7', '#38BDF8', '#FB923C', '#2DD4BF',
+];
+
+const CONFETTI_COLORS = ['#7C3AED', '#F97316', '#10B981', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#06B6D4'];
 
 const playTick = () => {
   try {
@@ -42,7 +50,7 @@ const playTick = () => {
     gain.gain.setValueAtTime(0.1, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
     osc.start();
-    osc.stop(ctx.currentTime + 0.05);
+    osc.stop(ctx.currentTime + 0.07);
   } catch (e) {}
 };
 
@@ -57,17 +65,15 @@ const playWin = () => {
     gain.connect(ctx.destination);
     osc.type = 'sine';
     osc.frequency.setValueAtTime(523.25, ctx.currentTime);
-    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
-    osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2);
-    osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.3);
+    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12);
+    osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.24);
+    osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.36);
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.0);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2);
     osc.start();
-    osc.stop(ctx.currentTime + 1.0);
+    osc.stop(ctx.currentTime + 1.2);
   } catch (e) {}
 };
-
-const CONFETTI_COLORS = ['#7C3AED', '#F97316', '#10B981', '#3B82F6', '#EC4899', '#F59E0B', '#8B5CF6', '#06B6D4'];
 
 export default function AdminDoorprize() {
   const [activeTab, setActiveTab] = useState<'program' | 'manual' | 'excel'>('program');
@@ -88,12 +94,18 @@ export default function AdminDoorprize() {
   const [loadingWinners, setLoadingWinners] = useState(false);
 
   const [isSpinning, setIsSpinning] = useState(false);
-  const [currentDisplay, setCurrentDisplay] = useState<Participant | null>(null);
-  const [finalWinner, setFinalWinner] = useState<Winner | null>(null);
+  const [showWinner, setShowWinner] = useState(false);
+  const [latestWinner, setLatestWinner] = useState<Winner | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-
   const [drawComplete, setDrawComplete] = useState(false);
+
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const wheelRef = useRef<HTMLDivElement>(null);
   const winnerRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number | null>(null);
+  const tickIntervalRef = useRef<number | null>(null);
+  const pendingWinner = useRef<Participant | null>(null);
 
   useEffect(() => {
     fetchPrograms();
@@ -142,25 +154,14 @@ export default function AdminDoorprize() {
       .from('program_doorprize_log')
       .select('*')
       .eq('program_id', selectedProgramId)
-      .order('draw_sequence', { ascending: true });
+      .order('drawn_at', { ascending: true });
     if (data) setWinners(data);
     setLoadingWinners(false);
   };
 
-  const getEligible = useCallback((): Participant[] => {
-    const winnerNiks = winners.map(w => w.winner_nik);
-    return allParticipants.filter(p => !winnerNiks.includes(p.nik));
-  }, [allParticipants, winners]);
-
   const addPrize = () => {
-    if (!prizeNameInput.trim()) {
-      toast.error('Masukkan nama hadiah');
-      return;
-    }
-    if (prizeQtyInput < 1) {
-      toast.error('Jumlah minimal 1');
-      return;
-    }
+    if (!prizeNameInput.trim()) { toast.error('Masukkan nama hadiah'); return; }
+    if (prizeQtyInput < 1) { toast.error('Jumlah minimal 1'); return; }
     setPrizes(prev => [...prev, { name: prizeNameInput.trim(), quantity: prizeQtyInput }]);
     setPrizeNameInput('');
     setPrizeQtyInput(1);
@@ -171,29 +172,15 @@ export default function AdminDoorprize() {
   };
 
   const addManualParticipant = () => {
-    if (!manualName.trim()) {
-      toast.error('Masukkan nama peserta');
-      return;
-    }
-    if (!manualNik.trim()) {
-      toast.error('Masukkan NIK peserta');
-      return;
-    }
-    const exists = allParticipants.some(p => p.nik === manualNik.trim());
-    if (exists) {
-      toast.error('Peserta dengan NIK ini sudah ada');
-      return;
-    }
-    const newParticipant: Participant = {
-      id: `manual_${Date.now()}`,
-      name: manualName.trim(),
-      nik: manualNik.trim(),
-    };
-    setAllParticipants(prev => [...prev, newParticipant]);
+    if (!manualName.trim()) { toast.error('Masukkan nama peserta'); return; }
+    if (!manualNik.trim()) { toast.error('Masukkan NIK peserta'); return; }
+    if (allParticipants.some(p => p.nik === manualNik.trim())) { toast.error('NIK sudah ada'); return; }
+    const newP: Participant = { id: `manual_${Date.now()}`, name: manualName.trim(), nik: manualNik.trim() };
+    setAllParticipants(prev => [...prev, newP]);
     setEligibleCount(prev => prev + 1);
     setManualName('');
     setManualNik('');
-    toast.success(`${newParticipant.name} ditambahkan`);
+    toast.success(`${newP.name} ditambahkan`);
   };
 
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,78 +190,81 @@ export default function AdminDoorprize() {
     reader.onload = (ev) => {
       try {
         const data = new Uint8Array(ev.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json: any[] = XLSX.utils.sheet_to_json(sheet);
-        const mapped: Participant[] = json.map((row, idx) => ({
+        const wb = XLSX.read(data, { type: 'array' });
+        const json: any[] = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        const mapped = json.map((row, idx) => ({
           id: `excel_${Date.now()}_${idx}`,
           name: row.Name || row.name || row.NAMA || row.Nama || '',
-          nik: String(row.NIK || row.Nik || row.nik || row.nik || ''),
+          nik: String(row.NIK || row.Nik || row.nik || ''),
         })).filter(p => p.name && p.nik);
-
-        if (mapped.length === 0) {
-          toast.error('Tidak ada data valid. Pastikan kolom Name/NAMA dan NIK tersedia.');
-          return;
-        }
-
+        if (mapped.length === 0) { toast.error('Tidak ada data valid. Kolom: Name/NAMA + NIK'); return; }
         const existingNiks = new Set(allParticipants.map(p => p.nik));
         const newOnes = mapped.filter(p => !existingNiks.has(p.nik));
         setAllParticipants(prev => [...prev, ...newOnes]);
         setEligibleCount(prev => prev + newOnes.length);
-        toast.success(`${newOnes.length} peserta ditambahkan dari Excel`);
-      } catch (err) {
-        toast.error('Gagal membaca file Excel');
-      }
+        toast.success(`${newOnes.length} peserta ditambahkan`);
+      } catch { toast.error('Gagal membaca Excel'); }
     };
     reader.readAsArrayBuffer(file);
     e.target.value = '';
   };
 
-  const startSpin = () => {
-    if (getEligible().length === 0) {
-      toast.error('Tidak ada peserta eligible');
-      return;
-    }
-
-    if (prizes.length === 0 || prizes.every(p => !p.name)) {
-      toast.error('Tambahkan hadiah terlebih dahulu');
-      return;
-    }
-
-    if (currentPrizeIndex >= prizes.length) {
-      setDrawComplete(true);
-      toast.success('Semua hadiah sudah diundi!');
-      return;
-    }
-
-    setFinalWinner(null);
-    setShowConfetti(false);
-    setIsSpinning(true);
-
-    const eligible = getEligible();
-    const duration = 4000;
-    const startTime = Date.now();
-
-    const spin = () => {
-      const elapsed = Date.now() - startTime;
-      if (elapsed > duration) {
-        finishSpin(eligible);
-      } else {
-        const rand = eligible[Math.floor(Math.random() * eligible.length)];
-        setCurrentDisplay(rand);
-        if (elapsed % 100 < 50) playTick();
-        const delay = elapsed > duration * 0.7 ? 150 : elapsed > duration * 0.9 ? 300 : 50;
-        setTimeout(spin, delay);
-      }
-    };
-    spin();
+  const getEligible = (): Participant[] => {
+    const winnerNiks = new Set(winners.map(w => w.winner_nik));
+    return allParticipants.filter(p => !winnerNiks.has(p.nik));
   };
 
-  const finishSpin = async (eligible: Participant[]) => {
-    try {
-      const winner = eligible[Math.floor(Math.random() * eligible.length)];
-      const currentPrize = prizes[currentPrizeIndex];
+  const spinWheel = () => {
+    const eligible = getEligible();
+    if (eligible.length === 0) { toast.error('Tidak ada peserta eligible'); return; }
+    if (prizes.every(p => !p.name)) { toast.error('Tambahkan hadiah terlebih dahulu'); return; }
+    if (currentPrizeIndex >= prizes.length) { setDrawComplete(true); toast.success('Semua hadiah sudah diundi!'); return; }
 
+    setShowWinner(false);
+    setLatestWinner(null);
+    setShowConfetti(false);
+    setIsSpinning(true);
+    setIsTransitioning(true);
+
+    const winnerIdx = Math.floor(Math.random() * eligible.length);
+    const winner = eligible[winnerIdx];
+    pendingWinner.current = winner;
+
+    const segAngle = 360 / eligible.length;
+    const targetAngle = winnerIdx * segAngle + segAngle / 2;
+    const fullSpins = 360 * (5 + Math.floor(Math.random() * 3));
+    const totalAdd = fullSpins + (360 - targetAngle);
+
+    setWheelRotation(prev => prev + totalAdd);
+
+    const spinDuration = 5000 + Math.random() * 1000;
+    if (wheelRef.current) {
+      wheelRef.current.style.transition = `transform ${spinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)`;
+    }
+
+    let startTime = Date.now();
+    const tickInterval = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < spinDuration - 500) {
+        playTick();
+      } else {
+        clearInterval(tickInterval);
+      }
+    }, 80);
+    tickIntervalRef.current = tickInterval;
+
+    setTimeout(() => {
+      completeSpin(winner);
+    }, spinDuration + 100);
+  };
+
+  const completeSpin = async (winner: Participant) => {
+    setIsTransitioning(false);
+    clearInterval(tickIntervalRef.current || undefined);
+
+    const currentPrize = prizes[currentPrizeIndex];
+
+    try {
       const { data, error } = await supabase
         .from('program_doorprize_log')
         .insert({
@@ -282,7 +272,6 @@ export default function AdminDoorprize() {
           winner_name: winner.name,
           winner_nik: winner.nik,
           prize_name: currentPrize.name,
-          draw_sequence: winners.length + 1,
         })
         .select()
         .single();
@@ -291,65 +280,58 @@ export default function AdminDoorprize() {
 
       playWin();
 
-      const winnerData: Winner = {
+      const w: Winner = {
         id: data?.id || `local_${Date.now()}`,
         program_id: data?.program_id || selectedProgramId,
         winner_name: data?.winner_name || winner.name,
         winner_nik: data?.winner_nik || winner.nik,
         prize_name: data?.prize_name || currentPrize.name,
-        draw_sequence: data?.draw_sequence || winners.length + 1,
         drawn_at: data?.drawn_at || new Date().toISOString(),
       };
 
-      setFinalWinner(winnerData);
-      setCurrentDisplay(winner);
+      setLatestWinner(w);
+      setShowWinner(true);
       setShowConfetti(true);
       setCurrentPrizeIndex(prev => prev + 1);
 
-      const winnerNiks = new Set([...winners.map(w => w.winner_nik), winner.nik]);
-      const remaining = allParticipants.filter(p => !winnerNiks.has(p.nik));
-      setEligibleCount(remaining.length);
+      const winnerNiks = new Set([...winners.map(x => x.winner_nik), w.winner_nik]);
+      setEligibleCount(allParticipants.filter(p => !winnerNiks.has(p.nik)).length);
 
       if (activeTab === 'program') fetchWinners();
-      else setWinners(prev => [...prev, winnerData]);
+      else setWinners(prev => [...prev, w]);
 
-      toast.success(`Selamat! ${winner.name} memenangkan ${currentPrize.name}!`);
+      toast.success(`Selamat! ${w.winner_name} memenangkan ${w.prize_name}!`);
+
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
     } catch (err: any) {
       toast.error(err.message || 'Gagal menyimpan pemenang');
     } finally {
       setIsSpinning(false);
+      pendingWinner.current = null;
     }
   };
 
   const saveWinnerImage = async () => {
-    if (!winnerRef.current || !finalWinner) return;
+    if (!winnerRef.current || !latestWinner) return;
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(winnerRef.current, {
-        backgroundColor: '#09090b',
-        scale: 2,
-      });
+      const canvas = await html2canvas(winnerRef.current, { backgroundColor: '#09090b', scale: 2 });
       const link = document.createElement('a');
-      link.download = `pemenang_${finalWinner.winner_name.replace(/\s+/g, '_')}.png`;
+      link.download = `pemenang_${latestWinner.winner_name.replace(/\s+/g, '_')}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-      toast.success('Gambar pemenang disimpan!');
-    } catch {
-      toast.error('Gagal menyimpan gambar');
-    }
+      toast.success('Gambar disimpan!');
+    } catch { toast.error('Gagal menyimpan gambar'); }
   };
 
   const exportWinners = () => {
-    if (winners.length === 0) {
-      toast.error('Belum ada pemenang');
-      return;
-    }
+    if (winners.length === 0) { toast.error('Belum ada pemenang'); return; }
     const data = winners.map((w, i) => ({
       'No': i + 1,
       'Hadiah': w.prize_name,
       'Nama Pemenang': w.winner_name,
       'NIK': w.winner_nik,
-      'Waktu Undian': format(new Date(w.drawn_at), 'dd MMM yyyy HH:mm:ss'),
+      'Waktu': format(new Date(w.drawn_at), 'dd MMM yyyy HH:mm:ss'),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -358,20 +340,123 @@ export default function AdminDoorprize() {
   };
 
   const resetDraw = () => {
-    setFinalWinner(null);
-    setCurrentDisplay(null);
+    setShowWinner(false);
+    setLatestWinner(null);
     setShowConfetti(false);
     setCurrentPrizeIndex(0);
     setDrawComplete(false);
+    setWheelRotation(0);
     setPrizes([{ name: '', quantity: 1 }]);
   };
 
   const currentPrize = prizes[currentPrizeIndex];
-  const remainingPrizes = prizes.slice(currentPrizeIndex);
-  const totalDraws = prizes.reduce((sum, p) => sum + p.quantity, 0);
+  const eligible = getEligible();
+  const segAngle = eligible.length > 0 ? 360 / eligible.length : 0;
+  const showNamesOnWheel = eligible.length <= 36;
+  const fontSize = showNamesOnWheel ? Math.max(8, Math.min(14, Math.floor(280 / eligible.length))) : 0;
+  const R = 220;
+
+  const renderWheel = () => {
+    if (eligible.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4">
+          <Gift className="w-20 h-20 text-zinc-400/50" />
+          <p className="text-lg font-bold">Belum ada peserta</p>
+          <p className="text-sm">Tambah peserta via panel samping</p>
+        </div>
+      );
+    }
+
+    const segAngle = 360 / eligible.length;
+    const cx = 0, cy = 0;
+
+    const segments = eligible.map((p, i) => {
+      const startDeg = i * segAngle;
+      const endDeg = (i + 1) * segAngle;
+      const startRad = ((startDeg - 90) * Math.PI) / 180;
+      const endRad = ((endDeg - 90) * Math.PI) / 180;
+      const x1 = cx + R * Math.cos(startRad);
+      const y1 = cy + R * Math.sin(startRad);
+      const x2 = cx + R * Math.cos(endRad);
+      const y2 = cy + R * Math.sin(endRad);
+      const largeArc = segAngle > 180 ? 1 : 0;
+      const pathD = `M ${cx} ${cy} L ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+      const color = SEGMENT_COLORS[i % SEGMENT_COLORS.length];
+      const midDeg = startDeg + segAngle / 2;
+
+      let shortName = p.name;
+      if (showNamesOnWheel && segAngle < 20) {
+        const maxChars = Math.max(2, Math.floor(segAngle / 2.5));
+        shortName = p.name.length > maxChars ? p.name.slice(0, maxChars) + '..' : p.name;
+      }
+
+      return { pathD, color, midDeg, name: shortName, nik: p.nik, p };
+    });
+
+    const textR = R * 0.65;
+
+    return (
+      <svg viewBox="-240 -240 480 480" className="w-full h-full drop-shadow-2xl">
+        <defs>
+          <filter id="wheelShadow">
+            <feDropShadow dx="0" dy="0" stdDeviation="4" floodOpacity="0.3" />
+          </filter>
+        </defs>
+
+        <g ref={wheelRef as any} filter="url(#wheelShadow)">
+          {segments.map((seg, i) => (
+            <g key={seg.nik}>
+              <path d={seg.pathD} fill={seg.color} stroke="#1a1a2e" strokeWidth={1.5} />
+            </g>
+          ))}
+        </g>
+
+        {showNamesOnWheel && (
+          <g>
+            {segments.map(seg => {
+              const midRad = ((seg.midDeg - 90) * Math.PI) / 180;
+              const tx = textR * Math.cos(midRad);
+              const ty = textR * Math.sin(midRad);
+              return (
+                <g key={`text-${seg.nik}`}>
+                  <text
+                    x={tx} y={ty}
+                    transform={`rotate(${seg.midDeg}, ${tx}, ${ty})`}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="white"
+                    fontSize={fontSize}
+                    fontWeight="bold"
+                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)', pointerEvents: 'none' }}
+                  >
+                    {seg.name}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
+
+        {!showNamesOnWheel && (
+          <text x={0} y={0} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize={14} fontWeight="bold">
+            {eligible.length} peserta
+          </text>
+        )}
+
+        <g transform="rotate(180)">
+          <polygon points="0,-238 -16,-270 16,-270" fill="white" stroke="#7C3AED" strokeWidth="3" />
+        </g>
+      </svg>
+    );
+  };
+
+  const currentPrizeLabel = currentPrizeIndex < prizes.length && prizes[currentPrizeIndex]?.name
+    ? prizes[currentPrizeIndex].name
+    : '-';
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 dark:text-white">
+      {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black flex items-center gap-3">
@@ -379,7 +464,7 @@ export default function AdminDoorprize() {
             Undian Doorprize
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">
-            Acak pemenang doorprize dari 3 sumber peserta
+            Acak pemenang dengan roda undian interaktif
           </p>
         </div>
         {winners.length > 0 && (
@@ -393,7 +478,9 @@ export default function AdminDoorprize() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT: Controls */}
         <div className="lg:col-span-1 space-y-6">
+          {/* Participant Source */}
           <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <h3 className="text-sm font-black text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2">
               <Users className="w-4 h-4 text-purple-500" />
@@ -416,42 +503,29 @@ export default function AdminDoorprize() {
             </div>
 
             {activeTab === 'program' && (
-              <div className="space-y-4">
-                <select
-                  value={selectedProgramId}
-                  onChange={e => setSelectedProgramId(e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none"
-                >
-                  <option value="">-- Pilih Program --</option>
-                  {programs.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
+              <select
+                value={selectedProgramId}
+                onChange={e => setSelectedProgramId(e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none"
+              >
+                <option value="">-- Pilih Program --</option>
+                {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
             )}
 
             {activeTab === 'manual' && (
               <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Nama peserta"
-                  value={manualName}
+                <input type="text" placeholder="Nama peserta" value={manualName}
                   onChange={e => setManualName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addManualParticipant()}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none"
-                />
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none" />
                 <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="NIK"
-                    value={manualNik}
+                  <input type="text" placeholder="NIK" value={manualNik}
                     onChange={e => setManualNik(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addManualParticipant()}
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none"
-                  />
+                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none" />
                   <button onClick={addManualParticipant}
-                    className="px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all active:scale-95"
-                  >
+                    className="px-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all active:scale-95">
                     <UserPlus className="w-5 h-5" />
                   </button>
                 </div>
@@ -459,19 +533,12 @@ export default function AdminDoorprize() {
             )}
 
             {activeTab === 'excel' && (
-              <div className="space-y-3">
-                <label className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-2xl cursor-pointer hover:border-purple-500 dark:hover:border-purple-400 transition-colors">
-                  <Upload className="w-8 h-8 text-zinc-400" />
-                  <span className="text-sm font-bold text-zinc-500">Upload file .xlsx</span>
-                  <span className="text-xs text-zinc-400">Kolom: Name/NAMA dan NIK</span>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleExcelUpload}
-                    className="hidden"
-                  />
-                </label>
-              </div>
+              <label className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-2xl cursor-pointer hover:border-purple-500 dark:hover:border-purple-400 transition-colors">
+                <Upload className="w-8 h-8 text-zinc-400" />
+                <span className="text-sm font-bold text-zinc-500">Upload .xlsx</span>
+                <span className="text-xs text-zinc-400">Kolom: Name/NAMA + NIK</span>
+                <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
+              </label>
             )}
 
             <div className="mt-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/30 rounded-xl p-4 flex items-center gap-3">
@@ -483,8 +550,17 @@ export default function AdminDoorprize() {
                 </div>
               </div>
             </div>
+
+            {eligible.length > 36 && (
+              <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl">
+                <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                  Terlalu banyak peserta untuk ditampilkan di roda. Nama disembunyikan.
+                </p>
+              </div>
+            )}
           </div>
 
+          {/* Prize List */}
           <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <h3 className="text-sm font-black text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2">
               <Trophy className="w-4 h-4 text-purple-500" />
@@ -492,11 +568,11 @@ export default function AdminDoorprize() {
             </h3>
 
             {prizes.length > 0 && (
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2 mb-4 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                 {prizes.map((prize, idx) => (
                   <div key={idx}
                     className={`flex items-center justify-between p-3 rounded-xl border ${
-                      idx === currentPrizeIndex && !finalWinner && !isSpinning
+                      idx === currentPrizeIndex && !latestWinner && !isSpinning
                         ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
                         : idx < currentPrizeIndex
                           ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 opacity-60'
@@ -505,25 +581,20 @@ export default function AdminDoorprize() {
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${
-                        idx < currentPrizeIndex
-                          ? 'bg-green-500 text-white'
-                          : idx === currentPrizeIndex && !finalWinner && !isSpinning
+                        idx < currentPrizeIndex ? 'bg-green-500 text-white'
+                          : idx === currentPrizeIndex && !latestWinner && !isSpinning
                             ? 'bg-purple-600 text-white'
                             : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-500'
                       }`}>
                         {idx < currentPrizeIndex ? '✓' : idx + 1}
                       </span>
                       <div className="min-w-0">
-                        <p className="font-bold text-sm truncate">{prize.name}</p>
+                        <p className="font-bold text-sm truncate">{prize.name || '(kosong)'}</p>
                         <p className="text-xs text-zinc-400">x{prize.quantity}</p>
                       </div>
                     </div>
                     {prize.name && (
-                      <button onClick={() => removePrize(idx)}
-                        className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      <button onClick={() => removePrize(idx)} className="p-1 text-zinc-400 hover:text-red-500 transition-colors"><X className="w-4 h-4" /></button>
                     )}
                   </div>
                 ))}
@@ -531,165 +602,159 @@ export default function AdminDoorprize() {
             )}
 
             <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Nama hadiah"
-                value={prizeNameInput}
+              <input type="text" placeholder="Nama hadiah" value={prizeNameInput}
                 onChange={e => setPrizeNameInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addPrize()}
-                className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none"
-              />
-              <input
-                type="number"
-                min={1}
-                value={prizeQtyInput}
+                className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none" />
+              <input type="number" min={1} value={prizeQtyInput}
                 onChange={e => setPrizeQtyInput(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2 py-2.5 text-sm font-bold text-center focus:ring-2 focus:ring-purple-500/20 outline-none"
-              />
+                className="w-16 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2 py-2.5 text-sm font-bold text-center focus:ring-2 focus:ring-purple-500/20 outline-none" />
               <button onClick={addPrize}
-                className="px-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all active:scale-95"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
+                className="px-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all active:scale-95"><Plus className="w-5 h-5" /></button>
             </div>
           </div>
 
+          {/* Spin Button */}
           <button
-            onClick={startSpin}
+            onClick={spinWheel}
             disabled={isSpinning || eligibleCount === 0 || prizes.every(p => !p.name) || currentPrizeIndex >= prizes.length}
             className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-xl shadow-lg shadow-purple-500/30 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-lg"
           >
             {isSpinning ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Mengacak...</>
+              <><Loader2 className="w-5 h-5 animate-spin" /> Memutar Roda...</>
             ) : drawComplete ? (
               <><RotateCcw className="w-5 h-5" /> Mulai Ulang</>
-            ) : currentPrizeIndex >= prizes.length ? (
-              'Selesai'
             ) : (
-              <><Play className="w-5 h-5" /> Undi Hadiah: {currentPrize?.name || '-'}</>
+              <><Play className="w-5 h-5" /> Putar Roda: {currentPrizeLabel}</>
             )}
           </button>
 
           {drawComplete && (
-            <button onClick={resetDraw}
-              className="w-full py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-bold rounded-xl transition-all"
-            >
+            <button onClick={resetDraw} className="w-full py-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-bold rounded-xl transition-all">
               Reset Undian
             </button>
           )}
-        </div>
 
-        <div className="lg:col-span-2 space-y-6">
-          <div ref={winnerRef}
-            className="relative bg-white dark:bg-zinc-950 rounded-[2.5rem] p-8 md:p-12 border-4 border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col items-center justify-center min-h-[400px] shadow-2xl"
-          >
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/20 blur-[100px] rounded-full" />
-            </div>
-
-            {showConfetti && (
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {Array.from({ length: 40 }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ x: '50%', y: '50%', scale: 0, opacity: 1 }}
-                    animate={{
-                      x: `${50 + (Math.random() - 0.5) * 100}%`,
-                      y: `${50 + (Math.random() - 0.5) * 100}%`,
-                      scale: [0, 1, 0.5],
-                      opacity: [1, 1, 0],
-                      rotate: Math.random() * 720,
-                    }}
-                    transition={{ duration: 1.5 + Math.random() * 1, ease: 'easeOut' }}
-                    className="absolute w-3 h-3 rounded-sm"
-                    style={{ backgroundColor: CONFETTI_COLORS[i % CONFETTI_COLORS.length] }}
-                  />
+          {/* Participant List (compact) */}
+          {eligible.length > 0 && (
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <h4 className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-2">
+                Daftar Peserta ({eligible.length})
+              </h4>
+              <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1">
+                {eligible.map((p, i) => (
+                  <div key={p.nik} className="flex items-center gap-2 text-xs">
+                    <span className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-black shrink-0"
+                      style={{ backgroundColor: SEGMENT_COLORS[i % SEGMENT_COLORS.length], color: 'white' }}>
+                      {i + 1}
+                    </span>
+                    <span className="font-medium truncate">{p.name}</span>
+                    <span className="text-zinc-400 shrink-0">{p.nik}</span>
+                  </div>
                 ))}
               </div>
-            )}
+            </div>
+          )}
+        </div>
 
-            {!currentDisplay && !finalWinner && !isSpinning && (
-              <div className="text-center z-10">
-                <Gift className="w-24 h-24 text-zinc-300 dark:text-zinc-700 mx-auto mb-4" />
-                <h2 className="text-2xl font-black text-zinc-400 dark:text-zinc-600 uppercase tracking-widest">Siap Diundi</h2>
-                <p className="text-zinc-400 dark:text-zinc-500">Atur peserta & hadiah, lalu tekan tombol undi</p>
+        {/* RIGHT: Wheel + Winner Display */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="relative bg-white dark:bg-zinc-950 rounded-[2.5rem] p-4 md:p-8 border-4 border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-2xl">
+            {/* Background glow */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-500/10 blur-[120px] rounded-full" />
+            </div>
+
+            {/* WHEEL */}
+            <div className={`relative w-full aspect-square max-w-[500px] mx-auto transition-opacity duration-500 ${showWinner ? 'opacity-30 scale-95' : 'opacity-100 scale-100'}`}>
+              <div
+                ref={wheelRef}
+                style={{ transform: `rotate(${wheelRotation}deg)` }}
+                className="w-full h-full"
+              >
+                {renderWheel()}
               </div>
-            )}
+            </div>
 
-            <AnimatePresence mode="wait">
-              {(isSpinning || (currentDisplay && !finalWinner)) && !showConfetti && (
+            {/* WINNER OVERLAY */}
+            <AnimatePresence>
+              {showWinner && latestWinner && (
                 <motion.div
-                  key={currentDisplay?.nik || 'spin'}
-                  initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -50, scale: 0.9 }}
-                  transition={{ duration: 0.1 }}
-                  className="text-center z-10 w-full"
+                  ref={winnerRef}
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.6 }}
+                  transition={{ type: 'spring', duration: 0.6 }}
+                  className="absolute inset-0 flex flex-col items-center justify-center z-20 p-6"
                 >
-                  <h2 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-zinc-900 dark:from-white to-zinc-500 dark:to-zinc-400 mb-4 truncate px-4">
-                    {currentDisplay?.name || 'Mengacak...'}
+                  {showConfetti && (
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                      {Array.from({ length: 50 }).map((_, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ x: '50%', y: '50%', scale: 0, opacity: 1 }}
+                          animate={{
+                            x: `${50 + (Math.random() - 0.5) * 100}%`,
+                            y: `${50 + (Math.random() - 0.5) * 100}%`,
+                            scale: [0, 1.2, 0.6],
+                            opacity: [1, 1, 0],
+                            rotate: Math.random() * 720,
+                          }}
+                          transition={{ duration: 2 + Math.random() * 1.5, ease: 'easeOut' }}
+                          className="absolute w-3 h-3 rounded-sm"
+                          style={{ backgroundColor: CONFETTI_COLORS[i % CONFETTI_COLORS.length] }}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="inline-flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-500 rounded-full text-white text-sm font-black uppercase tracking-widest mb-4 shadow-lg">
+                    <PartyPopper className="w-4 h-4" />
+                    Pemenang
+                  </div>
+
+                  <h2 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-purple-400 via-pink-400 to-orange-300 mb-2 drop-shadow-lg text-center leading-tight">
+                    {latestWinner.winner_name}
                   </h2>
-                  <div className="inline-block px-6 py-2 bg-purple-500/20 border border-purple-500/30 rounded-full">
-                    <span className="font-mono text-xl md:text-2xl font-bold text-purple-600 dark:text-purple-400 tracking-widest">
-                      {currentDisplay?.nik || '-------'}
+
+                  <div className="inline-block px-5 py-2 bg-black/20 dark:bg-white/10 border border-white/20 rounded-full mb-4">
+                    <span className="font-mono text-lg font-bold text-white/90 tracking-widest">
+                      {latestWinner.winner_nik}
                     </span>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl inline-flex items-center gap-2 shadow-[0_0_30px_rgba(147,51,234,0.5)]">
+                    <Trophy className="w-5 h-5" />
+                    <span className="font-bold">Mendapatkan:</span>
+                    <span className="font-black text-lg">{latestWinner.prize_name}</span>
+                  </div>
+
+                  <div className="mt-5 flex items-center gap-3">
+                    <button onClick={saveWinnerImage}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold rounded-xl transition-all text-sm"
+                    >
+                      <Image className="w-4 h-4" />
+                      Simpan Gambar
+                    </button>
+                    <button onClick={() => { setShowWinner(false); setLatestWinner(null); setShowConfetti(false); }}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all text-sm"
+                    >
+                      <Play className="w-4 h-4" />
+                      Undian Berikutnya
+                    </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {finalWinner && !isSpinning && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', duration: 0.6 }}
-                className="text-center z-10 w-full"
-              >
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-purple-600 to-pink-500 rounded-full text-white text-sm font-bold uppercase tracking-widest mb-4 shadow-lg">
-                  <PartyPopper className="w-4 h-4" />
-                  Pemenang
-                </div>
-                <h2 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 mb-2 drop-shadow-lg">
-                  {finalWinner.winner_name}
-                </h2>
-                <div className="inline-block px-6 py-2 bg-black/10 dark:bg-white/10 border border-zinc-300 dark:border-zinc-600 rounded-full mb-4">
-                  <span className="font-mono text-xl font-bold text-zinc-600 dark:text-zinc-300 tracking-widest">
-                    {finalWinner.winner_nik}
-                  </span>
-                </div>
-                <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl inline-block shadow-[0_0_30px_rgba(147,51,234,0.5)]">
-                  <span className="font-bold">Mendapatkan: </span>
-                  <span className="font-black text-lg ml-1">{finalWinner.prize_name}</span>
-                </div>
-              </motion.div>
-            )}
-
-            {finalWinner && !isSpinning && (
-              <div className="mt-6 flex items-center gap-3 z-10">
-                <button onClick={saveWinnerImage}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-bold rounded-xl transition-all text-sm"
-                >
-                  <Image className="w-4 h-4" />
-                  Simpan Gambar
-                </button>
-                <button onClick={() => { setFinalWinner(null); setShowConfetti(false); setCurrentDisplay(null); }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all text-sm"
-                >
-                  <Play className="w-4 h-4" />
-                  Undian Berikutnya
-                </button>
-              </div>
-            )}
           </div>
 
+          {/* Winners History */}
           <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <h3 className="text-sm font-black text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Riwayat Pemenang
               {winners.length > 0 && (
-                <span className="text-purple-600 dark:text-purple-400 font-black text-xs ml-2">
-                  ({winners.length})
-                </span>
+                <span className="text-purple-600 dark:text-purple-400 font-black text-xs">({winners.length})</span>
               )}
             </h3>
 
@@ -710,9 +775,7 @@ export default function AdminDoorprize() {
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold text-zinc-900 dark:text-white truncate">{w.winner_name}</p>
-                      <p className="text-xs text-zinc-500 truncate">
-                        {w.winner_nik} &middot; {w.prize_name}
-                      </p>
+                      <p className="text-xs text-zinc-500 truncate">{w.winner_nik} &middot; {w.prize_name}</p>
                     </div>
                   </div>
                 ))}
