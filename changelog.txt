@@ -1,3 +1,35 @@
+v5.0.0 — Doorprize Terpadu + Multi-Source + Prize Sequence (MAJOR)
+----------------------------------------------------------------------------------
+### Perubahan Arsitektur:
+- **[MAJOR] Doorprize Terpadu:** Menggabungkan `AdminDoorprize.tsx` (undian sederhana) dan `AdminDoorprizeSpin.tsx` (spin + animasi + audio) menjadi 1 halaman adaptif. Hapus `AdminDoorprizeSpin.tsx` (permanen).
+- **[FEAT] 3 Sumber Peserta:** (1) Kupon Program Serikat (`program_coupons` via `gate_type='doorprize'`), (2) Input Manual (Nama + NIK), (3) Upload Excel (.xlsx dengan kolom Name/NAMA + NIK).
+- **[FEAT] Prize Sequence:** Admin bisa menambahkan banyak hadiah (nama + quantity) dalam urutan dari terkecil ke terbesar. Undian berjalan otomatis per prize. Satu klik = satu undian per prize.
+- **[FEAT] Spin Animation:** Slot-machine style dari AdminDoorprizeSpin.tsx — nama berputar cepat lalu melambat. Efek suara Web Audio (tick + win fanfare).
+- **[FEAT] "Wah" Winner Reveal:** Animasi confetti (40 partikel warna-warni via motion), teks gradient besar, badge "Pemenang" dengan gradient, tombol "Simpan Gambar" via html2canvas (save sebagai PNG).
+- **[FEAT] Anti-Duplikat:** Filter otomatis pemenang sebelumnya (by NIK) agar tidak menang 2x dalam sesi yang sama.
+- **[FEAT] Export Excel:** Rekap semua pemenang dengan kolom No, Hadiah, Nama, NIK, Waktu Undian.
+- **[CHANGE] Sidebar:** Hapus "Spin Doorprize" — hanya tersisa "Undian Doorprize".
+- **[DELETE]** `AdminDoorprizeSpin.tsx` — tidak lagi digunakan.
+
+### Teknis:
+- **[CHANGE] package.json:** v4.23.0 → v5.0.0 (MAJOR: restrukturasi besar doorprize).
+
+v4.23.0 — Survey Report, Close Program, Loyalty 0.8% + Partial + Expiry
+----------------------------------------------------------------------------------
+### Fitur Baru:
+- **[FEAT] `AdminSurveyReports.tsx`:** Halaman baru untuk lihat hasil survei (aggregasi jawaban per pertanyaan + detail per responden). Tersedia di sidebar → Laporan & Evaluasi → Hasil Survei.
+- **[FEAT] `AdminUnionPrograms.tsx`:** Tombol "Tutup" untuk program yang lewat end_date → otomatis nonaktifkan program + expire semua kupon aktif.
+- **[FEAT] `server.ts`:** Endpoint `POST /api/admin/programs/:programId/close` — close program & expire coupons.
+- **[FEAT] `PortalProgram.tsx`:** Program yang sudah selesai tetap muncul di history user. Kupon expired ditampilkan dengan status "Expired".
+- **[FEAT] Loyalty revamp:** 0.8% earning, partial payment (poin + metode lain), FIFO expiry 12 bulan, tracking via table `points_history`, min redeem 1.000 pts.
+- **[FEAT] `server.ts`:** Endpoints baru — `/api/payment/points/partial-pay`, `/api/portal/points/balance`, `/api/portal/points/history`.
+- **[FEAT] `Checkout.tsx`:** Opsi bayar parsial dengan poin (input jumlah poin, sisa bayar via metode lain).
+- **[FEAT] `Profile.tsx`:** Riwayat poin (earned/spent/expired) dengan tanggal expiry.
+
+### Teknis:
+- **[CHANGE] `migration_v4_20_0.sql`:** Migration file — alter program_coupons status allow 'expired', create points_history table + functions.
+- **[CHANGE] package.json:** v4.22.1 → v4.23.0 (MINOR: fitur baru aman).
+
 v4.22.1 — Fix: Vote & survey terduplikasi saat edit pengumuman gathering
 ----------------------------------------------------------------------------------
 ### Perbaikan:

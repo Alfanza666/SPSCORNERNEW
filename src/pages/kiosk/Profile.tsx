@@ -62,6 +62,8 @@ export default function Profile() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
+  const [pointsHistory, setPointsHistory] = useState<any[]>([]);
+  const [pointsHistoryLoading, setPointsHistoryLoading] = useState(false);
 
   React.useEffect(() => {
     const fetchSettings = async () => {
@@ -69,6 +71,7 @@ export default function Profile() {
         const { data } = await supabase.from('settings').select('value').eq('key', 'loyalty_enabled').single();
         if (data && data.value === 'true') {
           setLoyaltyEnabled(true);
+          fetchPointsHistory();
         }
       } catch (err) {
         console.error('Failed to fetch loyalty settings:', err);
@@ -76,6 +79,25 @@ export default function Profile() {
     };
     fetchSettings();
   }, []);
+
+  const fetchPointsHistory = async () => {
+    setPointsHistoryLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      
+      const response = await fetch('/api/portal/points/history', { headers });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) setPointsHistory(result.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch points history:', err);
+    } finally {
+      setPointsHistoryLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     if (user) {
@@ -283,6 +305,42 @@ export default function Profile() {
               </div>
             </div>
           </motion.div>
+
+          {/* Points History */}
+          {loyaltyEnabled && pointsHistory.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.03 }}
+              className="clay-card p-5 sm:p-6 bg-white dark:bg-zinc-900 rounded-2xl sm:rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-[6px_6px_12px_rgba(0,0,0,0.06),-6px_-6px_12px_rgba(255,255,255,0.04)]"
+            >
+              <h2 className="font-black text-zinc-900 dark:text-white text-base sm:text-lg mb-4 flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500" />
+                Riwayat Poin
+              </h2>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {pointsHistory.map((h: any) => {
+                  const isEarned = h.type === 'earned';
+                  const isExpired = h.type === 'expired';
+                  const expiresDate = h.expires_at ? new Date(h.expires_at).toLocaleDateString() : null;
+                  return (
+                    <div key={h.id} className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 truncate">{h.description || h.type}</p>
+                        <p className="text-[10px] text-zinc-400 mt-0.5">
+                          {new Date(h.earned_at).toLocaleDateString()}
+                          {isEarned && expiresDate && ` • Exp: ${expiresDate}`}
+                        </p>
+                      </div>
+                      <span className={`text-xs font-black shrink-0 ml-3 ${isEarned ? 'text-green-600' : isExpired ? 'text-zinc-400' : 'text-red-600'}`}>
+                        {isEarned ? '+' : ''}{h.points.toLocaleString()} pts
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
 
           {/* Edit Profile Card */}
           <motion.div 

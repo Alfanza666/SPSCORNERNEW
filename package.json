@@ -1,7 +1,7 @@
 {
   "name": "sps-corner",
   "private": true,
-  "version": "4.22.1",
+  "version": "5.0.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -40,6 +40,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^8.5.1",
     "helmet": "^8.1.0",
+    "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "https-proxy-agent": "^8.0.0",
     "jspdf": "^4.2.1",

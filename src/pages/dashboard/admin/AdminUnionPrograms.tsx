@@ -514,6 +514,28 @@ export default function AdminUnionPrograms() {
     }
   };
 
+  const closeProgram = async (program: any) => {
+    if (!confirm('Tutup program ini? Semua kupon aktif akan di-expire. Peserta tetap bisa lihat history.')) return;
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      const response = await fetch(`/api/admin/programs/${program.id}/close`, {
+        method: 'POST',
+        headers
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      toast.success('Program ditutup dan kupon di-expire');
+      fetchPrograms();
+    } catch (error: any) {
+      toast.error('Gagal menutup program: ' + (error.message || ''));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const deleteProgram = async (id: string) => {
     if (!confirm('Yakin hapus program ini? Semua kupon terkait akan ikut terhapus.')) return;
     try {
@@ -592,6 +614,15 @@ export default function AdminUnionPrograms() {
                   >
                     {prog.is_active ? 'Aktif' : 'Nonaktif'}
                   </button>
+                  {prog.is_active && prog.end_date && new Date(prog.end_date) < new Date() && (
+                    <button
+                      onClick={() => closeProgram(prog)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
+                      title="Tutup program & expire kupon"
+                    >
+                      Tutup
+                    </button>
+                  )}
                   <button
                     onClick={() => handleViewRegistrants(prog)}
                     className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50"

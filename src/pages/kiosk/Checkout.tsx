@@ -24,6 +24,9 @@ export default function Checkout() {
   const [qrisError, setQrisError] = useState(false);
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const [pointPaymentLoading, setPointPaymentLoading] = useState(false);
+  const [pointsToUse, setPointsToUse] = useState(0);
+  const [pointsApplied, setPointsApplied] = useState(false);
+  const [applyingPoints, setApplyingPoints] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState({
     qrisDynamic: true,
     qrisManual: true,
@@ -45,7 +48,8 @@ export default function Checkout() {
   const estimatedMdr = Math.ceil(subtotal * 0.007);
   const estimatedTotal = subtotal + estimatedMdr;
 
-  const grandTotal = subtotal; // Real base amount untuk backend & iPaymu
+  const grandTotal = subtotal;
+  const remainingTotal = pointsApplied ? Math.max(0, grandTotal - pointsToUse) : grandTotal;
 
   const buyerName = user?.name || (() => { try { return sessionStorage.getItem('buyerName'); } catch { return ''; } })();
   const buyerEmail = user?.email || (() => { try { return sessionStorage.getItem('buyerEmail'); } catch { return null; } })() || null;
@@ -387,6 +391,57 @@ export default function Checkout() {
     }
   };
 
+  const handleApplyPoints = async () => {
+    if (!user || !buyerName) return;
+    if (pointsToUse < 1000) { toast.error('Minimal 1.000 poin'); return; }
+    if (pointsToUse > (user.loyalty_points || 0)) { toast.error('Poin tidak mencukupi'); return; }
+    if (pointsToUse > getTotal()) { toast.error('Poin melebihi total belanja'); return; }
+    
+    setApplyingPoints(true);
+    try {
+      const total = getTotal();
+      const txData: any = {
+        buyer_name: buyerName,
+        buyer_id: user.id,
+        buyer_email: user.email || null,
+        total_amount: total,
+        items: items.map(item => ({
+          id: item.id, name: item.name, price: item.price,
+          quantity: item.quantity, is_digital: item.is_digital,
+          sku: item.sku, target_number: item.target_number,
+          seller_id: item.seller_id, metadata: item.metadata
+        }))
+      };
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const txRes = await fetch('/api/transactions/create', { method: 'POST', headers, body: JSON.stringify(txData) });
+      if (!txRes.ok) throw new Error('Gagal membuat transaksi');
+      const { transaction } = await txRes.json();
+      setTransactionId(transaction.id);
+
+      const payRes = await fetch('/api/payment/points/partial-pay', {
+        method: 'POST', headers,
+        body: JSON.stringify({ transaction_id: transaction.id, points_to_use: pointsToUse })
+      });
+      
+      if (!payRes.ok) {
+        const errData = await payRes.json();
+        throw new Error(errData.error || 'Gagal menggunakan poin');
+      }
+      
+      const result = await payRes.json();
+      setPointsApplied(true);
+      toast.success(`Poin Rp ${pointsToUse.toLocaleString()} dipakai! Sisa Rp ${result.remaining_amount.toLocaleString()}. Bayar sisanya via metode lain.`);
+    } catch (error: any) {
+      toast.error(error.message || 'Gagal menggunakan poin');
+    } finally {
+      setApplyingPoints(false);
+    }
+  };
+
   const handlePointPayment = async () => {
     if (!buyerName || !user) return;
     if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handlePointPayment)'); return; }
@@ -725,25 +780,74 @@ buyer_email: buyerEmail,
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Loyalty Points Option */}
                   {user && loyaltyEnabled && (
-                    <button
-                      onClick={handlePointPayment}
-                      disabled={loading || pointPaymentLoading || (user.loyalty_points || 0) < getTotal()}
-                      className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 dark:border-amber-900 shadow-sm bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-900/10 hover:border-amber-300 dark:hover:border-amber-700 transition-all text-left group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed md:col-span-2 sm:col-span-1"
-                    >
-                      <div className="w-12 h-12 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-amber-100 dark:border-zinc-700 flex items-center justify-center group-hover:scale-105 transition-transform">
-                        <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
-                      </div>
-                      <div>
-                        <p className="font-black text-amber-900 dark:text-amber-100 text-sm tracking-tight flex items-center gap-2">
-                           Bayar Penuh via Points
-                           {(user.loyalty_points || 0) < getTotal() && <span className="text-[10px] bg-red-100 text-red-600 px-1 py-0.5 rounded">Kurang</span>}
-                        </p>
-                        <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-1">
-                          Saldo Anda: <strong className="font-black text-amber-900 dark:text-amber-200">{user.loyalty_points || 0} Pts</strong>
-                        </p>
-                      </div>
-                      <div className="absolute right-0 top-0 w-16 h-16 bg-gradient-to-br from-amber-400/20 to-transparent rounded-bl-full pointer-events-none" />
-                    </button>
+                    <>
+                      <button
+                        onClick={handlePointPayment}
+                        disabled={loading || pointPaymentLoading || (user.loyalty_points || 0) < getTotal()}
+                        className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 dark:border-amber-900 shadow-sm bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-900/10 hover:border-amber-300 dark:hover:border-amber-700 transition-all text-left group relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <div className="w-12 h-12 rounded-lg bg-white dark:bg-zinc-800 shadow-sm border border-amber-100 dark:border-zinc-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+                          <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+                        </div>
+                        <div>
+                          <p className="font-black text-amber-900 dark:text-amber-100 text-sm tracking-tight flex items-center gap-2">
+                             Bayar Penuh via Points
+                             {(user.loyalty_points || 0) < getTotal() && <span className="text-[10px] bg-red-100 text-red-600 px-1 py-0.5 rounded">Kurang</span>}
+                          </p>
+                          <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium mt-1">
+                            Saldo Anda: <strong className="font-black text-amber-900 dark:text-amber-200">{user.loyalty_points || 0} Pts</strong>
+                          </p>
+                        </div>
+                        <div className="absolute right-0 top-0 w-16 h-16 bg-gradient-to-br from-amber-400/20 to-transparent rounded-bl-full pointer-events-none" />
+                      </button>
+
+                      {/* Partial Points Payment */}
+                      {!pointsApplied && (
+                        <div className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                          <p className="text-xs font-bold text-zinc-500 mb-3">Atau gunakan poin sebagian (min 1.000 pts)</p>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-bold">Rp</span>
+                              <input
+                                type="number"
+                                min={1000}
+                                max={Math.min(user.loyalty_points || 0, getTotal())}
+                                value={pointsToUse || ''}
+                                onChange={e => setPointsToUse(parseInt(e.target.value) || 0)}
+                                placeholder="Jumlah poin"
+                                className="w-full pl-8 pr-3 py-2.5 border border-zinc-300 dark:border-zinc-700 rounded-xl text-sm bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-amber-500 outline-none"
+                              />
+                            </div>
+                            <button
+                              onClick={handleApplyPoints}
+                              disabled={applyingPoints || pointsToUse < 1000}
+                              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white font-bold rounded-xl text-sm transition-colors shrink-0"
+                            >
+                              {applyingPoints ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Pakai'}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-zinc-400 mt-2">
+                            Saldo: {user.loyalty_points?.toLocaleString() || 0} pts • Sisa setelah: {Math.max(0, (user.loyalty_points || 0) - (pointsToUse || 0)).toLocaleString()} pts
+                          </p>
+                        </div>
+                      )}
+
+                      {pointsApplied && (
+                        <div className="p-4 rounded-xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/20">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                            <div>
+                              <p className="text-sm font-bold text-green-700 dark:text-green-400">
+                                Poin Rp {pointsToUse.toLocaleString()} dipakai
+                              </p>
+                              <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">
+                                Sisa tagihan: <strong>Rp {remainingTotal.toLocaleString()}</strong> — bayar via metode di bawah
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {/* QRIS (Otomatis) Option */}

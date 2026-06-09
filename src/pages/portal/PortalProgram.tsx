@@ -112,9 +112,38 @@ export default function PortalProgram() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase.from('union_programs').select('*').eq('is_active', true).order('created_at', { ascending: false });
+      const { data: activePrograms, error } = await supabase
+        .from('union_programs')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data) setPrograms(data);
+
+      // Also fetch programs where user has coupons (for history)
+      const { data: userCoupons } = await supabase
+        .from('program_coupons')
+        .select('program_id')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      let historyPrograms: any[] = [];
+      if (userCoupons && userCoupons.length > 0) {
+        const historyIds = [...new Set(userCoupons.map(c => c.program_id))];
+        const activeIds = new Set((activePrograms || []).map(p => p.id));
+        const inactiveIds = historyIds.filter(id => !activeIds.has(id));
+        
+        if (inactiveIds.length > 0) {
+          const { data: histData } = await supabase
+            .from('union_programs')
+            .select('*')
+            .in('id', inactiveIds)
+            .order('created_at', { ascending: false });
+          if (histData) historyPrograms = histData;
+        }
+      }
+
+      if (activePrograms) setPrograms([...activePrograms, ...historyPrograms]);
+      else setPrograms(historyPrograms);
     } catch (err: any) {
       console.error("Error fetching programs:", err);
       setError(err.message || "Gagal memuat program");
@@ -231,11 +260,15 @@ export default function PortalProgram() {
                 </div>
             ) : (
                 <div className="grid gap-4">
-                    {programs.map(prog => (
+                    {programs.map(prog => {
+                        const isExpired = !prog.is_active || (prog.end_date && new Date(prog.end_date) < new Date());
+                        return (
                         <motion.div key={prog.id} whileHover={{ scale: 1.01 }} onClick={() => handleSelectProgram(prog)} className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm cursor-pointer">
                             <div className="flex justify-between items-start mb-2">
                                 <h3 className="font-bold text-lg text-zinc-900 dark:text-white">{prog.name}</h3>
-                                <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-100 text-green-700 uppercase">Aktif</span>
+                                <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${isExpired ? 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400' : 'bg-green-100 text-green-700'}`}>
+                                    {isExpired ? 'Selesai' : 'Aktif'}
+                                </span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
                                 <Calendar className="w-3 h-3" />
@@ -243,7 +276,8 @@ export default function PortalProgram() {
                             </div>
                             <p className="text-sm text-zinc-500 line-clamp-2">{prog.description}</p>
                         </motion.div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -253,10 +287,11 @@ export default function PortalProgram() {
   // DETAIL VIEW
   const isKurban = selectedProgram.program_type?.toLowerCase().includes('kurban');
   const isGathering = selectedProgram.program_type?.toLowerCase().includes('gathering');
+  const isProgramExpired = !selectedProgram.is_active || (selectedProgram.end_date && new Date(selectedProgram.end_date) < new Date());
   const couponAttendance = myCoupons.find(c => c.gate_type === 'attendance');
   const couponMeal = myCoupons.find(c => c.gate_type === 'meal');
   const couponDoorprize = myCoupons.find(c => c.gate_type === 'doorprize');
-  const familyCoupon = myCoupons.find(c => c.gate_type === 'attendance_family'); // Kupon keluarga (sebelum aktif/discan)
+  const familyCoupon = myCoupons.find(c => c.gate_type === 'attendance_family');
   const familyMealCoupon = myCoupons.find(c => c.gate_type === 'meal_family');
 
   // === DETAIL VIEW ===
@@ -339,6 +374,16 @@ export default function PortalProgram() {
               {/* Check if user has coupon (eligible) */}
               {couponAttendance ? (
                 <div className="text-center">
+                  {couponAttendance.status === 'expired' ? (
+                    <div className="p-6">
+                      <div className="bg-zinc-100 dark:bg-zinc-800 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <X className="w-10 h-10 text-zinc-400" />
+                      </div>
+                      <p className="text-sm font-bold text-zinc-500 mb-1">Kupon已 Expired</p>
+                      <p className="text-xs text-zinc-400">Program ini sudah berakhir</p>
+                    </div>
+                  ) : (
+                  <>
                   <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-2xl mb-4 inline-block shadow-inner">
                     <CheckCircle className="w-10 h-10 text-amber-500 mx-auto" />
                   </div>
@@ -355,6 +400,8 @@ export default function PortalProgram() {
                     <div className="mt-6 p-4 bg-green-100 dark:bg-green-900/30 rounded-2xl">
                       <p className="text-sm font-bold text-green-700">✓ Sudah Diambil</p>
                     </div>
+                  )}
+                  </>
                   )}
                 </div>
               ) : (
@@ -478,16 +525,17 @@ export default function PortalProgram() {
                     </div>
                     <p className="text-zinc-600 dark:text-zinc-300 mb-2 text-base font-bold">Anda belum melakukan konfirmasi kehadiran.</p>
                     <p className="text-sm text-zinc-400 mb-8">Klik tombol di bawah untuk mendapatkan QR Code kehadiran.</p>
-                    <button onClick={handleConfirmAttendance} disabled={submitting} className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-green-500/30 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 text-lg">
+                    <button onClick={handleConfirmAttendance} disabled={submitting || isProgramExpired} className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-green-500/30 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
                         {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckCircle className="w-6 h-6" /> KONFIRMASI HADIR</>}
                     </button>
+                    {isProgramExpired && <p className="text-xs text-red-500 mt-2">Program sudah berakhir, tidak bisa konfirmasi</p>}
                 </div>
-            ) : couponAttendance.status === 'active' ? (
+            ) : couponAttendance.status === 'active' && !isProgramExpired ? (
                  <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[8px_8px_16px_rgba(0,0,0,0.08),-8px_-8px_16px_rgba(255,255,255,0.05)] text-center border-2 border-green-500">
                     <QRCode value={couponAttendance.coupon_code} size={180} />
                     <p className="mt-6 text-sm font-medium text-zinc-500">Tunjukkan ke Panitia</p>
                  </div>
-            ) : (
+            ) : couponAttendance.status === 'claimed' ? (
                 // SUDAH CLAIM
                 <div className="bg-zinc-900 dark:bg-black p-8 rounded-3xl shadow-[8px_8px_16px_rgba(0,0,0,0.3),-8px_-8px_16px_rgba(255,255,255,0.05)] border border-zinc-800">
                     <h3 className="text-white font-bold text-lg mb-6">Tiket Anda</h3>
@@ -522,6 +570,15 @@ export default function PortalProgram() {
                              {couponDoorprize && <p className="text-2xl font-black text-white mt-3">{couponDoorprize.coupon_code.split('-').pop()}</p>}
                         </div>
                     </div>
+                </div>
+            ) : (
+                // EXPIRED
+                <div className="bg-zinc-100 dark:bg-zinc-800 p-8 rounded-3xl text-center border border-zinc-200 dark:border-zinc-700">
+                    <div className="bg-zinc-200 dark:bg-zinc-700 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <X className="w-10 h-10 text-zinc-400" />
+                    </div>
+                    <p className="text-zinc-500 font-bold mb-1">Kupon Expired</p>
+                    <p className="text-xs text-zinc-400">Program ini sudah berakhir dan kupon tidak bisa digunakan lagi</p>
                 </div>
             )}
           </div>

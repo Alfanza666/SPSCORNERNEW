@@ -97,7 +97,7 @@ export default function AdminLoyalty() {
           <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
             <div>
               <p className="font-bold text-zinc-900 dark:text-white">Program Loyalty Point</p>
-              <p className="text-xs text-zinc-500 mt-1">Setiap transaksi akan memberikan 1% poin loyalty</p>
+              <p className="text-xs text-zinc-500 mt-1">Setiap transaksi memberikan 0.8% poin loyalty (berlaku 12 bulan)</p>
             </div>
             <button
               onClick={handleToggle}
@@ -121,7 +121,7 @@ export default function AdminLoyalty() {
               className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30"
             >
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                <strong>Info:</strong> Loyalty point sudah aktif. Setiap transaksi akan memberikan 1% dari total belanja sebagai poin yang dapat ditukar dengan merchandise.
+                <strong>Info:</strong> Loyalty point aktif. 0.8% dari total belanja → poin (berlaku 12 bulan). Min redeem 1.000 pts. Bisa bayar parsial (poin + metode lain).
               </p>
             </motion.div>
           )}

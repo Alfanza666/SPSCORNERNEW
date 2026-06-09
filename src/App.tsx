@@ -70,6 +70,7 @@ const AdminPayments = lazyWithRetry(() => import('./pages/dashboard/admin/AdminP
 const AdminLoyalty = lazyWithRetry(() => import('./pages/dashboard/admin/AdminLoyalty'));
 const AdminStandbySchedule = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStandbySchedule'));
 const AdminAnnouncements = lazyWithRetry(() => import('./pages/dashboard/admin/AdminAnnouncements'));
+const AdminSurveyReports = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSurveyReports'));
 const AdminFeedbacks = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFeedbacks'));
 
 const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/SellerDashboard'));
@@ -96,7 +97,7 @@ const AdminScanner = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSc
 const AdminFlashsale = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFlashsale'));
 const AdminUnionPrograms = lazyWithRetry(() => import('./pages/dashboard/admin/AdminUnionPrograms'));
 const AdminProgramCoupons = lazyWithRetry(() => import('./pages/dashboard/admin/AdminProgramCoupons'));
-const AdminDoorprizeSpin = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprizeSpin'));
+
 const AdminPengaduan = lazyWithRetry(() => import('./pages/dashboard/admin/AdminPengaduan'));
 const AdminKritikSaran = lazyWithRetry(() => import('./pages/dashboard/admin/AdminKritikSaran'));
 const AdminDoorprize = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprize'));
@@ -281,6 +282,8 @@ export default function App() {
               <Route path="admin/loyalty/" element={<AdminLoyalty />} />
               <Route path="admin/announcements" element={<AdminAnnouncements />} />
               <Route path="admin/announcements/" element={<AdminAnnouncements />} />
+              <Route path="admin/survey-reports" element={<AdminSurveyReports />} />
+              <Route path="admin/survey-reports/" element={<AdminSurveyReports />} />
               <Route path="admin/feedbacks" element={<AdminFeedbacks />} />
               
               <Route path="admin/feedbacks/" element={<AdminFeedbacks />} />
@@ -292,8 +295,7 @@ export default function App() {
               <Route path="admin/union-programs/" element={<AdminUnionPrograms />} />
               <Route path="admin/program-coupons" element={<AdminProgramCoupons />} />
               <Route path="admin/program-coupons/" element={<AdminProgramCoupons />} />
-              <Route path="admin/doorprize-spin" element={<AdminDoorprizeSpin />} />
-              <Route path="admin/doorprize-spin/" element={<AdminDoorprizeSpin />} />
+
               <Route path="admin/standby-schedule" element={<AdminStandbySchedule />} />
               <Route path="admin/standby-schedule/" element={<AdminStandbySchedule />} />
               <Route path="admin/forms" element={<AdminFormBuilder />} />

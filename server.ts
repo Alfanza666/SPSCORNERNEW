@@ -729,8 +729,11 @@ const updateBuyerPoints = __name(async (transaction_id, buyer_id, total_amount) 
       .eq("key", "loyalty_enabled")
       .single();
     if (setting?.value !== "true") return;
-    const earnedPoints = Math.floor((total_amount || 0) * 0.01);
+    const earnedPoints = Math.floor((total_amount || 0) * 0.008);
     if (earnedPoints <= 0) return;
+    
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    
     const { data: profile } = await supabase
       .from("profiles")
       .select("loyalty_points")
@@ -743,7 +746,19 @@ const updateBuyerPoints = __name(async (transaction_id, buyer_id, total_amount) 
           loyalty_points: (profile.loyalty_points || 0) + earnedPoints,
         })
         .eq("id", buyer_id);
-      console.log(`\u2705 Buyer points updated successfully for ${buyer_id}: +${earnedPoints} pts`);
+      
+      await supabase
+        .from("points_history")
+        .insert({
+          user_id: buyer_id,
+          transaction_id,
+          points: earnedPoints,
+          type: "earned",
+          description: `Poin dari transaksi Rp ${(total_amount || 0).toLocaleString()}`,
+          expires_at: expiresAt,
+        });
+      
+      console.log(`\u2705 Buyer points updated: ${buyer_id}: +${earnedPoints} pts (expires ${expiresAt})`);
     }
   } catch (error) {
     console.error("\u274C Error updating buyer points:", error);
@@ -2559,12 +2574,21 @@ app.post("/api/payment/points/pay", async (req, res) => {
       throw new Error(`Points tidak mencukupi. Point: ${profile?.loyalty_points || 0}, Tagihan: ${tx.total_amount}`);
     }
 
-    // Deduct points
+    // Deduct points from profile (cache)
     const { error: deductError } = await supabase
       .from("profiles")
       .update({ loyalty_points: profile.loyalty_points - tx.total_amount })
       .eq("id", tx.buyer_id);
     if (deductError) throw deductError;
+
+    // Record points spent in history
+    await supabase.from("points_history").insert({
+      user_id: tx.buyer_id,
+      transaction_id,
+      points: -tx.total_amount,
+      type: "spent",
+      description: `Bayar transaksi Rp ${tx.total_amount.toLocaleString()} dengan poin`,
+    });
 
     // Update transaction
     const { error: updateTx } = await supabase
@@ -2572,7 +2596,7 @@ app.post("/api/payment/points/pay", async (req, res) => {
       .update({ 
         status: "success", 
         payment_method: "points",
-        metadata: { ...tx.metadata, point_payment: true }
+        metadata: { ...tx.metadata, point_payment: true, points_used: tx.total_amount }
       })
       .eq("id", transaction_id);
     if (updateTx) throw updateTx;
@@ -2587,6 +2611,167 @@ app.post("/api/payment/points/pay", async (req, res) => {
   } catch (error) {
     console.error("Point Payment Error:", error);
     res.status(500).json({ error: error.message || "Gagal memproses pembayaran dengan poin" });
+  }
+});
+
+// Partial payment with points (split payment: points + remainder via other method)
+app.post("/api/payment/points/partial-pay", async (req, res) => {
+  try {
+    const { transaction_id, points_to_use } = req.body;
+    if (!transaction_id || !points_to_use) throw new Error("transaction_id and points_to_use required");
+
+    const { data: setting } = await supabase
+      .from("settings")
+      .select("value")
+      .eq("key", "loyalty_enabled")
+      .single();
+    if (setting?.value !== "true") throw new Error("Fitur Loyalty Points sedang dinonaktifkan");
+
+    const { data: tx, error: txError } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("id", transaction_id)
+      .single();
+
+    if (txError || !tx) throw new Error("Transaksi tidak ditemukan");
+    if (!tx.buyer_id) throw new Error("Hanya karyawan terdaftar yang dapat menggunakan Points");
+    if (tx.status === "success" || tx.status === "paid") throw new Error("Transaksi sudah dibayar");
+
+    const pointsToUse = parseInt(points_to_use) || 0;
+    if (pointsToUse < 1000) throw new Error("Minimal 1.000 poin");
+    if (pointsToUse > tx.total_amount) throw new Error("Poin tidak boleh lebih dari total tagihan");
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("loyalty_points")
+      .eq("id", tx.buyer_id)
+      .single();
+
+    if (!profile || (profile.loyalty_points || 0) < pointsToUse) {
+      throw new Error(`Points tidak mencukupi. Point: ${profile?.loyalty_points || 0}, Dibutuhkan: ${pointsToUse}`);
+    }
+
+    // Deduct points
+    const { error: deductError } = await supabase
+      .from("profiles")
+      .update({ loyalty_points: (profile.loyalty_points || 0) - pointsToUse })
+      .eq("id", tx.buyer_id);
+    if (deductError) throw deductError;
+
+    // Record points spent
+    await supabase.from("points_history").insert({
+      user_id: tx.buyer_id,
+      transaction_id,
+      points: -pointsToUse,
+      type: "spent",
+      description: `Pembayaran parsial Rp ${pointsToUse.toLocaleString()} dari Rp ${tx.total_amount.toLocaleString()}`,
+    });
+
+    // Update transaction with points discount, remainder still pending
+    const remainingAmount = tx.total_amount - pointsToUse;
+    const { error: updateTx } = await supabase
+      .from("transactions")
+      .update({
+        total_amount: remainingAmount,
+        metadata: { 
+          ...tx.metadata, 
+          point_payment: true, 
+          points_used: pointsToUse,
+          original_amount: tx.total_amount,
+          points_discount: pointsToUse
+        }
+      })
+      .eq("id", transaction_id);
+    if (updateTx) throw updateTx;
+
+    res.json({ 
+      success: true, 
+      message: `Poin Rp ${pointsToUse.toLocaleString()} berhasil digunakan`,
+      remaining_amount: remainingAmount,
+      points_used: pointsToUse
+    });
+  } catch (error) {
+    console.error("Partial Point Payment Error:", error);
+    res.status(500).json({ error: error.message || "Gagal memproses pembayaran parsial" });
+  }
+});
+
+// Get user points balance (calculated from history with expiry)
+app.get("/api/portal/points/balance", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+    // Calculate from points_history (FIFO-aware)
+    const { data: history } = await supabase
+      .from("points_history")
+      .select("points, type, expires_at, earned_at")
+      .eq("user_id", user.id)
+      .order("earned_at", { ascending: true });
+
+    let balance = 0;
+    let expiringSoon = 0;
+    const now = new Date();
+
+    if (history) {
+      for (const h of history) {
+        if (h.type === "earned") {
+          if (h.expires_at && new Date(h.expires_at) <= now) continue;
+          balance += h.points;
+          if (h.expires_at) {
+            const daysLeft = Math.floor((new Date(h.expires_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            if (daysLeft <= 30 && daysLeft >= 0) expiringSoon += h.points;
+          }
+        } else if (h.type === "spent" || h.type === "expired") {
+          balance += h.points; // negative
+        }
+      }
+    }
+
+    // Also check profile cache
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("loyalty_points")
+      .eq("id", user.id)
+      .single();
+
+    res.json({ 
+      success: true, 
+      balance: Math.max(0, balance),
+      cached_balance: profile?.loyalty_points || 0,
+      expiring_soon: expiringSoon
+    });
+  } catch (error) {
+    console.error("Points balance error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get user points history
+app.get("/api/portal/points/history", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data, error } = await supabase
+      .from("points_history")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("earned_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error("Points history error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 app.post("/api/payment/ipaymu/direct", async (req, res) => {
@@ -4458,6 +4643,52 @@ app.post("/api/admin/programs/notify", async (req, res) => {
     res.json({ success: true, count: employeeUsers.length });
   } catch (error: any) {
     console.error("Program notify error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Close/expire a program and its active coupons
+app.post("/api/admin/programs/:programId/close", async (req, res) => {
+  try {
+    const { programId } = req.params;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
+
+    const { data: program } = await supabase.from("union_programs").select("*").eq("id", programId).single();
+    if (!program) return res.status(404).json({ error: "Program not found" });
+    if (!program.is_active) return res.status(400).json({ error: "Program already inactive" });
+
+    // 1. Expire all active coupons
+    const { error: couponError } = await supabase
+      .from("program_coupons")
+      .update({ status: "expired" })
+      .eq("program_id", programId)
+      .eq("status", "active");
+    if (couponError) throw couponError;
+
+    // 2. Deactivate program
+    const { error: progError } = await supabase
+      .from("union_programs")
+      .update({ 
+        is_active: false,
+        metadata: { 
+          ...(program.metadata || {}), 
+          closed_at: new Date().toISOString(),
+          closed_by: user.id,
+          close_reason: "manual"
+        }
+      })
+      .eq("id", programId);
+    if (progError) throw progError;
+
+    res.json({ success: true, message: "Program ditutup dan kupon di-expire" });
+  } catch (error: any) {
+    console.error("Close program error:", error);
     res.status(500).json({ error: error.message });
   }
 });
