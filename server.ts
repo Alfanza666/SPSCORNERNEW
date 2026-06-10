@@ -77,7 +77,7 @@ initEmailService(supabase, nodemailer);
 initPaymentService(supabase);
 initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal);
 initWANotification(supabase);
-updateDigiflazzCache();
+setTimeout(() => updateDigiflazzCache(), 100);
 
 // Sentry auto-instruments Express requests in SDK v8+, so manual requestHandler and tracingHandler are not needed.
 
