@@ -2449,7 +2449,7 @@ app.post("/api/payment/manual/verify", async (req, res) => {
       return res.status(500).json({ success: false, error: "GROQ_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
     }
     const groqResponse = await groq.chat.completions.create({
-      model: "llama-3.2-11b-vision-preview",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
       messages: [
         {
           role: "user",
