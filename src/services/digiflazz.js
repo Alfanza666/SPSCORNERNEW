@@ -93,7 +93,7 @@ export async function updateDigiflazzCache() {
 export async function getDigiflazzBalance() {
   if (isDefaultDigiflazz) return 0;
   try {
-    const sign = crypto.createHash("md5").update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").digest("hex");
+    const sign = crypto.createHash("md5").update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "deposit").digest("hex");
     const response = await axios.post("https://api.digiflazz.com/v1/cek-saldo", { cmd: "deposit", username: DIGIFLAZZ_USERNAME, sign });
     return response.data?.data?.deposit || 0;
   } catch (err) {
