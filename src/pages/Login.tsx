@@ -171,10 +171,11 @@ export default function Login() {
             )}
 
             <div>
-              <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+              <label htmlFor="login-nik" className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
                 NIK atau Email
               </label>
               <input
+                id="login-nik"
                 type="text"
                 required
                 value={nik}
@@ -185,10 +186,11 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
+              <label htmlFor="login-password" className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">
                 Kata Sandi
               </label>
               <input
+                id="login-password"
                 type="password"
                 required
                 value={password}

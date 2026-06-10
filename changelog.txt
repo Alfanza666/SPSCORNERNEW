@@ -1,3 +1,45 @@
+v5.2.0 — Route Refactor, Order Tracking, Analytics, WA Notif (MINOR)
+----------------------------------------------------------------------------------
+### Refactor Arsitektur:
+- **[REFACTOR] server.ts Modularisasi Tahap 1:** Ekstrak 7 service modules — `notification.ts`, `stock.ts`, `email.ts`, `payment.ts`, `digiflazz.ts`, `background-jobs.ts`, `wa-notification.ts`.
+- **[REFACTOR] server.ts Modularisasi Tahap 2:** Ekstrak 13 route modules — `analytics.ts`, `push.ts`, `diagnostics.ts`, `misc.ts`, `auth.ts`, `portal.ts`, `digital.ts`, `payments.ts`, `transactions.ts`, `admin.ts` + existing `withdrawals.ts`, `stock.ts`, `productReturns.ts`.
+- **[CHANGE] server.ts:** ~5000 baris → 678 baris. Sekarang hanya berisi: imports (35), env setup, middleware (CORS/CSP/Rate Limit/Helmet), route registrations, SPA fallback, Vercel export.
+
+### Fitur Baru:
+- **[FEAT] Order Tracking:** Flow status `paid → processed → ready → completed` dengan 3 endpoint baru + push/WA notification setiap transisi.
+- **[FEAT] Analytics Dashboard:** `/dashboard/admin/analytics` dan `/dashboard/seller/analytics` — revenue chart, top products, category pie (Recharts).
+- **[FEAT] WhatsApp Notification:** Service `wa-notification.js` via wa.me link. Tersimpan di `notification_logs`.
+- **[FEAT] Auto-Restock Alert:** `checkLowStockAndNotify` → push + WA + log saat stok < 5.
+
+### Perbaikan:
+- **[FIX] PortalLayout:** Tambah version display di sidebar.
+- **[FIX] AdminUnionPrograms:** Bare `.catch(console.error)` → error handler informatif.
+- **[FIX] email.js:** `sendSarirotiEmailInternal` return type → `{ success, data/error }` (backward compat).
+- **[FIX] triggerSarirotiEmail:** Full HTML email template di email.js (seperti versi inline sebelumnya).
+
+### Perubahan Lain:
+- **[CHANGE] Version:** package.json, Home, DashboardLayout, PortalLayout → v5.2.0
+
+v5.1.0 — Security Audit & QA Fixes (PATCH)
+----------------------------------------------------------------------------------
+### Perbaikan Keamanan (CRITICAL):
+- **[FIX] API 404 Catch-All:** Pindahkan `app.use('/api/*')` ke LUAR blok `if (!process.env.VERCEL)` — sekarang return JSON 404 di Vercel juga, mencegah "Unexpected token '<'" saat VPS failover aktif.
+- **[FIX] RLS Policies:** Migration `migration_v5_1_0_rls_security_fix.sql`:
+  - `transactions_update_public` → owner/admin only
+  - `transactions_insert_public` → buyer_id harus = auth.uid()
+  - `stock_reservations_public_all` → split ke select/insert/update/delete per user
+  - `notifications_insert_all` → self or admin only
+  - `failed_tx_insert_public` → harus punya transaksi terkait
+  - `get_public_profile()` function untuk akses profil terbatas
+
+### Perbaikan Lain:
+- **[FIX] Version:** Home.tsx → v5.0.0 dari v4.22.0 (konsisten dengan package.json)
+- **[FIX] Scanner Route:** `App.tsx` → ganti `path="scanner"` → `path="admin/scanner"` (konsisten dengan route admin lain)
+- **[FIX] Hapus Duplicate Route:** Hapus `admin/programs` (duplikat dari `admin/union-programs`)
+- **[FIX] Sensitive Info Leak:** Hapus console.log yang bocorkan VA, API key length, reset token, session token di ipaymu/client.ts, ResetPasswordPage.tsx, AdminSellers.tsx
+- **[FIX] Aksesibilitas:** Tambah `htmlFor`/`id` di form login + `aria-label` di tombol sidebar DashboardLayout
+- **[CHANGE] package.json:** v5.0.0 → v5.1.0 (PATCH: perbaikan keamanan & bug)
+
 v5.0.0 — Doorprize Terpadu + Multi-Source + Prize Sequence (MAJOR)
 ----------------------------------------------------------------------------------
 ### Perubahan Arsitektur:

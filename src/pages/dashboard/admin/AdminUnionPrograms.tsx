@@ -431,7 +431,7 @@ export default function AdminUnionPrograms() {
                         ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
                     },
                     body: JSON.stringify({ program_id: programId, title: programData.name })
-                }).catch(console.error);
+                }).catch((err) => console.error('Failed to notify program start:', err));
             });
         }
       }
@@ -505,7 +505,7 @@ export default function AdminUnionPrograms() {
                       ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {})
                   },
                   body: JSON.stringify({ program_id: program.id, title: program.name })
-              }).catch(console.error);
+              }).catch((err) => console.error('Failed to notify program status change:', err));
           });
       }
       fetchPrograms();

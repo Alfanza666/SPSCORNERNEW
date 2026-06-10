@@ -7,7 +7,6 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
 import { RefreshCw, CheckCircle2, XCircle, Loader2, Upload, FileImage, ShieldCheck, AlertCircle, Info, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import Groq from "groq-sdk";
 import toast from 'react-hot-toast';
 
 export default function Validate() {
@@ -69,52 +68,18 @@ export default function Validate() {
     setValidationResult(null);
 
     try {
-      const apiKey = process.env.GROQ_API_KEY;
-      if (!apiKey) {
-        throw new Error("GROQ_API_KEY not configured");
-      }
-
-      const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
       const base64Data = imageSrc.split(',')[1];
 
-      const prompt = `
-        Analyze this transfer receipt image.
-        I need to verify if this is a valid payment receipt for the exact amount of Rp ${totalAmount}.
-        
-        CRITICAL CHECKS:
-        1. Is it a valid payment/transfer receipt? (Not a random image)
-        2. Does the amount match EXACTLY ${totalAmount} or Rp ${totalAmount}? (e.g., if totalAmount is 15000, look for 15.000, 15,000, or 15000).
-        3. Is the status "Berhasil", "Sukses", or "Successful"?
-        4. Is the date of the transaction today or within the last 24 hours?
-        
-        You MUST respond in valid JSON format ONLY, with no markdown formatting or extra text.
-        Structure:
-        {
-          "valid": boolean,
-          "reason": "string. Jika valid, berikan pesan sukses singkat. Jika tidak valid, berikan alasan spesifik dalam Bahasa Indonesia (misal: 'Jumlah transfer tidak sesuai. Diharapkan Rp ${totalAmount}, tetapi yang tertera adalah Rp X', atau 'Gambar buram dan nominal tidak terbaca', atau 'Ini bukan bukti transfer yang sah')."
-        }
-      `;
-
-      const result = await groq.chat.completions.create({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Data}` } }
-            ]
-          }
-        ],
-        response_format: { type: 'json_object' },
+      const response = await fetch('/api/validate/receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64Data, totalAmount }),
       });
 
-      const responseText = result.choices?.[0]?.message?.content;
-      if (!responseText) {
-        throw new Error("No response from AI");
-      }
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'Gagal validasi');
 
-      const aiResult = JSON.parse(responseText);
+      const aiResult = result.data;
 
       if (aiResult.valid) {
         const { data: { session } } = await supabase.auth.getSession();

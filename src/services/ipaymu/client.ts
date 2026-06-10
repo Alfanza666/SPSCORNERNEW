@@ -52,8 +52,7 @@ export class IpaymuClient {
       : 'https://sandbox.ipaymu.com/api/v2';
     this.axiosConfig = axiosConfig;
       
-    const logMsg = `\n=== IPAYMU CLIENT INITIALIZED ===\nMode: ${production ? 'PRODUCTION' : 'SANDBOX'}\nBase URL: ${this.baseUrl}\nVA: ${this.va}\nAPI Key Length: ${this.apiKey.length}\nRaw IPAYMU_PRODUCTION env: ${process.env.IPAYMU_PRODUCTION}\n=================================\n`;
-    console.log(logMsg);
+    console.log(`[Ipaymu] Mode: ${production ? 'PRODUCTION' : 'SANDBOX'}`);
   }
 
   /**

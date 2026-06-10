@@ -18,8 +18,7 @@ export default function ResetPasswordPage() {
   const hashParams = new URLSearchParams(window.location.hash.substring(1));
   const token = hashParams.get('access_token') || searchParams.get('token') || '';
   
-  console.log('Token from URL:', token);
-  console.log('Full hash:', window.location.hash);
+  // Token diambil dari hash URL — tidak perlu di-log
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

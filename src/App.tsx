@@ -78,6 +78,8 @@ const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/Sell
 const SellerPreOrders = lazyWithRetry(() => import('./pages/dashboard/seller/SellerPreOrders'));
 const SellerWithdrawals = lazyWithRetry(() => import('./pages/dashboard/seller/SellerWithdrawals'));
 const SellerTransactions = lazyWithRetry(() => import('./pages/dashboard/seller/SellerTransactions'));
+const AdminAnalytics = lazyWithRetry(() => import('./pages/dashboard/admin/AdminAnalytics'));
+const SellerAnalytics = lazyWithRetry(() => import('./pages/dashboard/seller/SellerAnalytics'));
 
 // ==========================================
 // TAMBAHAN HALAMAN PORTAL & ADMIN BARU
@@ -285,7 +287,7 @@ export default function App() {
               <Route path="admin/survey-reports" element={<AdminSurveyReports />} />
               <Route path="admin/survey-reports/" element={<AdminSurveyReports />} />
               <Route path="admin/feedbacks" element={<AdminFeedbacks />} />
-              
+
               <Route path="admin/feedbacks/" element={<AdminFeedbacks />} />
               <Route path="admin/pengaduan" element={<AdminPengaduan />} />
               <Route path="admin/pengaduan/" element={<AdminPengaduan />} />
@@ -306,14 +308,14 @@ export default function App() {
               <Route path="admin/stock-report" element={<AdminStockReport />} />
               <Route path="admin/stock-report/" element={<AdminStockReport />} />
 
-              <Route path="scanner" element={<AdminScanner />} />
-              <Route path="scanner/" element={<AdminScanner />} />
+              <Route path="admin/scanner" element={<AdminScanner />} />
+              <Route path="admin/scanner/" element={<AdminScanner />} />
               <Route path="admin/flashsale" element={<AdminFlashsale />} />
               <Route path="admin/flashsale/" element={<AdminFlashsale />} />
-              <Route path="admin/programs" element={<AdminUnionPrograms />} />
-              <Route path="admin/programs/" element={<AdminUnionPrograms />} />
               <Route path="admin/doorprize" element={<AdminDoorprize />} />
               <Route path="admin/doorprize/" element={<AdminDoorprize />} />
+              <Route path="admin/analytics" element={<AdminAnalytics />} />
+              <Route path="admin/analytics/" element={<AdminAnalytics />} />
 
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/" element={<SellerDashboard />} />
@@ -325,6 +327,8 @@ export default function App() {
               <Route path="seller/withdrawals/" element={<SellerWithdrawals />} />
               <Route path="seller/transactions" element={<SellerTransactions />} />
               <Route path="seller/transactions/" element={<SellerTransactions />} />
+              <Route path="seller/analytics" element={<SellerAnalytics />} />
+              <Route path="seller/analytics/" element={<SellerAnalytics />} />
             </Route>
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

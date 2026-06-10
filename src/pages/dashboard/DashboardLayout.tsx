@@ -4,13 +4,13 @@ import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import { Dialog, Transition, Menu, Disclosure } from '@headlessui/react';
-import { 
-  LogOut, 
-  LayoutDashboard, 
-  Store, 
-  Users, 
-  Package, 
-  Receipt, 
+import {
+  LogOut,
+  LayoutDashboard,
+  Store,
+  Users,
+  Package,
+  Receipt,
   CreditCard,
   Menu as MenuIcon,
   X,
@@ -50,7 +50,7 @@ import toast from 'react-hot-toast';
 function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className="bg-red-50 p-8 rounded-[2.5rem] max-w-md w-full border border-red-100 shadow-xl shadow-red-200/20"
@@ -60,8 +60,8 @@ function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, r
         </div>
         <h2 className="text-2xl font-bold text-red-900 mb-2">Terjadi Kesalahan</h2>
         <p className="text-red-600 mb-8 text-sm font-medium leading-relaxed">{error.message}</p>
-        <button 
-          onClick={resetErrorBoundary} 
+        <button
+          onClick={resetErrorBoundary}
           className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl transition-all active:scale-95 shadow-lg shadow-red-600/20"
         >
           Coba Lagi
@@ -83,15 +83,13 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick, badge }: NavItemPro
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${
-        isActive 
-          ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-[inset_2px_2px_4px_rgba(59,130,246,0.1)] dark:shadow-[inset_2px_2px_4px_rgba(59,130,246,0.2)]' 
+      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 group ${isActive
+          ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-[inset_2px_2px_4px_rgba(59,130,246,0.1)] dark:shadow-[inset_2px_2px_4px_rgba(59,130,246,0.2)]'
           : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white'
-      }`}
+        }`}
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 overflow-hidden ${
-        isActive ? 'clay-icon-blue' : 'bg-white dark:bg-zinc-800 clay-icon group-hover:scale-110'
-      }`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 overflow-hidden ${isActive ? 'clay-icon-blue' : 'bg-white dark:bg-zinc-800 clay-icon group-hover:scale-110'
+        }`}>
         <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white'}`} />
       </div>
       <span className="flex-1 text-left">{label}</span>
@@ -213,7 +211,7 @@ export default function DashboardLayout() {
     }
   };
   // ── End Seller Profile Modal ────────────────────────────────────────────────
-  
+
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -257,8 +255,8 @@ export default function DashboardLayout() {
   const isSeller = user.role === 'seller';
 
   if (location.pathname === '/dashboard' || location.pathname === '/dashboard/') {
-      return <Navigate to="/portal" replace />;
-    }
+    return <Navigate to="/portal" replace />;
+  }
 
   const renderNavItems = () => {
     const filterMenu = (label: string) => {
@@ -271,7 +269,8 @@ export default function DashboardLayout() {
         label: "Overview & Utama",
         icon: LayoutDashboard,
         items: [
-          { to: "/dashboard/admin", icon: LayoutDashboard, label: "Overview", tourClass: "tour-admin-sidebar-overview" }
+          { to: "/dashboard/admin", icon: LayoutDashboard, label: "Overview", tourClass: "tour-admin-sidebar-overview" },
+          { to: "/dashboard/admin/analytics", icon: BarChart3, label: "Analytics" }
         ]
       },
       {
@@ -311,8 +310,8 @@ export default function DashboardLayout() {
           { to: "/dashboard/scanner", icon: QrCode, label: "Scan QR" },
           { to: "/dashboard/admin/doorprize", icon: Gift, label: "Undian Doorprize" },
           { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
-            { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
-            { to: "/dashboard/admin/kritik-saran", icon: MessageSquare, label: "Kritik & Saran" },
+          { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
+          { to: "/dashboard/admin/kritik-saran", icon: MessageSquare, label: "Kritik & Saran" },
           { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" }
         ]
       },
@@ -347,6 +346,7 @@ export default function DashboardLayout() {
 
     const sellerItems = [
       { to: "/dashboard/seller", icon: LayoutDashboard, label: "Overview", tourClass: "tour-seller-sidebar-overview" },
+      { to: "/dashboard/seller/analytics", icon: BarChart3, label: "Analytics" },
       { to: "/dashboard/seller/products", icon: Package, label: "Produk Saya", tourClass: "tour-seller-sidebar-products" },
       { to: "/dashboard/seller/transactions", icon: ShoppingCart, label: "Pesanan Masuk", tourClass: "tour-seller-sidebar-transactions" },
       { to: "/dashboard/seller/pre-orders", icon: ClipboardList, label: "Pre-Order (PO)" },
@@ -361,10 +361,10 @@ export default function DashboardLayout() {
           if (filteredItems.length === 0) return null;
 
           return (
-            <NavGroup 
-              key={gIdx} 
-              label={group.label} 
-              icon={group.icon} 
+            <NavGroup
+              key={gIdx}
+              label={group.label}
+              icon={group.icon}
               defaultOpen={true}
             >
               {filteredItems.map((item: any, iIdx: number) => (
@@ -408,83 +408,85 @@ export default function DashboardLayout() {
           </div>
         </div>
         <div className="flex-1 flex flex-col min-h-0">
-        <div className="px-4 py-4 space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Cari menu..."
-              value={menuSearchQuery}
-              onChange={(e) => setMenuSearchQuery(e.target.value)}
-              className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
-            />
-          </div>
-        </div>
-
-        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto no-scrollbar pb-20">
-          <div>
-            <div className="px-4 py-2 mb-4 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
-              Menu Utama
-            </div>
-            <div className="space-y-2">
-              {renderNavItems()}
+          <div className="px-4 py-4 space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Cari menu..."
+                value={menuSearchQuery}
+                onChange={(e) => setMenuSearchQuery(e.target.value)}
+                className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-2.5 pl-10 pr-4 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 transition-all shadow-sm"
+              />
             </div>
           </div>
 
-          <div>
-            <div className="px-4 py-2 mb-4 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
-              Akses Cepat
+          <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto no-scrollbar pb-20">
+            <div>
+              <div className="px-4 py-2 mb-4 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
+                Menu Utama
+              </div>
+              <div className="space-y-2">
+                {renderNavItems()}
+              </div>
             </div>
-            <div className="space-y-2 tour-seller-sidebar-kiosk">
-              {isEmployeeNik(user?.nik) && (
+
+            <div>
+              <div className="px-4 py-2 mb-4 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
+                Akses Cepat
+              </div>
+              <div className="space-y-2 tour-seller-sidebar-kiosk">
+                {isEmployeeNik(user?.nik) && (
+                  <button
+                    aria-label="Akses Portal"
+                    className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
+                    onClick={() => navigate('/portal')}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                      <Globe className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                    </div>
+                    Akses Portal
+                  </button>
+                )}
                 <button
+                  aria-label="Lihat Kiosk"
                   className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
-                  onClick={() => navigate('/portal')}
+                  onClick={() => navigate('/kiosk')}
                 >
                   <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
-                    <Globe className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                    <Store className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
                   </div>
-                  Akses Portal
+                  Lihat Kiosk
                 </button>
-              )}
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group"
-                onClick={() => navigate('/kiosk')}
-              >
-                <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
-                  <Store className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
-                </div>
-                Lihat Kiosk
-              </button>
+              </div>
             </div>
-          </div>
-        </nav>
+          </nav>
 
-        <div className="p-8 border-t border-zinc-100 dark:border-zinc-800">
-          <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[2rem] border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
-            <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl flex items-center justify-center overflow-hidden">
-              <UserIcon className="w-6 h-6 text-white" />
+          <div className="p-8 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-4 p-4 mb-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-[2rem] border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
+              <div className="w-12 h-12 rounded-2xl clay-icon-blue font-black text-xl flex items-center justify-center overflow-hidden">
+                <UserIcon className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-black text-zinc-900 dark:text-white truncate">
+                  {user.name}
+                </p>
+                <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider">{user.role}</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-zinc-900 dark:text-white truncate">
-                {user.name}
-              </p>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-wider">{user.role}</p>
-            </div>
+
+            <button
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-black text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
+              onClick={handleSignOut}
+            >
+              <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
+                <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
+              </div>
+              Keluar Akun
+            </button>
           </div>
-          
-          <button
-            className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl font-black text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
-            onClick={handleSignOut}
-          >
-            <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
-              <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
-            </div>
-            Keluar Akun
-          </button>
         </div>
-      </div>
-    </aside>
+      </aside>
 
       <Transition.Root show={isSidebarOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50 lg:hidden" onClose={setIsSidebarOpen}>
@@ -516,7 +518,7 @@ export default function DashboardLayout() {
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => { navigate('/'); setIsSidebarOpen(false); }}>
                       <img src={LogoSidebar} alt="SPS Corner" className="h-12 w-auto object-contain" />
                     </div>
-                    <button type="button" onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none">
+                    <button type="button" aria-label="Tutup menu" onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors focus:outline-none">
                       <X className="w-6 h-6" />
                     </button>
                   </div>
@@ -540,7 +542,7 @@ export default function DashboardLayout() {
                         {renderNavItems()}
                       </div>
                     </div>
-                    
+
                     <div className="px-2">
                       <div className="px-4 py-2 mb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em]">
                         Akses Cepat
@@ -549,16 +551,16 @@ export default function DashboardLayout() {
                         <button
                           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
                           onClick={() => { navigate('/portal'); setIsSidebarOpen(false); }}
-                          >
-                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
-                              <Globe className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
-                            </div>
-                            Akses Portal
-                          </button>
-                        )}
-                        <button
-                          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
-                          onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
+                            <Globe className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
+                          </div>
+                          Akses Portal
+                        </button>
+                      )}
+                      <button
+                        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-all group focus:outline-none"
+                        onClick={() => { navigate('/kiosk'); setIsSidebarOpen(false); }}
                       >
                         <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all">
                           <Store className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-white" />
@@ -580,7 +582,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v5.0.0
+                      v5.2.0
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
@@ -602,7 +604,7 @@ export default function DashboardLayout() {
         {/* Top Header */}
         <header className="h-24 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-6 md:px-12 sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-colors duration-300">
           <div className="flex items-center gap-6">
-            <button 
+            <button
               onClick={() => setIsSidebarOpen(true)}
               className="lg:hidden clay-icon w-12 h-12 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400"
             >
@@ -610,9 +612,9 @@ export default function DashboardLayout() {
             </button>
             <div className="hidden md:flex items-center gap-4 bg-zinc-50 dark:bg-zinc-800/50 px-6 py-3 rounded-2xl border-2 border-white dark:border-zinc-700 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)] group focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-4 focus-within:ring-blue-500/10 dark:focus-within:ring-blue-500/20 transition-all">
               <Search className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400" />
-              <input 
-                type="text" 
-                placeholder="Cari data..." 
+              <input
+                type="text"
+                placeholder="Cari data..."
                 className="bg-transparent border-none outline-none text-sm font-bold text-zinc-900 dark:text-white w-48 lg:w-80 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
               />
             </div>
@@ -626,7 +628,7 @@ export default function DashboardLayout() {
                   <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 shadow-sm" />
                 )}
               </Menu.Button>
-              
+
               <Transition
                 as={Fragment}
                 enter="transition ease-out duration-200"
@@ -648,7 +650,7 @@ export default function DashboardLayout() {
                   {'Notification' in window && Notification.permission === 'default' && (
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
                       <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Nyalakan push notifikasi untuk update</p>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.preventDefault();
                           subscribeToWebPush && subscribeToWebPush(true).then(() => {
@@ -664,7 +666,7 @@ export default function DashboardLayout() {
                   {'Notification' in window && Notification.permission === 'granted' && pushSubscribed && (
                     <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800 flex items-center justify-between gap-3">
                       <p className="text-xs text-red-700 dark:text-red-400 font-medium">Push notifikasi aktif</p>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.preventDefault();
                           unsubscribeFromWebPush && unsubscribeFromWebPush();
@@ -678,7 +680,7 @@ export default function DashboardLayout() {
                   {'Notification' in window && Notification.permission === 'granted' && !pushSubscribed && (
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
                       <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Izinkan push notifikasi untuk update</p>
-                      <button 
+                      <button
                         onClick={(e) => {
                           e.preventDefault();
                           subscribeToWebPush && subscribeToWebPush(true);
@@ -699,28 +701,25 @@ export default function DashboardLayout() {
                       notifications.filter(n => !n.isRead).map((notif) => (
                         <Menu.Item key={notif.id}>
                           {({ active }) => (
-                            <div 
-                              className={`m-3 p-4 sm:p-5 rounded-2xl cursor-pointer group transition-all shadow-sm ${
-                                active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900' : ''
-                              } ${
-                                notif.type === 'transaction' ? 'bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50' :
-                                notif.type === 'withdrawal' ? 'bg-amber-50/50 hover:bg-amber-50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50' :
-                                'bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
-                              }`}
+                            <div
+                              className={`m-3 p-4 sm:p-5 rounded-2xl cursor-pointer group transition-all shadow-sm ${active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900' : ''
+                                } ${notif.type === 'transaction' ? 'bg-blue-50/50 hover:bg-blue-50 dark:bg-blue-900/10 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50' :
+                                  notif.type === 'withdrawal' ? 'bg-amber-50/50 hover:bg-amber-50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50' :
+                                    'bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700'
+                                }`}
                               onClick={() => {
                                 markOneAsRead(notif.id);
                                 navigate(notif.path);
                               }}
                             >
                               <div className="flex gap-3 sm:gap-4">
-                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 clay-icon group-hover:scale-105 transition-transform shadow-sm ${
-                                  notif.type === 'transaction' ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400' :
-                                  notif.type === 'withdrawal' ? 'bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400' :
-                                  'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                }`}>
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 clay-icon group-hover:scale-105 transition-transform shadow-sm ${notif.type === 'transaction' ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400' :
+                                    notif.type === 'withdrawal' ? 'bg-white dark:bg-zinc-800 text-amber-600 dark:text-amber-400' :
+                                      'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                  }`}>
                                   {notif.type === 'transaction' ? <Receipt className="w-5 h-5 sm:w-6 sm:h-6" /> :
-                                   notif.type === 'withdrawal' ? <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" /> :
-                                   <Info className="w-5 h-5 sm:w-6 sm:h-6" />}
+                                    notif.type === 'withdrawal' ? <CreditCard className="w-5 h-5 sm:w-6 sm:h-6" /> :
+                                      <Info className="w-5 h-5 sm:w-6 sm:h-6" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start justify-between gap-2">
@@ -746,7 +745,7 @@ export default function DashboardLayout() {
                   {unreadCount > 0 && (
                     <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 text-center bg-zinc-50/30 dark:bg-zinc-800/30">
                       <Menu.Item>
-                        <button 
+                        <button
                           onClick={() => {
                             markAllAsRead();
                           }}
@@ -762,7 +761,7 @@ export default function DashboardLayout() {
             </Menu>
 
             <div className="h-10 w-1 bg-zinc-100 dark:bg-zinc-800 rounded-full hidden md:block" />
-            
+
             <Menu as="div" className="relative">
               <Menu.Button className="flex items-center gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 p-2 rounded-[1.5rem] transition-all text-left group focus:outline-none">
                 <div className="text-right hidden sm:block">
@@ -791,13 +790,12 @@ export default function DashboardLayout() {
                   <div className="p-3">
                     <Menu.Item>
                       {({ active }) => (
-                        <button 
+                        <button
                           onClick={() => {
                             setIsChangePasswordModalOpen(true);
                           }}
-                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${
-                            active ? 'bg-zinc-50 dark:bg-zinc-800/50 text-blue-600 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'
-                          }`}
+                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${active ? 'bg-zinc-50 dark:bg-zinc-800/50 text-blue-600 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'
+                            }`}
                         >
                           <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
                             <KeyRound className="w-5 h-5 opacity-70 group-hover:opacity-100" />
@@ -809,11 +807,10 @@ export default function DashboardLayout() {
                     <div className="h-1 bg-zinc-50 dark:bg-zinc-800 my-2 mx-4 rounded-full" />
                     <Menu.Item>
                       {({ active }) => (
-                        <button 
+                        <button
                           onClick={handleSignOut}
-                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${
-                            active ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400' : 'text-red-600 dark:text-red-500'
-                          }`}
+                          className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all group outline-none ${active ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400' : 'text-red-600 dark:text-red-500'
+                            }`}
                         >
                           <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 clay-icon flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden">
                             <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100" />
@@ -849,7 +846,7 @@ export default function DashboardLayout() {
         </div>
       </main>
 
-      <ChangePasswordModal 
+      <ChangePasswordModal
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}
       />
@@ -900,39 +897,38 @@ export default function DashboardLayout() {
 
                 {/* Email field — only shown if email is mock/missing */}
                 {isMockEmail(user?.email) && (
-                <div>
-                  {/* Warning: current email is fake */}
-                  {user?.email && user.email.endsWith('@sps.local') && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/30 rounded-xl mb-2">
-                      <Mail className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                      <p className="text-[10px] text-orange-700 dark:text-orange-300 font-medium">
-                        Email sistem saat ini: <span className="font-black line-through opacity-60">{user.email}</span>
-                      </p>
+                  <div>
+                    {/* Warning: current email is fake */}
+                    {user?.email && user.email.endsWith('@sps.local') && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/30 rounded-xl mb-2">
+                        <Mail className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                        <p className="text-[10px] text-orange-700 dark:text-orange-300 font-medium">
+                          Email sistem saat ini: <span className="font-black line-through opacity-60">{user.email}</span>
+                        </p>
+                      </div>
+                    )}
+                    <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
+                      Ganti dengan Email Aktif
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 dark:text-zinc-600" />
+                      <input
+                        id="seller-email"
+                        type="email"
+                        placeholder="nama@email.com (email aktif Anda)"
+                        value={sellerEmail}
+                        onChange={e => setSellerEmail(e.target.value)}
+                        autoComplete="email"
+                        className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:bg-white dark:focus:bg-zinc-700 transition-all ${sellerFieldErrors.email
+                            ? 'border-red-300 focus:ring-red-200'
+                            : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
+                          }`}
+                      />
                     </div>
-                  )}
-                  <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 mb-1.5 uppercase tracking-widest">
-                    Ganti dengan Email Aktif
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-300 dark:text-zinc-600" />
-                    <input
-                      id="seller-email"
-                      type="email"
-                      placeholder="nama@email.com (email aktif Anda)"
-                      value={sellerEmail}
-                      onChange={e => setSellerEmail(e.target.value)}
-                      autoComplete="email"
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:bg-white dark:focus:bg-zinc-700 transition-all ${
-                        sellerFieldErrors.email
-                          ? 'border-red-300 focus:ring-red-200'
-                          : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
-                      }`}
-                    />
+                    {sellerFieldErrors.email && (
+                      <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{sellerFieldErrors.email}</p>
+                    )}
                   </div>
-                  {sellerFieldErrors.email && (
-                    <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{sellerFieldErrors.email}</p>
-                  )}
-                </div>
                 )}
 
                 {/* Phone */}
@@ -948,11 +944,10 @@ export default function DashboardLayout() {
                       placeholder="Contoh: 08123456789"
                       value={sellerPhone}
                       onChange={e => setSellerPhone(e.target.value)}
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:bg-white dark:focus:bg-zinc-700 transition-all ${
-                        sellerFieldErrors.phone
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-medium bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:bg-white dark:focus:bg-zinc-700 transition-all ${sellerFieldErrors.phone
                           ? 'border-red-300 focus:ring-red-200'
                           : 'border-zinc-200 dark:border-zinc-700 focus:ring-blue-200 focus:border-blue-400'
-                      }`}
+                        }`}
                     />
                   </div>
                   {sellerFieldErrors.phone && (

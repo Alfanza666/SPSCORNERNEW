@@ -231,7 +231,6 @@ export default function AdminSellers() {
       setGeneratingLink(true);
       
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('Session:', session ? 'exists' : 'null', 'Token:', session?.access_token?.slice(0,10));
       if (!session?.access_token) {
         toast.error('Sesi tidak ditemukan. Refresh halaman atau login ulang.');
         return;
