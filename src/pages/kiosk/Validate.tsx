@@ -7,7 +7,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
 import { RefreshCw, CheckCircle2, XCircle, Loader2, Upload, FileImage, ShieldCheck, AlertCircle, Info, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 import toast from 'react-hot-toast';
 
 export default function Validate() {
@@ -69,12 +69,12 @@ export default function Validate() {
     setValidationResult(null);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GROQ_API_KEY;
       if (!apiKey) {
-        throw new Error("Gemini API key not configured");
+        throw new Error("GROQ_API_KEY not configured");
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
       const base64Data = imageSrc.split(',')[1];
 
       const prompt = `
@@ -95,23 +95,21 @@ export default function Validate() {
         }
       `;
 
-      const result = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [
+      const result = await groq.chat.completions.create({
+        model: 'llama-3.2-11b-vision-preview',
+        messages: [
           {
             role: 'user',
-            parts: [
-              { text: prompt },
-              { inlineData: { data: base64Data, mimeType: 'image/jpeg' } }
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Data}` } }
             ]
           }
         ],
-        config: {
-          responseMimeType: 'application/json',
-        }
+        response_format: { type: 'json_object' },
       });
 
-      const responseText = result.text;
+      const responseText = result.choices?.[0]?.message?.content;
       if (!responseText) {
         throw new Error("No response from AI");
       }

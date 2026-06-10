@@ -43,8 +43,8 @@ const supabaseServiceKey =
     ? envKey
     : (() => { throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set"); })();
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-import { GoogleGenAI } from "@google/genai";
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import Groq from "groq-sdk";
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const app = express();
 
@@ -2445,30 +2445,28 @@ app.post("/api/payment/manual/verify", async (req, res) => {
           "reason": "Alasan singkat mengapa valid/tidak valid"
         }
       `;
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ success: false, error: "GEMINI_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({ success: false, error: "GROQ_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
     }
-    const geminiResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
+    const groqResponse = await groq.chat.completions.create({
+      model: "llama-3.2-11b-vision-preview",
+      messages: [
         {
           role: "user",
-          parts: [
-            { text: prompt },
+          content: [
+            { type: "text", text: prompt },
             {
-              inlineData: {
-                data: base64Data,
-                mimeType:
-                  receipt_image.match(/data:(image\/\w+);base64,/)?.[1] ||
-                  "image/jpeg",
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64Data}`,
               },
             },
           ],
         },
       ],
-      config: { responseMimeType: "application/json" },
+      response_format: { type: "json_object" },
     });
-    const resultText = geminiResponse.text;
+    const resultText = groqResponse.choices?.[0]?.message?.content;
     if (!resultText) {
       throw new Error("Gagal mendapatkan respons dari AI");
     }
