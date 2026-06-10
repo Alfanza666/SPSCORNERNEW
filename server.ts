@@ -7,9 +7,7 @@ import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import axios from "axios";
 import path from "path";
-import os from "os";
 import crypto from "crypto";
-import fs from "fs";
 import nodemailer from "nodemailer";
 import webpush from "web-push";
 import helmet from "helmet";
@@ -37,8 +35,8 @@ import { initNotificationService, sendNotification, sendPushToUser, sendPushToAd
 import { initStockService, restoreTransactionStock, checkLowStockAndNotify } from "./src/services/stock.js";
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail } from "./src/services/email.js";
 import { initPaymentService, updateSellerBalances, updateBuyerPoints } from "./src/services/payment.js";
-import { initBackgroundJobs, autoCleanup, dailyReport, checkProgramStartNotifications } from "./src/services/background-jobs.js";
-import { processDigitalItems } from "./src/services/digiflazz.js";
+import { initBackgroundJobs } from "./src/services/background-jobs.js";
+import { processDigitalItems, updateDigiflazzCache, getDigiflazzBalance, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz } from "./src/services/digiflazz.js";
 import { initWANotification, sendWANotification } from "./src/services/wa-notification.js";
 dotenv.config();
 
@@ -202,38 +200,11 @@ async function resolveUser(token) {
   return user;
 }
 
-const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || "")
-  .replace(/['"]/g, "")
-  .trim();
-const DIGIFLAZZ_API_KEY = (process.env.DIGIFLAZZ_API_KEY || "")
-  .replace(/['"]/g, "")
-  .trim();
-const isDefaultDigiflazz = !DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY;
-console.log("\u{1F527} Digiflazz Config:", {
-  username: DIGIFLAZZ_USERNAME,
-  apiKeySet: !!process.env.DIGIFLAZZ_API_KEY,
-  isDefault: isDefaultDigiflazz,
-});
 const FIXIE_URL =
   process.env.FIXIE_URL &&
   !process.env.FIXIE_URL.includes("YOUR_FIXIE_PROXY_URL")
     ? process.env.FIXIE_URL
     : null;
-const getDigiflazzAxiosConfig = __name(() => {
-  const config = {};
-  if (FIXIE_URL) {
-    try {
-      config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
-      config.proxy = false;
-    } catch (error) {
-      console.error(
-        "\u274C Invalid FIXIE_URL provided. Proxy will not be used.",
-        error,
-      );
-    }
-  }
-  return config;
-}, "getDigiflazzAxiosConfig");
 const getIpaymuAxiosConfig = __name(() => {
   const config = {};
   if (FIXIE_URL) {
@@ -289,129 +260,11 @@ registerPaymentRoutes(app, {
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_PRODUCTION, groq,
 });
 
-const CACHE_FILE = path.join(os.tmpdir(), "digiflazz_cache.json");
-let priceCache = {};
-try {
-  if (fs.existsSync(CACHE_FILE)) {
-    const fileContent = fs.readFileSync(CACHE_FILE, "utf-8");
-    priceCache = JSON.parse(fileContent);
-    console.log("\u2705 Loaded Digiflazz price cache from file.");
-  }
-} catch (err) {
-  console.error("Failed to load Digiflazz cache from file:", err);
-}
-const saveCacheToFile = __name(() => {
-  try {
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(priceCache), "utf-8");
-  } catch (err) {
-    console.error("Failed to save Digiflazz cache to file:", err);
-  }
-}, "saveCacheToFile");
-const CACHE_TTL = 12 * 60 * 60 * 1e3;
-const updateDigiflazzCache = __name(async () => {
-  if (!DIGIFLAZZ_USERNAME || !DIGIFLAZZ_API_KEY) {
-    console.log(
-      "\u26A0\uFE0F Skipping background Digiflazz price update: Credentials not configured.",
-    );
-    return;
-  }
-  try {
-    const types = ["prepaid", "postpaid"];
-    for (const type of types) {
-      if (
-        priceCache[type] &&
-        Date.now() - priceCache[type].timestamp < CACHE_TTL
-      ) {
-        console.log(
-          `\u2139\uFE0F Skipping background update for ${type} prices: Cache is still fresh.`,
-        );
-        continue;
-      }
-      console.log(`Fetching ${type} price list from Digiflazz...`);
-      const sign = crypto
-        .createHash("md5")
-        .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist")
-        .digest("hex");
-      const payload = {
-        cmd: type === "postpaid" ? "pasca" : "prepaid",
-        username: DIGIFLAZZ_USERNAME,
-        sign,
-      };
-      const response = await axios.post(
-        "https://api.digiflazz.com/v1/price-list",
-        payload,
-        getDigiflazzAxiosConfig(),
-      );
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        priceCache[type] = { data: response.data.data, timestamp: Date.now() };
-        saveCacheToFile();
-        console.log(
-          `\u2705 Successfully updated ${type} price cache in background.`,
-        );
-      } else if (response.data?.data?.rc) {
-        if (response.data.data.rc === "83") {
-          console.warn(
-            `\u26A0\uFE0F Digiflazz ${type} rate limit reached (Code 83). Will retry later. Existing cache retained.`,
-          );
-        } else {
-          console.error(
-            `\u274C Digiflazz ${type} update returned error code ${response.data.data.rc}: ${response.data.data.message}`,
-          );
-        }
-      } else {
-        console.warn(
-          `\u26A0\uFE0F Digiflazz ${type} update returned unexpected format:`,
-          JSON.stringify(response.data).substring(0, 200),
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, 2e3));
-    }
-  } catch (error) {
-    const errorDetail = error.response?.data || error.message;
-    console.error(
-      "\u274C Background Digiflazz update failed:",
-      typeof errorDetail === "object"
-        ? JSON.stringify(errorDetail, null, 2)
-        : errorDetail,
-    );
-    if (error.response?.status === 400) {
-      console.error(
-        "\u{1F4A1} Tip: A 400 error often means an invalid signature or invalid parameters. Check your DIGIFLAZZ_USERNAME and DIGIFLAZZ_API_KEY.",
-      );
-    } else if (error.response?.status === 401) {
-      console.error(
-        "\u{1F4A1} Tip: A 401 error means unauthorized. Check your credentials and ensure your IP is whitelisted in Digiflazz dashboard.",
-      );
-    }
-  }
-}, "updateDigiflazzCache");
 if (!process.env.VERCEL) {
   setTimeout(updateDigiflazzCache, 5e3);
   setInterval(updateDigiflazzCache, CACHE_TTL);
 }
 registerDigitalRoutes(app, { supabase, sendNotification, crypto, axios, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz });
-
-// ── Digiflazz balance check helper ──────────────────────────────
-const getDigiflazzBalance = __name(async () => {
-  if (isDefaultDigiflazz) return 0;
-  try {
-    const sign = crypto
-      .createHash("md5")
-      .update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo")
-      .digest("hex");
-    const response = await axios.post(
-      "https://api.digiflazz.com/v1/cek-saldo",
-      { cmd: "deposit", username: DIGIFLAZZ_USERNAME, sign },
-    );
-    return response.data?.data?.deposit || 0;
-  } catch (err) {
-    console.error(
-      "Failed to get Digiflazz balance:",
-      err?.response?.data || err.message,
-    );
-    return 0;
-  }
-}, "getDigiflazzBalance");
 
 registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
 registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
@@ -508,145 +361,6 @@ if (!process.env.VERCEL) {
       });
     }
 
-
-    // ── Auto-cleanup expired transactions every 3 minutes ─────────────────
-    async function autoCleanup() {
-      try {
-        const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
-        const { data: expired } = await supabase
-          .from("transactions")
-          .select("id, metadata")
-          .in("status", ["pending"])
-          .lt("created_at", fiveMinsAgo);
-        if (!expired || expired.length === 0) return;
-        for (const tx of expired) {
-          await supabase
-            .from("transactions")
-            .update({
-              status: "failed",
-              metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
-            })
-            .eq("id", tx.id);
-          await restoreTransactionStock(tx.id);
-        }
-        if (expired.length > 0) {
-          console.log(`[AutoCleanup] Restored stock for ${expired.length} expired transaction(s)`);
-        }
-      } catch (e) {
-        console.error("[AutoCleanup] Error:", e);
-      }
-    }
-    autoCleanup();
-    setInterval(autoCleanup, 3 * 60 * 1e3);
-
-    let lastDailyReportDate = "";
-    const dailyReport = __name(async () => {
-      try {
-        const now = new Date();
-        const witaOffset = 8 * 60;
-        const wita = new Date(now.getTime() + witaOffset * 60 * 1000);
-        const todayStr = wita.toISOString().slice(0, 10);
-        if (lastDailyReportDate === todayStr) return;
-        const hourWITA = wita.getUTCHours();
-        const minWITA = wita.getUTCMinutes();
-        if (hourWITA !== 20 || minWITA > 5) return;
-
-        lastDailyReportDate = todayStr;
-        console.log(`[DailyReport] Sending daily report for ${todayStr}`);
-
-        const { data: sellers } = await supabase.from("profiles").select("id").eq("role", "seller");
-        if (!sellers || sellers.length === 0) return;
-
-        const dayStart = new Date(Date.UTC(wita.getUTCFullYear(), wita.getUTCMonth(), wita.getUTCDate(), 0, 0, 0) - witaOffset * 60 * 1000).toISOString();
-
-        for (const seller of sellers) {
-          try {
-            const { data: items } = await supabase
-              .from("transaction_items")
-              .select("id, transaction_id, quantity, subtotal, transactions!inner(id, total_amount, status, created_at)")
-              .eq("seller_id", seller.id)
-              .gte("transactions.created_at", dayStart);
-
-            if (!items || items.length === 0) continue;
-
-            const txMap = new Map();
-            for (const item of items) {
-              const tx = item.transactions;
-              if (!txMap.has(tx.id)) {
-                txMap.set(tx.id, { ...tx, itemCount: 0, itemRevenue: 0 });
-              }
-              const entry = txMap.get(tx.id);
-              entry.itemCount += item.quantity;
-              entry.itemRevenue += Number(item.subtotal || 0);
-            }
-            const txns = Array.from(txMap.values());
-            const totalCount = txns.length;
-            const totalRevenue = txns.reduce((s, t) => s + Number(t.total_amount || 0), 0);
-            const pendingCount = txns.filter(t => t.status === "pending").length;
-            const processedCount = txns.filter(t => t.status === "processed").length;
-            const readyCount = txns.filter(t => t.status === "ready_for_pickup" || t.status === "pending_pickup").length;
-            const completedCount = txns.filter(t => t.status === "completed" || t.status === "paid" || t.status === "success").length;
-
-            const revFormatted = totalRevenue.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-            await sendNotification(seller.id, {
-              type: "system",
-              title: "Laporan Harian",
-              message: `Ringkasan hari ini: ${totalCount} pesanan, Rp${revFormatted}. ${completedCount} selesai, ${pendingCount} pending, ${processedCount} diproses, ${readyCount} siap ambil.`,
-              path: "/dashboard/seller/dashboard"
-            });
-          } catch (e) {
-            console.error(`[DailyReport] Error for seller ${seller.id}:`, e);
-          }
-        }
-      } catch (e) {
-        console.error("[DailyReport] Error:", e);
-      }
-    }, "dailyReport");
-    setInterval(dailyReport, 60 * 1e3);
-
-    // ── Program start notifications every 30 seconds ─────────────────────
-    const notifiedProgramStarts = new Set();
-    async function checkProgramStartNotifications() {
-      try {
-        const now = new Date().toISOString();
-        const { data: programs } = await supabase
-          .from("union_programs")
-          .select("id, name")
-          .eq("is_active", true)
-          .lte("start_date", now)
-          .gte("start_date", new Date(Date.now() - 120 * 1e3).toISOString());
-
-        if (!programs || programs.length === 0) return;
-
-        for (const prog of programs) {
-          if (notifiedProgramStarts.has(prog.id)) continue;
-          notifiedProgramStarts.add(prog.id);
-
-          const { data: couponHolders } = await supabase
-            .from("program_coupons")
-            .select("user_id")
-            .eq("program_id", prog.id)
-            .not("user_id", "is", null);
-
-          if (!couponHolders || couponHolders.length === 0) continue;
-
-          const uniqueUserIds = [...new Set(couponHolders.map(c => c.user_id))];
-          for (const userId of uniqueUserIds) {
-            await sendNotification(userId, {
-              type: "system",
-              title: `🎫 Program Dimulai: ${prog.name}`,
-              message: `Program "${prog.name}" telah dimulai! Segera tukarkan kupon Anda dan hadiri acaranya. Cek detail & kupon di menu Program.`,
-              path: "/portal/program"
-            });
-          }
-          console.log(`[ProgramStartNotif] Sent to ${uniqueUserIds.length} users for "${prog.name}"`);
-        }
-      } catch (e) {
-        console.error("[ProgramStartNotif] Error:", e);
-      }
-    }
-    checkProgramStartNotifications();
-    setInterval(checkProgramStartNotifications, 30 * 1e3);
 
     // Sentry error handler (must be last middleware)
     if (process.env.SENTRY_DSN) {
