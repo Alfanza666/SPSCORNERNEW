@@ -3,7 +3,9 @@ v5.2.0 — Route Refactor, Order Tracking, Analytics, WA Notif (MINOR)
 ### Refactor Arsitektur:
 - **[REFACTOR] server.ts Modularisasi Tahap 1:** Ekstrak 7 service modules — `notification.ts`, `stock.ts`, `email.ts`, `payment.ts`, `digiflazz.ts`, `background-jobs.ts`, `wa-notification.ts`.
 - **[REFACTOR] server.ts Modularisasi Tahap 2:** Ekstrak 13 route modules — `analytics.ts`, `push.ts`, `diagnostics.ts`, `misc.ts`, `auth.ts`, `portal.ts`, `digital.ts`, `payments.ts`, `transactions.ts`, `admin.ts` + existing `withdrawals.ts`, `stock.ts`, `productReturns.ts`.
-- **[CHANGE] server.ts:** ~5000 baris → 678 baris. Sekarang hanya berisi: imports (35), env setup, middleware (CORS/CSP/Rate Limit/Helmet), route registrations, SPA fallback, Vercel export.
+- **[CHANGE] server.ts:** ~5000 baris → 678 baris (skrg ~650 baris setelah cleanup). Entry point bersih: imports, middleware, route registrations, SPA fallback.
+- **[CLEANUP] server.ts:** Hapus 50+ baris komentar stale `// xxx moved to src/routes/xxx.ts`, hapus komentar redundan.
+- **[CLEANUP] AGENTS.md:** Update daftar dead code — konfirmasi 6 item sudah tidak ada di repo.
 
 ### Fitur Baru:
 - **[FEAT] Order Tracking:** Flow status `paid → processed → ready → completed` dengan 3 endpoint baru + push/WA notification setiap transisi.
@@ -16,6 +18,16 @@ v5.2.0 — Route Refactor, Order Tracking, Analytics, WA Notif (MINOR)
 - **[FIX] AdminUnionPrograms:** Bare `.catch(console.error)` → error handler informatif.
 - **[FIX] email.js:** `sendSarirotiEmailInternal` return type → `{ success, data/error }` (backward compat).
 - **[FIX] triggerSarirotiEmail:** Full HTML email template di email.js (seperti versi inline sebelumnya).
+- **[FIX] server.ts:** Tambah `GET /api/test-ping` health check endpoint.
+- **[FIX] server.ts:** Hapus duplikasi `updateDigiflazzCache` (import & definisi lokal) — resolve TDZ di Node v20.
+
+### Optimasi Build:
+- **[OPTIM] vendor chunk splitting:** Pisah recharts, xlsx, html2canvas, motion, tiptap editor, scanner deps ke chunk terpisah via `manualChunks`. Main bundle turun 780kB → 642kB.
+- **[DELETE] `@sentry/vite-plugin`:** Dead dependency — tidak dipakai di mana pun.
+
+### Infrastruktur:
+- **[IMPROVE] `scripts/deploy-vps.ps1`:** Tambah `pm2 flush` sebelum restart — log error restart sebelumnya tidak mengganggu health check. Tambah SCP `src/services/` yang sebelumnya terlewat.
+
 
 ### Perubahan Lain:
 - **[CHANGE] Version:** package.json, Home, DashboardLayout, PortalLayout → v5.2.0
