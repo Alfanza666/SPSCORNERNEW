@@ -38,7 +38,7 @@ import { initStockService, restoreTransactionStock, checkLowStockAndNotify } fro
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail } from "./src/services/email.js";
 import { initPaymentService, updateSellerBalances, updateBuyerPoints } from "./src/services/payment.js";
 import { initBackgroundJobs, autoCleanup, dailyReport, checkProgramStartNotifications } from "./src/services/background-jobs.js";
-import { processDigitalItems, updateDigiflazzCache } from "./src/services/digiflazz.js";
+import { processDigitalItems } from "./src/services/digiflazz.js";
 import { initWANotification, sendWANotification } from "./src/services/wa-notification.js";
 dotenv.config();
 
@@ -77,7 +77,7 @@ initEmailService(supabase, nodemailer);
 initPaymentService(supabase);
 initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal);
 initWANotification(supabase);
-setTimeout(() => updateDigiflazzCache(), 100);
+
 
 // Sentry auto-instruments Express requests in SDK v8+, so manual requestHandler and tracingHandler are not needed.
 
