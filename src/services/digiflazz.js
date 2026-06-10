@@ -4,6 +4,7 @@ import axios from "axios";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { HttpsProxyAgent } from "https-proxy-agent";
 
 export const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || "").replace(/['"]/g, "").trim();
 export const DIGIFLAZZ_API_KEY = (process.env.DIGIFLAZZ_API_KEY || "").replace(/['"]/g, "").trim();
@@ -31,7 +32,7 @@ export function getDigiflazzAxiosConfig() {
   const config = {};
   if (FIXIE_URL) {
     try {
-      config.httpsAgent = new (require("https-proxy-agent").HttpsProxyAgent)(FIXIE_URL);
+      config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
       config.proxy = false;
     } catch (error) {
       console.error("\u274C Invalid FIXIE_URL provided. Proxy will not be used.", error);
@@ -93,7 +94,7 @@ export async function updateDigiflazzCache() {
 export async function getDigiflazzBalance() {
   if (isDefaultDigiflazz) return 0;
   try {
-    const sign = crypto.createHash("md5").update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "deposit").digest("hex");
+    const sign = crypto.createHash("md5").update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").digest("hex");
     const response = await axios.post("https://api.digiflazz.com/v1/cek-saldo", { cmd: "deposit", username: DIGIFLAZZ_USERNAME, sign });
     return response.data?.data?.deposit || 0;
   } catch (err) {
