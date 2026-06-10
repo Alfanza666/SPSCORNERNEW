@@ -65,6 +65,21 @@ export default defineConfig(({mode}) => {
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
       'import.meta.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify(env.VITE_VAPID_PUBLIC_KEY || ''),
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/recharts')) return 'vendor-recharts';
+            if (id.includes('node_modules/xlsx')) return 'vendor-xlsx';
+            if (id.includes('node_modules/html2canvas')) return 'vendor-html2canvas';
+            if (id.includes('node_modules/react-qr-code') || id.includes('node_modules/react-webcam') || id.includes('node_modules/@zxing')) return 'vendor-scanner';
+            if (id.includes('node_modules/@tiptap') || id.includes('node_modules/prosemirror')) return 'vendor-editor';
+            if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) return 'vendor-motion';
+            if (id.includes('node_modules/recharts') || id.includes('node_modules/d3')) return 'vendor-charts';
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

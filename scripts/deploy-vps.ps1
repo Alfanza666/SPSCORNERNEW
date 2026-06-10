@@ -47,12 +47,11 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "server.ts copied" -ForegroundColor Green
 
-Write-Host ">>> Copying frontend files..." -ForegroundColor Yellow
-scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\pages\dashboard\seller\" "${VPS}:${REMOTE_DIR}/src/pages/dashboard/seller/" 2>&1
-scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\pages\dashboard\admin\" "${VPS}:${REMOTE_DIR}/src/pages/dashboard/admin/" 2>&1
-scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\routes\" "${VPS}:${REMOTE_DIR}/src/routes/" 2>&1
-scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\middleware\" "${VPS}:${REMOTE_DIR}/src/middleware/" 2>&1
-Write-Host "Frontend files copied" -ForegroundColor Green
+Write-Host ">>> Copying service & route modules..." -ForegroundColor Yellow
+scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\routes\*" "${VPS}:${REMOTE_DIR}/src/routes/" 2>&1
+scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\services\*" "${VPS}:${REMOTE_DIR}/src/services/" 2>&1
+scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\middleware\*" "${VPS}:${REMOTE_DIR}/src/middleware/" 2>&1
+Write-Host "Modules copied" -ForegroundColor Green
 
 Write-Host ">>> Checking dependency changes..." -ForegroundColor Yellow
 $localPkgHash = (Get-FileHash "$LOCAL_DIR\package-lock.json" -Algorithm MD5).Hash
@@ -72,6 +71,9 @@ if ($localPkgHash -ne $remotePkgHash) {
 else {
   Write-Host "No dependency changes" -ForegroundColor Green
 }
+
+Write-Host ">>> Flushing old PM2 logs..." -ForegroundColor Yellow
+ssh -o StrictHostKeyChecking=no $VPS "pm2 flush" 2>&1
 
 Write-Host ">>> Restarting PM2..." -ForegroundColor Yellow
 ssh -o StrictHostKeyChecking=no $VPS "pm2 restart sps-backend --update-env" 2>&1

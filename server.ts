@@ -185,10 +185,6 @@ try {
   console.warn("VAPID details not configured properly", e);
 }
 
-// ─── Re-exported from service modules for backward compatibility ───────────
-// sendPushToUser, sendPushToAdmins, restoreTransactionStock, createNotification
-// are now in src/services/notification.js and src/services/stock.js
-
 async function getAdminIds() {
   const { data: admins } = await supabase.from("profiles").select("id").in("role", ["admin", "superadmin"]);
   return (admins || []).map(a => a.id);
@@ -205,8 +201,6 @@ async function resolveUser(token) {
   if (error || !user) return null;
   return user;
 }
-
-// --- Route modules (registered above via registerWithdrawalRoutes, registerStockRoutes, registerProductReturnRoutes) ---
 
 const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || "")
   .replace(/['"]/g, "")
@@ -276,8 +270,6 @@ console.log("\u{1F4B3} Ipaymu Config:", {
     ? "https://my.ipaymu.com"
     : "https://sandbox.ipaymu.com",
 });
-// sendNotification is now imported from src/services/notification.js
-
 // Health check
 app.get("/api/test-ping", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -297,15 +289,6 @@ registerPaymentRoutes(app, {
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_PRODUCTION, groq,
 });
 
-// ─── Service functions imported from src/services/ modules ──────────────────
-// processDigitalItems    → ./src/services/digiflazz.js
-// sendSarirotiEmailInternal → ./src/services/email.js
-// updateSellerBalances   → ./src/services/payment.js
-// checkLowStockAndNotify → ./src/services/stock.js
-// updateBuyerPoints      → ./src/services/payment.js
-// triggerSarirotiEmail   → ./src/services/email.js
-// sendBuyerReceiptEmail  → ./src/services/email.js
-// sendNotification       → ./src/services/notification.js
 const CACHE_FILE = path.join(os.tmpdir(), "digiflazz_cache.json");
 let priceCache = {};
 try {
@@ -433,83 +416,8 @@ const getDigiflazzBalance = __name(async () => {
 registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
 registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
 
-// admin/transactions/approve moved to src/routes/transactions.ts
-// admin/transactions/reject moved to src/routes/transactions.ts
-// admin/transactions/confirm-sariroti moved to src/routes/transactions.ts
-// admin/transactions/notify-ready moved to src/routes/transactions.ts
-// admin/transactions/cleanup moved to src/routes/transactions.ts
-// transactions/:id moved to src/routes/transactions.ts
-// transactions/create moved to src/routes/transactions.ts
-// transactions/pay moved to src/routes/transactions.ts
-// transactions/:id/process moved to src/routes/transactions.ts
-// transactions/:id/ready moved to src/routes/transactions.ts
-// transactions/:id/complete moved to src/routes/transactions.ts
-// transactions/cancel moved to src/routes/transactions.ts
-// transactions/seller/:sellerId moved to src/routes/transactions.ts
-// admin/password-resets moved to src/routes/admin.ts
-// admin/password-resets/complete moved to src/routes/admin.ts
-// admin/stock-report moved to src/routes/admin.ts
-// digital/callback moved to src/routes/digital.ts
-// payment/ipaymu/debug moved to src/routes/payments.ts
-// payment/ipaymu/create moved to src/routes/payments.ts
-// payment/manual/verify moved to src/routes/payments.ts
-// payment/points/pay moved to src/routes/payments.ts
-// payment/points/partial-pay moved to src/routes/payments.ts
 
-// Get user points balance (calculated from history with expiry)
-// portal/points/balance moved to src/routes/portal.ts
 
-// portal/points/history moved to src/routes/portal.ts
-// payment/ipaymu/direct moved to src/routes/payments.ts
-// payment/ipaymu/callback moved to src/routes/payments.ts
-// payment/ipaymu/status/:reference_id moved to src/routes/payments.ts
-// payment/ipaymu/methods moved to src/routes/payments.ts
-// auth/reset-password-request moved to src/routes/auth.ts
-
-// auth/forgot-password-send-email moved to src/routes/auth.ts
-
-// auth/reset-password moved to src/routes/auth.ts
-// test-email moved to src/routes/misc.ts
-
-// report + reports moved to src/routes/misc.ts
-
-// ========== SELLER REGISTRATION ==========
-
-// auth/admin/seller-registration-links moved to src/routes/auth.ts
-
-// auth/seller-registration/verify moved to src/routes/auth.ts
-
-// auth/seller-register moved to src/routes/auth.ts
-
-// auth/seller/products/check moved to src/routes/auth.ts
-
-// =====================================================
-// API: Program Serikat Push Method (Coupons & Doorprize)
-// =====================================================
-
-// Generate coupons from eligibility (Bulk)
-// admin/programs/generate-coupons moved to src/routes/portal.ts
-
-// admin/programs/manual-coupon moved to src/routes/portal.ts
-
-// admin/coupons/claim moved to src/routes/portal.ts
-
-// admin/programs/bypass-attendance moved to src/routes/portal.ts
-
-// admin/programs/draw-doorprize moved to src/routes/portal.ts
-
-// admin/programs/coupons moved to src/routes/portal.ts
-
-// admin/programs/doorprize-log moved to src/routes/portal.ts
-
-// portal/my-coupons moved to src/routes/portal.ts
-
-// admin/programs/notify moved to src/routes/portal.ts
-
-// admin/programs/close moved to src/routes/portal.ts
-
-// Broadcast notification to all users
-// broadcast moved to src/routes/misc.ts
 
 registerAnalyticsRoutes(app, { supabase });
 registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal });
@@ -600,8 +508,6 @@ if (!process.env.VERCEL) {
       });
     }
 
-
-    // portal/programs/checkout-family moved to src/routes/portal.ts
 
     // ── Auto-cleanup expired transactions every 3 minutes ─────────────────
     async function autoCleanup() {

@@ -219,12 +219,12 @@ Karena GitHub Actions terkendala billing, auto-deploy dihandle langsung oleh VPS
 - **⚠️ API 404 catch-all di `server.ts`**: Wajib ada `app.use('/api/*', (req, res) => res.status(404).json({ error: 'API endpoint not found' }))` SEBELUM SPA fallback (`app.get("*")`). Tanpa ini, request API yang tidak terdaftar mengembalikan HTML (index.html) → frontend error `"Unexpected token '<'"`.
 - **⚠️ `@sentry/node` sering missing di VPS**: Setiap ada update `server.ts`, cek apakah ada import package baru (contoh: `@sentry/node`). Frontend (Vercel) dan Backend (VPS) tidak sinkron versi — dependency baru di `server.ts` harus di `npm install` di VPS sebelum restart PM2. Cek `package.json` + `package-lock.json` untuk melihat perubahan dependensi.
 
-🗑️ Known Dead Code Candidates (verify before deleting)
-- `fix_*.sql` files — one-time SQL fixes
-- `revert_incorrect_patches.cjs` — rollback script, likely no longer needed
+🗑️ Known Dead Code Candidates
+- ~~`fix_*.sql`~~ — sudah tidak ada di repo
+- ~~`revert_incorrect_patches.cjs`~~ — sudah tidak ada di repo
 - ~~`push_to_github.bat`~~ — **sudah dihapus**, ganti dengan `scripts/deploy-vps.ps1`
-- `Perbaikan program/` directory — unclear purpose, verify contents
-- `session-ses_1c94.md` — session log, likely temporary
-- `walkthrough.md` — documentation, verify if still relevant
-- `supabase-schema.sql` — schema dump, verify if it matches current Supabase state
-- `flashsale_setup.sql`, `reports_setup.sql` — one-time setup scripts
+- ~~`Perbaikan program/`~~ — sudah tidak ada di repo
+- ~~`session-ses_1c94.md`~~ — sudah tidak ada di repo
+- ~~`walkthrough.md`~~ — sudah tidak ada di repo
+- `supabase-schema.sql` — masih ada, dirujuk oleh `AdminSellers.tsx` & `Register.tsx`. Verifikasi sinkronisasi dengan Supabase production.
+- ~~`flashsale_setup.sql`, `reports_setup.sql`~~ — sudah tidak ada di repo
