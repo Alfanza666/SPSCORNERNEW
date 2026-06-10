@@ -278,6 +278,11 @@ console.log("\u{1F4B3} Ipaymu Config:", {
 });
 // sendNotification is now imported from src/services/notification.js
 
+// Health check
+app.get("/api/test-ping", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // Register modular route groups
 registerWithdrawalRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
 registerStockRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
