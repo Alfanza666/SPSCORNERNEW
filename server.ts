@@ -36,7 +36,7 @@ import { initStockService, restoreTransactionStock, checkLowStockAndNotify } fro
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail } from "./src/services/email.js";
 import { initPaymentService, updateSellerBalances, updateBuyerPoints } from "./src/services/payment.js";
 import { initBackgroundJobs } from "./src/services/background-jobs.js";
-import { processDigitalItems, updateDigiflazzCache, getDigiflazzBalance, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz } from "./src/services/digiflazz.js";
+import { processDigitalItems, updateDigiflazzCache, getDigiflazzBalance, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY } from "./src/services/digiflazz.js";
 import { initWANotification, sendWANotification } from "./src/services/wa-notification.js";
 dotenv.config();
 
