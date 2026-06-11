@@ -71,6 +71,35 @@ async function runReconciliation() {
 
 async function autoCleanup() {
   try {
+    // ── Kirim pengingat untuk transaksi yang sudah 10 menit ──
+    const reminderThreshold = new Date(Date.now() - 10 * 60 * 1e3).toISOString();
+    const elevenMinAgo = new Date(Date.now() - 11 * 60 * 1e3).toISOString();
+    const { data: toRemind } = await supabaseInstance
+      .from("transactions")
+      .select("id, buyer_id, metadata")
+      .in("status", ["pending"])
+      .lt("created_at", reminderThreshold)
+      .gt("created_at", elevenMinAgo);
+    if (toRemind) {
+      for (const tx of toRemind) {
+        if (tx.metadata?.reminder_sent) continue;
+        const { error: metaErr } = await supabaseInstance
+          .from("transactions")
+          .update({ metadata: { ...(tx.metadata || {}), reminder_sent: true } })
+          .eq("id", tx.id);
+        if (metaErr) continue;
+        if (tx.buyer_id && sendNotif) {
+          await sendNotif(tx.buyer_id, {
+            type: "transaction",
+            title: "⏳ Segera Selesaikan Pembayaran",
+            message: `Pesanan #${tx.id.slice(0, 8)} akan dibatalkan otomatis dalam 5 menit.`,
+            path: `/kiosk/success?id=${tx.id}`,
+          });
+        }
+      }
+    }
+
+    // ── Cancel transaksi expired (> 15 menit) ──
     const expiredThreshold = new Date(Date.now() - 15 * 60 * 1e3).toISOString();
     const { data: expired } = await supabaseInstance
       .from("transactions")
@@ -86,8 +115,6 @@ async function autoCleanup() {
           metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 15 menit" },
         })
         .eq("id", tx.id);
-      // Restore stock: 20 menit sudah lewat, payment sangat tidak mungkin datang
-      // (Guard re-deduct tetap ada di approve & callback untuk jaga-jaga)
       if (restoreStock) await restoreStock(tx.id);
       if (tx.buyer_id && sendNotif) {
         await sendNotif(tx.buyer_id, {

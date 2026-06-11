@@ -38,6 +38,9 @@ export default function Checkout() {
     try { return sessionStorage.getItem('buyerPhone') || ''; } catch { return ''; }
   });
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [paymentLocked, setPaymentLocked] = useState(() => {
+    try { return sessionStorage.getItem('paymentLocked') === 'true'; } catch { return false; }
+  });
   // Ref untuk mencegah pembuatan transaksi duplikat (mutex antar semua handler)
   const txIdRef = useRef<string | null>(null);
   const isCreatingTx = useRef(false);
@@ -258,6 +261,8 @@ export default function Checkout() {
       const { transaction: tx } = await createRes.json();
       setTransactionId(tx.id);
       saveGuestTransaction(tx.id);
+      setPaymentLocked(true);
+      sessionStorage.setItem('paymentLocked', 'true');
       setLoadingMessage('Menghubungkan ke gerbang pembayaran iPaymu...');
 
       // 2. Create IPaymu Direct Payment
@@ -380,6 +385,8 @@ export default function Checkout() {
       const { transaction } = await txRes.json();
       setTransactionId(transaction.id);
       saveGuestTransaction(transaction.id);
+      setPaymentLocked(true);
+      sessionStorage.setItem('paymentLocked', 'true');
       setPaymentStep('manual_qris');
 
     } catch (error: any) {
@@ -1055,14 +1062,16 @@ buyer_email: buyerEmail,
                 )}
               </button>
 
-              <button
-                onClick={() => setPaymentStep('summary')}
-                disabled={verifyingReceipt}
-                className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
-              >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
-                Ganti Metode Pembayaran
-              </button>
+              {!paymentLocked && (
+                <button
+                  onClick={() => setPaymentStep('summary')}
+                  disabled={verifyingReceipt}
+                  className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
+                >
+                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
+                  Ganti Metode Pembayaran
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -1195,14 +1204,16 @@ buyer_email: buyerEmail,
                 Cek Status Pembayaran
               </button>
 
-              <button
-                onClick={() => setPaymentStep('summary')}
-                disabled={loading}
-                className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
-              >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
-                Ganti Metode Pembayaran
-              </button>
+              {!paymentLocked && (
+                <button
+                  onClick={() => setPaymentStep('summary')}
+                  disabled={loading}
+                  className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
+                >
+                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
+                  Ganti Metode Pembayaran
+                </button>
+              )}
             </div>
           </div>
         )}

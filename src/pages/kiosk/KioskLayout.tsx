@@ -51,6 +51,26 @@ export default function KioskLayout() {
     }
   }, [user, isCatalog]);
 
+  // ── Redirect paksa ke halaman bayar jika ada transaksi pending ──
+  useEffect(() => {
+    const skipPaths = ['/kiosk/checkout', '/kiosk/success', '/kiosk/history', '/kiosk/validate'];
+    if (skipPaths.includes(location.pathname)) return;
+
+    const pendingTxId = (() => {
+      try { return sessionStorage.getItem('lastTransactionId'); } catch { return null; }
+    })();
+    if (!pendingTxId) return;
+
+    fetch(`/api/transactions/${pendingTxId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.transaction?.status === 'pending') {
+          navigate(`/kiosk/success?id=${pendingTxId}`, { replace: true });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
