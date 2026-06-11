@@ -1,5 +1,5 @@
-export function registerStockRoutes(app: any, deps: { supabase: any; sendNotification: any; getAdminIds: any; getUserId: any; resolveUser: any }) {
-  const { supabase, sendNotification, getAdminIds, getUserId, resolveUser } = deps;
+export function registerStockRoutes(app: any, deps: { supabase: any; sendNotification: any; getAdminIds: any; getUserId: any; resolveUser: any; atomicAdjustStock: any }) {
+  const { supabase, sendNotification, getAdminIds, getUserId, resolveUser, atomicAdjustStock } = deps;
 
   app.post("/api/stock-requests/create", async (req: any, res: any) => {
     try {
@@ -44,15 +44,13 @@ export function registerStockRoutes(app: any, deps: { supabase: any; sendNotific
       await supabase.from("stock_requests").update({ status, admin_id: user.id, updated_at: new Date().toISOString() }).eq("id", id);
 
       if (status === "approved") {
-        const { data: product } = await supabase.from("products").select("stock").eq("id", request.product_id).single();
-        if (product) {
-          const newStock = product.stock + request.requested_quantity;
-          await supabase.from("products").update({ stock: newStock }).eq("id", request.product_id);
-          await supabase.from("stock_adjustments").insert({
-            product_id: request.product_id, user_id: user.id,
-            previous_stock: product.stock, new_stock: newStock,
-            adjustment_type: "restock", notes: `Restock disetujui dari request ID: ${id}`
-          });
+        const result = await atomicAdjustStock(
+          request.product_id, +request.requested_quantity,
+          user.id, 'restock',
+          `Restock disetujui dari request ID: ${id}`, null
+        );
+        if (!result || !result.success) {
+          console.error(`[Restock] Atomic adjust failed for product ${request.product_id}:`, result?.error_message);
         }
       }
 

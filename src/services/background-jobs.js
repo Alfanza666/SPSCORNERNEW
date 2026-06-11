@@ -3,12 +3,14 @@ let supabaseInstance = null;
 let sendNotif = null;
 let restoreStock = null;
 let sendSarirotiEmail = null;
+let reconcileStock = null;
 
-export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal) {
+export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn) {
   supabaseInstance = supabase;
   sendNotif = sendNotification;
   restoreStock = restoreTransactionStock;
   sendSarirotiEmail = sendSarirotiEmailInternal;
+  reconcileStock = reconcileStockFn;
 
   if (typeof process !== 'undefined' && process.env && process.env.VERCEL) return;
 
@@ -19,12 +21,43 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   // ── Daily report (push notification) every 60 seconds ─────────────────
   setInterval(dailyReport, 60 * 1e3);
 
+  // ── Stock reconciliation every 30 minutes ──────────────────────────
+  runReconciliation();
+  setInterval(runReconciliation, 30 * 60 * 1e3);
+
   // ── Program start notifications every 30 seconds ─────────────────────
   checkProgramStartNotifications();
   setInterval(checkProgramStartNotifications, 30 * 1e3);
 
   // ── Email-based daily report (scheduled) ─────────────────────────────
   scheduleDailyEmailReport();
+}
+
+async function runReconciliation() {
+  if (!reconcileStock) return;
+  try {
+    const discrepancies = await reconcileStock();
+    if (!discrepancies || discrepancies.length === 0) return;
+    console.warn(`[Reconciliation] ${discrepancies.length} product(s) with stock drift detected`);
+    // Notify admins if significant drift found
+    const significant = discrepancies.filter(d => Math.abs(d.gap) >= 5);
+    if (significant.length > 0 && sendNotif) {
+      const { data: admins } = await supabaseInstance.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+      if (admins) {
+        const msg = significant.slice(0, 5).map(d => `${d.product_name}: sistem=${d.current_stock}, expected=${d.expected_stock}`).join('\n');
+        for (const admin of admins) {
+          await sendNotif(admin.id, {
+            type: 'system',
+            title: `⚠️ ${significant.length} Produk Stok Tidak Sinkron`,
+            message: `Detected ${discrepancies.length} discrepancies (${significant.length} >= 5 unit gap):\n${msg}${discrepancies.length > 5 ? `\n...dan ${discrepancies.length - 5} lainnya` : ''}`,
+            path: '/dashboard/admin/stock-opname',
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[Reconciliation] Error:', e);
+  }
 }
 
 async function autoCleanup() {

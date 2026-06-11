@@ -4,6 +4,7 @@
 -- 1. transactions_update_public: Only allow buyer or admin to update transactions
 -- ==========================================
 drop policy if exists transactions_update_public on public.transactions;
+drop policy if exists transactions_update_owner_or_admin on public.transactions;
 
 create policy transactions_update_owner_or_admin on public.transactions
   for update using (
@@ -14,6 +15,7 @@ create policy transactions_update_owner_or_admin on public.transactions
 -- 2. transactions_insert_public: Require buyer_id to match authenticated user
 -- ==========================================
 drop policy if exists transactions_insert_public on public.transactions;
+drop policy if exists transactions_insert_authenticated on public.transactions;
 
 create policy transactions_insert_authenticated on public.transactions
   for insert with check (
@@ -27,16 +29,20 @@ create policy transactions_insert_authenticated on public.transactions
 -- ==========================================
 drop policy if exists stock_reservations_public_all on public.stock_reservations;
 
+drop policy if exists stock_reservations_select_auth on public.stock_reservations;
 create policy stock_reservations_select_auth on public.stock_reservations
   for select to authenticated using (true);
 
 -- Block direct INSERT/UPDATE/DELETE — must use server-side functions
+drop policy if exists stock_reservations_no_insert on public.stock_reservations;
 create policy stock_reservations_no_insert on public.stock_reservations
   for insert with check (false);
 
+drop policy if exists stock_reservations_no_update on public.stock_reservations;
 create policy stock_reservations_no_update on public.stock_reservations
   for update using (false);
 
+drop policy if exists stock_reservations_no_delete on public.stock_reservations;
 create policy stock_reservations_no_delete on public.stock_reservations
   for delete using (false);
 
@@ -44,6 +50,7 @@ create policy stock_reservations_no_delete on public.stock_reservations
 -- 4. notifications_insert_all: Only allow inserting notifications for self
 -- ==========================================
 drop policy if exists notifications_insert_all on public.notifications;
+drop policy if exists notifications_insert_self_or_admin on public.notifications;
 
 create policy notifications_insert_self_or_admin on public.notifications
   for insert with check (
@@ -78,6 +85,7 @@ $$;
 --    Table has buyer_id column, set it to current user
 -- ==========================================
 drop policy if exists failed_tx_insert_public on public.failed_transactions;
+drop policy if exists failed_tx_insert_authenticated on public.failed_transactions;
 
 create policy failed_tx_insert_authenticated on public.failed_transactions
   for insert to authenticated

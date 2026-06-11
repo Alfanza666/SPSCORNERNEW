@@ -311,36 +311,40 @@ export default function AdminProducts() {
     e.preventDefault();
     if (!editingProduct) return;
 
-    if (!editingProduct.name || !editingProduct.price || editingProduct.stock === '' || editingProduct.stock === undefined || !editingProduct.category) {
-      toast.error('Mohon lengkapi semua field yang diperlukan (Nama, Harga, Stok, Kategori)');
+    if (!editingProduct.name || !editingProduct.price || !editingProduct.category) {
+      toast.error('Mohon lengkapi semua field yang diperlukan (Nama, Harga, Kategori)');
+      return;
+    }
+    if (!editingProduct.id && (editingProduct.stock === '' || editingProduct.stock === undefined)) {
+      toast.error('Mohon isi stok awal untuk produk baru');
       return;
     }
 
     setLoading(true);
     try {
-      const payload = {
+      const payload: any = {
         name: editingProduct.name,
         description: editingProduct.description,
         price: Number(editingProduct.price),
-        stock: Number(editingProduct.stock),
         category: editingProduct.category,
         image_url: editingProduct.image_url,
         is_active: true
       };
 
       if (editingProduct.id) {
-        // Update existing
+        // Update existing — stock TIDAK diikutsertakan (wajib lewat restock/opname)
         const { error } = await supabase
           .from('products')
           .update(payload)
           .eq('id', editingProduct.id);
         if (error) throw error;
       } else {
-        // Create new
+        // Create new — stock awal diikutsertakan
         const { error } = await supabase
           .from('products')
           .insert({
             ...payload,
+            stock: Number(editingProduct.stock),
             seller_id: editingProduct.seller_id || user?.id
           });
         if (error) throw error;
@@ -624,31 +628,38 @@ export default function AdminProducts() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-xs font-black text-zinc-500 uppercase tracking-widest ml-1">Stok</label>
-                          <div className="flex bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-none transition-all focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500/50 hover:bg-white dark:hover:bg-zinc-800 h-12">
-                            <button 
-                              type="button" 
-                              onClick={() => setEditingProduct({...editingProduct, stock: Math.max(0, Number(editingProduct.stock) - 1)})}
-                              className="px-4 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-white transition-colors"
-                            >
-                              -
-                            </button>
-                            <input 
-                              required 
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={editingProduct.stock}
-                              onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value.replace(/[^0-9]/g, '')})}
-                              className="w-full text-center bg-transparent border-x border-zinc-200 dark:border-zinc-700 outline-none focus:ring-0 font-bold text-zinc-900 dark:text-white"
-                            />
-                            <button 
-                              type="button" 
-                              onClick={() => setEditingProduct({...editingProduct, stock: Number(editingProduct.stock) + 1})}
-                              className="px-4 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-white transition-colors"
-                            >
-                              +
-                            </button>
-                          </div>
+                          {editingProduct.id ? (
+                            <div className="flex items-center gap-3 h-12 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700">
+                              <span className="font-bold text-zinc-900 dark:text-white">{editingProduct.stock}</span>
+                              <span className="text-[10px] text-zinc-400 italic">Tidak bisa diubah. Gunakan Restock / Opname.</span>
+                            </div>
+                          ) : (
+                            <div className="flex bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-none transition-all focus-within:ring-2 focus-within:ring-amber-500/20 focus-within:border-amber-500/50 hover:bg-white dark:hover:bg-zinc-800 h-12">
+                              <button 
+                                type="button" 
+                                onClick={() => setEditingProduct({...editingProduct, stock: Math.max(0, Number(editingProduct.stock) - 1)})}
+                                className="px-4 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                              >
+                                -
+                              </button>
+                              <input 
+                                required 
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={editingProduct.stock}
+                                onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value.replace(/[^0-9]/g, '')})}
+                                className="w-full text-center bg-transparent border-x border-zinc-200 dark:border-zinc-700 outline-none focus:ring-0 font-bold text-zinc-900 dark:text-white"
+                              />
+                              <button 
+                                type="button" 
+                                onClick={() => setEditingProduct({...editingProduct, stock: Number(editingProduct.stock) + 1})}
+                                className="px-4 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="space-y-2">

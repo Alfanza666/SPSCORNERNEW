@@ -31,8 +31,9 @@ import { registerDiagnosticsRoutes } from "./src/routes/diagnostics.js";
 import { registerDigitalRoutes } from "./src/routes/digital.js";
 import { registerTransactionRoutes } from "./src/routes/transactions.js";
 import { registerAdminRoutes } from "./src/routes/admin.js";
+import { registerStockTraceRoutes } from "./src/routes/stock-trace.js";
 import { initNotificationService, sendNotification, sendPushToUser, sendPushToAdmins } from "./src/services/notification.js";
-import { initStockService, restoreTransactionStock, checkLowStockAndNotify } from "./src/services/stock.js";
+import { initStockService, restoreTransactionStock, deductTransactionStock, atomicAdjustStock, reconcileStock, checkLowStockAndNotify } from "./src/services/stock.js";
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail } from "./src/services/email.js";
 import { initPaymentService, updateSellerBalances, updateBuyerPoints } from "./src/services/payment.js";
 import { initBackgroundJobs } from "./src/services/background-jobs.js";
@@ -73,7 +74,7 @@ initNotificationService(supabase, webpush);
 initStockService(supabase, sendNotification, sendWANotification);
 initEmailService(supabase, nodemailer);
 initPaymentService(supabase);
-initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal);
+initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStock);
 initWANotification(supabase);
 
 
@@ -248,15 +249,15 @@ app.get("/api/test-ping", (req, res) => {
 
 // Register modular route groups
 registerWithdrawalRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
-registerStockRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
-registerProductReturnRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
+registerStockRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser, atomicAdjustStock });
+registerProductReturnRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser, atomicAdjustStock });
 registerDiagnosticsRoutes(app, { supabase });
 registerPushRoutes(app, { supabase, webpush, sendNotification, sendPushToUser });
 registerPaymentRoutes(app, {
   supabase, sendNotification, ipaymuClient, sendSarirotiEmailInternal,
   sendWANotification, processDigitalItems, updateSellerBalances,
   updateBuyerPoints, triggerSarirotiEmail, checkLowStockAndNotify,
-  sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock,
+  sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock,
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_PRODUCTION, groq,
 });
 
@@ -266,8 +267,9 @@ if (!process.env.VERCEL) {
 }
 registerDigitalRoutes(app, { supabase, sendNotification, crypto, axios, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz });
 
-registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
+registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, atomicAdjustStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
 registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
+registerStockTraceRoutes(app, { supabase });
 
 
 

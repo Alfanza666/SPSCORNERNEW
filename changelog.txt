@@ -1,3 +1,24 @@
+v5.2.1 — Stock Accuracy Fix — RCAs & Optimistic Locking (PATCH)
+----------------------------------------------------------------------------------
+### Root Cause Analysis (RCA):
+- **[RCA] 6 stock mutation paths ditemukan:** Sale deduction (transactions.ts), stock restore (stock.js), restock approval (stock.ts), return approval (productReturns.ts), stock opname (AdminStockOpname.tsx), iPaymu callback (payments.ts).
+- **[RCA] Race condition pada SELECT→UPDATE:** Semua path menggunakan pola non-atomik `SELECT stock → compute → UPDATE stock` → overselling & phantom stock.
+- **[RCA] Partial deduction lost:** Jika sebagian item gagal deduct, `stock_deducted = false` → `restoreTransactionStock` skip SELURUH items → stock yang sudah deduct tidak pernah dikembalikan.
+- **[RCA] Double restore race:** Guard `stock_restored` dibaca lalu di-set secara non-atomik → dua caller bisa restore bersamaan → phantom stock.
+- **[RCA] iPaymu + auto-cleanup race:** Auto-cleanup restore stock lalu iPaymu callback set status "paid" tanpa re-deduct → phantom stock permanen.
+
+### Perbaikan:
+- **[FIX] `src/services/stock.js`:** Rewrite `restoreTransactionStock` — pakai `deducted_products` dari metadata (per-item) + optimistic locking `(stock = oldStock)` pada UPDATE. Tambah `deductTransactionStock()` untuk re-deduct setelah auto-cleanup.
+- **[FIX] `src/routes/transactions.ts`:** Deduksi stok sekarang atomic — UPDATE dengan `WHERE stock = oldStock`. Simpan `deducted_products` map per-item (produk ID → quantity + seller_id) di metadata. Partial deduction tetap tercatat untuk restore.
+- **[FIX] `src/routes/payments.ts`:** iPaymu SUCCESS callback — jika `stock_restored = true` (auto-cleanup sudah restore), panggil `deductTransactionStock()` untuk re-deduct. iPaymu FAILURE callback — sederhanakan, hapus guard redundant (handle di `restoreTransactionStock`).
+- **[FIX] `src/routes/stock.ts`:** Restock approval — optimistic locking `(stock = oldStock)`.
+- **[FIX] `src/routes/productReturns.ts`:** Return approval — optimistic locking + hapus `Math.max(0, ...)` yang silent data loss.
+- **[FIX] `src/pages/dashboard/admin/AdminStockOpname.tsx`:** Stock opname — optimistic locking, tolak jika stock sudah berubah sejak dimuat.
+- **[FIX] `src/routes/admin.ts`:** Stock report — tetap pakai dual-query untuk initialStock akurat.
+
+### Teknis:
+- **[CHANGE] Home.tsx, PortalLayout.tsx:** v5.2.0 → v5.2.1 (PATCH: perbaikan akurasi stok).
+
 v5.2.0 — Route Refactor, Order Tracking, Analytics, WA Notif (MINOR)
 ----------------------------------------------------------------------------------
 ### Refactor Arsitektur:
@@ -219,7 +240,18 @@ v4.18.1 — Fix API 404, stock restore on admin reject & CI/CD auto-deploy
 - **[FIX] `SellerProducts.tsx`:** Ubah `res.json()` → `res.text()` + `JSON.parse()` dengan try/catch agar error non-JSON tidak memunculkan pesan mentah.
 - **[FIX] `SellerTransactions.tsx`:** Sama, `res.json()` → `res.text()` + `JSON.parse()`.
 
-### Infrastruktur:
+### Fitur Baru:
+- **[NEW] `database/migrations/001_stock_rpc.sql`:** Fungsi RPC `adjust_stock_rpc` dengan `SELECT ... FOR UPDATE` (row-level locking) + kolom `transaction_id` di `stock_adjustments` untuk traceability.
+- **[NEW] Stock retry mechanism:** `atomicAdjustStock()` — priority 1: RPC (FOR UPDATE), priority 2: optimistic locking + retry 3× dengan delay progresif.
+- **[NEW] Rekonsiliasi stok otomatis:** Job tiap 30 menit bandingkan `currentStock` vs `expectedStock` dari trail adjustment, notifikasi admin jika gap ≥5 unit.
+- **[NEW] `GET /api/stock-movements/:productId`:** Endpoint backend untuk riwayat mutasi stok per produk.
+- **[NEW] Halaman Lacak Riwayat Stok:** Fitur traceability per produk — filter tanggal, tipe mutasi (terjual/restock/koreksi/opname), link transaksi, status transaksi. Admin lihat semua produk, Seller lihat produknya sendiri.
+- **[NEW] Navigasi sidebar:** Admin → "Lacak Riwayat Stok", Seller → "Riwayat Stok".
+
+### Perubahan Keamanan Stok:
+- **[CHANGE] `AdminProducts.tsx`:** Field stok di form EDIT produk dihapus (read-only). Stok hanya bisa diubah via Restock Request, Retur, atau Stock Opname. Stok awal tetap bisa diisi saat CREATE produk.
+
+### Infrastructure:
 - **[NEW] `scripts/deploy-vps.ps1`:** Deploy script all-in-one (lint → build → SCP → npm install → restart → verify).
 - **[NEW] `scripts/auto-deploy.sh`:** Script auto-deploy di VPS via cron (git pull setiap 5 menit).
 - **[NEW] Cron job VPS:** `*/5 * * * *` auto-deploy — deteksi commit baru, install deps jika berubah, restart PM2, health check.

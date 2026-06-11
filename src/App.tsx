@@ -107,6 +107,8 @@ const AdminFormBuilder = lazyWithRetry(() => import('./pages/dashboard/admin/Adm
 const AdminFormResponses = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormResponses'));
 const AdminCouponReports = lazyWithRetry(() => import('./pages/dashboard/admin/AdminCouponReports'));
 const AdminStockReport = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockReport'));
+const AdminStockTrace = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockTrace'));
+const SellerStockTrace = lazyWithRetry(() => import('./pages/dashboard/seller/SellerStockTrace'));
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   const isChunkError = error?.message?.includes('dynamically imported') ||
@@ -307,6 +309,8 @@ export default function App() {
               <Route path="admin/coupon-reports/" element={<AdminCouponReports />} />
               <Route path="admin/stock-report" element={<AdminStockReport />} />
               <Route path="admin/stock-report/" element={<AdminStockReport />} />
+              <Route path="admin/stock-trace" element={<AdminStockTrace />} />
+              <Route path="admin/stock-trace/" element={<AdminStockTrace />} />
 
               <Route path="admin/scanner" element={<AdminScanner />} />
               <Route path="admin/scanner/" element={<AdminScanner />} />
@@ -329,6 +333,8 @@ export default function App() {
               <Route path="seller/transactions/" element={<SellerTransactions />} />
               <Route path="seller/analytics" element={<SellerAnalytics />} />
               <Route path="seller/analytics/" element={<SellerAnalytics />} />
+              <Route path="seller/stock-trace" element={<SellerStockTrace />} />
+              <Route path="seller/stock-trace/" element={<SellerStockTrace />} />
             </Route>
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

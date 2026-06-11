@@ -4,7 +4,7 @@ import { __name } from "./route-utils.js";
 export function registerTransactionRoutes(app, {
   supabase, sendNotification, sendWANotification,
   sendSarirotiEmailInternal, sendBuyerReceiptEmail,
-  restoreTransactionStock, checkLowStockAndNotify,
+  restoreTransactionStock, atomicAdjustStock, checkLowStockAndNotify,
   updateSellerBalances, updateBuyerPoints,
   processDigitalItems, triggerSarirotiEmail,
   getDigiflazzBalance,
@@ -479,49 +479,39 @@ app.post("/api/transactions/create", async (req, res) => {
       .select();
     if (itemsError) throw itemsError;
 
-    // ─── Server-side stock deduction (replaces frontend confirm_stock_deduction) ───
+    // ─── Server-side stock deduction (atomic via RPC → optimistic locking) ───
     const physicalItems = (insertedItems || []).filter(item => !item.metadata?.is_digital && item.product_id);
-    let stockDeducted = false;
-    if (physicalItems.length > 0) {
-      let allDeducted = true;
-      for (const item of physicalItems) {
-        const { data: product } = await supabase
-          .from("products")
-          .select("stock")
-          .eq("id", item.product_id)
-          .single();
-
-        if (product && product.stock >= item.quantity) {
-          await supabase
-            .from("products")
-            .update({ stock: product.stock - item.quantity })
-            .eq("id", item.product_id);
-
-          await supabase.from("stock_adjustments").insert({
-            product_id: item.product_id,
-            user_id: item.seller_id || txDataToInsert.buyer_id,
-            previous_stock: product.stock,
-            new_stock: product.stock - item.quantity,
-            adjustment_type: "sale",
-            notes: `Stock deducted from transaction ${tx.id}`
-          });
-        } else {
-          allDeducted = false;
-        }
+    const deductedProducts = {};
+    for (const item of physicalItems) {
+      const result = await atomicAdjustStock(
+        item.product_id, -item.quantity,
+        item.seller_id || txDataToInsert.buyer_id, 'sale',
+        `Stock deducted from transaction ${tx.id}`, 0, tx.id
+      );
+      if (result && result.success) {
+        deductedProducts[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
       }
-      stockDeducted = allDeducted;
     }
+    const hasDeducted = Object.keys(deductedProducts).length > 0;
 
-    // Update transaction with stock_deducted flag in metadata
+    // Update transaction with stock_deducted flag + deducted_products map in metadata
     await supabase
       .from("transactions")
       .update({
-        metadata: { ...(tx.metadata || {}), stock_deducted: stockDeducted }
+        metadata: {
+          ...(tx.metadata || {}),
+          stock_deducted: hasDeducted,
+          ...(hasDeducted ? { deducted_products: deductedProducts } : {})
+        }
       })
       .eq("id", tx.id);
 
     // Also update local tx object for downstream use
-    tx.metadata = { ...(tx.metadata || {}), stock_deducted: stockDeducted };
+    tx.metadata = {
+      ...(tx.metadata || {}),
+      stock_deducted: hasDeducted,
+      ...(hasDeducted ? { deducted_products: deductedProducts } : {})
+    };
 
     if (tx.status === "paid" || tx.status === "success") {
       if (insertedItems && insertedItems.length > 0) {

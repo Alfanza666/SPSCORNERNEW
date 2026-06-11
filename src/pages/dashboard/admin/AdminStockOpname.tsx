@@ -73,11 +73,17 @@ export default function AdminStockOpname() {
         });
       if (logError) console.error('Gagal log stock_adjustments:', logError);
 
-      const { error: updateError } = await supabase
+      const { data: updatedRows, error: updateError } = await supabase
         .from('products')
         .update({ stock: newStock })
-        .eq('id', productId);
+        .eq('id', productId)
+        .eq('stock', product.stock)
+        .select('id');
       if (updateError) throw updateError;
+      if (!updatedRows || updatedRows.length === 0) {
+        toast.error('Stok sudah berubah sejak dimuat. Silakan refresh dan coba lagi.');
+        return;
+      }
 
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
       setAdjustments(prev => { const n = { ...prev }; delete n[productId]; return n; });

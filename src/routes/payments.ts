@@ -6,7 +6,7 @@ export function registerPaymentRoutes(app, {
   supabase, sendNotification, ipaymuClient, sendSarirotiEmailInternal,
   sendWANotification, processDigitalItems, updateSellerBalances,
   updateBuyerPoints, triggerSarirotiEmail, checkLowStockAndNotify,
-  sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock,
+  sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock,
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
 }) {
   if (process.env.NODE_ENV !== "production") {
@@ -555,6 +555,11 @@ export function registerPaymentRoutes(app, {
         })
         .eq("id", refId);
       if (updateError) throw updateError;
+      // ─── Stock re-deduction: jika auto-cleanup sudah restore stock, deduct kembali ───
+      if (txStatus === "paid" && transaction.metadata?.stock_restored && deductTransactionStock) {
+        await deductTransactionStock(refId);
+      }
+
       if (
         txStatus === "paid" &&
         transaction.status !== "paid" &&
@@ -629,17 +634,8 @@ export function registerPaymentRoutes(app, {
             });
           }
         } else {
-          // Check if stock was already restored (prevent double-restore with auto-cleanup)
-          const { data: existingTx } = await supabase
-            .from("transactions")
-            .select("metadata")
-            .eq("id", refId)
-            .single();
-          if (existingTx?.metadata?.stock_restored) {
-            console.log(`[iPaymu] Tx ${refId} stock already restored — skipping`);
-          } else {
-            await restoreTransactionStock(refId);
-          }
+          // restoreTransactionStock has internal guard against double-restore
+          await restoreTransactionStock(refId);
           if (transaction.buyer_id) {
             await sendNotification(transaction.buyer_id, {
               type: "transaction",
