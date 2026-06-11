@@ -1,4 +1,5 @@
 // @ts-nocheck
+import "dotenv/config";
 import crypto from "crypto";
 import axios from "axios";
 import fs from "fs";
