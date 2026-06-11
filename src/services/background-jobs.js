@@ -33,15 +33,24 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   scheduleDailyEmailReport();
 }
 
+let lastReconNotif = null; // deduplikasi notifikasi gap yang sama
+
 async function runReconciliation() {
   if (!reconcileStock) return;
   try {
     const discrepancies = await reconcileStock();
     if (!discrepancies || discrepancies.length === 0) return;
-    console.warn(`[Reconciliation] ${discrepancies.length} product(s) with stock drift detected`);
-    // Notify admins if significant drift found
+
     const significant = discrepancies.filter(d => Math.abs(d.gap) >= 5);
-    if (significant.length > 0 && sendNotif) {
+    if (significant.length === 0) return;
+
+    // Deduplikasi: hanya notifikasi kalau ada perubahan (gap baru atau membesar)
+    const sigKey = significant.map(d => `${d.product_id}:${d.gap}`).sort().join('|');
+    if (sigKey === lastReconNotif) return;
+    lastReconNotif = sigKey;
+
+    console.warn(`[Reconciliation] ${discrepancies.length} product(s) with stock drift detected`);
+    if (sendNotif) {
       const { data: admins } = await supabaseInstance.from('profiles').select('id').in('role', ['admin', 'superadmin']);
       if (admins) {
         const msg = significant.slice(0, 5).map(d => `${d.product_name}: sistem=${d.current_stock}, expected=${d.expected_stock}`).join('\n');
@@ -49,7 +58,7 @@ async function runReconciliation() {
           await sendNotif(admin.id, {
             type: 'system',
             title: `⚠️ ${significant.length} Produk Stok Tidak Sinkron`,
-            message: `Detected ${discrepancies.length} discrepancies (${significant.length} >= 5 unit gap):\n${msg}${discrepancies.length > 5 ? `\n...dan ${discrepancies.length - 5} lainnya` : ''}`,
+            message: `Detected ${discrepancies.length} discrepancies (${significant.length} >= 5 unit gap).\nLakukan Opname untuk reset.\n${msg}${discrepancies.length > 5 ? `\n...dan ${discrepancies.length - 5} lainnya` : ''}`,
             path: '/dashboard/admin/stock-opname',
           });
         }
