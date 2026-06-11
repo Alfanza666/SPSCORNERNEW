@@ -98,59 +98,68 @@ app.get("/api/admin/stock-report", async (req, res) => {
     const dateEnd = req.query.date_end;
     const categoryFilter = req.query.category;
 
-    // 1. Get all products
+    // 1. Get all products (tidak filter created_at — produk dari luar periode tetap muncul)
     let query = supabase
       .from("products")
       .select("id, name, stock, seller_id, created_at, category");
     if (sellerFilter) query = query.eq("seller_id", sellerFilter);
-    if (dateStart) query = query.gte("created_at", dateStart + "T00:00:00+07:00");
-    if (dateEnd) query = query.lte("created_at", dateEnd + "T23:59:59+07:00");
     if (categoryFilter) query = query.eq("category", categoryFilter);
     const { data: products, error: productsError } = await query;
     if (productsError) throw productsError;
 
     const productIds = products.map(p => p.id);
 
-    // 2. Get stock adjustments within date range (or all if no range)
-    let adjQuery = supabase
+    // 2a. Get ALL stock adjustments (no date filter) — untuk initialStock yang akurat
+    let allAdjQuery = supabase
+      .from("stock_adjustments")
+      .select("product_id, adjustment_type, previous_stock, new_stock")
+      .in("product_id", productIds);
+    const { data: allAdjustments, error: allAdjError } = await allAdjQuery;
+    if (allAdjError) throw allAdjError;
+
+    // 2b. Get stock adjustments within date range (untuk kolom pergerakan periode)
+    let periodAdjQuery = supabase
       .from("stock_adjustments")
       .select("product_id, adjustment_type, previous_stock, new_stock, created_at")
       .in("product_id", productIds);
-    if (dateStart) adjQuery = adjQuery.gte("created_at", dateStart + "T00:00:00+07:00");
-    if (dateEnd) adjQuery = adjQuery.lte("created_at", dateEnd + "T23:59:59+07:00");
-    adjQuery = adjQuery.order("created_at", { ascending: true });
-    const { data: adjustments, error: adjError } = await adjQuery;
-    if (adjError) throw adjError;
+    if (dateStart) periodAdjQuery = periodAdjQuery.gte("created_at", dateStart + "T00:00:00+07:00");
+    if (dateEnd) periodAdjQuery = periodAdjQuery.lte("created_at", dateEnd + "T23:59:59+07:00");
+    periodAdjQuery = periodAdjQuery.order("created_at", { ascending: true });
+    const { data: periodAdjustments, error: periodAdjError } = await periodAdjQuery;
+    if (periodAdjError) throw periodAdjError;
 
-    // 3. Group adjustments by product — separate retur (stock down) vs restore (stock up from cancel)
-    const adjustmentsByProduct = {};
-    for (const adj of adjustments || []) {
-      const productId = adj.product_id;
-      if (!adjustmentsByProduct[productId]) {
-        adjustmentsByProduct[productId] = { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
-      }
-      const entry = adjustmentsByProduct[productId];
-      if (adj.adjustment_type === "restock") {
-        entry.restock += (adj.new_stock - adj.previous_stock);
-      } else if (adj.adjustment_type === "sale") {
-        entry.sold += (adj.previous_stock - adj.new_stock);
-      } else if (adj.adjustment_type === "correction") {
-        const diff = adj.new_stock - adj.previous_stock;
-        if (diff > 0) {
-          entry.restored += diff;
-        } else {
-          entry.returned += Math.abs(diff);
+    // 3. Helper: group adjustments into movements
+    const groupAdjustments = (adjustments) => {
+      const grouped = {};
+      for (const adj of adjustments || []) {
+        const id = adj.product_id;
+        if (!grouped[id]) grouped[id] = { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
+        const g = grouped[id];
+        if (adj.adjustment_type === "restock") {
+          g.restock += (adj.new_stock - adj.previous_stock);
+        } else if (adj.adjustment_type === "sale") {
+          g.sold += (adj.previous_stock - adj.new_stock);
+        } else if (adj.adjustment_type === "correction") {
+          const diff = adj.new_stock - adj.previous_stock;
+          if (diff > 0) { g.restored += diff; } else { g.returned += Math.abs(diff); }
+        } else if (adj.adjustment_type === "manual_update") {
+          g.manualUpdate += (adj.new_stock - adj.previous_stock);
         }
-      } else if (adj.adjustment_type === "manual_update") {
-        entry.manualUpdate += (adj.new_stock - adj.previous_stock);
       }
-    }
+      return grouped;
+    };
 
-    // 4. Build report — initialStock derived: StokAwal = StokAkhir - Restock + Terjual + Retur - Restore +/- Manual
+    const allGrouped = groupAdjustments(allAdjustments);
+    const periodGrouped = groupAdjustments(periodAdjustments);
+
+    // 4. Build report
+    //    initialStock dihitung dari ALL adjustments (seluruh riwayat)
+    //    kolom Restock/Terjual/Retur/Restore/Manual dari periode terpilih
     const report = products.map(product => {
-      const d = adjustmentsByProduct[product.id] || { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
-      const netChange = d.restock - d.sold - d.returned + d.restored + d.manualUpdate;
-      const initialStock = product.stock - netChange;
+      const allD = allGrouped[product.id] || { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
+      const periodD = periodGrouped[product.id] || { restock: 0, sold: 0, returned: 0, restored: 0, manualUpdate: 0 };
+      const netChangeAll = allD.restock - allD.sold - allD.returned + allD.restored + allD.manualUpdate;
+      const initialStock = product.stock - netChangeAll;
 
       return {
         id: product.id,
@@ -158,11 +167,11 @@ app.get("/api/admin/stock-report", async (req, res) => {
         seller_id: product.seller_id,
         createdAt: product.created_at,
         initialStock,
-        totalRestock: d.restock,
-        totalSold: d.sold,
-        totalReturned: d.returned,
-        totalRestored: d.restored,
-        totalManualUpdate: d.manualUpdate,
+        totalRestock: periodD.restock,
+        totalSold: periodD.sold,
+        totalReturned: periodD.returned,
+        totalRestored: periodD.restored,
+        totalManualUpdate: periodD.manualUpdate,
         currentStock: product.stock
       };
     });

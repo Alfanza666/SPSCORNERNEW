@@ -19,6 +19,7 @@ interface ReportProduct {
   totalRestored: number;
   totalManualUpdate: number;
   currentStock: number;
+  sku?: string;
 }
 
 export default function AdminStockReport() {
@@ -76,8 +77,8 @@ export default function AdminStockReport() {
     restock: filtered.reduce((s, p) => s + p.totalRestock, 0),
     sold: filtered.reduce((s, p) => s + p.totalSold, 0),
     returned: filtered.reduce((s, p) => s + p.totalReturned, 0),
-    restored: filtered.reduce((s, p) => s + (p as any).totalRestored || 0, 0),
-    manualUpdate: filtered.reduce((s, p) => s + (p as any).totalManualUpdate || 0, 0),
+    restored: filtered.reduce((s, p) => s + p.totalRestored, 0),
+    manualUpdate: filtered.reduce((s, p) => s + p.totalManualUpdate, 0),
     stockAkhir: filtered.reduce((s, p) => s + p.currentStock, 0),
   };
 
@@ -96,6 +97,7 @@ export default function AdminStockReport() {
       Terjual: p.totalSold,
       Retur: p.totalReturned,
       Restore: p.totalRestored,
+      'Koreksi Manual': p.totalManualUpdate,
       'Stok Akhir': p.currentStock,
     }));
 
@@ -108,6 +110,7 @@ export default function AdminStockReport() {
       Terjual: totals.sold,
       Retur: totals.returned,
       Restore: totals.restored,
+      'Koreksi Manual': totals.manualUpdate,
       'Stok Akhir': totals.stockAkhir,
     });
 
@@ -157,8 +160,9 @@ export default function AdminStockReport() {
           { label: 'Stok Awal', value: totals.stockAwal, color: 'text-zinc-700', bg: 'bg-zinc-50 dark:bg-zinc-800' },
           { label: 'Restock', value: totals.restock, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
           { label: 'Terjual', value: totals.sold, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-          { label: 'Retur', value: totals.returned, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+          { label: 'Retur', value: totals.returned, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20' },
           { label: 'Restore', value: totals.restored, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+          { label: 'Koreksi Manual', value: totals.manualUpdate, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
           { label: 'Stok Akhir', value: totals.stockAkhir, color: 'text-zinc-800', bg: 'bg-zinc-100 dark:bg-zinc-700' },
         ].map(card => (
           <div key={card.label} className={`${card.bg} rounded-xl p-4 border border-zinc-200/50 dark:border-zinc-700/50`}>
@@ -216,6 +220,7 @@ export default function AdminStockReport() {
                   <th className="text-right px-4 py-3 font-semibold text-orange-600 dark:text-orange-400 whitespace-nowrap">Terjual</th>
                   <th className="text-right px-4 py-3 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">Retur</th>
                   <th className="text-right px-4 py-3 font-semibold text-purple-600 dark:text-purple-400 whitespace-nowrap">Restore</th>
+                  <th className="text-right px-4 py-3 font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">Koreksi Manual</th>
                   <th className="text-right px-4 py-3 font-semibold text-zinc-600 dark:text-zinc-300 whitespace-nowrap">Stok Akhir</th>
                 </tr>
               </thead>
@@ -230,8 +235,9 @@ export default function AdminStockReport() {
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-zinc-700 dark:text-zinc-300">{p.initialStock}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">{p.totalRestock > 0 ? `+${p.totalRestock}` : '—'}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-orange-600 dark:text-orange-400 font-medium">{p.totalSold > 0 ? `-${p.totalSold}` : '—'}</td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-blue-600 dark:text-blue-400 font-medium">{p.totalReturned > 0 ? `+${p.totalReturned}` : '—'}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-rose-600 dark:text-rose-400 font-medium">{p.totalReturned > 0 ? `-${p.totalReturned}` : '—'}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-purple-600 dark:text-purple-400 font-medium">{p.totalRestored > 0 ? `+${p.totalRestored}` : '—'}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-amber-600 dark:text-amber-400 font-medium">{p.totalManualUpdate !== 0 ? `${p.totalManualUpdate > 0 ? '+' : ''}${p.totalManualUpdate}` : '—'}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-zinc-800 dark:text-zinc-100">{p.currentStock}</td>
                   </tr>
                 ))}
@@ -245,6 +251,7 @@ export default function AdminStockReport() {
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-orange-600">{totals.sold}</td>
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-blue-600">{totals.returned}</td>
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-purple-600">{totals.restored}</td>
+                  <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-amber-600">{totals.manualUpdate !== 0 ? (totals.manualUpdate > 0 ? `+${totals.manualUpdate}` : `${totals.manualUpdate}`) : '—'}</td>
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums">{totals.stockAkhir}</td>
                 </tr>
               </tfoot>
@@ -254,8 +261,17 @@ export default function AdminStockReport() {
       </motion.div>
 
       {!loading && (
-        <div className="text-xs text-zinc-400 text-right">
-          Menampilkan {filtered.length} dari {report.length} produk
+        <div className="flex items-center justify-between text-xs text-zinc-400">
+          <span>
+            {filtered.length !== report.length
+              ? `Menampilkan ${filtered.length} dari ${report.length} produk`
+              : `Total ${report.length} produk`}
+          </span>
+          {(dateStart || dateEnd) && (
+            <span className="text-amber-500">
+              ⓘ Kolom pergerakan (Restock/Terjual/Retur/Restore) sesuai periode filter. Stok Awal & Stok Akhir adalah nilai live.
+            </span>
+          )}
         </div>
       )}
     </div>
