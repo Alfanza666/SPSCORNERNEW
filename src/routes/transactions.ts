@@ -312,12 +312,12 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (profile?.role !== "admin" && profile?.role !== "superadmin") return res.status(403).json({ error: "Forbidden" });
 
-    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
+    const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1e3).toISOString();
     const { data: expired, error: fetchError } = await supabase
       .from("transactions")
       .select("id, metadata")
       .in("status", ["pending"])
-      .lt("created_at", fiveMinsAgo);
+      .lt("created_at", twentyMinsAgo);
     if (fetchError) throw fetchError;
     if (!expired || expired.length === 0) {
       return res.json({ success: true, count: 0 });
@@ -327,11 +327,10 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
         .from("transactions")
         .update({
           status: "failed",
-          metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
+          metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 20 menit" },
         })
         .eq("id", tx.id);
       if (updateError) throw updateError;
-      // Admin cleanup: explicit action → restore stock (auto-cleanup bg job tidak restore)
       await restoreTransactionStock(tx.id);
     }
     res.json({ success: true, count: expired.length });

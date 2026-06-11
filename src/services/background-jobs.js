@@ -62,24 +62,24 @@ async function runReconciliation() {
 
 async function autoCleanup() {
   try {
-    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1e3).toISOString();
+    const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1e3).toISOString();
     const { data: expired } = await supabaseInstance
       .from("transactions")
       .select("id, buyer_id, metadata")
       .in("status", ["pending"])
-      .lt("created_at", fiveMinsAgo);
+      .lt("created_at", twentyMinsAgo);
     if (!expired || expired.length === 0) return;
     for (const tx of expired) {
       await supabaseInstance
         .from("transactions")
         .update({
           status: "failed",
-          metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
+          metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 20 menit" },
         })
         .eq("id", tx.id);
-      // ⚠️ Stock TIDAK di-restore di sini. Hanya di-restore saat:
-      //    - User cancel, Admin reject, atau payment callback failed
-      //    (Alasan: mencegah race condition dgn approve/payment callback)
+      // Restore stock: 20 menit sudah lewat, payment sangat tidak mungkin datang
+      // (Guard re-deduct tetap ada di approve & callback untuk jaga-jaga)
+      if (restoreStock) await restoreStock(tx.id);
       if (tx.buyer_id && sendNotif) {
         await sendNotif(tx.buyer_id, {
           type: "transaction",
@@ -90,7 +90,7 @@ async function autoCleanup() {
       }
     }
     if (expired.length > 0) {
-      console.log(`[AutoCleanup] Marked ${expired.length} transaction(s) as expired (stock NOT restored — waiting for explicit action)`);
+      console.log(`[AutoCleanup] Cancelled ${expired.length} expired transaction(s) + stock restored`);
     }
   } catch (e) {
     console.error("[AutoCleanup] Error:", e);
