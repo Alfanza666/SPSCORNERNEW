@@ -77,7 +77,9 @@ async function autoCleanup() {
           metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 5 minutes" },
         })
         .eq("id", tx.id);
-      if (restoreStock) await restoreStock(tx.id);
+      // ⚠️ Stock TIDAK di-restore di sini. Hanya di-restore saat:
+      //    - User cancel, Admin reject, atau payment callback failed
+      //    (Alasan: mencegah race condition dgn approve/payment callback)
       if (tx.buyer_id && sendNotif) {
         await sendNotif(tx.buyer_id, {
           type: "transaction",
@@ -88,7 +90,7 @@ async function autoCleanup() {
       }
     }
     if (expired.length > 0) {
-      console.log(`[AutoCleanup] Restored stock for ${expired.length} expired transaction(s)`);
+      console.log(`[AutoCleanup] Marked ${expired.length} transaction(s) as expired (stock NOT restored — waiting for explicit action)`);
     }
   } catch (e) {
     console.error("[AutoCleanup] Error:", e);

@@ -331,6 +331,7 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
         })
         .eq("id", tx.id);
       if (updateError) throw updateError;
+      // Admin cleanup: explicit action → restore stock (auto-cleanup bg job tidak restore)
       await restoreTransactionStock(tx.id);
     }
     res.json({ success: true, count: expired.length });
