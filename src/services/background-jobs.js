@@ -71,19 +71,19 @@ async function runReconciliation() {
 
 async function autoCleanup() {
   try {
-    const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1e3).toISOString();
+    const expiredThreshold = new Date(Date.now() - 15 * 60 * 1e3).toISOString();
     const { data: expired } = await supabaseInstance
       .from("transactions")
       .select("id, buyer_id, metadata")
       .in("status", ["pending"])
-      .lt("created_at", twentyMinsAgo);
+      .lt("created_at", expiredThreshold);
     if (!expired || expired.length === 0) return;
     for (const tx of expired) {
       await supabaseInstance
         .from("transactions")
         .update({
           status: "failed",
-          metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 20 menit" },
+          metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 15 menit" },
         })
         .eq("id", tx.id);
       // Restore stock: 20 menit sudah lewat, payment sangat tidak mungkin datang
