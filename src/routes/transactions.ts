@@ -4,7 +4,7 @@ import { __name } from "./route-utils.js";
 export function registerTransactionRoutes(app, {
   supabase, sendNotification, sendWANotification,
   sendSarirotiEmailInternal, sendBuyerReceiptEmail,
-  restoreTransactionStock, atomicAdjustStock, checkLowStockAndNotify,
+  restoreTransactionStock, deductTransactionStock, atomicAdjustStock, checkLowStockAndNotify,
   updateSellerBalances, updateBuyerPoints,
   processDigitalItems, triggerSarirotiEmail,
   getDigiflazzBalance,
@@ -45,6 +45,12 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       .update({ status: "success" })
       .eq("id", transaction_id);
     if (updateError) throw updateError;
+
+    // Re-deduct stock if auto-cleanup had restored it
+    if (transaction.metadata?.stock_restored && deductTransactionStock) {
+      await deductTransactionStock(transaction_id);
+    }
+
     await updateSellerBalances(transaction.transaction_items);
     await checkLowStockAndNotify(transaction.transaction_items);
     await updateBuyerPoints(transaction_id, transaction.buyer_id, transaction.total_amount);
