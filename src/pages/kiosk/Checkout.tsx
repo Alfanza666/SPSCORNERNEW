@@ -851,7 +851,7 @@ buyer_email: buyerEmail,
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Loyalty Points Option */}
-                  {user && loyaltyEnabled && (
+                  {!hasKoperasiItems && user && loyaltyEnabled && (
                     <>
                       <button
                         onClick={handlePointPayment}
@@ -923,7 +923,7 @@ buyer_email: buyerEmail,
                   )}
 
                   {/* QRIS (Otomatis) Option */}
-                  {paymentSettings.qrisDynamic && (
+                  {!hasKoperasiItems && paymentSettings.qrisDynamic && (
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
@@ -946,7 +946,7 @@ buyer_email: buyerEmail,
                   )}
 
                   {/* VA BCA Option */}
-                  {paymentSettings.vaBca && (
+                  {!hasKoperasiItems && paymentSettings.vaBca && (
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
@@ -969,7 +969,7 @@ buyer_email: buyerEmail,
                   )}
 
                   {/* VA Mandiri Option */}
-                  {paymentSettings.vaMandiri && (
+                  {!hasKoperasiItems && paymentSettings.vaMandiri && (
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
@@ -1038,7 +1038,7 @@ buyer_email: buyerEmail,
                   )}
                 </div>
 
-                {paymentSettings.redirect && (
+                {!hasKoperasiItems && paymentSettings.redirect && (
                   <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
                     <div className="relative">
                       <button
