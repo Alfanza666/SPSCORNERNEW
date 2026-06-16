@@ -127,16 +127,57 @@ export default function AdminAnnouncements() {
     }
   };
 
-  const handleDownloadResult = async () => {
-    if (!resultRef.current) return;
+  const captureVoteResult = async () => {
+    const el = resultRef.current;
+    if (!el) return null;
+    const origOverflow = el.style.overflowY;
+    const origMaxH = el.style.maxHeight;
+    el.style.overflowY = 'visible';
+    el.style.maxHeight = 'none';
+    const images = el.querySelectorAll('img') as NodeListOf<HTMLImageElement>;
+    const originalSrcs = Array.from(images).map((img) => img.src);
     try {
+      await Promise.all(
+        Array.from(images).map(async (img) => {
+          try {
+            const resp = await fetch(img.src, { mode: 'cors' });
+            const blob = await resp.blob();
+            const dataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+            img.src = dataUrl;
+          } catch {
+            // keep original src
+          }
+        })
+      );
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(resultRef.current, {
+      const canvas = await html2canvas(el, {
         backgroundColor: '#ffffff',
         scale: 2,
-        allowTaint: false,
-        useCORS: true,
+        allowTaint: true,
+        useCORS: false,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
       });
+      return canvas;
+    } finally {
+      images.forEach((img, i) => { img.src = originalSrcs[i]; });
+      el.style.overflowY = origOverflow;
+      el.style.maxHeight = origMaxH;
+    }
+  };
+
+  const handleDownloadResult = async () => {
+    if (!resultRef.current) return;
+    const el = resultRef.current;
+    const origOverflow = el.style.overflowY;
+    const origMaxH = el.style.maxHeight;
+    try {
+      const canvas = await captureVoteResult();
+      if (!canvas) return;
       const link = document.createElement('a');
       link.download = `hasil_voting_${(voteResultsAnnouncement?.title || 'voting').replace(/\s+/g, '_').slice(0, 30)}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -145,17 +186,21 @@ export default function AdminAnnouncements() {
     } catch (e) {
       console.error('Download error:', e);
       toast.error('Gagal mengunduh gambar');
+    } finally {
+      el.style.overflowY = origOverflow;
+      el.style.maxHeight = origMaxH;
     }
   };
 
   const handleShareResult = async () => {
     if (!resultRef.current) return;
-    const total = voteResultsCandidates.reduce((s, c) => s + c.count, 0);
+    const el = resultRef.current;
+    const origOverflow = el.style.overflowY;
+    const origMaxH = el.style.maxHeight;
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(resultRef.current, {
-        backgroundColor: '#ffffff', scale: 2, allowTaint: false, useCORS: true,
-      });
+      const canvas = await captureVoteResult();
+      if (!canvas) return;
+      const total = voteResultsCandidates.reduce((s, c) => s + c.count, 0);
       canvas.toBlob(async (blob) => {
         if (!blob) { toast.error('Gagal membuat gambar'); return; }
         const file = new File([blob], 'hasil_voting.png', { type: 'image/png' });
@@ -172,6 +217,9 @@ export default function AdminAnnouncements() {
     } catch (e) {
       console.error('Share error:', e);
       toast.error('Gagal membagikan');
+    } finally {
+      el.style.overflowY = origOverflow;
+      el.style.maxHeight = origMaxH;
     }
   };
 
