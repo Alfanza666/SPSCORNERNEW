@@ -127,56 +127,268 @@ export default function AdminAnnouncements() {
     }
   };
 
-  const captureVoteResult = async () => {
-    const el = resultRef.current;
-    if (!el) return null;
-    const origOverflow = el.style.overflowY;
-    const origMaxH = el.style.maxHeight;
-    el.style.overflowY = 'visible';
-    el.style.maxHeight = 'none';
-    const images = el.querySelectorAll('img') as NodeListOf<HTMLImageElement>;
-    const originalSrcs = Array.from(images).map((img) => img.src);
-    try {
-      await Promise.all(
-        Array.from(images).map(async (img) => {
-          try {
-            const resp = await fetch(img.src, { mode: 'cors' });
-            const blob = await resp.blob();
-            const dataUrl = await new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result as string);
-              reader.readAsDataURL(blob);
-            });
-            img.src = dataUrl;
-          } catch {
-            // keep original src
-          }
-        })
-      );
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(el, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        allowTaint: true,
-        useCORS: false,
-        width: el.scrollWidth,
-        height: el.scrollHeight,
-      });
-      return canvas;
-    } finally {
-      images.forEach((img, i) => { img.src = originalSrcs[i]; });
-      el.style.overflowY = origOverflow;
-      el.style.maxHeight = origMaxH;
+  const loadImage = (url: string): Promise<HTMLImageElement> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = async () => {
+        try {
+          const resp = await fetch(url);
+          const blob = await resp.blob();
+          const img2 = new Image();
+          img2.onload = () => resolve(img2);
+          img2.src = URL.createObjectURL(blob);
+        } catch {
+          const dummy = new Image();
+          dummy.width = 80;
+          dummy.height = 80;
+          resolve(dummy);
+        }
+      };
+      img.src = url;
+    });
+
+  const drawVoteResultCard = async (): Promise<HTMLCanvasElement | null> => {
+    if (voteResultsCandidates.length === 0) return null;
+    const candidates = voteResultsCandidates;
+    const totalVotes = candidates.reduce((s, c) => s + c.count, 0);
+    const maxCount = Math.max(...candidates.map((c) => c.count));
+    const title = voteResultsAnnouncement?.title || 'Voting';
+    const now = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    const W = 800;
+    const PAD = 36;
+    const CARD_TOP = 210;
+    const CARD_H = 112;
+    const CARD_GAP = 14;
+    const FOOTER_H = 70;
+    const H = CARD_TOP + candidates.length * (CARD_H + CARD_GAP) + FOOTER_H;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#ffffff');
+    bg.addColorStop(1, '#fefce8');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Accent bar top
+    ctx.fillStyle = '#d97706';
+    ctx.fillRect(0, 0, W, 6);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(0, 6, W, 3);
+
+    // Corner decorative circles
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.arc(W - 60, -60, 180, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(-60, H + 60, 180, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Logo area — draw a small badge
+    ctx.fillStyle = '#d97706';
+    ctx.beginPath();
+    ctx.arc(56, 62, 24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SPS', 56, 62);
+
+    // Title
+    ctx.fillStyle = '#18181b';
+    ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('HASIL VOTING', 94, 50);
+    ctx.fillStyle = '#71717a';
+    ctx.font = '13px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(title.length > 50 ? title.slice(0, 50) + '...' : title, 94, 72);
+
+    // Total votes hero
+    ctx.fillStyle = '#d97706';
+    ctx.font = 'bold 54px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(totalVotes), W / 2, 140);
+
+    ctx.fillStyle = '#a1a1aa';
+    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.fillText('TOTAL SUARA', W / 2, 168);
+
+    // Winner label
+    const winners = candidates.filter((c) => totalVotes > 0 && c.count === maxCount);
+    if (winners.length === 1) {
+      ctx.fillStyle = '#d97706';
+      ctx.font = '12px "Segoe UI", Arial, sans-serif';
+      ctx.textBaseline = 'bottom';
+      ctx.textAlign = 'center';
+      ctx.fillText('🏆 ' + winners[0].name, W / 2, 200);
     }
+
+    // Load photos
+    const photoImages: (HTMLImageElement | null)[] = await Promise.all(
+      candidates.map(async (c) => {
+        if (!c.photo_url) return null;
+        try {
+          return await loadImage(c.photo_url);
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    // Candidate cards
+    for (let i = 0; i < candidates.length; i++) {
+      const c = candidates[i];
+      const pct = totalVotes > 0 ? (c.count / totalVotes) * 100 : 0;
+      const isWinner = totalVotes > 0 && c.count === maxCount;
+      const y = CARD_TOP + i * (CARD_H + CARD_GAP);
+
+      // Card background
+      const cardX = PAD;
+      const cardW = W - PAD * 2;
+      ctx.fillStyle = isWinner ? '#fffbeb' : '#ffffff';
+      ctx.beginPath();
+      roundRect(ctx, cardX, y, cardW, CARD_H, 16);
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = isWinner ? '#f59e0b' : '#e4e4e7';
+      ctx.lineWidth = isWinner ? 2.5 : 1;
+      ctx.beginPath();
+      roundRect(ctx, cardX, y, cardW, CARD_H, 16);
+      ctx.stroke();
+
+      // Winner badge strip
+      if (isWinner) {
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        roundRect(ctx, cardX, y, 5, CARD_H, { tl: 16, bl: 16, tr: 0, br: 0 });
+        ctx.fill();
+      }
+
+      // Photo
+      const photoY = y + (CARD_H - 64) / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cardX + 48, photoY + 32, 32, 0, Math.PI * 2);
+      ctx.clip();
+      if (photoImages[i] && photoImages[i]!.width > 1) {
+        ctx.drawImage(photoImages[i]!, cardX + 16, photoY, 64, 64);
+      } else {
+        ctx.fillStyle = '#f4f4f5';
+        ctx.fillRect(cardX + 16, photoY, 64, 64);
+        ctx.fillStyle = '#a1a1aa';
+        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(c.name.charAt(0).toUpperCase(), cardX + 48, photoY + 32);
+      }
+      ctx.restore();
+
+      // Name
+      ctx.fillStyle = isWinner ? '#92400e' : '#18181b';
+      ctx.font = 'bold 15px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(c.name, cardX + 96, y + 40);
+
+      if (isWinner) {
+        ctx.fillStyle = '#d97706';
+        ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('PEMENANG', cardX + 96, y + 60);
+      }
+
+      // Rank number
+      ctx.fillStyle = '#d4d4d8';
+      ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('#' + (i + 1), cardX + cardW - 16, y + 30);
+
+      // Vote count
+      ctx.fillStyle = isWinner ? '#d97706' : '#18181b';
+      ctx.font = 'bold 28px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(String(c.count), cardX + cardW - 16, y + CARD_H - 30);
+
+      ctx.fillStyle = '#71717a';
+      ctx.font = '11px "Segoe UI", Arial, sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.fillText(pct.toFixed(1) + '%', cardX + cardW - 16, y + CARD_H - 26);
+
+      // Progress bar bg
+      const barX = cardX + 96;
+      const barY = y + CARD_H - 18;
+      const barW = cardW - 96 - 90;
+      ctx.fillStyle = '#f4f4f5';
+      ctx.beginPath();
+      roundRect(ctx, barX, barY, barW, 6, 3);
+      ctx.fill();
+
+      // Progress bar fill
+      if (totalVotes > 0) {
+        const fillW = Math.max(6, (c.count / totalVotes) * barW);
+        ctx.fillStyle = isWinner
+          ? '#f59e0b'
+          : (i % 2 === 0 ? '#818cf8' : '#a78bfa');
+        ctx.beginPath();
+        roundRect(ctx, barX, barY, fillW, 6, 3);
+        ctx.fill();
+      }
+    }
+
+    // Footer
+    ctx.fillStyle = '#f4f4f5';
+    ctx.fillRect(0, H - FOOTER_H, W, FOOTER_H);
+    ctx.fillStyle = '#a1a1aa';
+    ctx.font = '11px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SPS Corner — ' + now, W / 2, H - FOOTER_H / 2);
+
+    return canvas;
   };
 
+  function roundRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number | { tl: number; tr: number; bl: number; br: number }
+  ) {
+    const tl = typeof r === 'number' ? r : r.tl;
+    const tr = typeof r === 'number' ? r : r.tr;
+    const bl = typeof r === 'number' ? r : r.bl;
+    const br = typeof r === 'number' ? r : r.br;
+    ctx.moveTo(x + tl, y);
+    ctx.lineTo(x + w - tr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + tr);
+    ctx.lineTo(x + w, y + h - br);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+    ctx.lineTo(x + bl, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - bl);
+    ctx.lineTo(x, y + tl);
+    ctx.quadraticCurveTo(x, y, x + tl, y);
+    ctx.closePath();
+  }
+
   const handleDownloadResult = async () => {
-    if (!resultRef.current) return;
-    const el = resultRef.current;
-    const origOverflow = el.style.overflowY;
-    const origMaxH = el.style.maxHeight;
     try {
-      const canvas = await captureVoteResult();
+      const canvas = await drawVoteResultCard();
       if (!canvas) return;
       const link = document.createElement('a');
       link.download = `hasil_voting_${(voteResultsAnnouncement?.title || 'voting').replace(/\s+/g, '_').slice(0, 30)}.png`;
@@ -186,19 +398,12 @@ export default function AdminAnnouncements() {
     } catch (e) {
       console.error('Download error:', e);
       toast.error('Gagal mengunduh gambar');
-    } finally {
-      el.style.overflowY = origOverflow;
-      el.style.maxHeight = origMaxH;
     }
   };
 
   const handleShareResult = async () => {
-    if (!resultRef.current) return;
-    const el = resultRef.current;
-    const origOverflow = el.style.overflowY;
-    const origMaxH = el.style.maxHeight;
     try {
-      const canvas = await captureVoteResult();
+      const canvas = await drawVoteResultCard();
       if (!canvas) return;
       const total = voteResultsCandidates.reduce((s, c) => s + c.count, 0);
       canvas.toBlob(async (blob) => {
@@ -217,9 +422,6 @@ export default function AdminAnnouncements() {
     } catch (e) {
       console.error('Share error:', e);
       toast.error('Gagal membagikan');
-    } finally {
-      el.style.overflowY = origOverflow;
-      el.style.maxHeight = origMaxH;
     }
   };
 
