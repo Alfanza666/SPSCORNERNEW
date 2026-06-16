@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2, Phone, Star } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2, Phone, Star, Building2, Copy } from 'lucide-react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
 import { addDays } from 'date-fns';
@@ -16,7 +16,7 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [paymentStep, setPaymentStep] = useState<'summary' | 'ipaymu_direct' | 'manual_qris'>('summary');
+  const [paymentStep, setPaymentStep] = useState<'summary' | 'ipaymu_direct' | 'manual_qris' | 'transfer_koperasi'>('summary');
   const [directPaymentData, setDirectPaymentData] = useState<any>(null);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [verifyingReceipt, setVerifyingReceipt] = useState(false);
@@ -53,6 +53,16 @@ export default function Checkout() {
 
   const grandTotal = subtotal;
   const remainingTotal = pointsApplied ? Math.max(0, grandTotal - pointsToUse) : grandTotal;
+
+  // Deteksi apakah keranjang berisi produk koperasi (Sariroti, dll)
+  const hasKoperasiItems = items.some(item => {
+    const name = (item.name || '').toLowerCase();
+    const cat = (item.category || '').toLowerCase();
+    return name.includes('sariroti') || name.includes('sari roti') || cat.includes('sariroti')
+      || cat.includes('sari roti') || cat.includes('roti tawar') || cat.includes('roti manis')
+      || cat.includes('kue') || cat.includes('sandwich') || name.includes('sari choco')
+      || name.includes('dorayaki') || name.includes('cake');
+  });
 
   const buyerName = user?.name || (() => { try { return sessionStorage.getItem('buyerName'); } catch { return ''; } })();
   const buyerEmail = user?.email || (() => { try { return sessionStorage.getItem('buyerEmail'); } catch { return null; } })() || null;
@@ -392,6 +402,61 @@ export default function Checkout() {
     } catch (error: any) {
       console.error('Manual QRIS error:', error);
       toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+    } finally {
+      setLoading(false);
+      isCreatingTx.current = false;
+    }
+  };
+
+  const handleTransferKoperasi = async () => {
+    if (!buyerName) return;
+    if (isCreatingTx.current) { console.warn('[Checkout] Duplicate create prevented (handleTransferKoperasi)'); return; }
+    isCreatingTx.current = true;
+    setLoading(true);
+    try {
+      const txData: any = {
+        buyer_name: buyerName,
+        buyer_id: user?.id || null,
+        buyer_email: user?.email || null,
+        buyer_phone: user?.phone || guestPhone || null,
+        total_amount: grandTotal,
+        payment_method: 'transfer_koperasi',
+        items: items.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          is_digital: item.is_digital,
+          sku: item.sku,
+          target_number: item.target_number,
+          seller_id: item.seller_id,
+          metadata: item.metadata
+        }))
+      };
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      const txRes = await fetch('/api/transactions/create', {
+        method: 'POST', headers, body: JSON.stringify(txData)
+      });
+      if (!txRes.ok) {
+        let errorMessage = 'Failed to create transaction';
+        try {
+          const text = await txRes.text();
+          try { const errorData = JSON.parse(text); errorMessage = errorData?.error || errorMessage; }
+          catch (e) { errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`; }
+        } catch (e) { console.error('Failed to read error response:', e); }
+        throw new Error(errorMessage);
+      }
+      const { transaction } = await txRes.json();
+      setTransactionId(transaction.id);
+      saveGuestTransaction(transaction.id);
+      setPaymentLocked(true);
+      sessionStorage.setItem('paymentLocked', 'true');
+      setPaymentStep('transfer_koperasi');
+    } catch (error: any) {
+      console.error('Transfer Koperasi error:', error);
+      toast.error(error.message || 'Terjadi kesalahan');
     } finally {
       setLoading(false);
       isCreatingTx.current = false;
@@ -927,7 +992,7 @@ buyer_email: buyerEmail,
                   )}
 
                   {/* Manual QRIS Option */}
-                  {paymentSettings.qrisManual && (
+                  {paymentSettings.qrisManual && !hasKoperasiItems && (
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
@@ -945,6 +1010,29 @@ buyer_email: buyerEmail,
                       <div>
                         <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">QRIS (Manual)</p>
                         <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Upload Bukti Bayar</p>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* Transfer Rekening Koperasi Option */}
+                  {hasKoperasiItems && (
+                    <button
+                      onClick={() => {
+                        if (!user && !guestPhone) {
+                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          return;
+                        }
+                        handleTransferKoperasi();
+                      }}
+                      disabled={loading}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-amber-200 dark:border-amber-900 hover:border-amber-500 dark:hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-900/10 transition-all text-left group relative overflow-hidden col-span-full"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:bg-amber-200 dark:group-hover:bg-amber-800/30 transition-colors">
+                        <Building2 className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-zinc-900 dark:text-white text-sm tracking-tight">Transfer Rekening Koperasi</p>
+                        <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Bank Mandiri — Upload Bukti Transfer</p>
                       </div>
                     </button>
                   )}
@@ -984,6 +1072,110 @@ buyer_email: buyerEmail,
               Kembali ke Keranjang
             </button>
           </>
+        ) : paymentStep === 'transfer_koperasi' ? (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-amber-200 dark:border-amber-900 shadow-sm overflow-hidden p-6 sm:p-8 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
+                <Building2 className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-1">Transfer Rekening Koperasi</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mb-6">Lakukan transfer ke rekening di bawah ini</p>
+
+              <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800 p-5 mb-6 text-left space-y-3">
+                <div>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mb-1">Bank</p>
+                  <p className="text-sm font-black text-zinc-900 dark:text-white">Bank Mandiri</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mb-1">Nomor Rekening</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xl font-black text-amber-700 dark:text-amber-400 tracking-wider">1560017319346</p>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText('1560017319346'); toast.success('No. Rekening disalin!'); }}
+                      className="p-1.5 rounded-lg bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors"
+                    >
+                      <Copy className="w-4 h-4 text-amber-600" />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mb-1">Atas Nama</p>
+                  <p className="text-sm font-black text-zinc-900 dark:text-white">Koperasi Konsumen KA</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-6">
+                <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Total Bayar</p>
+                <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">
+                  {formatRupiah(estimatedTotal)}
+                </h2>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-left mb-6">
+                <h4 className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">Instruksi:</h4>
+                <ol className="text-xs text-blue-600 dark:text-blue-300 space-y-1.5 list-decimal pl-4 font-medium">
+                  <li>Transfer sejumlah <strong>{formatRupiah(estimatedTotal)}</strong> ke rekening Mandiri di atas</li>
+                  <li>Screenshot bukti transfer</li>
+                  <li>Upload bukti transfer di bawah ini</li>
+                </ol>
+              </div>
+
+              <div className="space-y-4">
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="receipt-upload-koperasi"
+                  />
+                  <label
+                    htmlFor="receipt-upload-koperasi"
+                    className="btn-clay-secondary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white cursor-pointer"
+                  >
+                    {receiptImage ? 'Ganti Bukti Transfer' : 'Upload Bukti Transfer'}
+                  </label>
+                </div>
+
+                {receiptImage && (
+                  <div className="mt-4">
+                    <img src={receiptImage} alt="Bukti Transfer" className="max-h-48 mx-auto rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-700" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <button
+                onClick={verifyReceipt}
+                disabled={!receiptImage || verifyingReceipt}
+                className="btn-clay-primary w-full h-12 sm:h-14 text-sm sm:text-base group flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifyingReceipt ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Memverifikasi...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    Verifikasi Pembayaran
+                  </>
+                )}
+              </button>
+
+              {!paymentLocked && (
+                <button
+                  onClick={() => setPaymentStep('summary')}
+                  disabled={verifyingReceipt}
+                  className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
+                >
+                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
+                  Ganti Metode Pembayaran
+                </button>
+              )}
+            </div>
+          </div>
         ) : paymentStep === 'manual_qris' ? (
           <div className="space-y-6">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden p-6 sm:p-8 text-center">

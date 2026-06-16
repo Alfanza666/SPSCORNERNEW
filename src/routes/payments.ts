@@ -203,11 +203,11 @@ export function registerPaymentRoutes(app, {
         .from("transactions")
         .update({
           status: "paid",
-          payment_method: "manual_qris",
           receipt_image: receiptUrl,
           payment_details: {
             ...existingPaymentDetails,
             receipt_uploaded: true,
+            manual_verify: true,
             verified_at: new Date().toISOString(),
           },
         })

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import {
   CheckCircle2, ShoppingBag, Printer, ArrowRight, Star, Clock, Mail,
   ChevronDown, Copy, ExternalLink, Store, MapPin,
-  CreditCard, Smartphone, Wallet, ShieldCheck
+  CreditCard, Smartphone, Wallet, ShieldCheck, Building2
 } from 'lucide-react';
 import { motion, useMotionValue, animate, useDragControls } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -22,6 +22,7 @@ const PAYMENT_METHOD_LABELS: Record<string, { label: string; icon: React.Element
   va_mandiri: { label: 'Virtual Account Mandiri', icon: CreditCard },
   redirect: { label: 'Transfer Bank / E-Wallet', icon: Wallet },
   points: { label: 'Poin Loyalitas', icon: Star },
+  transfer_koperasi: { label: 'Transfer Koperasi', icon: Building2 },
 };
 
 function isDigitalPayment(transaction: any) {
