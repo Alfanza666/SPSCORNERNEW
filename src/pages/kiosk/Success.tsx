@@ -263,6 +263,16 @@ Sistem SPS Corner`);
     : null;
   const PaymentIcon = paymentInfo?.icon || CreditCard;
 
+  // ── Hapus sessionStorage lock ketika transaksi sudah sukses ──
+  useEffect(() => {
+    if (transaction && !isPending) {
+      try {
+        sessionStorage.removeItem('lastTransactionId');
+        sessionStorage.removeItem('paymentLocked');
+      } catch {}
+    }
+  }, [isPending]);
+
   return (
     <div className="h-dvh w-full overflow-hidden relative bg-zinc-50 dark:bg-zinc-950 select-none">
       {/* ===== BACKGROUND SUCCESS SECTION ===== */}

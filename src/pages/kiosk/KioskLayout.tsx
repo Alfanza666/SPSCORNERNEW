@@ -66,6 +66,12 @@ export default function KioskLayout() {
       .then(data => {
         if (data?.transaction?.status === 'pending') {
           navigate(`/kiosk/success?id=${pendingTxId}`, { replace: true });
+        } else if (data?.transaction) {
+          // Transaksi sudah dibayar/gagal → bersihkan sessionStorage
+          try {
+            sessionStorage.removeItem('lastTransactionId');
+            sessionStorage.removeItem('paymentLocked');
+          } catch {}
         }
       })
       .catch(() => {});
