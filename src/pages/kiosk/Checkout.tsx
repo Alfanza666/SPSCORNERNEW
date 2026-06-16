@@ -419,7 +419,7 @@ export default function Checkout() {
         buyer_id: user?.id || null,
         buyer_email: user?.email || null,
         buyer_phone: user?.phone || guestPhone || null,
-        total_amount: grandTotal,
+        total_amount: subtotal,
         payment_method: 'transfer_koperasi',
         items: items.map(item => ({
           id: item.id,
@@ -1107,14 +1107,15 @@ buyer_email: buyerEmail,
               <div className="space-y-2 mb-6">
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Total Bayar</p>
                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">
-                  {formatRupiah(estimatedTotal)}
+                  {formatRupiah(subtotal)}
                 </h2>
+                <p className="text-[10px] text-zinc-400 font-medium">(Bebas biaya MDR)</p>
               </div>
 
               <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 text-left mb-6">
                 <h4 className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">Instruksi:</h4>
                 <ol className="text-xs text-blue-600 dark:text-blue-300 space-y-1.5 list-decimal pl-4 font-medium">
-                  <li>Transfer sejumlah <strong>{formatRupiah(estimatedTotal)}</strong> ke rekening Mandiri di atas</li>
+                  <li>Transfer sejumlah <strong>{formatRupiah(subtotal)}</strong> ke rekening Mandiri di atas</li>
                   <li>Screenshot bukti transfer</li>
                   <li>Upload bukti transfer di bawah ini</li>
                 </ol>
