@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { Megaphone, Plus, X, Pin, Trash2, Loader2, Edit, Upload, Image as ImageIcon, Users, Trophy, ClipboardList, Calendar, ChevronDown, ChevronUp, UserPlus, FileText, BarChart3, CheckCheck } from 'lucide-react';
+import { Megaphone, Plus, X, Pin, Trash2, Loader2, Edit, Upload, Image as ImageIcon, Users, Trophy, ClipboardList, Calendar, ChevronDown, ChevronUp, UserPlus, FileText, BarChart3, CheckCheck, Download, Share2 } from 'lucide-react';
 import RichTextEditor from '../../../components/ui/RichTextEditor';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -61,6 +61,7 @@ export default function AdminAnnouncements() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
   // Basic form
   const [form, setForm] = useState({
@@ -123,6 +124,54 @@ export default function AdminAnnouncements() {
       toast.error('Gagal memuat hasil voting');
     } finally {
       setVoteResultsLoading(false);
+    }
+  };
+
+  const handleDownloadResult = async () => {
+    if (!resultRef.current) return;
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(resultRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        allowTaint: false,
+        useCORS: true,
+      });
+      const link = document.createElement('a');
+      link.download = `hasil_voting_${(voteResultsAnnouncement?.title || 'voting').replace(/\s+/g, '_').slice(0, 30)}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast.success('Gambar hasil voting diunduh!');
+    } catch (e) {
+      console.error('Download error:', e);
+      toast.error('Gagal mengunduh gambar');
+    }
+  };
+
+  const handleShareResult = async () => {
+    if (!resultRef.current) return;
+    const total = voteResultsCandidates.reduce((s, c) => s + c.count, 0);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(resultRef.current, {
+        backgroundColor: '#ffffff', scale: 2, allowTaint: false, useCORS: true,
+      });
+      canvas.toBlob(async (blob) => {
+        if (!blob) { toast.error('Gagal membuat gambar'); return; }
+        const file = new File([blob], 'hasil_voting.png', { type: 'image/png' });
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: 'Hasil Voting', text: 'Hasil voting terbaru', files: [file] });
+        } else {
+          const msg = `📊 *Hasil Voting*\n\n${voteResultsCandidates.map(c => {
+            const pct = total > 0 ? ((c.count / total) * 100).toFixed(1) : 0;
+            return `${c.name}: ${c.count} suara (${pct}%)`;
+          }).join('\n')}\n\nTotal: ${total} suara`;
+          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+        }
+      });
+    } catch (e) {
+      console.error('Share error:', e);
+      toast.error('Gagal membagikan');
     }
   };
 
@@ -1026,12 +1075,20 @@ export default function AdminAnnouncements() {
                       <p className="text-xs text-zinc-500 truncate max-w-[250px]">{voteResultsAnnouncement.title}</p>
                     </div>
                   </div>
-                  <button onClick={() => { setShowVoteResults(false); setVoteResultsAnnouncement(null); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
-                    <X className="w-5 h-5 text-zinc-500" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={handleDownloadResult} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors" title="Download Gambar">
+                      <Download className="w-4 h-4 text-zinc-500" />
+                    </button>
+                    <button onClick={handleShareResult} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors" title="Bagikan">
+                      <Share2 className="w-4 h-4 text-zinc-500" />
+                    </button>
+                    <button onClick={() => { setShowVoteResults(false); setVoteResultsAnnouncement(null); }} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
+                      <X className="w-5 h-5 text-zinc-500" />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
+                <div ref={resultRef} className="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
                   {voteResultsLoading ? (
                     <div className="flex justify-center py-10">
                       <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
