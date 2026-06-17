@@ -9,14 +9,15 @@ export async function updateSellerBalances(items) {
   try {
     for (const item of items) {
       if (!item.seller_id) continue;
-      const fee = Number(item.price) * 0.007;
-      const netAmount = Number(item.price) - fee;
+      const sellerAmount = Number(item.subtotal) || 0;
+      if (sellerAmount <= 0) continue;
+      const grossAmount = Number(item.price) * Number(item.quantity);
       const { data: seller } = await supabaseInstance.from("profiles").select("balance, total_sales, total_fee_paid").eq("id", item.seller_id).single();
       if (seller) {
         await supabaseInstance.from("profiles").update({
-          balance: (Number(seller.balance) || 0) + netAmount,
-          total_sales: (Number(seller.total_sales) || 0) + Number(item.price),
-          total_fee_paid: (Number(seller.total_fee_paid) || 0) + fee,
+          balance: (Number(seller.balance) || 0) + sellerAmount,
+          total_sales: (Number(seller.total_sales) || 0) + grossAmount,
+          total_fee_paid: (Number(seller.total_fee_paid) || 0) + (grossAmount - sellerAmount),
         }).eq("id", item.seller_id);
       }
     }
