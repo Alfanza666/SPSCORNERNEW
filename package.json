@@ -1,7 +1,7 @@
 {
   "name": "sps-corner",
   "private": true,
-  "version": "5.2.1",
+  "version": "5.2.2",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -11,7 +11,8 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare": "husky"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
@@ -76,14 +77,24 @@
     "@types/node": "^22.19.17",
     "@types/nodemailer": "^7.0.11",
     "@types/papaparse": "^5.5.2",
+    "@types/supertest": "^7.2.0",
     "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.21",
+    "husky": "^9.1.7",
     "jsdom": "^29.1.1",
+    "lint-staged": "^17.0.8",
     "sharp": "^0.34.5",
+    "supertest": "^7.2.2",
     "tailwindcss": "^4.1.14",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "vite-plugin-pwa": "^1.2.0",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.9"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "npm run lint",
+      "npm run test --passWithNoTests"
+    ]
   }
 }

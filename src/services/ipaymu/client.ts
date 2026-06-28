@@ -43,15 +43,36 @@ export class IpaymuClient {
   private apiKey: string;
   private baseUrl: string;
   private axiosConfig: any;
+  private fixieUrl: string | null;
+  private axiosInstance: any;
 
-  constructor(va: string, apiKey: string, production: boolean = false, axiosConfig: any = {}) {
+  constructor(va: string, apiKey: string, production: boolean = false, axiosConfig: any = {}, fixieUrl: string | null = null) {
     this.va = va.trim();
     this.apiKey = apiKey.trim();
     this.baseUrl = production
       ? 'https://my.ipaymu.com/api/v2'
       : 'https://sandbox.ipaymu.com/api/v2';
     this.axiosConfig = axiosConfig;
+    this.fixieUrl = fixieUrl;
       
+    // Setup Axios Instance with Fallback Interceptor
+    this.axiosInstance = axios.create();
+    this.axiosInstance.interceptors.response.use(
+      (response: any) => response,
+      async (error: any) => {
+        const originalRequest = error.config;
+        if (!originalRequest._retry && this.fixieUrl && (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 407 || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT')) {
+          originalRequest._retry = true;
+          console.log('⚠️ [iPaymu] Direct request failed, retrying via Fixie proxy...');
+          const { HttpsProxyAgent } = await import('https-proxy-agent');
+          originalRequest.httpsAgent = new HttpsProxyAgent(this.fixieUrl);
+          originalRequest.proxy = false;
+          return this.axiosInstance(originalRequest);
+        }
+        return Promise.reject(error);
+      }
+    );
+
     console.log(`[Ipaymu] Mode: ${production ? 'PRODUCTION' : 'SANDBOX'}`);
   }
 
@@ -69,7 +90,7 @@ export class IpaymuClient {
 
     try {
       console.log('📤 Sending payment request to Ipaymu...');
-      const response = await axios.post(`${this.baseUrl}/payment`, jsonBody, {
+      const response = await this.axiosInstance.post(`${this.baseUrl}/payment`, jsonBody, {
         ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',
@@ -112,7 +133,7 @@ export class IpaymuClient {
 
     try {
       console.log('📤 Sending direct payment request...');
-      const response = await axios.post(`${this.baseUrl}/payment/direct`, jsonBody, {
+      const response = await this.axiosInstance.post(`${this.baseUrl}/payment/direct`, jsonBody, {
         ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',
@@ -154,7 +175,7 @@ export class IpaymuClient {
     );
 
     try {
-      const response = await axios.post(`${this.baseUrl}/transaction/details`, JSON.parse(jsonBody), {
+      const response = await this.axiosInstance.post(`${this.baseUrl}/transaction/details`, JSON.parse(jsonBody), {
         ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',
@@ -177,7 +198,7 @@ export class IpaymuClient {
    */
   async getPaymentMethods(): Promise<any> {
     try {
-      const response = await axios.get(`${this.baseUrl}/payment-methods`, this.axiosConfig);
+      const response = await this.axiosInstance.get(`${this.baseUrl}/payment-methods`, this.axiosConfig);
       const responseData = response.data;
       return responseData;
     } catch (error: any) {

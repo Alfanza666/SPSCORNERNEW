@@ -37,7 +37,7 @@ import { initStockService, restoreTransactionStock, deductTransactionStock, atom
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail } from "./src/services/email.js";
 import { initPaymentService, updateSellerBalances, updateBuyerPoints } from "./src/services/payment.js";
 import { initBackgroundJobs } from "./src/services/background-jobs.js";
-import { processDigitalItems, updateDigiflazzCache, getDigiflazzBalance, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY } from "./src/services/digiflazz.js";
+import { processDigitalItems, updateDigiflazzCache, getDigiflazzBalance, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, digiflazzAxios } from "./src/services/digiflazz.js";
 import { initWANotification, sendWANotification } from "./src/services/wa-notification.js";
 dotenv.config();
 
@@ -62,7 +62,7 @@ const supabaseServiceKey =
     : (() => { throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set"); })();
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 import Groq from "groq-sdk";
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "dummy_key_for_tests", dangerouslyAllowBrowser: true });
 
 const app = express();
 
@@ -207,19 +207,8 @@ const FIXIE_URL =
     ? process.env.FIXIE_URL
     : null;
 const getIpaymuAxiosConfig = __name(() => {
-  const config = {};
-  if (FIXIE_URL) {
-    try {
-      config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
-      config.proxy = false;
-      console.log("[iPaymu] Routing via Fixie static IP - OK");
-    } catch (e) {
-      console.error("[iPaymu] Invalid FIXIE_URL:", e.message);
-    }
-  } else {
-    console.warn("[iPaymu] No Fixie proxy - ensure server IP is whitelisted in iPaymu dashboard.");
-  }
-  return config;
+  // Priority 1: No proxy. Fixie will be added via interceptor if request fails (Priority 2).
+  return {};
 }, "getIpaymuAxiosConfig");
 const IPAYMU_VA = (process.env.IPAYMU_VA || "").replace(/['"]/g, "").trim();
 const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || "")
@@ -233,6 +222,7 @@ const ipaymuClient = new IpaymuClient(
   IPAYMU_API_KEY,
   IPAYMU_PRODUCTION,
   getIpaymuAxiosConfig(),
+  FIXIE_URL
 );
 console.log("\u{1F4B3} Ipaymu Config:", {
   va: IPAYMU_VA ? "\u2713 Set" : "\u2717 Not Set",
@@ -265,7 +255,7 @@ if (!process.env.VERCEL) {
   setTimeout(updateDigiflazzCache, 5e3);
   setInterval(updateDigiflazzCache, CACHE_TTL);
 }
-registerDigitalRoutes(app, { supabase, sendNotification, crypto, axios, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz });
+registerDigitalRoutes(app, { supabase, sendNotification, crypto, axios: digiflazzAxios, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz });
 
 registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, deductTransactionStock, atomicAdjustStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
 registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
@@ -369,9 +359,11 @@ if (!process.env.VERCEL) {
       Sentry.setupExpressErrorHandler(app);
     }
 
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
+    if (process.env.NODE_ENV !== 'test') {
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    }
   })();
 }
 

@@ -29,17 +29,26 @@ const FIXIE_URL =
     ? process.env.FIXIE_URL
     : null;
 
-export function getDigiflazzAxiosConfig() {
-  const config = {};
-  if (FIXIE_URL) {
-    try {
-      config.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
-      config.proxy = false;
-    } catch (error) {
-      console.error("\u274C Invalid FIXIE_URL provided. Proxy will not be used.", error);
+// Custom Axios Instance for Digiflazz with Fallback
+export const digiflazzAxios = axios.create();
+digiflazzAxios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const originalRequest = error.config;
+    if (!originalRequest._retry && FIXIE_URL && (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 407 || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT')) {
+      originalRequest._retry = true;
+      console.log('⚠️ [Digiflazz] Direct request failed, retrying via Fixie proxy...');
+      originalRequest.httpsAgent = new HttpsProxyAgent(FIXIE_URL);
+      originalRequest.proxy = false;
+      return digiflazzAxios(originalRequest);
     }
+    return Promise.reject(error);
   }
-  return config;
+);
+
+export function getDigiflazzAxiosConfig() {
+  // Priority 1: No proxy. Fixie will be added via interceptor if request fails (Priority 2).
+  return {};
 }
 
 export function saveCacheToFile() {
@@ -65,7 +74,7 @@ export async function updateDigiflazzCache() {
       console.log(`Fetching ${type} price list from Digiflazz...`);
       const sign = crypto.createHash("md5").update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "pricelist").digest("hex");
       const payload = { cmd: type === "postpaid" ? "pasca" : "prepaid", username: DIGIFLAZZ_USERNAME, sign };
-      const response = await axios.post("https://api.digiflazz.com/v1/price-list", payload, getDigiflazzAxiosConfig());
+      const response = await digiflazzAxios.post("https://api.digiflazz.com/v1/price-list", payload, getDigiflazzAxiosConfig());
       if (response.data?.data && Array.isArray(response.data.data)) {
         priceCache[type] = { data: response.data.data, timestamp: Date.now() };
         saveCacheToFile();
@@ -96,7 +105,7 @@ export async function getDigiflazzBalance() {
   if (isDefaultDigiflazz) return 0;
   try {
     const sign = crypto.createHash("md5").update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + "depo").digest("hex");
-    const response = await axios.post("https://api.digiflazz.com/v1/cek-saldo", { cmd: "deposit", username: DIGIFLAZZ_USERNAME, sign });
+    const response = await digiflazzAxios.post("https://api.digiflazz.com/v1/cek-saldo", { cmd: "deposit", username: DIGIFLAZZ_USERNAME, sign });
     return response.data?.data?.deposit || 0;
   } catch (err) {
     console.error("Failed to get Digiflazz balance:", err?.response?.data || err.message);
@@ -114,7 +123,7 @@ export async function processDigitalItems(transactionId, items) {
       const refId = `${transactionId}-${item.id}`;
       const buyerPhone = item.metadata?.customer_number || item.metadata?.phone || '';
       const sign = crypto.createHash('md5').update(DIGIFLAZZ_USERNAME + DIGIFLAZZ_API_KEY + refId).digest('hex');
-      const { data: result } = await axios.post('https://api.digiflazz.com/v1/transaction', {
+      const { data: result } = await digiflazzAxios.post('https://api.digiflazz.com/v1/transaction', {
         username: DIGIFLAZZ_USERNAME, buyer_sk_code: item.metadata?.buyer_sk_code || '', customer_no: buyerPhone,
         ref_id: refId, sign, commands: 'topup',
       }, getDigiflazzAxiosConfig());

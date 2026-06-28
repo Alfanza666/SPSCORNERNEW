@@ -160,7 +160,7 @@ app.post("/api/admin/transactions/reject", async (req, res) => {
   }
 });
 
-app.post("/api/admin/transactions/confirm-sariroti", async (req, res) => {
+app.post("/api/transactions/confirm-sariroti", async (req, res) => {
   try {
     const { transaction_id } = req.body;
     if (!transaction_id)

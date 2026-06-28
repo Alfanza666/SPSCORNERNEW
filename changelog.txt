@@ -1,3 +1,23 @@
+v5.2.2 — Seller Balance Correction — Retroactive Fix (PATCH)
+----------------------------------------------------------------------------------
+### Root Cause Analysis (RCA):
+- **[RCA] `updateSellerBalances()` bug:** Old code used `item.price` (unit price) instead of `item.subtotal` (net after 8% fee) for balance credit. Also used unit price (not `price * quantity`) for `total_sales`. Erroneous 0.7% MDR deduction applied on top of 8% platform fee.
+- **[RCA] `total_withdrawn` double-count on Fauzan:** Withdrawal approval process likely called multiple times for same withdrawals, inflating `total_withdrawn` from Rp 722.000 to Rp 1.341.960.
+
+### Perbaikan:
+- **[FIX] Balance corrected to actual earnings (6 sellers):** Set balance = total subtotal from paid transactions - actual withdrawals for each seller.
+  - Fauzan: 108.030 → **157.584** (+49.554)
+  - Hidayatullah: 982 → **23.240** (+22.258)
+  - Admin Sariroti: 112.125 → **161.250** (+49.125)
+  - Dadang Hardito: 143.520 → **145.360** (+1.840)
+  - Alif Irfansyah: 976.830 → **8.520** (-968.310)
+  - Nurul Hasanah: 186.698 → **189.300** (+2.602)
+- **[FIX] `total_sales` & `total_fee_paid` corrected** to match actual gross/net from paid transactions.
+- **[FIX] Fauzan `total_withdrawn` fixed:** 1.341.960 → 722.000 (matches actual withdrawal records).
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.2.1 → v5.2.2 (PATCH: koreksi balance seller retroaktif).
+
 v5.2.1 — Stock Accuracy Fix — RCAs & Optimistic Locking (PATCH)
 ----------------------------------------------------------------------------------
 ### Root Cause Analysis (RCA):

@@ -73,7 +73,7 @@ export default function SellerTransactions() {
   const handleConfirm = async (item: any) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/admin/transactions/confirm-sariroti', {
+      const res = await fetch('/api/transactions/confirm-sariroti', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
