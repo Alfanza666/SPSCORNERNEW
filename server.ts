@@ -3,6 +3,7 @@ var __defProp = Object.defineProperty;
 var __name = (target, value) =>
   __defProp(target, "name", { value, configurable: true });
 import express from "express";
+import https from "https";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import axios from "axios";
@@ -207,8 +208,10 @@ const FIXIE_URL =
     ? process.env.FIXIE_URL
     : null;
 const getIpaymuAxiosConfig = __name(() => {
-  // Priority 1: No proxy. Fixie will be added via interceptor if request fails (Priority 2).
-  return {};
+  // Priority 1: No proxy, but force IPv4 so it uses the whitelisted IP (45.158.126.76). Fixie fallback remains Priority 2.
+  return {
+    httpsAgent: new https.Agent({ family: 4 })
+  };
 }, "getIpaymuAxiosConfig");
 const IPAYMU_VA = (process.env.IPAYMU_VA || "").replace(/['"]/g, "").trim();
 const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || "")

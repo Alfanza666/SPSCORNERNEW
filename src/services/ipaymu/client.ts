@@ -56,7 +56,7 @@ export class IpaymuClient {
     this.fixieUrl = fixieUrl;
       
     // Setup Axios Instance with Fallback Interceptor
-    this.axiosInstance = axios.create();
+    this.axiosInstance = axios.create(this.axiosConfig);
     this.axiosInstance.interceptors.response.use(
       (response: any) => response,
       async (error: any) => {

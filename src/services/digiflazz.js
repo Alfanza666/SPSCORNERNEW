@@ -6,6 +6,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { HttpsProxyAgent } from "https-proxy-agent";
+import https from "https";
 
 export const DIGIFLAZZ_USERNAME = (process.env.DIGIFLAZZ_USERNAME || "").replace(/['"]/g, "").trim();
 export const DIGIFLAZZ_API_KEY = (process.env.DIGIFLAZZ_API_KEY || "").replace(/['"]/g, "").trim();
@@ -30,7 +31,9 @@ const FIXIE_URL =
     : null;
 
 // Custom Axios Instance for Digiflazz with Fallback
-export const digiflazzAxios = axios.create();
+export const digiflazzAxios = axios.create({
+  httpsAgent: new https.Agent({ family: 4 })
+});
 digiflazzAxios.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -47,8 +50,10 @@ digiflazzAxios.interceptors.response.use(
 );
 
 export function getDigiflazzAxiosConfig() {
-  // Priority 1: No proxy. Fixie will be added via interceptor if request fails (Priority 2).
-  return {};
+  // Priority 1: No proxy, force IPv4.
+  return {
+    httpsAgent: new https.Agent({ family: 4 })
+  };
 }
 
 export function saveCacheToFile() {
