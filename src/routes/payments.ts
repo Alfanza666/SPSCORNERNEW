@@ -150,7 +150,7 @@ export function registerPaymentRoutes(app, {
         return res.status(500).json({ success: false, error: "GROQ_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
       }
       const groqResponse = await groq.chat.completions.create({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        model: "llama-3.2-90b-vision-preview",
         messages: [
           {
             role: "user",

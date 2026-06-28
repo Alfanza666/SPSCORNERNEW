@@ -37,7 +37,7 @@ export default function Validate() {
       
       const options = {
         maxSizeMB: 1,
-        maxWidthOrHeight: 1920,
+        maxWidthOrHeight: 1000,
         useWebWorker: true
       };
       const compressedFile = await imageCompression(file, options);
