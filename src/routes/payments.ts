@@ -134,16 +134,55 @@ export function registerPaymentRoutes(app, {
       } catch (uploadErr) {
         console.error("Exception uploading receipt image:", uploadErr);
       }
+      // Ambil data transaksi termasuk tanggal dibuat
+      const { data: txRecord } = await supabase
+        .from("transactions")
+        .select("created_at, status, payment_details")
+        .eq("id", transaction_id)
+        .single();
+
+      // Format tanggal transaksi ke bahasa Indonesia
+      const txDate = txRecord?.created_at ? new Date(txRecord.created_at) : null;
+      const txDateFormatted = txDate
+        ? txDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Makassar' })
+        : null;
+      const txDateShort = txDate
+        ? txDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Makassar' })
+        : null;
+
       const prompt = `
-        Tolong verifikasi bukti transfer ini.
-        Nominal yang diharapkan adalah: Rp ${expected_amount}
-        
-        Apakah bukti transfer ini valid dan nominalnya sesuai dengan yang diharapkan?
-        Jawab dengan format JSON:
+        Kamu adalah sistem verifikasi bukti pembayaran untuk toko kantin digital.
+        Analisis gambar berikut dan tentukan apakah ini adalah bukti transfer/pembayaran yang valid.
+
+        Nominal transaksi yang harus dibayar: Rp ${Number(expected_amount).toLocaleString('id-ID')}
+        Tanggal transaksi dibuat: ${txDateFormatted || 'tidak diketahui'}${txDateShort ? ` (${txDateShort})` : ''}
+
+        INSTRUKSI PENTING:
+        - Gambar bisa berupa screenshot panjang dari aplikasi mobile banking, QRIS, GoPay, OVO, DANA, ShopeePay, atau aplikasi transfer lainnya.
+        - JANGAN tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.
+        - Fokus mencari bukti pembayaran di MANA PUN lokasinya dalam gambar.
+        - Cari teks nominal seperti: "${expected_amount}", "Rp ${Number(expected_amount).toLocaleString('id-ID')}", atau angka yang mendekati ±5%.
+        - Cari indikator keberhasilan: "Berhasil", "Sukses", "Success", "Selesai", tanda centang hijau, atau teks serupa.
+        - Cari nama pengirim, nama penerima, atau nama bank/dompet digital sebagai konteks pendukung.
+
+        PENGECEKAN TANGGAL (WAJIB):
+        - Cari tanggal transaksi di nota/bukti pembayaran.
+        - Tanggal di nota harus sesuai dengan tanggal transaksi: ${txDateFormatted || 'tidak diketahui'}.
+        - Toleransi tanggal: HANYA boleh beda 1 hari (bisa H atau H-1 dari ${txDateFormatted || 'tanggal transaksi'}).
+        - Jika tanggal di nota JAUH berbeda (lebih dari 1 hari), TOLAK dengan alasan tanggal tidak sesuai.
+        - Jika tanggal di nota TIDAK TERLIHAT, abaikan pengecekan tanggal dan fokus ke nominal & status saja.
+
+        TOLAK hanya jika:
+        - Gambar bukan bukti pembayaran sama sekali
+        - Nominal yang terlihat JELAS berbeda jauh dari Rp ${Number(expected_amount).toLocaleString('id-ID')}
+        - Status transaksi JELAS menunjukkan gagal/pending/dibatalkan
+        - Tanggal di nota JELAS berbeda lebih dari 1 hari dari tanggal transaksi
+
+        Balas HANYA dengan JSON tanpa markdown:
         {
           "isValid": boolean,
-          "amountFound": number,
-          "reason": "Alasan singkat mengapa valid/tidak valid"
+          "amountFound": number or null,
+          "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid jelaskan alasannya."
         }
       `;
       if (!process.env.GROQ_API_KEY) {
@@ -172,12 +211,7 @@ export function registerPaymentRoutes(app, {
         throw new Error("Gagal mendapatkan respons dari AI");
       }
       const verificationResult = JSON.parse(resultText);
-      const { data: existingTx } = await supabase
-        .from("transactions")
-        .select("status, payment_details")
-        .eq("id", transaction_id)
-        .single();
-      const existingPaymentDetails = existingTx?.payment_details || {};
+      const existingPaymentDetails = txRecord?.payment_details || {};
       if (!verificationResult.isValid) {
         await supabase
           .from("transactions")
