@@ -592,7 +592,7 @@ app.post("/api/transactions/:id/process", async (req, res) => {
     const { id } = req.params;
     const { data: tx, error } = await supabase.from("transactions").select("*, transaction_items(*)").eq("id", id).single();
     if (error || !tx) return res.status(404).json({ error: "Transaction not found" });
-    if (tx.status !== "paid") return res.status(400).json({ error: "Only paid orders can be processed" });
+    if (tx.status !== "paid" && tx.status !== "success") return res.status(400).json({ error: "Only paid or success orders can be processed" });
     await supabase.from("transactions").update({
       status: "processed",
       processed_at: new Date().toISOString(),
@@ -615,7 +615,7 @@ app.post("/api/transactions/:id/ready", async (req, res) => {
     const { id } = req.params;
     const { data: tx, error } = await supabase.from("transactions").select("*").eq("id", id).single();
     if (error || !tx) return res.status(404).json({ error: "Transaction not found" });
-    if (tx.status !== "processed" && tx.status !== "paid") return res.status(400).json({ error: "Order must be processed first" });
+    if (tx.status !== "processed" && tx.status !== "paid" && tx.status !== "success") return res.status(400).json({ error: "Order must be processed or paid first" });
     await supabase.from("transactions").update({
       status: "ready",
       ready_at: new Date().toISOString(),

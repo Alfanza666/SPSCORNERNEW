@@ -78,6 +78,7 @@ async function autoCleanup() {
       .from("transactions")
       .select("id, buyer_id, metadata")
       .in("status", ["pending"])
+      .is("receipt_image", null)
       .lt("created_at", reminderThreshold)
       .gt("created_at", elevenMinAgo);
     if (toRemind) {
@@ -105,6 +106,7 @@ async function autoCleanup() {
       .from("transactions")
       .select("id, buyer_id, metadata")
       .in("status", ["pending"])
+      .is("receipt_image", null)
       .lt("created_at", expiredThreshold);
     if (!expired || expired.length === 0) return;
     for (const tx of expired) {
