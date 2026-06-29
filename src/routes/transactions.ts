@@ -519,12 +519,34 @@ app.post("/api/transactions/create", async (req, res) => {
       ...(hasDeducted ? { deducted_products: deductedProducts } : {})
     };
 
+
     if (tx.status === "paid" || tx.status === "success") {
       if (insertedItems && insertedItems.length > 0) {
         await processDigitalItems(tx.id, insertedItems);
       }
       await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
       await updateSellerBalances(insertedItems);
+    } else if (tx.status === "pending" && receipt_image) {
+      // Kirim notifikasi realtime ke semua admin untuk verifikasi manual
+      try {
+        const { data: admins } = await supabase
+          .from("profiles")
+          .select("id")
+          .in("role", ["admin", "superadmin"]);
+          
+        if (admins && admins.length > 0) {
+          for (const admin of admins) {
+            await sendNotification(admin.id, {
+              type: "transaction",
+              title: "🔔 Verifikasi Manual Baru",
+              message: `Pesanan #${tx.id.slice(0, 8)} memerlukan verifikasi manual (AI sedang offline).`,
+              path: `/dashboard/admin/transactions?id=${tx.id}`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to notify admins of manual verification:", err);
+      }
     }
     res.json({ success: true, transaction: tx });
   } catch (error) {

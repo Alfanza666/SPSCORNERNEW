@@ -301,6 +301,28 @@ export function registerPaymentRoutes(app, {
             })
             .eq("id", transaction_id);
 
+
+          // Kirim notifikasi realtime ke semua admin untuk verifikasi manual
+          try {
+            const { data: admins } = await supabase
+              .from("profiles")
+              .select("id")
+              .in("role", ["admin", "superadmin"]);
+              
+            if (admins && admins.length > 0) {
+              for (const admin of admins) {
+                await sendNotification(admin.id, {
+                  type: "transaction",
+                  title: "🔔 Verifikasi Manual Baru",
+                  message: `Bukti pembayaran baru diunggah untuk pesanan #${transaction_id.slice(0, 8)} (AI sedang offline).`,
+                  path: `/dashboard/admin/transactions?id=${transaction_id}`,
+                });
+              }
+            }
+          } catch (err) {
+            console.error("Failed to notify admins of manual verification fallback:", err);
+          }
+
           return res.json({
             success: true,
             fallbackToPending: true,
