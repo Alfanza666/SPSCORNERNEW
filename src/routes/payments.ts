@@ -210,7 +210,13 @@ export function registerPaymentRoutes(app, {
       if (!resultText) {
         throw new Error("Gagal mendapatkan respons dari AI");
       }
-      const verificationResult = JSON.parse(resultText);
+      let verificationResult;
+      try {
+        verificationResult = JSON.parse(resultText);
+      } catch {
+        console.warn('[ManualVerify] AI returned non-JSON:', resultText?.substring(0, 200));
+        verificationResult = { isValid: false, reason: 'Sistem AI tidak dapat membaca gambar. Pastikan gambar jelas dan coba lagi.' };
+      }
       const existingPaymentDetails = txRecord?.payment_details || {};
       if (!verificationResult.isValid) {
         await supabase

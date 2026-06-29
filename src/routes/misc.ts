@@ -9,18 +9,20 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
       if (!imageBase64 || !totalAmount) {
         return res.status(400).json({ error: 'Image and totalAmount required' });
       }
+      const amountNum = Number(totalAmount);
+      const amountFormatted = isNaN(amountNum) ? String(totalAmount) : amountNum.toLocaleString('id-ID');
 
       const prompt = `
       Kamu adalah sistem verifikasi bukti pembayaran untuk toko kantin digital.
       Analisis gambar berikut dan tentukan apakah ini adalah bukti transfer/pembayaran yang valid.
 
-      Nominal transaksi yang harus dibayar: Rp ${totalAmount.toLocaleString('id-ID')}
+      Nominal transaksi yang harus dibayar: Rp ${amountFormatted}
 
       INSTRUKSI PENTING:
       - Gambar bisa berupa screenshot panjang dari aplikasi mobile banking, QRIS, GoPay, OVO, DANA, ShopeePay, atau aplikasi transfer lainnya.
       - JANGAN tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.
       - Fokus mencari bukti pembayaran di MANA PUN lokasinya dalam gambar.
-      - Cari teks nominal seperti: "${totalAmount}", "Rp ${totalAmount.toLocaleString('id-ID')}", atau angka yang mendekati ± 5%.
+      - Cari teks nominal seperti: "${totalAmount}", "Rp ${amountFormatted}", atau angka yang mendekati ± 5%.
       - Cari indikator keberhasilan seperti: "Berhasil", "Sukses", "Success", "Selesai", tanda centang hijau, atau teks serupa.
       - Cari nama pengirim, nama penerima, atau nama bank/dompet digital sebagai konteks tambahan.
       - JANGAN tolak berdasarkan tanggal transaksi — customer mungkin upload bukti dari hari sebelumnya, itu TETAP VALID.
@@ -28,7 +30,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
 
       TOLAK hanya jika:
       - Gambar bukan bukti pembayaran sama sekali (foto biasa, meme, dll)
-      - Nominal yang terlihat JELAS berbeda jauh dari Rp ${totalAmount.toLocaleString('id-ID')}
+      - Nominal yang terlihat JELAS berbeda jauh dari Rp ${amountFormatted}
       - Status transaksi JELAS menunjukkan gagal/pending/dibatalkan
 
       Balas HANYA dengan JSON tanpa markdown:
@@ -54,8 +56,15 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
       });
 
       const responseText = result.choices?.[0]?.message?.content || '';
-      const cleanJson = responseText.replace(/```json?|```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
+      const cleanJson = responseText.replace(/```json?\n?|```/g, '').trim();
+      let parsed;
+      try {
+        parsed = JSON.parse(cleanJson);
+      } catch {
+        // Fallback: AI returned non-JSON, treat as failed validation
+        console.warn('[Validate] AI returned non-JSON:', cleanJson.substring(0, 200));
+        parsed = { valid: false, reason: 'Sistem AI tidak dapat membaca gambar dengan jelas. Pastikan gambar bukti pembayaran terlihat jelas dan coba lagi.' };
+      }
 
       res.json({ success: true, data: parsed });
     } catch (error) {

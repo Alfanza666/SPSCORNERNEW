@@ -38,8 +38,8 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       .single();
     if (txError || !transaction)
       return res.status(404).json({ error: "Transaction not found" });
-    if (transaction.status === "success")
-      return res.status(400).json({ error: "Transaction already successful" });
+    if (transaction.status === "success" || transaction.status === "paid")
+      return res.status(400).json({ error: "Transaction already processed" });
     const { error: updateError } = await supabase
       .from("transactions")
       .update({ status: "success" })
@@ -648,13 +648,21 @@ app.post("/api/transactions/cancel", async (req, res) => {
         .status(400)
         .json({ error: "Hanya pesanan pending yang dapat dibatalkan." });
     }
-    // Restore stock before deleting
+    // Restore stock before cancelling
     await restoreTransactionStock(transaction_id);
-    const { error: deleteError } = await supabase
+    // Update status ke 'cancelled' — JANGAN delete karena ada FK dari stock_adjustments
+    const { error: updateError } = await supabase
       .from("transactions")
-      .delete()
+      .update({
+        status: "cancelled",
+        metadata: {
+          ...(tx.metadata || {}),
+          cancelled_at: new Date().toISOString(),
+          cancelled_by: "buyer",
+        }
+      })
       .eq("id", transaction_id);
-    if (deleteError) throw deleteError;
+    if (updateError) throw updateError;
     res.json({ success: true, message: "Pesanan berhasil dibatalkan." });
   } catch (error) {
     console.error("Cancel Order Error:", error);
