@@ -100,7 +100,16 @@ export async function restoreTransactionStock(transactionId) {
       .eq('id', transactionId)
       .single();
     if (!tx?.metadata?.stock_deducted) return;
-    if (tx?.metadata?.stock_restored) return;
+
+    // Atomic conditional update — claim the restore slot (cegah TOCTOU double-restore)
+    // neq uses IS DISTINCT FROM, which treats NULL as comparable: null IS DISTINCT FROM 'true' = TRUE ✓
+    const { data: claimed } = await supabaseInstance
+      .from('transactions')
+      .update({ metadata: { ...(tx.metadata || {}), stock_restored: true } })
+      .eq('id', transactionId)
+      .filter('metadata->>stock_restored', 'neq', 'true')
+      .select('id');
+    if (!claimed || claimed.length === 0) return;
 
     const items = await getDeductedItems(tx);
     if (items.length === 0) return;
@@ -113,11 +122,6 @@ export async function restoreTransactionStock(transactionId) {
       );
       results.push(result);
     }
-
-    await supabaseInstance
-      .from('transactions')
-      .update({ metadata: { ...(tx.metadata || {}), stock_restored: true } })
-      .eq('id', transactionId);
 
     const failed = results.filter(r => r && !r.success);
     if (failed.length > 0) {
