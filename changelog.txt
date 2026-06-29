@@ -1,3 +1,30 @@
+v5.2.3 — Security Audit & Critical Bug Fix Round (PATCH)
+----------------------------------------------------------------------------------
+### Root Cause Analysis (RCA):
+- **[CRITICAL] `existingTx` ReferenceError:** `payments.ts` line 262 referenced `existingTx` instead of `previousStatus` — caused silent crash in manual transaction verify path.
+- **[CRITICAL] Points double-spend:** `payments.ts` non-atomic points deduction — concurrent requests could spend same points twice.
+- **[CRITICAL] `updateSellerBalances` non-idempotent:** Called multiple times (iPaymu callback + auto-cleanup) could duplicate seller balance credits.
+- **[HIGH] TOCTOU race in stock restore:** `stock.js` SELECT-then-UPDATE pattern allowed concurrent restores to phantom stock.
+- **[HIGH] `total_amount` permanently mutated by partial points:** Partial points payment reduced `total_amount` in DB — skewed financial reports forever.
+- **[MEDIUM] Missing auth on critical endpoints:** `/api/digital/deposit` (open to all), `/api/digital/order` (open), `/api/transactions/cancel` (no ownership check).
+- **[MEDIUM] Quantity validation bypass:** Cart store allowed negative/NaN quantities via URL manipulation.
+- **[LOW] Misleading `getUserId` function name:** Actually returns auth token, not user ID — confusion risk.
+- **[LOW] API key prefix leaked in error logs:** Digiflazz `bc` prefix exposed in console.error.
+
+### Perbaikan:
+- **[FIX] `src/routes/payments.ts` (existingTx):** Hapus referensi `existingTx`, pakai `previousStatus` dari destructured `txRecord`.
+- **[FIX] `src/routes/payments.ts` (points double-spend):** Atomic deduction via `.gte("loyalty_points", amount)` + `.select()` validation — rollback if saldo changed.
+- **[FIX] `src/services/payment.js`:** Idempotency guard with `metadata->>balances_updated` flag — skip if already credited.
+- **[FIX] `src/services/stock.js`:** TOCTOU fix — atomic conditional update `.filter('metadata->>stock_restored', 'eq', 'true')` before restore.
+- **[FIX] `src/routes/payments.ts` (partial points):** Simpan discount di metadata only — `total_amount` tidak diubah permanen.
+- **[FIX] `src/routes/digital.ts`:** Tambah auth guard `/api/digital/deposit` (admin-only) + `/api/digital/order` (auth required). Hapus API key prefix dari log.
+- **[FIX] `src/routes/transactions.ts`:** Cancel endpoint — ownership check jika auth header ada (guest path unchanged).
+- **[FIX] `src/store/useCartStore.ts`:** Quantity clamp `Math.max(0, Math.floor(Number(quantity) || 0))`.
+- **[FIX] `server.ts`, withdrawals.ts, stock.ts, productReturns.ts:** Rename `getUserId` → `getToken`.
+
+### Teknis:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.2.2 → v5.2.3 (PATCH: security audit & critical bug fixes).
+
 v5.2.2 — Seller Balance Correction — Retroactive Fix (PATCH)
 ----------------------------------------------------------------------------------
 ### Root Cause Analysis (RCA):

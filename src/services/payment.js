@@ -5,8 +5,19 @@ export function initPaymentService(supabase) {
   supabaseInstance = supabase;
 }
 
-export async function updateSellerBalances(items) {
+export async function updateSellerBalances(items, transactionId) {
   try {
+    if (transactionId) {
+      const { data: tx } = await supabaseInstance
+        .from("transactions")
+        .select("metadata")
+        .eq("id", transactionId)
+        .single();
+      if (tx?.metadata?.balances_updated) {
+        console.log(`[Idempotent] Seller balances already updated for tx ${transactionId}, skipping`);
+        return { skipped: true };
+      }
+    }
     for (const item of items) {
       if (!item.seller_id) continue;
       const sellerAmount = Number(item.subtotal) || 0;
@@ -19,6 +30,19 @@ export async function updateSellerBalances(items) {
           total_sales: (Number(seller.total_sales) || 0) + grossAmount,
           total_fee_paid: (Number(seller.total_fee_paid) || 0) + (grossAmount - sellerAmount),
         }).eq("id", item.seller_id);
+      }
+    }
+    if (transactionId) {
+      const { data: currentTx } = await supabaseInstance
+        .from("transactions")
+        .select("metadata")
+        .eq("id", transactionId)
+        .single();
+      if (currentTx) {
+        await supabaseInstance
+          .from("transactions")
+          .update({ metadata: { ...(currentTx.metadata || {}), balances_updated: true } })
+          .eq("id", transactionId);
       }
     }
   } catch (e) { console.error("updateSellerBalances error:", e); }

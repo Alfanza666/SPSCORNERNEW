@@ -1,9 +1,9 @@
-export function registerStockRoutes(app: any, deps: { supabase: any; sendNotification: any; getAdminIds: any; getUserId: any; resolveUser: any; atomicAdjustStock: any }) {
-  const { supabase, sendNotification, getAdminIds, getUserId, resolveUser, atomicAdjustStock } = deps;
+export function registerStockRoutes(app: any, deps: { supabase: any; sendNotification: any; getAdminIds: any; getToken: any; resolveUser: any; atomicAdjustStock: any }) {
+  const { supabase, sendNotification, getAdminIds, getToken, resolveUser, atomicAdjustStock } = deps;
 
   app.post("/api/stock-requests/create", async (req: any, res: any) => {
     try {
-      const token = getUserId(req);
+      const token = getToken(req);
       if (!token) return res.status(401).json({ error: "Unauthorized" });
       const user = await resolveUser(token);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -30,7 +30,7 @@ export function registerStockRoutes(app: any, deps: { supabase: any; sendNotific
 
   app.post("/api/stock-requests/process", async (req: any, res: any) => {
     try {
-      const token = getUserId(req);
+      const token = getToken(req);
       if (!token) return res.status(401).json({ error: "Unauthorized" });
       const user = await resolveUser(token);
       if (!user) return res.status(401).json({ error: "Unauthorized" });

@@ -1,9 +1,9 @@
-export function registerProductReturnRoutes(app: any, deps: { supabase: any; sendNotification: any; getAdminIds: any; getUserId: any; resolveUser: any; atomicAdjustStock: any }) {
-  const { supabase, sendNotification, getAdminIds, getUserId, resolveUser, atomicAdjustStock } = deps;
+export function registerProductReturnRoutes(app: any, deps: { supabase: any; sendNotification: any; getAdminIds: any; getToken: any; resolveUser: any; atomicAdjustStock: any }) {
+  const { supabase, sendNotification, getAdminIds, getToken, resolveUser, atomicAdjustStock } = deps;
 
   app.post("/api/product-returns/create", async (req: any, res: any) => {
     try {
-      const token = getUserId(req);
+      const token = getToken(req);
       if (!token) return res.status(401).json({ error: "Unauthorized" });
       const user = await resolveUser(token);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -30,7 +30,7 @@ export function registerProductReturnRoutes(app: any, deps: { supabase: any; sen
 
   app.post("/api/product-returns/buyer-request", async (req: any, res: any) => {
     try {
-      const token = getUserId(req);
+      const token = getToken(req);
       if (!token) return res.status(401).json({ error: "Unauthorized" });
       const user = await resolveUser(token);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -74,7 +74,7 @@ export function registerProductReturnRoutes(app: any, deps: { supabase: any; sen
 
   app.get("/api/product-returns/my", async (req: any, res: any) => {
     try {
-      const token = getUserId(req);
+      const token = getToken(req);
       if (!token) return res.status(401).json({ error: "Unauthorized" });
       const user = await resolveUser(token);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -94,7 +94,7 @@ export function registerProductReturnRoutes(app: any, deps: { supabase: any; sen
 
   app.post("/api/product-returns/process", async (req: any, res: any) => {
     try {
-      const token = getUserId(req);
+      const token = getToken(req);
       if (!token) return res.status(401).json({ error: "Unauthorized" });
       const user = await resolveUser(token);
       if (!user) return res.status(401).json({ error: "Unauthorized" });

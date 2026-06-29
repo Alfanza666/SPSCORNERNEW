@@ -401,6 +401,16 @@ app.post("/api/digital/inq-pasca", async (req, res) => {
 
 app.post("/api/digital/deposit", async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ success: false, error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ success: false, error: "Unauthorized" });
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ success: false, error: "Forbidden: Admin only" });
+    }
+
     const { amount, bank, owner_name } = req.body;
     if (!amount || !bank || !owner_name) {
       return res
@@ -559,7 +569,6 @@ app.get("/api/digital/cek-saldo", async (req, res) => {
       username: DIGIFLAZZ_USERNAME,
       sign,
       apiKeyLength: DIGIFLAZZ_API_KEY.length,
-      apiKeyPrefix: DIGIFLAZZ_API_KEY.substring(0, 5) + "...",
     });
     const response = await axios.post(
       "https://api.digiflazz.com/v1/cek-saldo",
@@ -636,6 +645,12 @@ app.get("/api/digital/cek-saldo", async (req, res) => {
 
 app.post("/api/digital/order", async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ success: false, error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ success: false, error: "Unauthorized" });
+
     const { sku, customer_no, ref_id, is_postpaid } = req.body || {};
     const sign = crypto
       .createHash("md5")

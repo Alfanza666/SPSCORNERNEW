@@ -51,7 +51,7 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       await deductTransactionStock(transaction_id);
     }
 
-    await updateSellerBalances(transaction.transaction_items);
+    await updateSellerBalances(transaction.transaction_items, transaction_id);
     await checkLowStockAndNotify(transaction.transaction_items);
     await updateBuyerPoints(transaction_id, transaction.buyer_id, transaction.total_amount);
     await processDigitalItems(transaction_id, transaction.transaction_items);
@@ -525,7 +525,7 @@ app.post("/api/transactions/create", async (req, res) => {
         await processDigitalItems(tx.id, insertedItems);
       }
       await triggerSarirotiEmail(tx.id, buyer_name, total_amount);
-      await updateSellerBalances(insertedItems);
+      await updateSellerBalances(insertedItems, tx.id);
     } else if (tx.status === "pending" && receipt_image) {
       // Kirim notifikasi realtime ke semua admin untuk verifikasi manual
       try {
@@ -657,6 +657,17 @@ app.post("/api/transactions/:id/complete", async (req, res) => {
 app.post("/api/transactions/cancel", async (req, res) => {
   try {
     const { transaction_id } = req.body;
+    // Jika user terautentikasi, verifikasi kepemilikan transaksi
+    const authHeader = req.headers.authorization;
+    let authenticatedBuyerId = null;
+    if (authHeader) {
+      const token = authHeader.split(" ")[1];
+      if (token) {
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user) authenticatedBuyerId = user.id;
+      }
+    }
+
     const { data: tx, error: fetchError } = await supabase
       .from("transactions")
       .select("*")
@@ -670,6 +681,10 @@ app.post("/api/transactions/cancel", async (req, res) => {
         .status(400)
         .json({ error: "Hanya pesanan pending yang dapat dibatalkan." });
     }
+    // Jika terautentikasi, pastikan ini transaksi miliknya
+    if (authenticatedBuyerId && tx.buyer_id && tx.buyer_id !== authenticatedBuyerId) {
+      return res.status(403).json({ error: "Anda tidak berhak membatalkan pesanan ini." });
+    }
     // Restore stock before cancelling
     await restoreTransactionStock(transaction_id);
     // Update status ke 'cancelled' — JANGAN delete karena ada FK dari stock_adjustments
@@ -680,7 +695,7 @@ app.post("/api/transactions/cancel", async (req, res) => {
         metadata: {
           ...(tx.metadata || {}),
           cancelled_at: new Date().toISOString(),
-          cancelled_by: "buyer",
+          cancelled_by: authenticatedBuyerId || "buyer",
         }
       })
       .eq("id", transaction_id);

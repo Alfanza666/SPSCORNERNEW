@@ -253,6 +253,7 @@ export function registerPaymentRoutes(app, {
         })
         .eq("id", transaction_id);
       if (updateError) throw updateError;
+      const previousStatus = txRecord?.status;
       const { data: txData, error: txFetchError } = await supabase
         .from("transactions")
         .select("*, transaction_items(*)")
@@ -260,11 +261,10 @@ export function registerPaymentRoutes(app, {
         .single();
       if (!txFetchError && txData && txData.transaction_items) {
         if (
-          existingTx &&
-          existingTx.status !== "paid" &&
-          existingTx.status !== "success"
+          previousStatus !== "paid" &&
+          previousStatus !== "success"
         ) {
-          await updateSellerBalances(txData.transaction_items);
+          await updateSellerBalances(txData.transaction_items, transaction_id);
           await checkLowStockAndNotify(txData.transaction_items);
           await updateBuyerPoints(transaction_id, txData.buyer_id, txData.total_amount);
         }
@@ -368,12 +368,16 @@ export function registerPaymentRoutes(app, {
         throw new Error(`Points tidak mencukupi. Point: ${profile?.loyalty_points || 0}, Tagihan: ${tx.total_amount}`);
       }
 
-      // Deduct points from profile (cache)
-      const { error: deductError } = await supabase
+      // Deduct points atomically — cegah double-spend dengan .gte()
+      const { data: deductData, error: deductError } = await supabase
         .from("profiles")
         .update({ loyalty_points: profile.loyalty_points - tx.total_amount })
-        .eq("id", tx.buyer_id);
-      if (deductError) throw deductError;
+        .gte("loyalty_points", tx.total_amount)
+        .eq("id", tx.buyer_id)
+        .select("loyalty_points");
+      if (deductError || !deductData || deductData.length === 0) {
+        throw new Error("Gagal memotong poin. Mungkin saldo sudah berubah.");
+      }
 
       // Record points spent in history
       await supabase.from("points_history").insert({
@@ -396,7 +400,7 @@ export function registerPaymentRoutes(app, {
       if (updateTx) throw updateTx;
 
       // Run post processes
-      await updateSellerBalances(tx.transaction_items);
+      await updateSellerBalances(tx.transaction_items, transaction_id);
       await checkLowStockAndNotify(tx.transaction_items);
       await processDigitalItems(transaction_id, tx.transaction_items);
       await triggerSarirotiEmail(transaction_id, tx.buyer_name, tx.total_amount);
@@ -445,12 +449,16 @@ export function registerPaymentRoutes(app, {
         throw new Error(`Points tidak mencukupi. Point: ${profile?.loyalty_points || 0}, Dibutuhkan: ${pointsToUse}`);
       }
 
-      // Deduct points
-      const { error: deductError } = await supabase
+      // Deduct points atomically — cegah double-spend dengan .gte()
+      const { data: deductData, error: deductError } = await supabase
         .from("profiles")
         .update({ loyalty_points: (profile.loyalty_points || 0) - pointsToUse })
-        .eq("id", tx.buyer_id);
-      if (deductError) throw deductError;
+        .gte("loyalty_points", pointsToUse)
+        .eq("id", tx.buyer_id)
+        .select("loyalty_points");
+      if (deductError || !deductData || deductData.length === 0) {
+        throw new Error("Gagal memotong poin. Mungkin saldo sudah berubah.");
+      }
 
       // Record points spent
       await supabase.from("points_history").insert({
@@ -461,17 +469,16 @@ export function registerPaymentRoutes(app, {
         description: `Pembayaran parsial Rp ${pointsToUse.toLocaleString()} dari Rp ${tx.total_amount.toLocaleString()}`,
       });
 
-      // Update transaction with points discount, remainder still pending
+      // Update transaction metadata — JANGAN ubah total_amount agar laporan tetap akurat
       const remainingAmount = tx.total_amount - pointsToUse;
       const { error: updateTx } = await supabase
         .from("transactions")
         .update({
-          total_amount: remainingAmount,
           metadata: { 
             ...tx.metadata, 
             point_payment: true, 
             points_used: pointsToUse,
-            original_amount: tx.total_amount,
+            remaining_amount: remainingAmount,
             points_discount: pointsToUse
           }
         })
@@ -660,7 +667,7 @@ export function registerPaymentRoutes(app, {
         transaction.status !== "success" &&
         transaction.transaction_items
       ) {
-        await updateSellerBalances(transaction.transaction_items);
+        await updateSellerBalances(transaction.transaction_items, refId);
         await checkLowStockAndNotify(transaction.transaction_items);
         await updateBuyerPoints(refId, transaction.buyer_id, transaction.total_amount);
         await processDigitalItems(refId, transaction.transaction_items);

@@ -140,6 +140,19 @@ export async function deductTransactionStock(transactionId) {
     if (!tx?.metadata?.stock_deducted) return;
     if (!tx?.metadata?.stock_restored) return;
 
+    // Atomic conditional update — hanya proceed jika stock_restored masih true (cegah TOCTOU)
+    const newMetadata = { ...(tx.metadata || {}), stock_restored: false };
+    const { data: updatedTx, error: updateMetaError } = await supabaseInstance
+      .from('transactions')
+      .update({ metadata: newMetadata })
+      .eq('id', transactionId)
+      .filter('metadata->>stock_restored', 'eq', 'true')
+      .select('id');
+    if (updateMetaError || !updatedTx || updatedTx.length === 0) {
+      console.log(`[deductTransactionStock] Skipped ${transactionId}: stock_restored already changed by another process`);
+      return;
+    }
+
     const items = await getDeductedItems(tx);
     if (items.length === 0) return;
 
@@ -152,11 +165,6 @@ export async function deductTransactionStock(transactionId) {
         errors.push({ productId, quantity, error: result?.error_message || 'Unknown' });
       }
     }
-
-    await supabaseInstance
-      .from('transactions')
-      .update({ metadata: { ...(tx.metadata || {}), stock_restored: false } })
-      .eq('id', transactionId);
 
     if (errors.length > 0) {
       console.error(`[deductTransactionStock] ${errors.length} item(s) failed for ${transactionId}:`, errors);

@@ -190,7 +190,7 @@ async function getAdminIds() {
   return (admins || []).map(a => a.id);
 }
 
-function getUserId(req) {
+function getToken(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return null;
   return authHeader.split(" ")[1];
@@ -241,9 +241,9 @@ app.get("/api/test-ping", (req, res) => {
 });
 
 // Register modular route groups
-registerWithdrawalRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser });
-registerStockRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser, atomicAdjustStock });
-registerProductReturnRoutes(app, { supabase, sendNotification, getAdminIds, getUserId, resolveUser, atomicAdjustStock });
+registerWithdrawalRoutes(app, { supabase, sendNotification, getAdminIds, getToken, resolveUser });
+registerStockRoutes(app, { supabase, sendNotification, getAdminIds, getToken, resolveUser, atomicAdjustStock });
+registerProductReturnRoutes(app, { supabase, sendNotification, getAdminIds, getToken, resolveUser, atomicAdjustStock });
 registerDiagnosticsRoutes(app, { supabase });
 registerPushRoutes(app, { supabase, webpush, sendNotification, sendPushToUser });
 registerPaymentRoutes(app, {

@@ -69,9 +69,10 @@ export const useCartStore = create<CartState>()(
         }));
       },
       updateQuantity: (productId, quantity) => {
+        const safeQuantity = Math.max(0, Math.floor(Number(quantity) || 0));
         set((state) => ({
           items: state.items.map((item) =>
-            item.id === productId ? { ...item, quantity } : item
+            item.id === productId ? { ...item, quantity: safeQuantity } : item
           ),
         }));
       },

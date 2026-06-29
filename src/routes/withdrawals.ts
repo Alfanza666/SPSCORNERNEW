@@ -1,9 +1,9 @@
-export function registerWithdrawalRoutes(app: any, deps: { supabase: any; sendNotification: any; getAdminIds: any; getUserId: any; resolveUser: any }) {
-  const { supabase, sendNotification, getAdminIds, getUserId, resolveUser } = deps;
+export function registerWithdrawalRoutes(app: any, deps: { supabase: any; sendNotification: any; getAdminIds: any; getToken: any; resolveUser: any }) {
+  const { supabase, sendNotification, getAdminIds, getToken, resolveUser } = deps;
 
   app.post("/api/withdrawals/request", async (req: any, res: any) => {
     try {
-      const token = getUserId(req);
+      const token = getToken(req);
       if (!token) return res.status(401).json({ error: "Unauthorized" });
       const user = await resolveUser(token);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -45,7 +45,7 @@ export function registerWithdrawalRoutes(app: any, deps: { supabase: any; sendNo
 
   app.post("/api/withdrawals/process", async (req: any, res: any) => {
     try {
-      const token = getUserId(req);
+      const token = getToken(req);
       if (!token) return res.status(401).json({ error: "Unauthorized" });
       const user = await resolveUser(token);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
@@ -55,6 +55,7 @@ export function registerWithdrawalRoutes(app: any, deps: { supabase: any; sendNo
       const { id, status } = req.body;
       const { data: withdrawal } = await supabase.from("withdrawals").select("*").eq("id", id).single();
       if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
+      if (withdrawal.status !== "pending") return res.status(400).json({ error: "Withdrawal already processed" });
 
       if (status === "rejected") {
         const { data: profile } = await supabase.from("profiles").select("balance").eq("id", withdrawal.seller_id).single();
