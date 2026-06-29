@@ -277,7 +277,39 @@ export function registerPaymentRoutes(app, {
       }
       res.json({ success: true, message: "Payment verified successfully" });
     } catch (error) {
-      console.error("\u274C Manual Verification Error:", error);
+      console.error("❌ Manual Verification Error:", error);
+      try {
+        if (transaction_id && receiptUrl) {
+          const { data: currentTx } = await supabase
+            .from("transactions")
+            .select("payment_details")
+            .eq("id", transaction_id)
+            .single();
+          const currentDetails = currentTx?.payment_details || {};
+          
+          await supabase
+            .from("transactions")
+            .update({
+              receipt_image: receiptUrl,
+              payment_details: {
+                ...currentDetails,
+                receipt_uploaded: true,
+                ai_error: true,
+                reason: `Sistem verifikasi otomatis (AI) sedang sibuk. Bukti pembayaran disimpan untuk verifikasi manual oleh Admin.`,
+                attempted_at: new Date().toISOString()
+              }
+            })
+            .eq("id", transaction_id);
+
+          return res.json({
+            success: true,
+            fallbackToPending: true,
+            message: "Layanan verifikasi otomatis (AI) sedang sibuk. Bukti pembayaran Anda telah disimpan untuk diverifikasi manual oleh Admin."
+          });
+        }
+      } catch (dbErr) {
+        console.error("❌ Failed to save fallback receipt info to DB:", dbErr);
+      }
       res.status(500).json({ success: false, error: error.message });
     }
   });

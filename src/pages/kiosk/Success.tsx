@@ -307,7 +307,7 @@ Sistem SPS Corner`);
           transition={{ delay: 0.3 }}
           className="text-2xl font-bold text-white text-center mb-1.5"
         >
-          {isPending ? 'Pembayaran Diverifikasi' : 'Pembayaran Berhasil!'}
+          {isPending ? 'Menunggu Verifikasi' : 'Pembayaran Berhasil!'}
         </motion.h1>
 
         <motion.p
@@ -317,7 +317,7 @@ Sistem SPS Corner`);
           className="text-white/80 text-sm text-center mb-6"
         >
           {isPending
-            ? 'Pesanan Anda sedang kami proses'
+            ? 'Pesanan disimpan dan sedang menunggu verifikasi manual oleh Admin'
             : 'Terima kasih, pesanan Anda telah diterima'
           }
         </motion.p>

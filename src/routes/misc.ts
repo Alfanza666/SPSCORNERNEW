@@ -69,7 +69,15 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
       res.json({ success: true, data: parsed });
     } catch (error) {
       console.error('[Validate] Receipt error:', error);
-      res.status(500).json({ success: false, error: error.message });
+      // Fallback gracefully on Groq/network/timeout errors: let frontend allow manual verification
+      res.json({
+        success: true,
+        data: {
+          valid: false,
+          fallbackToPending: true,
+          reason: 'Layanan verifikasi otomatis sedang sibuk. Bukti pembayaran Anda tetap dapat dikirim untuk diverifikasi manual oleh Admin.'
+        }
+      });
     }
   });
 

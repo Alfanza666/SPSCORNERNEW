@@ -131,6 +131,58 @@ export default function Validate() {
           navigate('/kiosk/success', { state: { transactionId: txData.id } });
         }, 2000);
 
+      } else if (aiResult.fallbackToPending) {
+        // Layanan AI bermasalah, kirim langsung sebagai pending
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
+        const createRes = await fetch('/api/transactions/create', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            buyer_name: buyerName,
+            buyer_id: user?.id || null,
+            total_amount: totalAmount,
+            status: 'pending',
+            receipt_image: imageSrc,
+            items: items
+          })
+        });
+
+        let errorData;
+        if (!createRes.ok) {
+          try {
+            errorData = await createRes.json();
+          } catch (e) {
+            throw new Error(`Server error: ${createRes.status} ${createRes.statusText}`);
+          }
+          throw new Error(errorData?.error || 'Failed to create transaction');
+        }
+
+        let txData;
+        try {
+          const data = await createRes.json();
+          txData = data.transaction;
+        } catch (e) {
+          throw new Error('Invalid response from server when creating transaction');
+        }
+
+        setValidationResult({ 
+          valid: true, 
+          message: 'Sistem otomatis sibuk. Bukti pembayaran disimpan, silakan tunggu verifikasi manual Admin.' 
+        });
+        
+        setTimeout(() => {
+          clearCart();
+          sessionStorage.removeItem('buyerName');
+          navigate('/kiosk/success', { state: { transactionId: txData.id } });
+        }, 3000);
+
       } else {
         await supabase.from('failed_transactions').insert({
           buyer_name: buyerName,
