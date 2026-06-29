@@ -5,26 +5,36 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
 
   app.post("/api/validate/receipt", async (req, res) => {
     try {
-      const { imageBase64, totalAmount } = req.body;
+      const { imageBase64, totalAmount, mimeType = 'image/jpeg' } = req.body;
       if (!imageBase64 || !totalAmount) {
         return res.status(400).json({ error: 'Image and totalAmount required' });
       }
 
       const prompt = `
-      Analyze this transfer receipt image.
-      I need to verify if this is a valid payment receipt for the exact amount of Rp ${totalAmount}.
-      
-      CRITICAL CHECKS:
-      1. Is it a valid payment/transfer receipt? (Not a random image)
-      2. Does the amount match EXACTLY ${totalAmount} or Rp ${totalAmount}?
-      3. Is the status "Berhasil", "Sukses", or "Successful"?
-      4. Is the date of the transaction today or within the last 24 hours?
-      
-      You MUST respond in valid JSON format ONLY, with no markdown formatting or extra text.
-      Structure:
+      Kamu adalah sistem verifikasi bukti pembayaran untuk toko kantin digital.
+      Analisis gambar berikut dan tentukan apakah ini adalah bukti transfer/pembayaran yang valid.
+
+      Nominal transaksi yang harus dibayar: Rp ${totalAmount.toLocaleString('id-ID')}
+
+      INSTRUKSI PENTING:
+      - Gambar bisa berupa screenshot panjang dari aplikasi mobile banking, QRIS, GoPay, OVO, DANA, ShopeePay, atau aplikasi transfer lainnya.
+      - JANGAN tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.
+      - Fokus mencari bukti pembayaran di MANA PUN lokasinya dalam gambar.
+      - Cari teks nominal seperti: "${totalAmount}", "Rp ${totalAmount.toLocaleString('id-ID')}", atau angka yang mendekati ± 5%.
+      - Cari indikator keberhasilan seperti: "Berhasil", "Sukses", "Success", "Selesai", tanda centang hijau, atau teks serupa.
+      - Cari nama pengirim, nama penerima, atau nama bank/dompet digital sebagai konteks tambahan.
+      - JANGAN tolak berdasarkan tanggal transaksi — customer mungkin upload bukti dari hari sebelumnya, itu TETAP VALID.
+      - Jika nominal TERLIHAT dan status BERHASIL terdeteksi, anggap valid meskipun gambar tidak sempurna.
+
+      TOLAK hanya jika:
+      - Gambar bukan bukti pembayaran sama sekali (foto biasa, meme, dll)
+      - Nominal yang terlihat JELAS berbeda jauh dari Rp ${totalAmount.toLocaleString('id-ID')}
+      - Status transaksi JELAS menunjukkan gagal/pending/dibatalkan
+
+      Balas HANYA dengan JSON tanpa markdown:
       {
         "valid": boolean,
-        "reason": "string. Jika valid, berikan pesan sukses singkat. Jika tidak valid, berikan alasan spesifik dalam Bahasa Indonesia."
+        "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominalnya. Jika tidak valid jelaskan alasannya."
       }
     `;
 
@@ -35,7 +45,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
             role: 'user',
             content: [
               { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
             ],
           },
         ],

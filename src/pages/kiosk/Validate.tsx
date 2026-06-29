@@ -36,9 +36,10 @@ export default function Validate() {
       }
       
       const options = {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1000,
-        useWebWorker: true
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        initialQuality: 0.85
       };
       const compressedFile = await imageCompression(file, options);
       
@@ -69,11 +70,12 @@ export default function Validate() {
 
     try {
       const base64Data = imageSrc.split(',')[1];
+      const mimeType = imageSrc.match(/data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
 
       const response = await fetch('/api/validate/receipt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64Data, totalAmount }),
+        body: JSON.stringify({ imageBase64: base64Data, mimeType, totalAmount }),
       });
 
       const result = await response.json();
