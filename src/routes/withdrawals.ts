@@ -55,7 +55,7 @@ export function registerWithdrawalRoutes(app: any, deps: { supabase: any; sendNo
       const { id, status } = req.body;
       const { data: withdrawal } = await supabase.from("withdrawals").select("*").eq("id", id).single();
       if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
-      if (withdrawal.status !== "pending") return res.status(400).json({ error: "Withdrawal already processed" });
+      if (withdrawal.status === "paid" || withdrawal.status === "rejected") return res.status(400).json({ error: "Withdrawal already processed" });
 
       if (status === "rejected") {
         const { data: profile } = await supabase.from("profiles").select("balance").eq("id", withdrawal.seller_id).single();
