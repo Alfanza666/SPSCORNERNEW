@@ -105,16 +105,20 @@ async function autoCleanup() {
     // Ambil ALL pending expired — termasuk yang punya receipt_image (AI tolak dll)
     const { data: expired } = await supabaseInstance
       .from("transactions")
-      .select("id, buyer_id, metadata, payment_details")
+      .select("id, buyer_id, metadata, payment_details, receipt_image")
       .in("status", ["pending"])
       .lt("created_at", expiredThreshold);
     if (!expired || expired.length === 0) return;
     for (const tx of expired) {
       // Lewati transaksi yang punya receipt_image DAN belum pernah gagal verifikasi
       // (tunggu admin verifikasi manual, jangan auto-cancel)
-      const receiptImage = tx.metadata?.receipt_image || tx.payment_details?.receipt_uploaded;
+      const receiptUploaded = tx.receipt_image || tx.payment_details?.receipt_uploaded;
       const verificationFailed = tx.payment_details?.verification_failed;
-      if (receiptImage && !verificationFailed) continue;
+      if (receiptUploaded && !verificationFailed) continue;
+
+      // Restore stock DULU, baru update status.
+      // Urutan ini penting: kalau restore gagal, status tetap "pending" → retry 3 menit berikutnya
+      if (restoreStock) await restoreStock(tx.id);
 
       await supabaseInstance
         .from("transactions")
@@ -123,7 +127,6 @@ async function autoCleanup() {
           metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 15 menit" },
         })
         .eq("id", tx.id);
-      if (restoreStock) await restoreStock(tx.id);
       if (tx.buyer_id && sendNotif) {
         await sendNotif(tx.buyer_id, {
           type: "transaction",

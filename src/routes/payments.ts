@@ -642,6 +642,66 @@ export function registerPaymentRoutes(app, {
         return res.json({ success: true, message: "Ignored: transaction already paid/success" });
       }
 
+      // ─── Failed flow: restore stock DULU, baru update status ───
+      // Urutan ini penting: kalau restoreTransactionStock error (uncaught),
+      // status tetap "pending" → callback bisa di-retry. Jangan update
+      // status dulu karena setelah "failed" tidak ada mekanisme retry.
+      if (txStatus === "failed") {
+        const hasDeliveredDigital = (transaction.transaction_items || []).some(
+          item => item.metadata?.is_digital && item.metadata?.status === 'delivered'
+        );
+        if (hasDeliveredDigital) {
+          console.log(`[iPaymu] Tx ${refId} has delivered digital items — reverting status to "paid" instead of "failed"`);
+          await supabase
+            .from("transactions")
+            .update({
+              status: "paid",
+              payment_details: {
+                ...(transaction.payment_details || {}),
+                ipaymu_trx_id: trx_id || transaction_id,
+                ipaymu_sid: sid,
+                ipaymu_status: statusRaw,
+                paid_at: new Date().toISOString(),
+              },
+            })
+            .eq("id", refId);
+          if (transaction.buyer_id) {
+            await sendNotification(transaction.buyer_id, {
+              type: "transaction",
+              title: "✅ Pembayaran Berhasil!",
+              message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
+              path: `/kiosk/history?id=${refId}`,
+            });
+          }
+        } else {
+          // Restore stock DULU — jika restore gagal, status tetap "pending" untuk retry
+          await restoreTransactionStock(refId);
+          await supabase
+            .from("transactions")
+            .update({
+              status: "failed",
+              payment_details: {
+                ...(transaction.payment_details || {}),
+                ipaymu_trx_id: trx_id || transaction_id,
+                ipaymu_sid: sid,
+                ipaymu_status: statusRaw,
+              },
+            })
+            .eq("id", refId);
+          if (transaction.buyer_id) {
+            await sendNotification(transaction.buyer_id, {
+              type: "transaction",
+              title: "\u274C Pembayaran Gagal",
+              message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
+              path: `/kiosk/history?id=${refId}`,
+            });
+          }
+        }
+        console.log("\u2705 Transaction Updated:", { reference_id: refId, txStatus });
+        return res.json({ success: true });
+      }
+
+      // ─── Paid/Pending flow: update status dulu (order existing) ───
       const { error: updateError } = await supabase
         .from("transactions")
         .update({
@@ -656,6 +716,7 @@ export function registerPaymentRoutes(app, {
         })
         .eq("id", refId);
       if (updateError) throw updateError;
+
       // ─── Stock re-deduction: jika auto-cleanup sudah restore stock, deduct kembali ───
       if (txStatus === "paid" && transaction.metadata?.stock_restored && deductTransactionStock) {
         await deductTransactionStock(refId);
@@ -712,38 +773,6 @@ export function registerPaymentRoutes(app, {
                 path: `/dashboard/admin/transactions?id=${refId}`
               });
             }
-          }
-        }
-      } else if (txStatus === "failed") {
-        // ─── Cek apakah ada item digital yg sudah terkirim (delivered) ───
-        const hasDeliveredDigital = (transaction.transaction_items || []).some(
-          item => item.metadata?.is_digital && item.metadata?.status === 'delivered'
-        );
-        if (hasDeliveredDigital) {
-          // Jika item digital sudah terkirim, jangan set status "failed", kembalikan ke "paid"
-          console.log(`[iPaymu] Tx ${refId} has delivered digital items — reverting status to "paid" instead of "failed"`);
-          await supabase
-            .from("transactions")
-            .update({ status: "paid" })
-            .eq("id", refId);
-          if (transaction.buyer_id) {
-            await sendNotification(transaction.buyer_id, {
-              type: "transaction",
-              title: "✅ Pembayaran Berhasil!",
-              message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
-              path: `/kiosk/history?id=${refId}`,
-            });
-          }
-        } else {
-          // restoreTransactionStock has internal guard against double-restore
-          await restoreTransactionStock(refId);
-          if (transaction.buyer_id) {
-            await sendNotification(transaction.buyer_id, {
-              type: "transaction",
-              title: "\u274C Pembayaran Gagal",
-              message: `Transaksi #${refId.slice(0, 8)} Anda gagal diproses. Silakan coba kembali.`,
-              path: `/kiosk/history?id=${refId}`,
-            });
           }
         }
       }

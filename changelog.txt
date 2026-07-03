@@ -312,3 +312,17 @@ v4.18.1 — Fix API 404, stock restore on admin reject & CI/CD auto-deploy
 ### Teknis:
 - **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.18.0 → v4.18.1 (PATCH: perbaikan error handling & stock).
 - **[UPDATE] AGENTS.md:** Arsitektur VPS+Vercel, deploy checklist, auto-deploy cron, gotcha API 404 + @sentry/node.
+
+v5.2.4 — QRIS Otomatis Stock Fix & Order of Operations (PATCH)
+----------------------------------------------------------------------------------
+### Root Cause Analysis (RCA):
+- **[FIX] QRIS Otomatis stock lost on failure:** Metadata update di `transactions.ts:504-513` bisa gagal silent (network glitch). Akibatnya `stock_deducted` = `undefined` di metadata. OLD guard `!tx?.metadata?.stock_deducted` di `restoreTransactionStock` menganggap undefined = skip → stock tidak pernah di-restore. Sudah diperbaiki di v5.2.3 dengan guard `=== false`.
+- **[FIX] Wrong variable name in auto-cleanup:** `receiptImage` (undefined) vs `receiptUploaded` — filter receipt image tidak pernah berfungsi. Sekarang pake `receiptUploaded`.
+- **[FIX] Order of operations:** `background-jobs.js` (auto-cleanup) dan `payments.ts` (iPaymu callback) update status ke "failed" SEBELUM `restoreTransactionStock`. Jika restore error (uncaught), status terkunci "failed" tanpa retry. Sekarang restore stock DULU, baru update status.
+
+### Perubahan:
+- **[CHANGE] `src/services/background-jobs.js`:** Swap order — `restoreStock(tx.id)` sebelum status update. Fix variable `receiptImage` → `receiptUploaded`.
+- **[CHANGE] `src/routes/payments.ts`:** Failed flow dipisah dari shared status update — restore stock dulu, baru update status ke "failed". Paid flow tetap update status dulu (order existing).
+
+### Versi:
+- v5.2.3 → v5.2.4 (PATCH)
