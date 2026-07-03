@@ -99,7 +99,9 @@ export async function restoreTransactionStock(transactionId) {
       .select('id, metadata')
       .eq('id', transactionId)
       .single();
-    if (!tx?.metadata?.stock_deducted) return;
+    // Guard: skip HANYA jika stock_deducted EXPLICITLY false (digital-only).
+    // undefined = metadata mungkin gagal di-set → tetap proceed & fallback ke transaction_items
+    if (tx?.metadata?.stock_deducted === false) return;
 
     // Atomic conditional update — claim the restore slot (cegah TOCTOU double-restore)
     // neq uses IS DISTINCT FROM, which treats NULL as comparable: null IS DISTINCT FROM 'true' = TRUE ✓

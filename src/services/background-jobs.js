@@ -102,14 +102,20 @@ async function autoCleanup() {
 
     // ── Cancel transaksi expired (> 15 menit) ──
     const expiredThreshold = new Date(Date.now() - 15 * 60 * 1e3).toISOString();
+    // Ambil ALL pending expired — termasuk yang punya receipt_image (AI tolak dll)
     const { data: expired } = await supabaseInstance
       .from("transactions")
-      .select("id, buyer_id, metadata")
+      .select("id, buyer_id, metadata, payment_details")
       .in("status", ["pending"])
-      .is("receipt_image", null)
       .lt("created_at", expiredThreshold);
     if (!expired || expired.length === 0) return;
     for (const tx of expired) {
+      // Lewati transaksi yang punya receipt_image DAN belum pernah gagal verifikasi
+      // (tunggu admin verifikasi manual, jangan auto-cancel)
+      const receiptImage = tx.metadata?.receipt_image || tx.payment_details?.receipt_uploaded;
+      const verificationFailed = tx.payment_details?.verification_failed;
+      if (receiptImage && !verificationFailed) continue;
+
       await supabaseInstance
         .from("transactions")
         .update({
