@@ -105,7 +105,7 @@ Tipe field yang tersedia:
 
 Setiap field harus punya properti:
 {
-  "id": "random_string",
+  "id": "string_unik",          // ID unik untuk identifikasi field
   "type": "salah satu tipe di atas",
   "label": "Pertanyaan",
   "required": true/false,
@@ -113,13 +113,34 @@ Setiap field harus punya properti:
   "options": [{"value": "opt1", "label": "Opsi 1"}] // hanya untuk select/radio/checkbox
 }
 
-Contoh output:
-[
-  {"id": "nama", "type": "text", "label": "Nama Lengkap", "required": true, "placeholder": "Masukkan nama"},
-  {"id": "ukuran", "type": "radio", "label": "Ukuran Baju", "required": true, "options": [{"value":"S","label":"S"},{"value":"M","label":"M"},{"value":"L","label":"L"}]}
-]
+FIELD BERSYARAT (CONDITIONAL LOGIC):
+Jika suatu field hanya muncul jika jawaban field sebelumnya adalah nilai tertentu, gunakan properti "condition":
+{
+  "condition": {
+    "fieldId": "id_dari_field_pemicu",
+    "operator": "eq",    // eq, neq, atau in
+    "value": "nilai_pemicu"  // string untuk eq/neq, array untuk in
+  }
+}
 
-Buat field-field yang sesuai dengan deskripsi user. Cantumkan hanya field yang relevan.
+Contoh: field "ukuran_baju" hanya muncul jika user memilih "ya_hadir":
+{
+  "id": "kehadiran",
+  "type": "radio",
+  "label": "Apakah Anda hadir?",
+  "required": true,
+  "options": [{"value":"ya_hadir","label":"Ya, Hadir"},{"value":"tidak_hadir","label":"Tidak Hadir"}]
+},
+{
+  "id": "ukuran_baju",
+  "type": "select",
+  "label": "Ukuran Baju",
+  "required": true,
+  "options": [{"value":"S","label":"S"},{"value":"M","label":"M"},{"value":"L","label":"L"}],
+  "condition": {"fieldId": "kehadiran", "operator": "eq", "value": "ya_hadir"}
+}
+
+Buat field-field yang sesuai dengan deskripsi user. Gunakan conditional logic jika ada percabangan.
 `;
 
       const result = await groq.chat.completions.create({
