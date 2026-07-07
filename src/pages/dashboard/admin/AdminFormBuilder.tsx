@@ -397,6 +397,7 @@ export default function AdminFormBuilder() {
                             <FieldCard 
                                 key={field.id}
                                 field={field}
+                                allFields={editingForm.fields || []}
                                 isActive={activeFieldId === field.id}
                                 onClick={() => setActiveFieldId(field.id)}
                                 onUpdate={(updates) => updateField(field.id, updates)}
@@ -439,7 +440,7 @@ function ToolbarButton({ icon, label, onClick }: { icon: React.ReactNode, label:
 
 // --- Field Card ---
 function FieldCard({ 
-  field, isActive, onClick, onUpdate, onMove, onDuplicate, onDelete, isFirst, isLast 
+  field, allFields, isActive, onClick, onUpdate, onMove, onDuplicate, onDelete, isFirst, isLast 
 }: any) {
 
   return (
@@ -464,15 +465,29 @@ function FieldCard({
       <div className={`p-6 ${isActive ? 'pt-2' : ''}`}>
         {!isActive ? (
             // Preview Mode
-            <div className="flex flex-col gap-4">
-                <div className="flex items-center gap-1">
-                    <span className="text-[15px] font-medium text-zinc-800 dark:text-zinc-200">{field.label}</span>
-                    {field.required && <span className="text-red-500">*</span>}
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center gap-1">
+                        <span className="text-[15px] font-medium text-zinc-800 dark:text-zinc-200">{field.label}</span>
+                        {field.required && <span className="text-red-500">*</span>}
+                    </div>
+                    {field.condition && (() => {
+                      const pf = allFields?.find((f: any) => f.id === field.condition.fieldId);
+                      const label = pf ? pf.label : '(field dihapus)';
+                      const valDisplay = Array.isArray(field.condition.value) 
+                        ? field.condition.value.join(', ') 
+                        : field.condition.value;
+                      const opLabel = field.condition.operator === 'eq' ? '=' : field.condition.operator === 'neq' ? '≠' : '∈';
+                      return (
+                        <div className="text-xs text-[#673AB7] font-bold flex items-center gap-1.5">
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8L22 12L18 16"/><path d="M6 8L2 12L6 16"/><path d="M9 4L15 20"/></svg>
+                          Tampil jika "{label}" {opLabel} "{valDisplay}"
+                        </div>
+                      );
+                    })()}
+                    <div className="text-sm text-zinc-400 border-b border-dashed border-zinc-300 pb-1 w-2/3">
+                        {field.type === 'radio' ? 'Opsi 1' : field.type === 'text' ? 'Teks jawaban singkat' : field.placeholder}
+                    </div>
                 </div>
-                <div className="text-sm text-zinc-400 border-b border-dashed border-zinc-300 pb-1 w-2/3">
-                    {field.type === 'radio' ? 'Opsi 1' : field.type === 'text' ? 'Teks jawaban singkat' : field.placeholder}
-                </div>
-            </div>
         ) : (
             // Edit Mode
             <div className="space-y-6">
@@ -562,6 +577,101 @@ function FieldCard({
                         ))}
                         <button onClick={() => onUpdate({ items: [...(field.items || []), { id: `item${Date.now()}`, name: '', sizes: ['S'], price: 0 }] })} className="text-xs text-blue-600 font-bold">Tambah Barang</button>
                     </div>
+                )}
+
+                {/* Conditional Logic Editor */}
+                {['radio', 'select', 'checkbox'].includes(field.type) ? null : (
+                  <>
+                    <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                      <p className="text-xs font-bold tracking-widest text-zinc-400 uppercase mb-3 flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8L22 12L18 16"/><path d="M6 8L2 12L6 16"/><path d="M9 4L15 20"/></svg>
+                        ATUR LOGIKA TAMPIL
+                      </p>
+                      
+                      {field.condition ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm text-zinc-500 font-medium">Tampilkan jika</span>
+                            <select
+                              value={field.condition.fieldId}
+                              onChange={(e) => {
+                                if (!e.target.value) {
+                                  onUpdate({ condition: undefined });
+                                  return;
+                                }
+                                const parentField = allFields.find((f: any) => f.id === e.target.value);
+                                const firstOpt = parentField?.options?.[0]?.value || '';
+                                onUpdate({ condition: { fieldId: e.target.value, operator: 'eq', value: firstOpt } });
+                              }}
+                              className="p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none flex-1 min-w-[140px]"
+                            >
+                              <option value="">-- Pilih Field --</option>
+                              {allFields
+                                ?.filter((f: any) => f.id !== field.id && ['radio','select','checkbox'].includes(f.type))
+                                .map((f: any) => (
+                                  <option key={f.id} value={f.id}>{f.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <select
+                              value={field.condition.operator}
+                              onChange={(e) => onUpdate({ condition: { ...field.condition, operator: e.target.value } })}
+                              className="p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none"
+                            >
+                              <option value="eq">sama dengan</option>
+                              <option value="neq">tidak sama</option>
+                              <option value="in">salah satu</option>
+                            </select>
+
+                            {(() => {
+                              const parentField = allFields?.find((f: any) => f.id === field.condition.fieldId);
+                              const hasOptions = parentField?.options?.length > 0;
+                              
+                              if (hasOptions) {
+                                return (
+                                  <select
+                                    value={field.condition.value}
+                                    onChange={(e) => onUpdate({ condition: { ...field.condition, value: e.target.value } })}
+                                    className="p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none flex-1 min-w-[120px]"
+                                  >
+                                    <option value="">-- Pilih Nilai --</option>
+                                    {parentField.options.map((opt: any) => (
+                                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                  </select>
+                                );
+                              }
+                              return (
+                                <input
+                                  type="text"
+                                  value={field.condition.value as string}
+                                  onChange={(e) => onUpdate({ condition: { ...field.condition, value: e.target.value } })}
+                                  placeholder="Nilai pemicu..."
+                                  className="flex-1 p-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none min-w-[120px]"
+                                />
+                              );
+                            })()}
+
+                            <button
+                              onClick={() => onUpdate({ condition: undefined })}
+                              className="p-2 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => onUpdate({ condition: { fieldId: '', operator: 'eq', value: '' } })}
+                          className="flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-[#673AB7] hover:bg-[#673AB7]/5 px-3 py-2 rounded-lg transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Tambah Aturan Logika
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 {/* Footer Controls */}

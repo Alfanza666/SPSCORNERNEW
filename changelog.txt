@@ -313,6 +313,30 @@ v4.18.1 — Fix API 404, stock restore on admin reject & CI/CD auto-deploy
 - **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.18.0 → v4.18.1 (PATCH: perbaikan error handling & stock).
 - **[UPDATE] AGENTS.md:** Arsitektur VPS+Vercel, deploy checklist, auto-deploy cron, gotcha API 404 + @sentry/node.
 
+v5.3.0 — Form Conditional Logic (Branching/If-Else) & Smooth Animation (MINOR)
+----------------------------------------------------------------------------------
+### Fitur Baru:
+- **[FEAT] Conditional Logic:** Setiap field di form builder sekarang bisa punya aturan "Tampilkan jika [field acuan] = [nilai]". Admin cukup pilih field acuan, operator (sama dengan / tidak sama / salah satu), dan nilai pemicu.
+- **[FEAT] Smooth Animation:** Field yang disembunyikan/muncul karena kondisi berubah menggunakan animasi spring `motion.div` — collapse/expand halus, tidak melompat.
+- **[FEAT] Visual Indicator:** Di preview mode (collapsed), field dengan kondisi menampilkan badge ungu "Tampil jika ..." agar admin tahu aturannya tanpa perlu expand.
+- **[FEAT] Smart Value Selector:** Jika field acuan punya opsi (radio/select/checkbox), otomatis menampilkan dropdown pilihan nilai, bukan input manual.
+- **[FEAT] Hidden Field Exclusion:** Field yang tidak memenuhi kondisi otomatis:
+  1. Tidak divalidasi (required skip)
+  2. Tidak dikirim dalam payload jawaban
+  3. Tidak mengganggu user — animasi smooth collapse
+
+### Contoh Penggunaan:
+- Konfirmasi hadir/tidak → pilih "Tidak Hadir" = form selesai
+- "Hadir" → muncul field "Bawa Keluarga?" → pilih "Tidak" → muncul field ukuran baju
+- Ukuran XXL-XXXL → muncul info biaya tambahan
+- Transisi antar field menggunakan spring animation (halus & natural)
+
+### Perubahan File:
+- **[CHANGE] src/types/form.ts:** Tambah interface `Condition` + field `condition?: Condition` di `FormField`
+- **[CHANGE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** Tambah "Atur Logika Tampil" editor di FieldCard + badge kondisi di preview mode
+- **[CHANGE] src/pages/portal/PortalFormView.tsx:** Tambah fungsi `isFieldVisible`, animasi spring per field, validasi & payload hanya field visible
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.2.3 → v5.3.0 (MINOR: fitur conditional logic untuk form builder)
+
 v5.2.4 — QRIS Otomatis Stock Fix & Order of Operations (PATCH)
 ----------------------------------------------------------------------------------
 ### Root Cause Analysis (RCA):

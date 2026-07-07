@@ -122,8 +122,9 @@ export default function PortalFormView() {
     e.preventDefault();
     if (!user) return;
 
-    // Validasi manual
-    const missingFields = form?.fields.filter(f => {
+    // Validasi manual — hanya field yang visible
+    const visibleFields = form?.fields.filter(isFieldVisible) || [];
+    const missingFields = visibleFields.filter(f => {
         if (!f.required) return false;
         if (f.type === 'checkbox' && (!answers[f.id] || answers[f.id].length === 0)) return true;
         if (f.type === 'addon_group') {
@@ -143,17 +144,20 @@ export default function PortalFormView() {
 
     setSubmitting(true);
     try {
-      // Format payload respons
-      const finalAnswers = { ...answers };
+      // Format payload respons — exclude hidden fields
+      const finalAnswers: Record<string, any> = {};
+      visibleFields.forEach(f => {
+        if (answers[f.id] !== undefined) finalAnswers[f.id] = answers[f.id];
+      });
       
       // Inject file uploads ke jawaban
       Object.keys(fileUploads).forEach(key => {
-        finalAnswers[key] = fileUploads[key];
+        if (visibleFields.some(f => f.id === key)) finalAnswers[key] = fileUploads[key];
       });
 
       // Inject addon orders ke jawaban
       Object.keys(addonOrders).forEach(key => {
-        finalAnswers[key] = addonOrders[key];
+        if (visibleFields.some(f => f.id === key)) finalAnswers[key] = addonOrders[key];
       });
 
       const { error: respError } = await supabase
@@ -185,6 +189,25 @@ export default function PortalFormView() {
       if (checked) return { ...prev, [fieldId]: [...current, option] };
       return { ...prev, [fieldId]: current.filter((o: string) => o !== option) };
     });
+  };
+
+  // --- Conditional Logic ---
+  const isFieldVisible = (field: FormField): boolean => {
+    if (!field.condition) return true;
+    const parentAnswer = answers[field.condition.fieldId];
+    
+    switch (field.condition.operator) {
+      case 'eq':
+        return parentAnswer === field.condition.value;
+      case 'neq':
+        return parentAnswer !== field.condition.value;
+      case 'in': {
+        const values = Array.isArray(field.condition.value) ? field.condition.value : [field.condition.value];
+        return values.includes(parentAnswer);
+      }
+      default:
+        return true;
+    }
   };
 
   // --- Helper Renderers ---
@@ -436,12 +459,25 @@ export default function PortalFormView() {
               <p className="text-zinc-500 leading-relaxed">{form?.description}</p>
            </div>
 
-           <form onSubmit={handleSubmit} className="space-y-10">
-             {form?.fields.map((field) => (
-               <div key={field.id} className="space-y-3">
-                 <label className="flex items-center gap-2 text-base font-bold text-zinc-700 dark:text-zinc-300">
-                   {field.label} {field.required && <span className="text-red-500">*</span>}
-                 </label>
+           <form onSubmit={handleSubmit} className="space-y-0">
+              {form?.fields.map((field) => {
+                const visible = isFieldVisible(field);
+                return (
+                <motion.div
+                  key={field.id}
+                  layout
+                  animate={{ 
+                    height: visible ? 'auto' : 0, 
+                    opacity: visible ? 1 : 0,
+                    marginBottom: visible ? 40 : 0,
+                    overflow: 'hidden'
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                >
+                  <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-base font-bold text-zinc-700 dark:text-zinc-300">
+                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                  </label>
                  
                  {/* --- Rendering Types --- */}
                  
@@ -496,8 +532,9 @@ export default function PortalFormView() {
                  {field.type === 'file_upload' && renderFileUpload(field)}
                  {field.type === 'addon_group' && renderAddonGroup(field)}
 
-               </div>
-             ))}
+                </div>
+                </motion.div>
+              );})}
 
              <div className="pt-8 flex flex-col gap-4">
                <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 shadow-2xl shadow-blue-500/30">

@@ -12,6 +12,12 @@ export type FieldType =
   | 'addon_group'
   | 'date';       // Tanggal // Add-ons logic
 
+export interface Condition {
+  fieldId: string;
+  operator: 'eq' | 'neq' | 'in';
+  value: string | string[];
+}
+
 export interface FormOption {
   value: string;
   label: string;
@@ -51,6 +57,9 @@ export interface FormField {
   // Untuk addon_group
   allow_multiple?: boolean;
   items?: AddonItem[];
+
+  // Conditional logic
+  condition?: Condition;
 }
 
 export interface FormConfig {
