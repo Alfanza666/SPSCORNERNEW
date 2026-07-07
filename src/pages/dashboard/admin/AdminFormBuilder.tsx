@@ -99,7 +99,7 @@ export default function AdminFormBuilder() {
       const json = await res.json();
       if (json.success && Array.isArray(json.data) && json.data.length > 0) {
         const fields = json.data.map((f: any) => ({
-          id: Math.random().toString(36).substr(2, 9),
+          id: f.id || Math.random().toString(36).substr(2, 9),
           type: f.type,
           label: f.label || 'Pertanyaan',
           required: f.required || false,
@@ -107,6 +107,7 @@ export default function AdminFormBuilder() {
           options: ['select', 'radio', 'checkbox'].includes(f.type) && f.options ? f.options : undefined,
           max: f.type === 'rating' ? 5 : undefined,
           max_scale: f.type === 'scale' ? 10 : undefined,
+          condition: f.condition || undefined,
         }));
         setEditingForm(prev => ({ ...prev, fields: [...(prev.fields || []), ...fields] }));
         toast.success(`${fields.length} field berhasil digenerate!`);
