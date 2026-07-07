@@ -105,6 +105,7 @@ const AdminKritikSaran = lazyWithRetry(() => import('./pages/dashboard/admin/Adm
 const AdminDoorprize = lazyWithRetry(() => import('./pages/dashboard/admin/AdminDoorprize'));
 const AdminFormBuilder = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormBuilder'));
 const AdminFormResponses = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFormResponses'));
+const AdminEmployees = lazyWithRetry(() => import('./pages/dashboard/admin/AdminEmployees'));
 const AdminCouponReports = lazyWithRetry(() => import('./pages/dashboard/admin/AdminCouponReports'));
 const AdminStockReport = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockReport'));
 const AdminStockTrace = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockTrace'));
@@ -318,6 +319,8 @@ export default function App() {
               <Route path="admin/flashsale/" element={<AdminFlashsale />} />
               <Route path="admin/doorprize" element={<AdminDoorprize />} />
               <Route path="admin/doorprize/" element={<AdminDoorprize />} />
+              <Route path="admin/employees" element={<AdminEmployees />} />
+              <Route path="admin/employees/" element={<AdminEmployees />} />
               <Route path="admin/analytics" element={<AdminAnalytics />} />
               <Route path="admin/analytics/" element={<AdminAnalytics />} />
 

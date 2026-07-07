@@ -50,11 +50,25 @@ export default function PortalPengumuman() {
   const [filteredAnnouncements, setFilteredAnnouncements] = useState<Announcement[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [userDepartment, setUserDepartment] = useState<string>('');
 
   useEffect(() => {
     if (!user) return;
     fetchAnnouncements();
+    fetchUserDepartment();
   }, [user]);
+
+  const fetchUserDepartment = async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await supabase
+        .from('employees')
+        .select('department')
+        .eq('id', user.id)
+        .single();
+      if (data?.department) setUserDepartment(data.department);
+    } catch {}
+  };
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -345,6 +359,8 @@ export default function PortalPengumuman() {
                           announcementId={selectedAnnouncement.id}
                           candidates={candidates}
                           targetNiks={targetNiks}
+                          targetDepartments={(selectedAnnouncement as any).target_departments || []}
+                          userDepartment={userDepartment}
                           votingDeadline={gatheringConfig.voting_deadline}
                           votingEnabled={gatheringConfig.voting_enabled}
                         />
@@ -358,6 +374,8 @@ export default function PortalPengumuman() {
                             announcementId={selectedAnnouncement.id}
                             surveys={gatheringConfig.surveys}
                             targetNiks={targetNiks}
+                            targetDepartments={(selectedAnnouncement as any).target_departments || []}
+                            userDepartment={userDepartment}
                           />
                         </>
                       )}

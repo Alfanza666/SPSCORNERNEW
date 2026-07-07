@@ -107,6 +107,13 @@ export default function AuthCallback() {
           }
         }
 
+        // Sync name from employee master data if NIK registered
+        if (profile!.nik) {
+          const { syncEmployeeName } = await import('../../lib/employee');
+          const syncedName = await syncEmployeeName(profile!.nik, userId);
+          if (syncedName) profile!.name = syncedName;
+        }
+
         if (profile!.is_active === false) {
           await supabase.auth.signOut();
           setErrorMsg('Akun Anda telah dinonaktifkan. Silakan hubungi admin.');

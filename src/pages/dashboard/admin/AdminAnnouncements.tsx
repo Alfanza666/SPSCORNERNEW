@@ -85,6 +85,10 @@ export default function AdminAnnouncements() {
   const [dynamicForms, setDynamicForms] = useState<{ id: string; title: string }[]>([]);
   const [uploadingCandidate, setUploadingCandidate] = useState<string | null>(null);
 
+  // Department targeting
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
+  const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
+
   // Voting results modal
   const [showVoteResults, setShowVoteResults] = useState(false);
   const [voteResultsAnnouncement, setVoteResultsAnnouncement] = useState<Announcement | null>(null);
@@ -469,8 +473,21 @@ export default function AdminAnnouncements() {
     if (user && (user.role === 'admin' || user.role === 'superadmin')) {
       fetchAnnouncements();
       fetchDynamicForms();
+      fetchDepartments();
     }
   }, [user]);
+
+  const fetchDepartments = async () => {
+    try {
+      const { data } = await supabase
+        .from('employees')
+        .select('department')
+        .neq('department', '')
+        .order('department');
+      const depts = [...new Set((data || []).map(d => d.department))];
+      setAvailableDepartments(depts);
+    } catch {}
+  };
 
   const fetchAnnouncements = async () => {
     setLoading(true);
@@ -707,7 +724,19 @@ export default function AdminAnnouncements() {
       // Parse target NIKs
       const nikArray = targetNiks.trim()
         ? targetNiks.split(/[,\n;]/).map(nik => nik.trim()).filter(nik => nik.length >= 3)
-        : null;
+        : [];
+
+      // Resolve department → NIKs
+      let resolvedDeptNiks: string[] = [];
+      if (targetDepartments.length > 0) {
+        const { data: deptEmployees } = await supabase
+          .from('employees')
+          .select('nik')
+          .in('department', targetDepartments);
+        resolvedDeptNiks = (deptEmployees || []).map(e => e.nik).filter(Boolean);
+      }
+
+      const allNiks = [...new Set([...nikArray, ...resolvedDeptNiks])];
 
       const announcementData: any = {
         title: form.title,
@@ -716,7 +745,8 @@ export default function AdminAnnouncements() {
         image_url: form.image_url || null,
         announcement_type: form.announcement_type,
         gathering_config: form.announcement_type === 'gathering' ? gatheringConfig : null,
-        target_niks: form.announcement_type === 'gathering' ? nikArray : null,
+        target_niks: form.announcement_type === 'gathering' ? (allNiks.length > 0 ? allNiks : null) : null,
+        target_departments: form.announcement_type === 'gathering' && targetDepartments.length > 0 ? targetDepartments : null,
         created_by: user?.id
       };
 
@@ -837,6 +867,7 @@ export default function AdminAnnouncements() {
       setShowGatheringSection(true);
       setGatheringConfig(announcement.gathering_config || { voting_enabled: false, voting_deadline: '', surveys: [] });
       setTargetNiks(announcement.target_niks?.join(', ') || '');
+      setTargetDepartments((announcement as any).target_departments || []);
 
       // Fetch existing candidates
       const { data: candidateData } = await supabase
@@ -885,6 +916,7 @@ export default function AdminAnnouncements() {
     setCandidates([]);
     setGatheringConfig({ voting_enabled: false, voting_deadline: '', surveys: [] });
     setTargetNiks('');
+    setTargetDepartments([]);
   };
 
   // CSV upload for NIK
@@ -1320,6 +1352,49 @@ export default function AdminAnnouncements() {
                       )}
                       <p className="text-[10px] text-zinc-400">
                         Hanya NIK yang terdaftar yang bisa ikut voting dan mengakses survei. Kosongkan jika semua anggota boleh akses.
+                      </p>
+                    </div>
+
+                    {/* Target Departments */}
+                    <div className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-purple-500" />
+                        <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Target Departemen</label>
+                      </div>
+                      {availableDepartments.length === 0 ? (
+                        <p className="text-xs text-zinc-400 italic">Belum ada data departemen. Isi Database Karyawan terlebih dahulu.</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {availableDepartments.map(dept => {
+                            const selected = targetDepartments.includes(dept);
+                            return (
+                              <button
+                                key={dept}
+                                type="button"
+                                onClick={() => {
+                                  setTargetDepartments(prev =>
+                                    selected ? prev.filter(d => d !== dept) : [...prev, dept]
+                                  );
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                  selected
+                                    ? 'bg-purple-600 text-white shadow-md'
+                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                }`}
+                              >
+                                {dept}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {targetDepartments.length > 0 && (
+                        <p className="text-[10px] text-purple-600 font-bold">
+                          {targetDepartments.length} departemen dipilih
+                        </p>
+                      )}
+                      <p className="text-[10px] text-zinc-400">
+                        Pilih departemen — semua NIK di departemen tersebut akan otomatis ditambahkan ke target.
                       </p>
                     </div>
                   </div>

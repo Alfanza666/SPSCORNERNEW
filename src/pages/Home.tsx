@@ -167,7 +167,7 @@ export default function Home() {
 
             <div className="flex flex-col items-center gap-1 mt-2">
               <div className="px-3 py-1 rounded-full bg-zinc-200/50 dark:bg-zinc-800/50 border border-zinc-300/50 dark:border-zinc-700/50 backdrop-blur-sm">
-                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v5.3.0</p>
+                <p className="font-bold tracking-widest text-[10px] text-zinc-600 dark:text-zinc-400">v5.3.1</p>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 &copy; 2026 SPS Corner. Designed &amp; Engineered by <span className="font-bold text-zinc-700 dark:text-zinc-300">Alif Irfansyah</span>

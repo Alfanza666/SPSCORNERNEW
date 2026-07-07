@@ -85,6 +85,17 @@ export default function Register() {
           balance: 0,
           loyalty_points: 0,
         }, { onConflict: 'id' });
+
+        // Sync name from employee master data if NIK matches
+        const { syncEmployeeName } = await import('../../lib/employee');
+        const syncedName = await syncEmployeeName(cleanNik, data.user.id);
+        if (syncedName) {
+          const { data: updatedProfile } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', data.user.id)
+            .single();
+        }
       }
 
       if (data.user?.identities?.length === 0) {

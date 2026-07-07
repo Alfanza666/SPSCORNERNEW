@@ -139,6 +139,11 @@ export default function PortalProfile() {
 
       if (profileError) throw profileError;
 
+      // Sync name with employee master data if NIK exists
+      const { syncEmployeeName } = await import('../../lib/employee');
+      const syncedName = await syncEmployeeName(nik.trim(), user.id);
+      if (syncedName) setName(syncedName);
+
       // 2. Update Auth metadata/email if changed and it's not a dummy email
       if (email.trim() !== user.email && !email.endsWith('@sps.local')) {
         const { error: authError } = await supabase.auth.updateUser({

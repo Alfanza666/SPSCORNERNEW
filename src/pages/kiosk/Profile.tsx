@@ -154,6 +154,13 @@ export default function Profile() {
 
       if (upsertError) throw upsertError;
 
+      // Sync name with employee master data if NIK exists
+      if (updates.nik) {
+        const { syncEmployeeName } = await import('../../lib/employee');
+        const syncedName = await syncEmployeeName(updates.nik, user!.id);
+        if (syncedName) updates.name = syncedName;
+      }
+
       await fetchProfile(user!.id);
       toast.success('Profil berhasil diperbarui!');
     } catch (err: any) {
@@ -376,6 +383,7 @@ export default function Profile() {
                   />
                 </div>
                 {profileFieldErrors.name && <p className="text-[10px] text-red-500 font-medium mt-1 ml-1">{profileFieldErrors.name}</p>}
+                {user?.nik && <p className="text-[9px] text-blue-500 font-medium mt-1 ml-1">Nama akan disesuaikan dengan Database Karyawan</p>}
               </div>
 
               <div>

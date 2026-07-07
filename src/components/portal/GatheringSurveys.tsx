@@ -27,12 +27,17 @@ interface GatheringSurveysProps {
   announcementId: string;
   surveys: Survey[];
   targetNiks: string[];
+  targetDepartments: string[];
+  userDepartment: string;
 }
 
-export default function GatheringSurveys({ announcementId, surveys, targetNiks }: GatheringSurveysProps) {
+export default function GatheringSurveys({ announcementId, surveys, targetNiks, targetDepartments, userDepartment }: GatheringSurveysProps) {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const isTargeted = !targetNiks || targetNiks.length === 0 || targetNiks.includes(user?.nik || '');
+  const isTargeted = !targetNiks || targetNiks.length === 0 || (
+    targetNiks.includes(user?.nik || '') ||
+    (targetDepartments?.length > 0 && userDepartment && targetDepartments.includes(userDepartment))
+  );
 
   if (!surveys || surveys.length === 0) return null;
 

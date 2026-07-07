@@ -313,29 +313,67 @@ v4.18.1 — Fix API 404, stock restore on admin reject & CI/CD auto-deploy
 - **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx:** v4.18.0 → v4.18.1 (PATCH: perbaikan error handling & stock).
 - **[UPDATE] AGENTS.md:** Arsitektur VPS+Vercel, deploy checklist, auto-deploy cron, gotcha API 404 + @sentry/node.
 
-v5.3.0 — Form Conditional Logic (Branching/If-Else) & Smooth Animation (MINOR)
+v5.3.1 — Department Targeting untuk Pengumuman Gathering (PATCH)
 ----------------------------------------------------------------------------------
 ### Fitur Baru:
-- **[FEAT] Conditional Logic:** Setiap field di form builder sekarang bisa punya aturan "Tampilkan jika [field acuan] = [nilai]". Admin cukup pilih field acuan, operator (sama dengan / tidak sama / salah satu), dan nilai pemicu.
-- **[FEAT] Smooth Animation:** Field yang disembunyikan/muncul karena kondisi berubah menggunakan animasi spring `motion.div` — collapse/expand halus, tidak melompat.
-- **[FEAT] Visual Indicator:** Di preview mode (collapsed), field dengan kondisi menampilkan badge ungu "Tampil jika ..." agar admin tahu aturannya tanpa perlu expand.
-- **[FEAT] Smart Value Selector:** Jika field acuan punya opsi (radio/select/checkbox), otomatis menampilkan dropdown pilihan nilai, bukan input manual.
-- **[FEAT] Hidden Field Exclusion:** Field yang tidak memenuhi kondisi otomatis:
-  1. Tidak divalidasi (required skip)
-  2. Tidak dikirim dalam payload jawaban
-  3. Tidak mengganggu user — animasi smooth collapse
 
-### Contoh Penggunaan:
-- Konfirmasi hadir/tidak → pilih "Tidak Hadir" = form selesai
-- "Hadir" → muncul field "Bawa Keluarga?" → pilih "Tidak" → muncul field ukuran baju
-- Ukuran XXL-XXXL → muncul info biaya tambahan
-- Transisi antar field menggunakan spring animation (halus & natural)
+**🎯 Target Departemen untuk Voting & Survei:**
+- **[FEAT] Department Multi-Select:** Di form pengumuman gathering, admin bisa pilih departemen tujuan — semua NIK dari departemen tsb otomatis ditambahkan ke target.
+- **[FEAT] Resolve otomatis:** Saat simpan, sistem resolve departemen → NIK dari tabel `employees`, merge dengan NIK manual, simpan di `target_niks` + `target_departments`.
+- **[FEAT] UI Picker:** Tombol-tombol departemen dengan toggle visual (ungu active / abu-abu inactive), jumlah departemen terpilih.
+
+**👁️ Akses Otomatis untuk Anggota:**
+- **[FEAT] PortalPengumuman:** Fetch departemen user dari `employees`, teruskan ke komponen voting & survei.
+- **[FEAT] GatheringVoting/GatheringSurveys:** Cek akses via NIK ATAU departemen — anggota departemen target otomatis bisa vote/isi survei.
+
+### Migrasi SQL (WAJIB):
+Jalankan di Supabase SQL Editor:
+1. `database/migrations/003_announcement_department_target.sql` — tambah kolom `target_departments`
 
 ### Perubahan File:
-- **[CHANGE] src/types/form.ts:** Tambah interface `Condition` + field `condition?: Condition` di `FormField`
-- **[CHANGE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** Tambah "Atur Logika Tampil" editor di FieldCard + badge kondisi di preview mode
-- **[CHANGE] src/pages/portal/PortalFormView.tsx:** Tambah fungsi `isFieldVisible`, animasi spring per field, validasi & payload hanya field visible
-- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.2.3 → v5.3.0 (MINOR: fitur conditional logic untuk form builder)
+- **[CHANGE] src/pages/dashboard/admin/AdminAnnouncements.tsx:** Tambah state, fetch, UI picker department, resolve NIK saat save, edit populate
+- **[CHANGE] src/pages/portal/PortalPengumuman.tsx:** Fetch user department, pass props ke child komponen
+- **[CHANGE] src/components/portal/GatheringVoting.tsx:** Props baru `targetDepartments` + `userDepartment`, logika akses OR (NIK/department)
+- **[CHANGE] src/components/portal/GatheringSurveys.tsx:** Props baru `targetDepartments` + `userDepartment`, logika akses OR (NIK/department)
+- **[NEW] database/migrations/003_announcement_department_target.sql:** Migration kolom target_departments
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.3.0 → v5.3.1 (PATCH)
+
+v5.3.0 — Form Conditional Logic & Employee Master Database (MINOR)
+----------------------------------------------------------------------------------
+### Fitur Baru:
+
+**🧩 Form Conditional Logic (Branching/If-Else):**
+- **[FEAT] Conditional Logic:** Setiap field di form builder bisa punya aturan "Tampilkan jika [field acuan] = [nilai]". Admin pilih field acuan, operator (= / ≠ / ∈), dan nilai pemicu.
+- **[FEAT] Smooth Animation:** Field yang disembunyikan/muncul menggunakan spring animation — collapse/expand halus, tidak melompat.
+- **[FEAT] Visual Indicator:** Preview mode menampilkan badge ungu "Tampil jika ..." agar admin tahu aturannya tanpa perlu expand.
+- **[FEAT] Smart Value Selector:** Jika field acuan punya opsi (radio/select/checkbox), otomatis dropdown pilihan nilai.
+- **[FEAT] Hidden Field Exclusion:** Field tersembunyi: (1) tidak divalidasi, (2) tidak dikirim di payload, (3) animasi smooth collapse.
+
+**👥 Employee Master Database (NIK → Nama → Departemen):**
+- **[FEAT] Database Karyawan:** Tabel `employees` dengan NIK (unique), Nama, Departemen. Admin kelola via "Input Data Induk → Database Karyawan".
+- **[FEAT] AdminEmployees.tsx:** CRUD lengkap — search, import Excel, download template.
+- **[FEAT] Auto-Sync Nama:** Register / Google OAuth / Edit profil — jika NIK cocok di `employees`, nama otomatis pakai data master. Nama aneh dari Google tidak kepakai.
+- **[FEAT] Foundation Filter Departemen:** Data departemen siap digunakan untuk filtering pengumuman dll.
+
+### Migrasi SQL (WAJIB):
+Jalankan di Supabase SQL Editor:
+1. `database/migrations/002_employee_master_data.sql` — buat tabel `employees`
+
+### Perubahan File:
+- **[CHANGE] src/types/form.ts:** Tambah `Condition` interface + field `condition?` di `FormField`
+- **[CHANGE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** UI "Atur Logika Tampil" editor + preview badge
+- **[CHANGE] src/pages/portal/PortalFormView.tsx:** Fungsi `isFieldVisible`, animasi spring, validasi & payload filter
+- **[NEW] database/migrations/002_employee_master_data.sql:** Migration tabel employees
+- **[NEW] src/types/employee.ts:** Interface Employee
+- **[NEW] src/lib/employee.ts:** Utility syncEmployeeName()
+- **[NEW] src/pages/dashboard/admin/AdminEmployees.tsx:** Halaman CRUD + Excel import
+- **[CHANGE] src/App.tsx:** Tambah route `/dashboard/admin/employees`
+- **[CHANGE] src/pages/dashboard/DashboardLayout.tsx:** Tambah menu "Database Karyawan"
+- **[CHANGE] src/pages/auth/AuthCallback.tsx:** Auto-sync nama dari employee master data
+- **[CHANGE] src/pages/auth/Register.tsx:** Auto-sync nama dari employee master data
+- **[CHANGE] src/pages/kiosk/Profile.tsx:** Sync nama + info "Nama akan disesuaikan"
+- **[CHANGE] src/pages/portal/PortalProfile.tsx:** Sync nama saat edit profil
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.2.3 → v5.3.0 (MINOR)
 
 v5.2.4 — QRIS Otomatis Stock Fix & Order of Operations (PATCH)
 ----------------------------------------------------------------------------------

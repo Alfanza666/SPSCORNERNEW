@@ -16,6 +16,8 @@ interface GatheringVotingProps {
   announcementId: string;
   candidates: Candidate[];
   targetNiks: string[];
+  targetDepartments: string[];
+  userDepartment: string;
   votingDeadline?: string;
   votingEnabled: boolean;
 }
@@ -29,6 +31,8 @@ export default function GatheringVoting({
   announcementId,
   candidates,
   targetNiks,
+  targetDepartments,
+  userDepartment,
   votingDeadline,
   votingEnabled
 }: GatheringVotingProps) {
@@ -39,7 +43,10 @@ export default function GatheringVoting({
   const [voting, setVoting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
 
-  const isTargeted = user?.nik && targetNiks?.includes(user.nik);
+  const isTargeted = user?.nik && (
+    targetNiks?.includes(user.nik) ||
+    (targetDepartments?.length > 0 && userDepartment && targetDepartments.includes(userDepartment))
+  );
   const isDeadlinePassed = votingDeadline ? new Date(votingDeadline) < new Date() : false;
   const canVote = votingEnabled && isTargeted && !isDeadlinePassed;
 
