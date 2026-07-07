@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
-import { 
-  ClipboardList, ChevronLeft, Loader2, Send, 
-  CheckCircle2, AlertCircle, Calendar, Info, UploadCloud, X, Plus, Trash2, Star
+import {
+  ClipboardList, ChevronLeft, Loader2, Send,
+  CheckCircle2, AlertCircle, Calendar, Info, UploadCloud, X, Plus, Trash2, Star, Image, Link2, Lock, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -15,6 +15,8 @@ interface DynamicForm {
   title: string;
   description: string;
   fields: FormField[];
+  target_niks?: string[];
+  target_departments?: string[];
 }
 
 interface AddonOrder {
@@ -41,10 +43,31 @@ export default function PortalFormView() {
   const [addonOrders, setAddonOrders] = useState<Record<string, AddonOrder[]>>({});
   // State untuk file uploads ( menyimpan public URL setelah upload)
   const [fileUploads, setFileUploads] = useState<Record<string, string>>({});
+  // State untuk image uploads
+  const [imageUploads, setImageUploads] = useState<Record<string, string>>({});
+  const [imageUrlInputs, setImageUrlInputs] = useState<Record<string, string>>({});
+
+  // Department targeting
+  const [userDepartment, setUserDepartment] = useState<string>('');
 
   useEffect(() => {
-    if (formId) fetchForm();
+    if (formId) {
+      fetchForm();
+      fetchUserDepartment();
+    }
   }, [formId]);
+
+  const fetchUserDepartment = async () => {
+    if (!user?.id) return;
+    try {
+      const { data } = await supabase
+        .from('employees')
+        .select('department')
+        .eq('id', user.id)
+        .single();
+      if (data?.department) setUserDepartment(data.department);
+    } catch {}
+  };
 
   const fetchForm = async () => {
     setLoading(true);
@@ -118,6 +141,40 @@ export default function PortalFormView() {
     }
   };
 
+  const handleImageUpload = async (fieldId: string, file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `img_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      const filePath = `${user?.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('program-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          metadata: { owner: user?.id }
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('program-files')
+        .getPublicUrl(filePath);
+
+      setImageUploads(prev => ({ ...prev, [fieldId]: publicUrl }));
+      setAnswers(prev => ({ ...prev, [fieldId]: publicUrl }));
+      toast.success('Gambar berhasil diunggah');
+    } catch (error: any) {
+      console.error(error);
+      toast.error('Gagal mengunggah gambar');
+    }
+  };
+
+  const handleImageUrl = (fieldId: string, url: string) => {
+    setImageUploads(prev => ({ ...prev, [fieldId]: url }));
+    setAnswers(prev => ({ ...prev, [fieldId]: url }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -134,6 +191,7 @@ export default function PortalFormView() {
             return !hasOrder; // Jika wajib tapi tidak ada pesanan sama sekali
         }
         if (f.type === 'file_upload' && !fileUploads[f.id]) return true;
+        if (f.type === 'image' && !imageUploads[f.id]) return true;
         return !answers[f.id];
     });
 
@@ -153,6 +211,11 @@ export default function PortalFormView() {
       // Inject file uploads ke jawaban
       Object.keys(fileUploads).forEach(key => {
         if (visibleFields.some(f => f.id === key)) finalAnswers[key] = fileUploads[key];
+      });
+
+      // Inject image uploads ke jawaban
+      Object.keys(imageUploads).forEach(key => {
+        if (visibleFields.some(f => f.id === key)) finalAnswers[key] = imageUploads[key];
       });
 
       // Inject addon orders ke jawaban
@@ -430,6 +493,27 @@ export default function PortalFormView() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>;
 
+  // Check targeting
+  const isTargeted = !form?.target_niks && !form?.target_departments || (
+    form?.target_niks?.includes(user?.nik || '') ||
+    (form?.target_departments?.length > 0 && userDepartment && form.target_departments.includes(userDepartment))
+  );
+
+  if (!isTargeted && form) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-950">
+        <div className="max-w-md w-full bg-white dark:bg-zinc-900 p-8 rounded-3xl text-center border border-zinc-100 dark:border-zinc-800 shadow-xl">
+          <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock className="w-10 h-10 text-zinc-400" />
+          </div>
+          <h2 className="text-2xl font-black text-zinc-900 dark:text-white mb-2">Akses Terbatas</h2>
+          <p className="text-zinc-500 mb-8">Formulir ini hanya dapat diakses oleh anggota yang telah ditentukan.</p>
+          <button onClick={() => navigate('/portal')} className="w-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-4 rounded-2xl font-black">Kembali</button>
+        </div>
+      </div>
+    );
+  }
+
   if (submitted) return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-950">
         <motion.div initial={{scale:0.9, opacity:0}} animate={{scale:1, opacity:1}} className="max-w-md w-full bg-white dark:bg-zinc-900 p-8 rounded-3xl text-center border border-zinc-100 dark:border-zinc-800 shadow-xl">
@@ -529,8 +613,63 @@ export default function PortalFormView() {
                  {field.type === 'image_choice' && renderImageChoice(field)}
                  {field.type === 'rating' && renderRating(field)}
                  {field.type === 'scale' && renderScale(field)}
-                 {field.type === 'file_upload' && renderFileUpload(field)}
-                 {field.type === 'addon_group' && renderAddonGroup(field)}
+                  {field.type === 'file_upload' && renderFileUpload(field)}
+                  {field.type === 'image' && (
+                    <div className="space-y-3">
+                      {imageUploads[field.id] ? (
+                        <div className="space-y-3">
+                          <div className="relative rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700">
+                            <img src={imageUploads[field.id]} alt={field.label} className="w-full max-h-80 object-contain bg-zinc-50 dark:bg-zinc-800" />
+                            <button
+                              type="button"
+                              onClick={() => { setImageUploads(prev => ({...prev, [field.id]: ''})); setAnswers(prev => ({...prev, [field.id]: ''})); }}
+                              className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Upload */}
+                          <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleImageUpload(field.id, e.target.files[0])} />
+                            <UploadCloud className="w-8 h-8 text-zinc-300" />
+                            <span className="text-sm font-bold text-zinc-500">Klik untuk upload gambar</span>
+                          </label>
+                          {/* OR divider */}
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                            <span className="text-xs text-zinc-400 font-bold">ATAU</span>
+                            <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                          </div>
+                          {/* URL input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              placeholder="Atau masukkan URL gambar..."
+                              value={imageUrlInputs[field.id] || ''}
+                              onChange={(e) => {
+                                setImageUrlInputs(prev => ({...prev, [field.id]: e.target.value}));
+                                handleImageUrl(field.id, e.target.value);
+                              }}
+                              className="flex-1 bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl px-5 py-4 text-sm focus:border-blue-500 focus:outline-none"
+                            />
+                            {imageUrlInputs[field.id] && (
+                              <button
+                                type="button"
+                                onClick={() => handleImageUrl(field.id, imageUrlInputs[field.id])}
+                                className="px-4 py-2 bg-blue-500 text-white rounded-2xl font-bold text-sm hover:bg-blue-600 transition-colors"
+                              >
+                                <Link2 className="w-5 h-5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {field.type === 'addon_group' && renderAddonGroup(field)}
 
                 </div>
                 </motion.div>

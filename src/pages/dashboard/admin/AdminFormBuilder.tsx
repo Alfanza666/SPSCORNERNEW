@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { 
-  ClipboardList, Plus, X, Trash2, Save, MoveUp, MoveDown, 
+import {
+  ClipboardList, Plus, X, Trash2, Save, MoveUp, MoveDown,
   Type, List, CheckSquare, Calendar, Loader2, ChevronRight,
-  Settings, AlertCircle, Copy, Link2, ImageIcon, Star, 
-  Sliders, Upload, ShoppingBag, MoreVertical, LayoutTemplate, MoreHorizontal
+  Settings, AlertCircle, Copy, Link2, ImageIcon, Star,
+  Sliders, Upload, ShoppingBag, MoreVertical, LayoutTemplate, MoreHorizontal,
+  Sparkles, Users
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -42,8 +43,21 @@ export default function AdminFormBuilder() {
   const [linkedProgramId, setLinkedProgramId] = useState<string>('');
   const [availablePrograms, setAvailablePrograms] = useState<any[]>([]);
 
+  // AI Generation
+  const [showAI, setShowAI] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // Department targeting
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
+  const [targetNiks, setTargetNiks] = useState('');
+  const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
+
   useEffect(() => {
-    if (showEditor) fetchPrograms();
+    if (showEditor) {
+      fetchPrograms();
+      fetchDepartments();
+    }
   }, [showEditor]);
 
   const fetchPrograms = async () => {
@@ -55,6 +69,57 @@ export default function AdminFormBuilder() {
         .order('name');
       if (!error) setAvailablePrograms(data || []);
     } catch (err) {}
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const { data } = await supabase
+        .from('employees')
+        .select('department')
+        .neq('department', '')
+        .order('department');
+      const depts = [...new Set((data || []).map(d => d.department))];
+      setAvailableDepartments(depts);
+    } catch {}
+  };
+
+  const generateWithAI = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error('Masukkan deskripsi formulir yang diinginkan');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/ai/generate-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ prompt: aiPrompt }),
+      });
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        const fields = json.data.map((f: any) => ({
+          id: Math.random().toString(36).substr(2, 9),
+          type: f.type,
+          label: f.label || 'Pertanyaan',
+          required: f.required || false,
+          placeholder: f.placeholder || '',
+          options: ['select', 'radio', 'checkbox'].includes(f.type) && f.options ? f.options : undefined,
+          max: f.type === 'rating' ? 5 : undefined,
+          max_scale: f.type === 'scale' ? 10 : undefined,
+        }));
+        setEditingForm(prev => ({ ...prev, fields: [...(prev.fields || []), ...fields] }));
+        toast.success(`${fields.length} field berhasil digenerate!`);
+        setShowAI(false);
+        setAiPrompt('');
+      } else {
+        toast.error('AI tidak dapat menghasilkan field. Coba prompt yang lebih spesifik.');
+      }
+    } catch (err) {
+      toast.error('Gagal menghubungi AI. Coba lagi.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -163,7 +228,22 @@ export default function AdminFormBuilder() {
         return f;
       });
 
-      const payload = {
+      const nikArray = targetNiks.trim()
+        ? targetNiks.split(/[,\n;]/).map((nik: string) => nik.trim()).filter((nik: string) => nik.length >= 3)
+        : [];
+
+      let resolvedDeptNiks: string[] = [];
+      if (targetDepartments.length > 0) {
+        const { data: deptEmployees } = await supabase
+          .from('employees')
+          .select('nik')
+          .in('department', targetDepartments);
+        resolvedDeptNiks = (deptEmployees || []).map(e => e.nik).filter(Boolean);
+      }
+
+      const allNiks = [...new Set([...nikArray, ...resolvedDeptNiks])];
+
+      const payload: any = {
         title: editingForm.title,
         description: JSON.stringify({
           text: editingForm.description || '',
@@ -171,7 +251,9 @@ export default function AdminFormBuilder() {
           banner: editingForm.banner_url || ''
         }),
         fields: cleanFields,
-        is_active: true
+        is_active: true,
+        target_niks: allNiks.length > 0 ? allNiks : null,
+        target_departments: targetDepartments.length > 0 ? targetDepartments : null
       };
 
       let currentFormId = editingForm.id;
@@ -236,9 +318,11 @@ export default function AdminFormBuilder() {
                 <p className="text-zinc-500 font-medium mt-1">Kelola pendaftaran, kuesioner, dan polling interaktif</p>
               </div>
               <button
-                onClick={() => {
+                  onClick={() => {
                   setEditingForm({ title: 'Formulir Tanpa Judul', description: '', theme_color: '#673AB7', banner_url: '', fields: [] });
                   setLinkedProgramId('');
+                  setTargetNiks('');
+                  setTargetDepartments([]);
                   setShowEditor(true);
                 }}
                 className="bg-[#673AB7] hover:bg-[#5E35B1] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap"
@@ -310,11 +394,14 @@ export default function AdminFormBuilder() {
                   Kembali
                </button>
                <div className="flex items-center gap-2">
-                  <button onClick={handleSave} disabled={saving} className="bg-[#673AB7] text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 hover:bg-[#5E35B1] transition-all">
-                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan
-                  </button>
-               </div>
-            </div>
+                   <button onClick={() => setShowAI(true)} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition-all text-sm">
+                      <Sparkles className="w-4 h-4" /> AI
+                   </button>
+                   <button onClick={handleSave} disabled={saving} className="bg-[#673AB7] text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 hover:bg-[#5E35B1] transition-all">
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan
+                   </button>
+                </div>
+             </div>
 
             <div className="relative">
                 {/* Main Form Title Card */}
@@ -385,6 +472,51 @@ export default function AdminFormBuilder() {
                                         ))}
                                     </select>
                                 </div>
+
+                                {/* Target NIK */}
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
+                                    <Users className="w-3.5 h-3.5" /> Target NIK
+                                  </label>
+                                  <textarea
+                                    value={targetNiks}
+                                    onChange={(e) => setTargetNiks(e.target.value)}
+                                    className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none h-16 resize-none font-mono"
+                                    placeholder="Pisahkan dengan koma atau enter. Contoh: 12345, 67890"
+                                  />
+                                </div>
+
+                                {/* Target Departments */}
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
+                                    <Users className="w-3.5 h-3.5" /> Target Departemen
+                                  </label>
+                                  {availableDepartments.length === 0 ? (
+                                    <p className="text-xs text-zinc-400 italic">Belum ada data departemen</p>
+                                  ) : (
+                                    <div className="flex flex-wrap gap-2">
+                                      {availableDepartments.map(dept => {
+                                        const selected = targetDepartments.includes(dept);
+                                        return (
+                                          <button
+                                            key={dept}
+                                            type="button"
+                                            onClick={() => setTargetDepartments(prev =>
+                                              selected ? prev.filter(d => d !== dept) : [...prev, dept]
+                                            )}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                              selected
+                                                ? 'bg-purple-600 text-white shadow-md'
+                                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                            }`}
+                                          >
+                                            {dept}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -418,7 +550,47 @@ export default function AdminFormBuilder() {
                     <ToolbarButton icon={<CheckSquare />} label="Pilihan Ganda" onClick={() => addField('radio')} />
                     <ToolbarButton icon={<Sliders />} label="Skala Penilaian" onClick={() => addField('scale')} />
                     <ToolbarButton icon={<ShoppingBag />} label="Grup Pemesanan" onClick={() => addField('addon_group')} />
+                    <ToolbarButton icon={<ImageIcon />} label="Gambar" onClick={() => addField('image')} />
                 </div>
+
+                {/* AI Generation Modal */}
+                <AnimatePresence>
+                  {showAI && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAI(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                              <Sparkles className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-black text-zinc-900 dark:text-white">Generate dengan AI</h3>
+                              <p className="text-xs text-zinc-500">Deskripsikan formulir yang kamu butuhkan</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-6 space-y-4">
+                          <textarea
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            className="w-full h-32 p-4 border border-zinc-200 dark:border-zinc-700 rounded-2xl bg-zinc-50 dark:bg-zinc-800 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                            placeholder="Contoh: Buat form pendaftaran gathering dengan field nama, no hp, ukuran baju (S/M/L/XL/XXL), konfirmasi hadir, dan catatan makanan..."
+                          />
+                          <div className="flex gap-3">
+                            <button onClick={() => setShowAI(false)} className="flex-1 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-700 font-bold text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all">
+                              Batal
+                            </button>
+                            <button onClick={generateWithAI} disabled={aiLoading} className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60">
+                              {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                              {aiLoading ? 'Mengenerate...' : 'Generate'}
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </div>
+                  )}
+                </AnimatePresence>
             </div>
          </div>
       )}
@@ -512,6 +684,11 @@ function FieldCard({
                         <option value="checkbox">Kotak Centang</option>
                         <option value="select">Tarik-turun (Dropdown)</option>
                         <option value="scale">Skala Linier</option>
+                        <option value="date">Tanggal</option>
+                        <option value="rating">Bintang</option>
+                        <option value="file_upload">Upload File</option>
+                        <option value="image">Upload Gambar / URL</option>
+                        <option value="image_choice">Pilihan Gambar</option>
                         <option value="addon_group">Grup Pesanan (Add-on)</option>
                     </select>
                 </div>

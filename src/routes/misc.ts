@@ -81,6 +81,74 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
     }
   });
 
+  app.post("/api/ai/generate-form", async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      if (!prompt) return res.status(400).json({ error: 'Prompt required' });
+
+      const systemPrompt = `
+Kamu adalah asisten pembuat formulir digital. Buatlah field-field formulir berdasarkan deskripsi berikut.
+Keluarkan HANYA array JSON dari objek-objek form field tanpa markdown atau teks lain.
+
+Tipe field yang tersedia:
+- "text"     : Teks jawaban singkat (input pendek)
+- "textarea" : Paragraf / teks panjang
+- "number"   : Angka
+- "select"   : Dropdown / tarik-turun (butuh options)
+- "radio"    : Pilihan ganda (butuh options)
+- "checkbox" : Centang banyak pilihan (butuh options)
+- "rating"   : Penilaian bintang 1-5
+- "scale"    : Skala linier 1-10
+- "date"     : Tanggal
+- "file_upload" : Upload file
+- "image"    : Upload gambar / URL gambar
+
+Setiap field harus punya properti:
+{
+  "id": "random_string",
+  "type": "salah satu tipe di atas",
+  "label": "Pertanyaan",
+  "required": true/false,
+  "placeholder": "Petunjuk mengisi (optional)",
+  "options": [{"value": "opt1", "label": "Opsi 1"}] // hanya untuk select/radio/checkbox
+}
+
+Contoh output:
+[
+  {"id": "nama", "type": "text", "label": "Nama Lengkap", "required": true, "placeholder": "Masukkan nama"},
+  {"id": "ukuran", "type": "radio", "label": "Ukuran Baju", "required": true, "options": [{"value":"S","label":"S"},{"value":"M","label":"M"},{"value":"L","label":"L"}]}
+]
+
+Buat field-field yang sesuai dengan deskripsi user. Cantumkan hanya field yang relevan.
+`;
+
+      const result = await groq.chat.completions.create({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 2000,
+        temperature: 0.2,
+      });
+
+      const text = result.choices?.[0]?.message?.content || '';
+      const clean = text.replace(/```json?\n?|```/g, '').trim();
+      let fields;
+      try {
+        fields = JSON.parse(clean);
+        if (!Array.isArray(fields)) fields = [];
+      } catch {
+        fields = [];
+      }
+
+      res.json({ success: true, data: fields });
+    } catch (error) {
+      console.error('[AI Generate Form] Error:', error);
+      res.status(500).json({ success: false, error: 'Gagal generate form. Coba lagi.' });
+    }
+  });
+
   app.post("/api/admin/test-email", async (req, res) => {
     try {
       const { to } = req.body;

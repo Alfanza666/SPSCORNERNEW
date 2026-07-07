@@ -338,7 +338,52 @@ Jalankan di Supabase SQL Editor:
 - **[NEW] database/migrations/003_announcement_department_target.sql:** Migration kolom target_departments
 - **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.3.0 → v5.3.1 (PATCH)
 
-v5.3.0 — Form Conditional Logic & Employee Master Database (MINOR)
+v5.4.0 — AI Form Builder, Image Field, Departemen Targeting & Form Reporting (MINOR)
+----------------------------------------------------------------------------------
+### Fitur Baru:
+
+**🤖 AI Form Builder (Groq):**
+- **[FEAT] Generate dengan AI:** Tombol "AI" di form builder — admin cukup deskripsikan form yang diinginkan, AI (Groq/Llama) generate field-field secara otomatis.
+- **[FEAT] Endpoint `/api/ai/generate-form`:** Backend endpoint pakai `groq-sdk` yang sudah ada, system prompt menginstruksikan format JSON field.
+- **[FEAT] Smart Append:** Hasil AI ditambahkan ke field existing, admin bisa edit/tambah/hapus manual.
+
+**🖼️ Image Field Type:**
+- **[FEAT] Tipe field 'image':** Field khusus upload gambar — support upload ke Supabase Storage ATAU input URL.
+- **[FEAT] dual input:** Upload file (image/*) + divider "ATAU" + input URL dengan tombol link.
+- **[FEAT] Preview & Hapus:** Setelah upload, tampilkan preview 80px crop dengan tombol hapus.
+
+**🎯 Target NIK + Departemen di Form Builder:**
+- **[FEAT] Target NIK:** Textarea NIK manual (sama seperti announcement/program).
+- **[FEAT] Target Departemen:** Picker multi-select departemen, resolve otomatis ke NIK saat simpan.
+- **[FEAT] Portal Access Check:** PortalFormView cek NIK/departemen user — jika tidak cocok tampilkan "Akses Terbatas".
+- **[DB] Migration 004:** Kolom `target_niks` (text[]) dan `target_departments` (text[]) di `dynamic_forms`.
+
+**🎯 Target Departemen di Program Serikat:**
+- **[FEAT] AdminUnionPrograms:** Tambah picker departemen + resolve NIK. NIK dari departemen di-merge dengan NIK manual saat simpan.
+- **[DB] Migration 004:** Kolom `target_departments` (text[]) di `union_programs`.
+
+**📊 Form Reporting Lengkap:**
+- **[FEAT] Grafik Agregasi:** Bar chart horizontal per field (radio/select/checkbox/rating/scale/image_choice) dengan persentase.
+- **[FEAT] Export PDF:** Download PDF via jsPDF + autotable — tabel multi-page dengan header berulang.
+- **[FEAT] Filter Departemen:** Dropdown filter departemen (data dari tabel employees).
+- **[FEAT] Image Preview di Detail:** Jawaban tipe image ditampilkan sebagai thumbnail 80px; file_upload sebagai link download.
+- **[FEAT] Smooth Animasi:** Grafik muncul dengan spring animation, bar width animasi progresif.
+
+### Migrasi SQL (WAJIB):
+Jalankan di Supabase SQL Editor:
+1. `database/migrations/004_form_image_target.sql` — tambah kolom target_niks & target_departments
+
+### Perubahan File:
+- **[CHANGE] src/types/form.ts:** Tambah tipe 'image' ke FieldType union
+- **[NEW] src/routes/misc.ts:** Endpoint POST /api/ai/generate-form (Groq integration)
+- **[CHANGE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** AI modal, image field type, target NIK + departemen picker, save resolve
+- **[CHANGE] src/pages/portal/PortalFormView.tsx:** Image field upload/URL, targeting check, user department fetch
+- **[CHANGE] src/pages/dashboard/admin/AdminFormResponses.tsx:** Grafik agregasi, export PDF, filter departemen, renderAnswer image/file
+- **[CHANGE] src/pages/dashboard/admin/AdminUnionPrograms.tsx:** Departemen picker + resolve NIK di eligibility
+- **[NEW] database/migrations/004_form_image_target.sql:** Migration kolom baru
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.3.1 → v5.4.0 (MINOR)
+
+v5.3.1 — Department Targeting untuk Pengumuman Gathering (PATCH)
 ----------------------------------------------------------------------------------
 ### Fitur Baru:
 

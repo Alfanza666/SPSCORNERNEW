@@ -8,9 +8,10 @@ export type FieldType =
   | 'image_choice' // Polling Visual
   | 'rating'       // Bintang
   | 'scale'        // 1-10
-  | 'file_upload' // Unggah File
+  | 'file_upload'  // Unggah File
+  | 'image'        // Unggah Gambar / URL
   | 'addon_group'
-  | 'date';       // Tanggal // Add-ons logic
+  | 'date';        // Tanggal
 
 export interface Condition {
   fieldId: string;

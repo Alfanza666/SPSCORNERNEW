@@ -158,15 +158,30 @@ export default function AdminUnionPrograms() {
   const [targetNiks, setTargetNiks] = useState('');
   const [uploadedEligibleCount, setUploadedEligibleCount] = useState(0);
   const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
+  const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchPrograms();
     fetchDynamicForms();
+    fetchDepartments();
     if (formData.is_targeted) {
       fetchEligibleUsers();
     }
   }, [formData.is_targeted]);
+
+  const fetchDepartments = async () => {
+    try {
+      const { data } = await supabase
+        .from('employees')
+        .select('department')
+        .neq('department', '')
+        .order('department');
+      const depts = [...new Set((data || []).map(d => d.department))];
+      setAvailableDepartments(depts);
+    } catch {}
+  };
 
   const fetchPrograms = async () => {
     try {
@@ -219,6 +234,7 @@ export default function AdminUnionPrograms() {
     setBannerPreview('');
     setFormConfig([]);
     setTargetNiks('');
+    setTargetDepartments([]);
     setUploadedEligibleCount(0);
     setIsModalOpen(false);
     setEditingProgram(null);
@@ -374,7 +390,7 @@ export default function AdminUnionPrograms() {
     e.preventDefault();
     setSaving(true);
     try {
-      const programData = {
+      const programData: any = {
         name: formData.name,
         description: formData.description,
         program_type: formData.program_type,
@@ -385,6 +401,7 @@ export default function AdminUnionPrograms() {
         dynamic_form_id: formData.dynamic_form_id || null,
         banner_url: formData.banner_url || null,
         form_config: formConfig,
+        target_departments: targetDepartments.length > 0 ? targetDepartments : null,
         metadata: {
           enable_meal: formData.enable_meal,
           enable_doorprize: formData.enable_doorprize,
@@ -444,27 +461,39 @@ export default function AdminUnionPrograms() {
         }
       }
 
-      if (formData.is_targeted && targetNiks.trim()) {
+      if (formData.is_targeted && (targetNiks.trim() || targetDepartments.length > 0)) {
         await supabase.from('program_eligibility').delete().eq('program_id', programId);
         await supabase.from('program_coupons').delete().eq('program_id', programId).eq('status', 'active');
         
-        const nikArray = targetNiks.split(/[,\n]/).map(nik => nik.trim()).filter(nik => nik.length >= 5);
-        const eligibilityData = nikArray.map(nik => ({
-          program_id: programId,
-          nik: nik
-        }));
+        const manualNiks = targetNiks.trim()
+          ? targetNiks.split(/[,\n]/).map(nik => nik.trim()).filter(nik => nik.length >= 5)
+          : [];
 
-        if (eligibilityData.length > 0) {
+        let deptNiks: string[] = [];
+        if (targetDepartments.length > 0) {
+          const { data: deptEmployees } = await supabase
+            .from('employees')
+            .select('nik')
+            .in('department', targetDepartments);
+          deptNiks = (deptEmployees || []).map(e => e.nik).filter(Boolean);
+        }
+
+        const allNiks = [...new Set([...manualNiks, ...deptNiks])];
+
+        if (allNiks.length > 0) {
+          const eligibilityData = allNiks.map(nik => ({
+            program_id: programId,
+            nik: nik
+          }));
+
           const { error: eligError } = await supabase.from('program_eligibility').insert(eligibilityData);
           if (eligError) throw eligError;
 
-          // AUTO-GENERATE COUPONS via RPC
-          // We trigger coupon generation immediately after eligibility is set
           toast.loading('Mendistribusikan kupon...', { duration: 2000 });
           try {
              const { data: count, error: genError } = await supabase.rpc('generate_program_coupons', {
                p_program_id: programId,
-               p_niks: nikArray
+               p_niks: allNiks
              });
              if (genError) throw genError;
              if (count > 0) {
@@ -472,7 +501,6 @@ export default function AdminUnionPrograms() {
              }
           } catch (genErr: any) {
              console.error("Auto generation failed", genErr);
-             // Non-blocking error, we don't want to rollback program creation just because coupon gen failed (maybe first run)
              toast.error("Program disimpan, tetapi distribusi kupon otomatis gagal.");
           }
         }
@@ -1227,6 +1255,39 @@ export default function AdminUnionPrograms() {
                           <p className="text-xs text-green-600 dark:text-green-400 mt-2 font-medium">
                             <Check className="w-3 h-3 inline mr-1" /> {uploadedEligibleCount} NIK berhasil diimport
                           </p>
+                        )}
+                      </div>
+
+                      {/* Target Departments */}
+                      <div className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-purple-500" />
+                          <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Target Departemen</label>
+                        </div>
+                        {availableDepartments.length === 0 ? (
+                          <p className="text-xs text-zinc-400 italic">Belum ada data departemen</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {availableDepartments.map(dept => {
+                              const selected = targetDepartments.includes(dept);
+                              return (
+                                <button
+                                  key={dept}
+                                  type="button"
+                                  onClick={() => setTargetDepartments(prev =>
+                                    selected ? prev.filter(d => d !== dept) : [...prev, dept]
+                                  )}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    selected
+                                      ? 'bg-purple-600 text-white shadow-md'
+                                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                  }`}
+                                >
+                                  {dept}
+                                </button>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     </motion.div>
