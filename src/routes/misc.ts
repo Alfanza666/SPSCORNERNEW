@@ -128,18 +128,31 @@ Buat field-field yang sesuai dengan deskripsi user. Cantumkan hanya field yang r
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt },
         ],
-        max_tokens: 2000,
-        temperature: 0.2,
+        max_tokens: 2048,
+        temperature: 0.3,
       });
 
-      const text = result.choices?.[0]?.message?.content || '';
-      const clean = text.replace(/```json?\n?|```/g, '').trim();
-      let fields;
+      let raw = result.choices?.[0]?.message?.content || '';
+      console.log('[AI Generate Form] Raw response:', raw.slice(0, 500));
+
+      let clean = raw.trim();
+      const jsonMatch = clean.match(/\[[\s\S]*\]/);
+      if (jsonMatch) clean = jsonMatch[0];
+
+      let fields = [];
       try {
-        fields = JSON.parse(clean);
-        if (!Array.isArray(fields)) fields = [];
+        const parsed = JSON.parse(clean);
+        if (Array.isArray(parsed)) fields = parsed;
       } catch {
-        fields = [];
+        console.log('[AI Generate Form] JSON parse failed on:', clean.slice(0, 300));
+      }
+
+      if (fields.length === 0) {
+        return res.status(422).json({
+          success: false,
+          error: 'AI tidak dapat menghasilkan field yang valid. Coba prompt yang lebih spesifik.',
+          debug: raw.slice(0, 1000),
+        });
       }
 
       res.json({ success: true, data: fields });
