@@ -17,7 +17,7 @@ export default function AdminEmployees() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nik: '', name: '', department: '' });
+  const [form, setForm] = useState({ nik: '', name: '', department: '', tanggal_masuk: '' });
   const [saving, setSaving] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,13 +45,13 @@ export default function AdminEmployees() {
 
   const openAdd = () => {
     setEditingId(null);
-    setForm({ nik: '', name: '', department: '' });
+    setForm({ nik: '', name: '', department: '', tanggal_masuk: '' });
     setShowModal(true);
   };
 
   const openEdit = (emp: Employee) => {
     setEditingId(emp.id);
-    setForm({ nik: emp.nik, name: emp.name, department: emp.department });
+    setForm({ nik: emp.nik, name: emp.name, department: emp.department, tanggal_masuk: emp.tanggal_masuk || '' });
     setShowModal(true);
   };
 
@@ -62,11 +62,12 @@ export default function AdminEmployees() {
     }
     setSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         nik: form.nik.trim(),
         name: form.name.trim(),
         department: form.department.trim(),
       };
+      if (form.tanggal_masuk.trim()) payload.tanggal_masuk = form.tanggal_masuk.trim();
 
       if (editingId) {
         const { error } = await supabase.from('employees').update(payload).eq('id', editingId);
@@ -123,11 +124,14 @@ export default function AdminEmployees() {
         const nik = (row.NIK || row.Nik || row.nik || row.NIP || row.nip || '').toString().trim();
         const name = (row.NAMA || row.Nama || row.nama || row.Name || row.name || '').toString().trim();
         const dept = (row.DEPARTEMEN || row.Departemen || row.departemen || row.Department || row.department || row.Divisi || row.divisi || '').toString().trim();
+        const tgl = (row.TANGGAL_MASUK || row.Tanggal_Masuk || row.tanggal_masuk || row.TGL_MASUK || row.tgl_masuk || row.join_date || '').toString().trim();
 
         if (!nik || !name) { skipped++; continue; }
 
+        const payload: any = { nik, name, department: dept };
+        if (tgl) payload.tanggal_masuk = tgl;
         const { error } = await supabase.from('employees').upsert(
-          { nik, name, department: dept },
+          payload,
           { onConflict: 'nik', ignoreDuplicates: false }
         );
         if (error) { skipped++; continue; }
@@ -150,11 +154,11 @@ export default function AdminEmployees() {
       const XLSX = await import('xlsx');
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([
-        ['NIK', 'NAMA', 'DEPARTEMEN'],
-        ['12345', 'Budi Santoso', 'IT'],
-        ['67890', 'Siti Aminah', 'HRD'],
+        ['NIK', 'NAMA', 'DEPARTEMEN', 'TANGGAL_MASUK'],
+        ['12345', 'Budi Santoso', 'IT', '2024-01-15'],
+        ['67890', 'Siti Aminah', 'HRD', '2023-06-01'],
       ]);
-      ws['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 20 }];
+      ws['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 18 }];
       XLSX.utils.book_append_sheet(wb, ws, 'Karyawan');
       XLSX.writeFile(wb, 'template_karyawan.xlsx');
       toast.success('Template diunduh');
@@ -166,7 +170,8 @@ export default function AdminEmployees() {
   const filtered = employees.filter(e =>
     e.nik.toLowerCase().includes(search.toLowerCase()) ||
     e.name.toLowerCase().includes(search.toLowerCase()) ||
-    e.department.toLowerCase().includes(search.toLowerCase())
+    e.department.toLowerCase().includes(search.toLowerCase()) ||
+    (e.tanggal_masuk || '').includes(search)
   );
 
   if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
@@ -233,6 +238,7 @@ export default function AdminEmployees() {
                     <th className="text-left px-5 py-4 font-bold text-zinc-500 text-xs uppercase tracking-wider">NIK</th>
                     <th className="text-left px-5 py-4 font-bold text-zinc-500 text-xs uppercase tracking-wider">Nama</th>
                     <th className="text-left px-5 py-4 font-bold text-zinc-500 text-xs uppercase tracking-wider">Departemen</th>
+                    <th className="text-left px-5 py-4 font-bold text-zinc-500 text-xs uppercase tracking-wider">Tgl Masuk</th>
                     <th className="text-right px-5 py-4 font-bold text-zinc-500 text-xs uppercase tracking-wider">Aksi</th>
                   </tr>
                 </thead>
@@ -245,6 +251,9 @@ export default function AdminEmployees() {
                         <span className="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-bold">
                           {emp.department || '-'}
                         </span>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-zinc-500 font-mono">
+                        {emp.tanggal_masuk || '-'}
                       </td>
                       <td className="px-5 py-4 text-right">
                         <button onClick={() => openEdit(emp)} className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
@@ -324,6 +333,15 @@ export default function AdminEmployees() {
                       <option key={d} value={d} />
                     ))}
                   </datalist>
+                </div>
+                <div>
+                  <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase mb-1.5 block">Tanggal Masuk</label>
+                  <input
+                    type="date"
+                    value={form.tanggal_masuk}
+                    onChange={(e) => setForm({ ...form, tanggal_masuk: e.target.value })}
+                    className="w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm font-medium outline-none focus:border-blue-500 transition-colors"
+                  />
                 </div>
               </div>
 

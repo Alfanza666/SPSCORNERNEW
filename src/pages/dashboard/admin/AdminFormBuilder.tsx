@@ -112,6 +112,7 @@ export default function AdminFormBuilder() {
   const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
   const [targetNiks, setTargetNiks] = useState('');
   const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
+  const [targetCutoffDate, setTargetCutoffDate] = useState('');
 
   useEffect(() => {
     if (showEditor) {
@@ -259,10 +260,11 @@ export default function AdminFormBuilder() {
 
       let resolvedDeptNiks: string[] = [];
       if (targetDepartments.length > 0) {
-        const { data: deptEmployees } = await supabase
-          .from('employees')
-          .select('nik')
-          .in('department', targetDepartments);
+        let query = supabase.from('employees').select('nik').in('department', targetDepartments);
+        if (targetCutoffDate) {
+          query = query.lte('tanggal_masuk', targetCutoffDate);
+        }
+        const { data: deptEmployees } = await query;
         resolvedDeptNiks = (deptEmployees || []).map(e => e.nik).filter(Boolean);
       }
 
@@ -278,7 +280,8 @@ export default function AdminFormBuilder() {
         fields: cleanFields,
         is_active: true,
         target_niks: allNiks.length > 0 ? allNiks : null,
-        target_departments: targetDepartments.length > 0 ? targetDepartments : null
+        target_departments: targetDepartments.length > 0 ? targetDepartments : null,
+        target_cutoff_date: targetCutoffDate || null
       };
 
       let currentFormId = editingForm.id;
@@ -359,6 +362,7 @@ export default function AdminFormBuilder() {
                   setLinkedProgramId('');
                   setTargetNiks('');
                   setTargetDepartments([]);
+                  setTargetCutoffDate('');
                   setShowEditor(true);
                 }}
                 className="bg-[#673AB7] hover:bg-[#5E35B1] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap"
@@ -394,6 +398,9 @@ export default function AdminFormBuilder() {
     }
   } catch(e) {}
   setEditingForm({ ...form, description: desc, theme_color: theme, banner_url: banner }); 
+                              setTargetNiks(form.target_niks?.join('\n') || '');
+                              setTargetDepartments(form.target_departments || []);
+                              setTargetCutoffDate(form.target_cutoff_date || '');
                               setShowEditor(true);
                               const { data } = await supabase.from('union_programs').select('id').eq('dynamic_form_id', form.id).single();
                               setLinkedProgramId(data?.id || '');
@@ -632,6 +639,20 @@ export default function AdminFormBuilder() {
                                       })}
                                     </div>
                                   )}
+                                </div>
+
+                                {/* Cutoff Tanggal Masuk */}
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5" /> Cutoff Tgl Masuk
+                                  </label>
+                                  <p className="text-[10px] text-zinc-400 -mt-1">Hanya karyawan dengan tgl masuk ≤ cutoff yang bisa mengisi</p>
+                                  <input
+                                    type="date"
+                                    value={targetCutoffDate}
+                                    onChange={(e) => setTargetCutoffDate(e.target.value)}
+                                    className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none"
+                                  />
                                 </div>
                             </div>
                         )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, RotateCcw, ExternalLink } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, RotateCcw, ExternalLink, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -156,6 +156,7 @@ export default function AdminUnionPrograms() {
 
   const [formConfig, setFormConfig] = useState<FormField[]>([]);
   const [targetNiks, setTargetNiks] = useState('');
+const [targetCutoffDate, setTargetCutoffDate] = useState('');
   const [uploadedEligibleCount, setUploadedEligibleCount] = useState(0);
   const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
   const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
@@ -235,6 +236,7 @@ export default function AdminUnionPrograms() {
     setFormConfig([]);
     setTargetNiks('');
     setTargetDepartments([]);
+    setTargetCutoffDate('');
     setUploadedEligibleCount(0);
     setIsModalOpen(false);
     setEditingProgram(null);
@@ -276,7 +278,9 @@ export default function AdminUnionPrograms() {
     });
     setFormConfig(program.form_config || []);
     setIsModalOpen(true);
-    setShowFormBuilder(true);
+      setTargetDepartments(program.target_departments || []);
+      setTargetCutoffDate(program.target_cutoff_date || '');
+      setShowFormBuilder(true);
     if (program.is_targeted) {
       setShowEligibility(true);
       fetchProgramEligibility(program.id);
@@ -402,6 +406,7 @@ export default function AdminUnionPrograms() {
         banner_url: formData.banner_url || null,
         form_config: formConfig,
         target_departments: targetDepartments.length > 0 ? targetDepartments : null,
+        target_cutoff_date: targetCutoffDate || null,
         metadata: {
           enable_meal: formData.enable_meal,
           enable_doorprize: formData.enable_doorprize,
@@ -471,10 +476,11 @@ export default function AdminUnionPrograms() {
 
         let deptNiks: string[] = [];
         if (targetDepartments.length > 0) {
-          const { data: deptEmployees } = await supabase
-            .from('employees')
-            .select('nik')
-            .in('department', targetDepartments);
+          let query = supabase.from('employees').select('nik').in('department', targetDepartments);
+          if (targetCutoffDate) {
+            query = query.lte('tanggal_masuk', targetCutoffDate);
+          }
+          const { data: deptEmployees } = await query;
           deptNiks = (deptEmployees || []).map(e => e.nik).filter(Boolean);
         }
 
@@ -943,10 +949,25 @@ export default function AdminUnionPrograms() {
                           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Aktif</span>
                         </label>
                       </div>
+
+                      {/* Cutoff Tanggal Masuk */}
+                      <div className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-purple-500" />
+                          <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cutoff Tgl Masuk</label>
+                        </div>
+                        <p className="text-[10px] text-zinc-400">Hanya karyawan dengan tgl masuk ≤ cutoff yang eligible</p>
+                        <input
+                          type="date"
+                          value={targetCutoffDate}
+                          onChange={(e) => setTargetCutoffDate(e.target.value)}
+                          className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-purple-500 outline-none"
+                        />
+                      </div>
+
                     </motion.div>
                   )}
                 </div>
-                  
                   {/* Formulir Tambahan Acara */}
                   <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700">
                     <div className="flex items-center justify-between mb-4">

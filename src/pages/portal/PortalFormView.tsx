@@ -63,13 +63,13 @@ export default function PortalFormView() {
   }, [formId]);
 
   const fetchUserDepartment = async () => {
-    if (!user?.id) return;
+    if (!user?.nik) return;
     try {
       const { data } = await supabase
         .from('employees')
         .select('department')
-        .eq('id', user.id)
-        .single();
+        .eq('nik', user.nik)
+        .maybeSingle();
       if (data?.department) setUserDepartment(data.department);
     } catch {}
   };
