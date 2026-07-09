@@ -43,10 +43,70 @@ export default function AdminFormBuilder() {
   const [linkedProgramId, setLinkedProgramId] = useState<string>('');
   const [availablePrograms, setAvailablePrograms] = useState<any[]>([]);
 
-  // AI Generation
-  const [showAI, setShowAI] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
+  // AI Chat Assistant
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [aiMessages, setAiMessages] = useState<{role:'user'|'ai', content:string}[]>([
+    {role:'ai', content:'Halo! Saya asisten AI untuk membuat formulir. Ceritakan formulir apa yang ingin kamu buat? 😊'}
+  ]);
+  const [aiChatInput, setAiChatInput] = useState('');
+  const [aiChatLoading, setAiChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [aiMessages]);
+
+  const sendAIChat = async () => {
+    const text = aiChatInput.trim();
+    if (!text || aiChatLoading) return;
+    setAiChatInput('');
+    const updatedMessages = [...aiMessages, { role: 'user' as const, content: text }];
+    setAiMessages(updatedMessages);
+    setAiChatLoading(true);
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const conversation = updatedMessages.map(m => ({
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: m.content
+      }));
+      const res = await fetch('/api/ai/generate-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ messages: conversation }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        if (json.type === 'fields' && Array.isArray(json.data) && json.data.length > 0) {
+          const fields = json.data.map((f: any) => ({
+            id: f.id || Math.random().toString(36).substr(2, 9),
+            type: f.type,
+            label: f.label || 'Pertanyaan',
+            required: f.required || false,
+            placeholder: f.placeholder || '',
+            options: ['select', 'radio', 'checkbox'].includes(f.type) && f.options ? f.options : undefined,
+            max: f.type === 'rating' ? 5 : undefined,
+            max_scale: f.type === 'scale' ? 10 : undefined,
+            condition: f.condition || undefined,
+          }));
+          setEditingForm(prev => ({ ...prev, fields: [...(prev.fields || []), ...fields] }));
+          toast.success(`${fields.length} field berhasil digenerate!`);
+          setShowAIChat(false);
+          setAiMessages([{role:'ai', content:'Halo! Saya asisten AI untuk membuat formulir. Ceritakan formulir apa yang ingin kamu buat? 😊'}]);
+          if (!showEditor && fields.length > 0) {
+            setShowEditor(true);
+          }
+        } else if (json.type === 'chat' && json.message) {
+          setAiMessages(prev => [...prev, { role: 'ai', content: json.message }]);
+        }
+      } else {
+        toast.error('AI gagal merespons. Coba lagi.');
+      }
+    } catch {
+      toast.error('Gagal menghubungi AI. Coba lagi.');
+    } finally {
+      setAiChatLoading(false);
+    }
+  };
 
   // Department targeting
   const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
@@ -81,46 +141,6 @@ export default function AdminFormBuilder() {
       const depts = [...new Set((data || []).map(d => d.department))];
       setAvailableDepartments(depts);
     } catch {}
-  };
-
-  const generateWithAI = async () => {
-    if (!aiPrompt.trim()) {
-      toast.error('Masukkan deskripsi formulir yang diinginkan');
-      return;
-    }
-    setAiLoading(true);
-    try {
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      const res = await fetch('/api/ai/generate-form', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ prompt: aiPrompt }),
-      });
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        const fields = json.data.map((f: any) => ({
-          id: f.id || Math.random().toString(36).substr(2, 9),
-          type: f.type,
-          label: f.label || 'Pertanyaan',
-          required: f.required || false,
-          placeholder: f.placeholder || '',
-          options: ['select', 'radio', 'checkbox'].includes(f.type) && f.options ? f.options : undefined,
-          max: f.type === 'rating' ? 5 : undefined,
-          max_scale: f.type === 'scale' ? 10 : undefined,
-          condition: f.condition || undefined,
-        }));
-        setEditingForm(prev => ({ ...prev, fields: [...(prev.fields || []), ...fields] }));
-        toast.success(`${fields.length} field berhasil digenerate!`);
-        setShowAI(false);
-        setAiPrompt('');
-      } else {
-        toast.error('AI tidak dapat menghasilkan field. Coba prompt yang lebih spesifik.');
-      }
-    } catch (err) {
-      toast.error('Gagal menghubungi AI. Coba lagi.');
-    } finally {
-      setAiLoading(false);
-    }
   };
 
   useEffect(() => {
@@ -322,7 +342,18 @@ export default function AdminFormBuilder() {
                 </h1>
                 <p className="text-zinc-500 font-medium mt-1">Kelola pendaftaran, kuesioner, dan polling interaktif</p>
               </div>
-              <button
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setAiMessages([{role:'ai', content:'Halo! Saya asisten AI untuk membuat formulir. Ceritakan formulir apa yang ingin kamu buat? 😊'}]);
+                    setShowAIChat(true);
+                  }}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  Buat dengan AI
+                </button>
+                <button
                   onClick={() => {
                   setEditingForm({ title: 'Formulir Tanpa Judul', description: '', theme_color: '#673AB7', banner_url: '', fields: [] });
                   setLinkedProgramId('');
@@ -331,10 +362,11 @@ export default function AdminFormBuilder() {
                   setShowEditor(true);
                 }}
                 className="bg-[#673AB7] hover:bg-[#5E35B1] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap"
-              >
-                <Plus className="w-5 h-5" />
-                Buat Formulir
-              </button>
+                >
+                  <Plus className="w-5 h-5" />
+                  Buat Formulir
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -390,6 +422,85 @@ export default function AdminFormBuilder() {
                     </div>
                 ))}
             </div>
+
+            {/* AI Chat Assistant — full screen overlay */}
+            <AnimatePresence>
+              {showAIChat && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100] bg-white dark:bg-zinc-950 flex flex-col"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="font-black text-zinc-900 dark:text-white">AI Form Builder</h2>
+                        <p className="text-xs text-zinc-500">Asisten pembuat formulir pintar</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setShowAIChat(false); setAiChatLoading(false); }}
+                      className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+                    {aiMessages.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div
+                          className={`max-w-[80%] md:max-w-[65%] rounded-3xl px-5 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                            msg.role === 'user'
+                              ? 'bg-[#673AB7] text-white rounded-br-md'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-bl-md'
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                    {aiChatLoading && (
+                      <div className="flex justify-start">
+                        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-3xl rounded-bl-md px-5 py-3 text-sm flex items-center gap-1.5">
+                          <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+                          <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+                          <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+
+                  {/* Input */}
+                  <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4 bg-white dark:bg-zinc-950">
+                    <div className="flex items-center gap-3 max-w-4xl mx-auto">
+                      <input
+                        value={aiChatInput}
+                        onChange={e => setAiChatInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAIChat(); } }}
+                        placeholder="Deskripsikan formulir yang kamu butuhkan..."
+                        className="flex-1 px-5 py-3 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
+                        disabled={aiChatLoading}
+                      />
+                      <button
+                        onClick={() => sendAIChat()}
+                        disabled={aiChatLoading || !aiChatInput.trim()}
+                        className="p-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 transition-all disabled:opacity-50 shadow-lg"
+                      >
+                        {aiChatLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7"/></svg>}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
          </div>
       ) : (
          <div className="max-w-3xl mx-auto pb-32">
@@ -399,9 +510,9 @@ export default function AdminFormBuilder() {
                   Kembali
                </button>
                <div className="flex items-center gap-2">
-                   <button onClick={() => setShowAI(true)} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition-all text-sm">
-                      <Sparkles className="w-4 h-4" /> AI
-                   </button>
+                    <button onClick={() => { setShowAIChat(true); }} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition-all text-sm">
+                       <Sparkles className="w-4 h-4" /> AI
+                    </button>
                    <button onClick={handleSave} disabled={saving} className="bg-[#673AB7] text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 hover:bg-[#5E35B1] transition-all">
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan
                    </button>
@@ -559,44 +670,7 @@ export default function AdminFormBuilder() {
                     <ToolbarButton icon={<DollarSign />} label="Pembayaran" onClick={() => addField('payment_section')} />
                 </div>
 
-                {/* AI Generation Modal */}
-                <AnimatePresence>
-                  {showAI && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAI(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-                      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                              <Sparkles className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                              <h3 className="font-black text-zinc-900 dark:text-white">Generate dengan AI</h3>
-                              <p className="text-xs text-zinc-500">Deskripsikan formulir yang kamu butuhkan</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="p-6 space-y-4">
-                          <textarea
-                            value={aiPrompt}
-                            onChange={(e) => setAiPrompt(e.target.value)}
-                            className="w-full h-32 p-4 border border-zinc-200 dark:border-zinc-700 rounded-2xl bg-zinc-50 dark:bg-zinc-800 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                            placeholder="Contoh: Buat form pendaftaran gathering dengan field nama, no hp, ukuran baju (S/M/L/XL/XXL), konfirmasi hadir, dan catatan makanan..."
-                          />
-                          <div className="flex gap-3">
-                            <button onClick={() => setShowAI(false)} className="flex-1 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-700 font-bold text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all">
-                              Batal
-                            </button>
-                            <button onClick={generateWithAI} disabled={aiLoading} className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60">
-                              {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                              {aiLoading ? 'Mengenerate...' : 'Generate'}
-                            </button>
-                          </div>
-                        </div>
-                      </motion.div>
-                    </div>
-                  )}
-                </AnimatePresence>
+
             </div>
          </div>
       )}

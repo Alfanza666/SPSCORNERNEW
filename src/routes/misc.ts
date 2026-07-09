@@ -83,12 +83,20 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
 
   app.post("/api/ai/generate-form", async (req, res) => {
     try {
-      const { prompt } = req.body;
-      if (!prompt) return res.status(400).json({ error: 'Prompt required' });
+      const { prompt, messages: conversation } = req.body;
+      const isChat = Array.isArray(conversation) && conversation.length > 0;
 
       const systemPrompt = `
-Kamu adalah asisten pembuat formulir digital. Buatlah field-field formulir berdasarkan deskripsi berikut.
-Keluarkan HANYA array JSON dari objek-objek form field tanpa markdown atau teks lain.
+Kamu adalah asisten AI yang membantu user membuat formulir digital secara CHAT/PERCAKAPAN.
+
+PANDUAN PERCAKAPAN:
+- Kamu HARUS BICARA DALAM BAHASA INDONESIA.
+- Jika user belum memberikan deskripsi yang cukup, tanyakan detail yang diperlukan secara ramah dan natural.
+- Jika user sudah memberikan deskripsi yang cukup detail, AKHIRI balasan kamu dengan marker:
+  ---GENERATE---
+  lalu di baris berikutnya output HANYA array JSON dari field-field formulir.
+- Jangan pernah mengeluarkan marker ---GENERATE--- jika masih butuh informasi tambahan.
+- Pastikan user menyebutkan field-field apa saja yang diperlukan sebelum generate.
 
 Tipe field yang tersedia:
 - "text"     : Teks jawaban singkat (input pendek)
@@ -105,7 +113,7 @@ Tipe field yang tersedia:
 
 Setiap field harus punya properti:
 {
-  "id": "string_unik",          // ID unik untuk identifikasi field
+  "id": "string_unik",
   "type": "salah satu tipe di atas",
   "label": "Pertanyaan",
   "required": true/false,
@@ -114,16 +122,16 @@ Setiap field harus punya properti:
 }
 
 FIELD BERSYARAT (CONDITIONAL LOGIC):
-Jika suatu field hanya muncul jika jawaban field sebelumnya adalah nilai tertentu, gunakan properti "condition":
+Gunakan properti "condition" jika suatu field bergantung pada field sebelumnya:
 {
   "condition": {
     "fieldId": "id_dari_field_pemicu",
     "operator": "eq",    // eq, neq, atau in
-    "value": "nilai_pemicu"  // string untuk eq/neq, array untuk in
+    "value": "nilai_pemicu"
   }
 }
 
-Contoh: field "ukuran_baju" hanya muncul jika user memilih "ya_hadir":
+Contoh:
 {
   "id": "kehadiran",
   "type": "radio",
@@ -140,46 +148,59 @@ Contoh: field "ukuran_baju" hanya muncul jika user memilih "ya_hadir":
   "condition": {"fieldId": "kehadiran", "operator": "eq", "value": "ya_hadir"}
 }
 
-Buat field-field yang sesuai dengan deskripsi user. Gunakan conditional logic jika ada percabangan.
+INGAT: Kamu adalah AI yang CHAT dengan user. Bicaralah secara natural, bantu user mendeskripsikan form yang mereka butuhkan. Jangan langsung generate jika deskripsi masih kurang.
 `;
+
+      const messages = [{ role: 'system', content: systemPrompt }];
+
+      if (isChat) {
+        for (const msg of conversation) {
+          if (msg.role === 'user' || msg.role === 'assistant') {
+            messages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      } else {
+        messages.push({ role: 'user', content: prompt || '' });
+      }
 
       const result = await groq.chat.completions.create({
         model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt },
-        ],
-        max_tokens: 2048,
-        temperature: 0.3,
+        messages,
+        max_tokens: 4096,
+        temperature: 0.7,
       });
 
       let raw = result.choices?.[0]?.message?.content || '';
-      console.log('[AI Generate Form] Raw response:', raw.slice(0, 500));
+      console.log('[AI Chat Form] Raw response:', raw.slice(0, 500));
 
-      let clean = raw.trim();
-      const jsonMatch = clean.match(/\[[\s\S]*\]/);
-      if (jsonMatch) clean = jsonMatch[0];
+      const generateMarker = '---GENERATE---';
+      const markerIndex = raw.indexOf(generateMarker);
 
-      let fields = [];
-      try {
-        const parsed = JSON.parse(clean);
-        if (Array.isArray(parsed)) fields = parsed;
-      } catch {
-        console.log('[AI Generate Form] JSON parse failed on:', clean.slice(0, 300));
+      if (markerIndex >= 0) {
+        const chatPart = raw.substring(0, markerIndex).trim();
+        const jsonPart = raw.substring(markerIndex + generateMarker.length).trim();
+
+        let clean = jsonPart;
+        const jsonMatch = clean.match(/\[[\s\S]*\]/);
+        if (jsonMatch) clean = jsonMatch[0];
+
+        let fields = [];
+        try {
+          const parsed = JSON.parse(clean);
+          if (Array.isArray(parsed)) fields = parsed;
+        } catch {
+          console.log('[AI Chat Form] JSON parse failed on:', clean.slice(0, 300));
+        }
+
+        if (fields.length > 0) {
+          return res.json({ success: true, type: 'fields', message: chatPart, data: fields });
+        }
       }
 
-      if (fields.length === 0) {
-        return res.status(422).json({
-          success: false,
-          error: 'AI tidak dapat menghasilkan field yang valid. Coba prompt yang lebih spesifik.',
-          debug: raw.slice(0, 1000),
-        });
-      }
-
-      res.json({ success: true, data: fields });
+      res.json({ success: true, type: 'chat', message: raw });
     } catch (error) {
-      console.error('[AI Generate Form] Error:', error);
-      res.status(500).json({ success: false, error: 'Gagal generate form. Coba lagi.' });
+      console.error('[AI Chat Form] Error:', error);
+      res.status(500).json({ success: false, error: 'Gagal memproses AI. Coba lagi.' });
     }
   });
 
