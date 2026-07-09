@@ -1,3 +1,16 @@
+v5.4.1 — Excel Employee Import Diagnostics & Date Parsing Fix (PATCH)
+----------------------------------------------------------------------------------
+### Root Cause Analysis (RCA):
+- **[RCA] Silent Import Skips:** Any db/upsert error (e.g. database constraint or invalid data format) during Excel employee import was silently caught and skipped, making it show "0 ditambahkan, 178 dilewati" without showing why.
+- **[RCA] Excel/Postgres Date Mismatch:** Date values parsed from Excel could be Excel serial numbers (like `45123`) or Indonesian formatted date strings (`DD/MM/YYYY`, `DD-MM-YYYY`), which are incompatible with Postgres `date` data type, throwing a silent db insertion error.
+
+### Perbaikan:
+- **[FIX] src/pages/dashboard/admin/AdminEmployees.tsx (Import):**
+  - Ditambahkan parsing tanggal excel secara kokoh (mendukung angka serial Excel, format DD/MM/YYYY, dan DD-MM-YYYY) ke format ISO YYYY-MM-DD.
+  - Ditambahkan tracking detail error/baris bermasalah lengkap dengan alasan skip (misalnya: NIK/NAMA kosong, error constraint DB).
+  - Ditambahkan visual modal/popup laporan hasil import yang informatif untuk menampilkan total data berhasil vs dilewati lengkap dengan rincian baris error.
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.4.0 -> v5.4.1 (PATCH).
+
 v5.2.3 — Security Audit & Critical Bug Fix Round (PATCH)
 ----------------------------------------------------------------------------------
 ### Root Cause Analysis (RCA):

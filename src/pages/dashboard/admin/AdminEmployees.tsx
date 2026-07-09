@@ -22,6 +22,12 @@ export default function AdminEmployees() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [importReport, setImportReport] = useState<{
+    total: number;
+    success: number;
+    failed: number;
+    errors: { row: number; name?: string; nik?: string; reason: string }[];
+  } | null>(null);
 
   useEffect(() => {
     if (user) fetchEmployees();
@@ -110,6 +116,7 @@ export default function AdminEmployees() {
     if (!file) return;
 
     setImporting(true);
+    setImportReport(null);
     try {
       const XLSX = await import('xlsx');
       const data = await file.arrayBuffer();
@@ -119,26 +126,111 @@ export default function AdminEmployees() {
 
       let imported = 0;
       let skipped = 0;
+      const errorsList: { row: number; name?: string; nik?: string; reason: string }[] = [];
 
-      for (const row of rows) {
-        const nik = (row.NIK || row.Nik || row.nik || row.NIP || row.nip || '').toString().trim();
-        const name = (row.NAMA || row.Nama || row.nama || row.Name || row.name || '').toString().trim();
-        const dept = (row.DEPARTEMEN || row.Departemen || row.departemen || row.Department || row.department || row.Divisi || row.divisi || '').toString().trim();
-        const tgl = (row.TANGGAL_MASUK || row.Tanggal_Masuk || row.tanggal_masuk || row.TGL_MASUK || row.tgl_masuk || row.join_date || '').toString().trim();
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNum = i + 2; // Excel row numbering starts at 2 for first data row (1-indexed headers)
+        
+        const rawNik = row.NIK ?? row.Nik ?? row.nik ?? row.NIP ?? row.nip;
+        const rawName = row.NAMA ?? row.Nama ?? row.nama ?? row.Name ?? row.name;
+        const rawDept = row.DEPARTEMEN ?? row.Departemen ?? row.departemen ?? row.Department ?? row.department ?? row.Divisi ?? row.divisi;
+        const rawTgl = row.TANGGAL_MASUK ?? row.Tanggal_Masuk ?? row.tanggal_masuk ?? row.TGL_MASUK ?? row.tgl_masuk ?? row.join_date;
 
-        if (!nik || !name) { skipped++; continue; }
+        const nik = rawNik ? rawNik.toString().trim() : '';
+        const name = rawName ? rawName.toString().trim() : '';
+        const dept = rawDept ? rawDept.toString().trim() : '';
+        
+        let tgl = '';
+        if (rawTgl !== undefined && rawTgl !== null) {
+          const trimmedTgl = rawTgl.toString().trim();
+          if (trimmedTgl) {
+            if (/^\d+(\.\d+)?$/.test(trimmedTgl)) {
+              const serial = parseFloat(trimmedTgl);
+              const dateObj = new Date(Math.round((serial - 25569) * 86400 * 1000));
+              if (!isNaN(dateObj.getTime())) {
+                tgl = dateObj.toISOString().split('T')[0];
+              } else {
+                tgl = trimmedTgl;
+              }
+            } else {
+              const dmy = trimmedTgl.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/);
+              if (dmy) {
+                tgl = `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+              } else {
+                tgl = trimmedTgl;
+              }
+            }
+          }
+        }
+
+        if (!nik || !name) {
+          skipped++;
+          errorsList.push({
+            row: rowNum,
+            nik: nik || undefined,
+            name: name || undefined,
+            reason: `Kolom NIK atau NAMA kosong (NIK: "${nik || ''}", NAMA: "${name || ''}")`
+          });
+          continue;
+        }
 
         const payload: any = { nik, name, department: dept };
         if (tgl) payload.tanggal_masuk = tgl;
-        const { error } = await supabase.from('employees').upsert(
+
+        const { error: upsertError } = await supabase.from('employees').upsert(
           payload,
           { onConflict: 'nik', ignoreDuplicates: false }
         );
-        if (error) { skipped++; continue; }
+
+        if (upsertError) {
+          if (tgl && (
+            upsertError.message?.toLowerCase().includes('column') ||
+            upsertError.message?.toLowerCase().includes('date') ||
+            upsertError.message?.toLowerCase().includes('invalid input syntax') ||
+            upsertError.message?.toLowerCase().includes('tanggal_masuk')
+          )) {
+            delete payload.tanggal_masuk;
+            const { error: retryError } = await supabase.from('employees').upsert(
+              payload,
+              { onConflict: 'nik', ignoreDuplicates: false }
+            );
+            if (retryError) {
+              skipped++;
+              errorsList.push({
+                row: rowNum,
+                nik,
+                name,
+                reason: `Gagal menyimpan (dengan/tanpa tanggal): ${retryError.message}`
+              });
+              continue;
+            }
+          } else {
+            skipped++;
+            errorsList.push({
+              row: rowNum,
+              nik,
+              name,
+              reason: `Gagal menyimpan ke database: ${upsertError.message}`
+            });
+            continue;
+          }
+        }
         imported++;
       }
 
-      toast.success(`Import selesai: ${imported} ditambahkan, ${skipped} dilewati`);
+      setImportReport({
+        total: rows.length,
+        success: imported,
+        failed: skipped,
+        errors: errorsList
+      });
+
+      if (skipped > 0) {
+        toast.error(`Import selesai dengan ${skipped} data dilewati.`);
+      } else {
+        toast.success(`Import berhasil: ${imported} karyawan ditambahkan.`);
+      }
       fetchEmployees();
     } catch (err: any) {
       toast.error('Gagal import: ' + (err.message || 'Format file tidak sesuai'));
@@ -352,6 +444,82 @@ export default function AdminEmployees() {
                 <button onClick={handleSave} disabled={saving} className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50">
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Simpan
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Import Report Modal */}
+      <AnimatePresence>
+        {importReport && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setImportReport(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border border-zinc-200 dark:border-zinc-800 flex flex-col max-h-[85vh]"
+            >
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                <h2 className="text-xl font-black text-zinc-900 dark:text-white flex items-center gap-2">
+                  <FileSpreadsheet className="w-6 h-6 text-emerald-500" />
+                  Laporan Hasil Import
+                </h2>
+                <button onClick={() => setImportReport(null)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl">
+                  <X className="w-5 h-5 text-zinc-500" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mb-6 flex-shrink-0 text-center">
+                <div className="p-3 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                  <div className="text-xs font-bold text-zinc-400 uppercase">Total Data</div>
+                  <div className="text-2xl font-black text-zinc-800 dark:text-zinc-100 mt-1">{importReport.total}</div>
+                </div>
+                <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/10 rounded-2xl border border-emerald-100/30">
+                  <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase">Berhasil</div>
+                  <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{importReport.success}</div>
+                </div>
+                <div className="p-3 bg-rose-50/50 dark:bg-rose-950/10 rounded-2xl border border-rose-100/30">
+                  <div className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase">Dilewati</div>
+                  <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{importReport.failed}</div>
+                </div>
+              </div>
+
+              {importReport.errors.length > 0 && (
+                <div className="flex-1 overflow-y-auto min-h-0 mb-6 pr-1 space-y-2.5">
+                  <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-rose-500" />
+                    Detail Baris Yang Dilewati / Bermasalah:
+                  </h3>
+                  <div className="space-y-2.5">
+                    {importReport.errors.map((err, idx) => (
+                      <div key={idx} className="p-3 bg-rose-50/30 dark:bg-rose-950/5 border border-rose-100/20 rounded-xl text-xs flex flex-col md:flex-row md:items-start justify-between gap-2">
+                        <div>
+                          <span className="font-mono bg-rose-100/60 dark:bg-rose-950/30 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-bold mr-2">
+                            Baris {err.row}
+                          </span>
+                          <span className="text-zinc-600 dark:text-zinc-400 font-medium">
+                            {err.reason}
+                          </span>
+                        </div>
+                        {(err.nik || err.name) && (
+                          <div className="text-zinc-400 dark:text-zinc-500 font-mono text-[10px] md:text-right flex-shrink-0">
+                            {err.nik && `NIK: ${err.nik}`}
+                            {err.nik && err.name && ' | '}
+                            {err.name && `Nama: ${err.name}`}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end flex-shrink-0 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <button onClick={() => setImportReport(null)} className="px-6 py-2.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold text-sm rounded-xl hover:opacity-90 transition-opacity">
+                  Tutup Laporan
                 </button>
               </div>
             </motion.div>
