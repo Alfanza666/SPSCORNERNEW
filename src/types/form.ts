@@ -72,9 +72,17 @@ export interface FormField {
 }
 
 export interface FormConfig {
+  id?: string;
   title: string;
   description?: string;
   theme_color?: string;
   banner_url?: string;
   fields: FormField[];
+  
+  // Visual styling & layout configuration (JotForm style)
+  layout_type?: 'classic' | 'card';
+  font_family?: string;
+  input_style?: 'rounded' | 'sharp' | 'underline';
+  bg_image_url?: string;
+  card_glassmorphism?: boolean;
 }

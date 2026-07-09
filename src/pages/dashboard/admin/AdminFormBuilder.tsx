@@ -35,7 +35,12 @@ export default function AdminFormBuilder() {
     description: '',
     theme_color: '#673AB7',
     banner_url: '',
-    fields: []
+    fields: [],
+    layout_type: 'classic',
+    font_family: 'Inter',
+    input_style: 'rounded',
+    bg_image_url: '',
+    card_glassmorphism: false
   });
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   
@@ -72,31 +77,36 @@ export default function AdminFormBuilder() {
       const res = await fetch('/api/ai/generate-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ messages: conversation }),
+        body: JSON.stringify({ 
+          messages: conversation,
+          currentForm: editingForm
+        }),
       });
       const json = await res.json();
       if (json.success) {
-        if (json.type === 'fields' && Array.isArray(json.data) && json.data.length > 0) {
-          const fields = json.data.map((f: any) => ({
+        setAiMessages(prev => [...prev, { role: 'ai', content: json.message }]);
+        if (json.updatedForm) {
+          const fields = (json.updatedForm.fields || []).map((f: any) => ({
             id: f.id || Math.random().toString(36).substr(2, 9),
             type: f.type,
             label: f.label || 'Pertanyaan',
             required: f.required || false,
             placeholder: f.placeholder || '',
-            options: ['select', 'radio', 'checkbox'].includes(f.type) && f.options ? f.options : undefined,
+            options: ['select', 'radio', 'checkbox', 'image_choice'].includes(f.type) && f.options ? f.options : undefined,
             max: f.type === 'rating' ? 5 : undefined,
             max_scale: f.type === 'scale' ? 10 : undefined,
             condition: f.condition || undefined,
+            items: f.type === 'addon_group' ? f.items : undefined,
+            qris_image_url: f.type === 'payment_section' ? f.qris_image_url : undefined,
+            account_name: f.type === 'payment_section' ? f.account_name : undefined,
+            payment_description: f.type === 'payment_section' ? f.payment_description : undefined,
+            verify_with_ai: f.type === 'payment_section' ? f.verify_with_ai : undefined,
           }));
-          setEditingForm(prev => ({ ...prev, fields: [...(prev.fields || []), ...fields] }));
-          toast.success(`${fields.length} field berhasil digenerate!`);
-          setShowAIChat(false);
-          setAiMessages([{role:'ai', content:'Halo! Saya asisten AI untuk membuat formulir. Ceritakan formulir apa yang ingin kamu buat? 😊'}]);
-          if (!showEditor && fields.length > 0) {
-            setShowEditor(true);
-          }
-        } else if (json.type === 'chat' && json.message) {
-          setAiMessages(prev => [...prev, { role: 'ai', content: json.message }]);
+          setEditingForm({
+            ...json.updatedForm,
+            fields
+          });
+          toast.success('Formulir diperbarui oleh AI!');
         }
       } else {
         toast.error('AI gagal merespons. Coba lagi.');
@@ -275,7 +285,12 @@ export default function AdminFormBuilder() {
         description: JSON.stringify({
           text: editingForm.description || '',
           theme: editingForm.theme_color || '#673AB7',
-          banner: editingForm.banner_url || ''
+          banner: editingForm.banner_url || '',
+          layout_type: editingForm.layout_type || 'classic',
+          font_family: editingForm.font_family || 'Inter',
+          input_style: editingForm.input_style || 'rounded',
+          bg_image_url: editingForm.bg_image_url || '',
+          card_glassmorphism: editingForm.card_glassmorphism || false
         }),
         fields: cleanFields,
         is_active: true,
@@ -348,7 +363,24 @@ export default function AdminFormBuilder() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => {
-                    setAiMessages([{role:'ai', content:'Halo! Saya asisten AI untuk membuat formulir. Ceritakan formulir apa yang ingin kamu buat? 😊'}]);
+                    setEditingForm({
+                      title: 'Formulir Tanpa Judul',
+                      description: '',
+                      theme_color: '#673AB7',
+                      banner_url: '',
+                      fields: [],
+                      layout_type: 'classic',
+                      font_family: 'Inter',
+                      input_style: 'rounded',
+                      bg_image_url: '',
+                      card_glassmorphism: false
+                    });
+                    setLinkedProgramId('');
+                    setTargetNiks('');
+                    setTargetDepartments([]);
+                    setTargetCutoffDate('');
+                    setAiMessages([{role:'ai', content:'Halo! Saya asisten AI untuk membuat dan merancang formulir ini. Ceritakan formulir seperti apa yang ingin kamu buat? 😊'}]);
+                    setShowEditor(true);
                     setShowAIChat(true);
                   }}
                   className="bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap"
@@ -358,14 +390,26 @@ export default function AdminFormBuilder() {
                 </button>
                 <button
                   onClick={() => {
-                  setEditingForm({ title: 'Formulir Tanpa Judul', description: '', theme_color: '#673AB7', banner_url: '', fields: [] });
-                  setLinkedProgramId('');
-                  setTargetNiks('');
-                  setTargetDepartments([]);
-                  setTargetCutoffDate('');
-                  setShowEditor(true);
-                }}
-                className="bg-[#673AB7] hover:bg-[#5E35B1] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap"
+                    setEditingForm({
+                      title: 'Formulir Tanpa Judul',
+                      description: '',
+                      theme_color: '#673AB7',
+                      banner_url: '',
+                      fields: [],
+                      layout_type: 'classic',
+                      font_family: 'Inter',
+                      input_style: 'rounded',
+                      bg_image_url: '',
+                      card_glassmorphism: false
+                    });
+                    setLinkedProgramId('');
+                    setTargetNiks('');
+                    setTargetDepartments([]);
+                    setTargetCutoffDate('');
+                    setShowEditor(true);
+                    setShowAIChat(false);
+                  }}
+                  className="bg-[#673AB7] hover:bg-[#5E35B1] text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-all active:scale-95 whitespace-nowrap"
                 >
                   <Plus className="w-5 h-5" />
                   Buat Formulir
@@ -387,17 +431,37 @@ export default function AdminFormBuilder() {
                           className="h-24 bg-[#673AB7]/10 flex items-center justify-center border-b border-zinc-100 dark:border-zinc-800 relative"
                           onClick={async () => {
                               let desc = form.description;
-  let theme = '#673AB7';
-  let banner = '';
-  try {
-    const parsed = JSON.parse(form.description);
-    if (parsed.text !== undefined) {
-      desc = parsed.text;
-      theme = parsed.theme || '#673AB7';
-      banner = parsed.banner || '';
-    }
-  } catch(e) {}
-  setEditingForm({ ...form, description: desc, theme_color: theme, banner_url: banner }); 
+                              let theme = '#673AB7';
+                              let banner = '';
+                              let layout_type = 'classic';
+                              let font_family = 'Inter';
+                              let input_style = 'rounded';
+                              let bg_image_url = '';
+                              let card_glassmorphism = false;
+                              try {
+                                const parsed = JSON.parse(form.description);
+                                if (parsed.text !== undefined) {
+                                  desc = parsed.text;
+                                  theme = parsed.theme || '#673AB7';
+                                  banner = parsed.banner || '';
+                                  layout_type = parsed.layout_type || 'classic';
+                                  font_family = parsed.font_family || 'Inter';
+                                  input_style = parsed.input_style || 'rounded';
+                                  bg_image_url = parsed.bg_image_url || '';
+                                  card_glassmorphism = parsed.card_glassmorphism || false;
+                                }
+                              } catch(e) {}
+                              setEditingForm({ 
+                                ...form, 
+                                description: desc, 
+                                theme_color: theme, 
+                                banner_url: banner,
+                                layout_type,
+                                font_family,
+                                input_style,
+                                bg_image_url,
+                                card_glassmorphism
+                              }); 
                               setTargetNiks(form.target_niks?.join('\n') || '');
                               setTargetDepartments(form.target_departments || []);
                               setTargetCutoffDate(form.target_cutoff_date || '');
@@ -430,94 +494,16 @@ export default function AdminFormBuilder() {
                 ))}
             </div>
 
-            {/* AI Chat Assistant — full screen overlay */}
-            <AnimatePresence>
-              {showAIChat && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[100] bg-white dark:bg-zinc-950 flex flex-col"
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="font-black text-zinc-900 dark:text-white">AI Form Builder</h2>
-                        <p className="text-xs text-zinc-500">Asisten pembuat formulir pintar</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { setShowAIChat(false); setAiChatLoading(false); }}
-                      className="p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-                    {aiMessages.map((msg, i) => (
-                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`max-w-[80%] md:max-w-[65%] rounded-3xl px-5 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                            msg.role === 'user'
-                              ? 'bg-[#673AB7] text-white rounded-br-md'
-                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-bl-md'
-                          }`}
-                        >
-                          {msg.content}
-                        </div>
-                      </div>
-                    ))}
-                    {aiChatLoading && (
-                      <div className="flex justify-start">
-                        <div className="bg-zinc-100 dark:bg-zinc-800 rounded-3xl rounded-bl-md px-5 py-3 text-sm flex items-center gap-1.5">
-                          <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
-                          <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
-                          <span className="w-2 h-2 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
-                        </div>
-                      </div>
-                    )}
-                    <div ref={chatEndRef} />
-                  </div>
-
-                  {/* Input */}
-                  <div className="border-t border-zinc-200 dark:border-zinc-800 px-6 py-4 bg-white dark:bg-zinc-950">
-                    <div className="flex items-center gap-3 max-w-4xl mx-auto">
-                      <input
-                        value={aiChatInput}
-                        onChange={e => setAiChatInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAIChat(); } }}
-                        placeholder="Deskripsikan formulir yang kamu butuhkan..."
-                        className="flex-1 px-5 py-3 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-white"
-                        disabled={aiChatLoading}
-                      />
-                      <button
-                        onClick={() => sendAIChat()}
-                        disabled={aiChatLoading || !aiChatInput.trim()}
-                        className="p-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 transition-all disabled:opacity-50 shadow-lg"
-                      >
-                        {aiChatLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7"/></svg>}
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
          </div>
       ) : (
-         <div className="max-w-3xl mx-auto pb-32">
+         <div className="max-w-[1600px] mx-auto pb-32">
             {/* Editor Header */}
             <div className="flex items-center justify-between mb-6 bg-white dark:bg-zinc-900 p-4 rounded-full shadow-sm border border-zinc-200 dark:border-zinc-800 sticky top-4 z-50">
                <button onClick={() => setShowEditor(false)} className="flex items-center gap-2 text-zinc-500 hover:text-zinc-800 font-bold px-4 py-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800">
                   Kembali
                </button>
                <div className="flex items-center gap-2">
-                    <button onClick={() => { setShowAIChat(true); }} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition-all text-sm">
+                    <button onClick={() => { setShowAIChat(!showAIChat); }} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition-all text-sm">
                        <Sparkles className="w-4 h-4" /> AI
                     </button>
                    <button onClick={handleSave} disabled={saving} className="bg-[#673AB7] text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 hover:bg-[#5E35B1] transition-all">
@@ -525,6 +511,10 @@ export default function AdminFormBuilder() {
                    </button>
                 </div>
              </div>
+
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+               {/* Left Panel: Form Workspace */}
+               <div className={`flex-1 w-full relative transition-all duration-300 ${showAIChat ? 'lg:max-w-[70%]' : 'max-w-3xl mx-auto'}`}>
 
             <div className="relative">
                 {/* Main Form Title Card */}
@@ -642,7 +632,7 @@ export default function AdminFormBuilder() {
                                 </div>
 
                                 {/* Cutoff Tanggal Masuk */}
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-2 mb-4">
                                   <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
                                     <Calendar className="w-3.5 h-3.5" /> Cutoff Tgl Masuk
                                   </label>
@@ -653,6 +643,83 @@ export default function AdminFormBuilder() {
                                     onChange={(e) => setTargetCutoffDate(e.target.value)}
                                     className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none"
                                   />
+                                </div>
+
+                                {/* JotForm Visual Settings */}
+                                <div className="mt-4 pt-4 border-t border-zinc-150 dark:border-zinc-800 space-y-4">
+                                  <h4 className="text-xs font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                                    🎨 GAYA DAN DESAIN VISUAL (JotForm Style)
+                                  </h4>
+                                  
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Layout Type */}
+                                    <div className="flex flex-col gap-1.5">
+                                      <label className="text-[10px] font-bold text-zinc-400 uppercase">Tipe Layout</label>
+                                      <select
+                                        value={editingForm.layout_type || 'classic'}
+                                        onChange={(e) => setEditingForm(prev => ({ ...prev, layout_type: e.target.value as any }))}
+                                        className="p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none font-semibold text-zinc-700 dark:text-zinc-300"
+                                      >
+                                        <option value="classic">Classic Form (Scrollable Kebawah)</option>
+                                        <option value="card">Card Form (Satu Pertanyaan Per Halaman)</option>
+                                      </select>
+                                    </div>
+
+                                    {/* Font Family */}
+                                    <div className="flex flex-col gap-1.5">
+                                      <label className="text-[10px] font-bold text-zinc-400 uppercase">Gaya Huruf (Font)</label>
+                                      <select
+                                        value={editingForm.font_family || 'Inter'}
+                                        onChange={(e) => setEditingForm(prev => ({ ...prev, font_family: e.target.value }))}
+                                        className="p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none font-semibold text-zinc-700 dark:text-zinc-300"
+                                      >
+                                        <option value="Inter">Inter (Clean & Modern)</option>
+                                        <option value="Outfit">Outfit (Friendly & Round)</option>
+                                        <option value="Playfair Display">Playfair Display (Elegant & Serif)</option>
+                                        <option value="Space Grotesk">Space Grotesk (Tech & Bold)</option>
+                                      </select>
+                                    </div>
+
+                                    {/* Input Style */}
+                                    <div className="flex flex-col gap-1.5">
+                                      <label className="text-[10px] font-bold text-zinc-400 uppercase">Gaya Input</label>
+                                      <select
+                                        value={editingForm.input_style || 'rounded'}
+                                        onChange={(e) => setEditingForm(prev => ({ ...prev, input_style: e.target.value as any }))}
+                                        className="p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none font-semibold text-zinc-700 dark:text-zinc-300"
+                                      >
+                                        <option value="rounded">Rounded Card (Bulat Premium)</option>
+                                        <option value="sharp">Sharp Border (Minimalis Kotak)</option>
+                                        <option value="underline">Underline Only (Klasik Bottom Line)</option>
+                                      </select>
+                                    </div>
+
+                                    {/* Glassmorphism Toggle */}
+                                    <div className="flex flex-col gap-1.5 justify-center">
+                                      <label className="text-[10px] font-bold text-zinc-400 uppercase mb-1">Efek Kaca (Glassmorphism)</label>
+                                      <label className="flex items-center gap-2 text-sm cursor-pointer select-none font-semibold text-zinc-700 dark:text-zinc-300">
+                                        <input
+                                          type="checkbox"
+                                          checked={editingForm.card_glassmorphism || false}
+                                          onChange={(e) => setEditingForm(prev => ({ ...prev, card_glassmorphism: e.target.checked }))}
+                                          className="w-4 h-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
+                                        />
+                                        <span>Aktifkan Transparansi Blur</span>
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  {/* Background Image URL */}
+                                  <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase">Gambar Latar Belakang (URL Background)</label>
+                                    <input
+                                      type="text"
+                                      value={editingForm.bg_image_url || ''}
+                                      onChange={(e) => setEditingForm(prev => ({ ...prev, bg_image_url: e.target.value }))}
+                                      className="p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none font-semibold text-zinc-700 dark:text-zinc-300"
+                                      placeholder="https://example.com/background.jpg"
+                                    />
+                                  </div>
                                 </div>
                             </div>
                         )}
@@ -693,6 +760,80 @@ export default function AdminFormBuilder() {
 
 
             </div>
+         </div>
+
+         {/* Right Panel: AI Sidebar */}
+         {showAIChat && (
+            <div className="w-full lg:w-[400px] lg:sticky lg:top-24 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-xl flex flex-col h-[600px] lg:h-[calc(100vh-12rem)] z-40 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-sm text-zinc-950 dark:text-white">AI Form Assistant</h2>
+                    <p className="text-[10px] text-zinc-400">Merancang formulir interaktif</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAIChat(false)}
+                  className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-50 dark:bg-zinc-950">
+                {aiMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-[#673AB7] text-white rounded-br-none'
+                          : 'bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 text-zinc-850 dark:text-zinc-200 rounded-bl-none shadow-sm'
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {aiChatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl rounded-bl-none px-4 py-2.5 text-xs flex items-center gap-1.5 shadow-sm">
+                      <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+                      <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+                      <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="border-t border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-900">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={aiChatInput}
+                    onChange={e => setAiChatInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAIChat(); } }}
+                    placeholder="Ubah tema ke merah, tambah field email..."
+                    className="flex-1 px-4 py-2 text-xs rounded-full border border-zinc-250 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-[#673AB7] text-zinc-900 dark:text-white"
+                    disabled={aiChatLoading}
+                  />
+                  <button
+                    onClick={sendAIChat}
+                    disabled={aiChatLoading || !aiChatInput.trim()}
+                    className="p-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  >
+                    {aiChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+         )}
+         </div> {/* Close flex container */}
          </div>
       )}
     </div>

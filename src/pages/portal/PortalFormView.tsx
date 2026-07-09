@@ -55,6 +55,9 @@ export default function PortalFormView() {
   // Department targeting
   const [userDepartment, setUserDepartment] = useState<string>('');
 
+  // Card layout navigation state
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+
   useEffect(() => {
     if (formId) {
       fetchForm();
@@ -89,18 +92,33 @@ export default function PortalFormView() {
       let desc = data.description;
       let theme = '#673AB7';
       let banner = '';
+      let layout_type = 'classic';
+      let font_family = 'Inter';
+      let input_style = 'rounded';
+      let bg_image_url = '';
+      let card_glassmorphism = false;
       try {
         const parsed = JSON.parse(data.description);
         if (parsed.text !== undefined) {
           desc = parsed.text;
           theme = parsed.theme || '#673AB7';
           banner = parsed.banner || '';
+          layout_type = parsed.layout_type || 'classic';
+          font_family = parsed.font_family || 'Inter';
+          input_style = parsed.input_style || 'rounded';
+          bg_image_url = parsed.bg_image_url || '';
+          card_glassmorphism = parsed.card_glassmorphism || false;
         }
       } catch(e) {}
       
       data.description = desc;
       (data as any).theme_color = theme;
       (data as any).banner_url = banner;
+      (data as any).layout_type = layout_type;
+      (data as any).font_family = font_family;
+      (data as any).input_style = input_style;
+      (data as any).bg_image_url = bg_image_url;
+      (data as any).card_glassmorphism = card_glassmorphism;
 
       setForm(data);
       
@@ -371,6 +389,67 @@ export default function PortalFormView() {
       toast.success('Bukti transfer berhasil diunggah');
     } catch (error: any) {
       toast.error('Gagal mengunggah bukti transfer');
+    }
+  };
+
+  const themeColor = (form as any)?.theme_color || '#673AB7';
+
+  const getInputClass = (base = "w-full py-4 px-5 transition-all outline-none focus:ring-2 focus:ring-[var(--theme-color)]/30") => {
+    let borderStyle = "";
+    if ((form as any)?.input_style === 'sharp') {
+      borderStyle = "border border-zinc-300 dark:border-zinc-700 focus:border-[var(--theme-color)]";
+    } else if ((form as any)?.input_style === 'underline') {
+      borderStyle = "border-b-2 border-t-0 border-l-0 border-r-0 border-zinc-250 dark:border-zinc-750 bg-transparent px-1 focus:border-[var(--theme-color)]";
+    } else {
+      borderStyle = "border-2 border-zinc-100 dark:border-zinc-800 focus:border-[var(--theme-color)] rounded-2xl";
+    }
+    return `${base} ${borderStyle} bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white`;
+  };
+
+  const handleNextCard = () => {
+    const visibleFields = form?.fields.filter(isFieldVisible) || [];
+    if (currentCardIndex === 0) {
+      setCurrentCardIndex(1);
+      return;
+    }
+    
+    const currentField = visibleFields[currentCardIndex - 1];
+    if (currentField && currentField.required) {
+      let hasError = false;
+      if (currentField.type === 'checkbox' && (!answers[currentField.id] || answers[currentField.id].length === 0)) hasError = true;
+      else if (currentField.type === 'addon_group') {
+        const orders = addonOrders[currentField.id] || [];
+        const hasOrder = orders.some(o => o.quantity > 0);
+        if (!hasOrder) hasError = true;
+      }
+      else if (currentField.type === 'file_upload' && !fileUploads[currentField.id]) hasError = true;
+      else if (currentField.type === 'image' && !imageUploads[currentField.id]) hasError = true;
+      else if (currentField.type === 'payment_section') {
+        if (!paymentProofs[currentField.id]) {
+          toast.error('Silakan upload bukti transfer terlebih dahulu');
+          return;
+        }
+        if (currentField.verify_with_ai !== false && !paymentVerified[currentField.id]) {
+          toast.error('Silakan lakukan verifikasi bukti bayar terlebih dahulu');
+          return;
+        }
+      }
+      else if (answers[currentField.id] === undefined || answers[currentField.id] === null || answers[currentField.id] === '') hasError = true;
+      
+      if (hasError) {
+        toast.error(`Pertanyaan ini wajib diisi: ${currentField.label}`);
+        return;
+      }
+    }
+    
+    if (currentCardIndex <= visibleFields.length) {
+      setCurrentCardIndex(currentCardIndex + 1);
+    }
+  };
+
+  const handleBackCard = () => {
+    if (currentCardIndex > 0) {
+      setCurrentCardIndex(currentCardIndex - 1);
     }
   };
 
@@ -647,252 +726,480 @@ export default function PortalFormView() {
     </div>
   );
 
+  const renderFieldComponent = (field: FormField) => {
+    return (
+      <div className="space-y-3">
+        {field.type === 'text' && (
+          <input 
+            type="text" 
+            required={field.required} 
+            placeholder={field.placeholder} 
+            value={answers[field.id] || ''} 
+            onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} 
+            className={getInputClass()} 
+          />
+        )}
+
+        {field.type === 'textarea' && (
+          <textarea 
+            required={field.required} 
+            rows={4} 
+            value={answers[field.id] || ''} 
+            onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} 
+            className={getInputClass()} 
+          />
+        )}
+
+        {field.type === 'number' && (
+          <input 
+            type="number" 
+            required={field.required} 
+            value={answers[field.id] || ''} 
+            onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} 
+            className={getInputClass()} 
+          />
+        )}
+
+        {field.type === 'date' && (
+          <input 
+            type="date" 
+            required={field.required} 
+            value={answers[field.id] || ''} 
+            onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} 
+            className={getInputClass()} 
+          />
+        )}
+
+        {field.type === 'select' && (
+          <select 
+            required={field.required} 
+            value={answers[field.id] || ''} 
+            onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} 
+            className={getInputClass("w-full py-4 px-5 transition-all outline-none focus:ring-2 focus:ring-[var(--theme-color)]/30 appearance-none")}
+          >
+            <option value="">-- Pilih --</option>
+            {field.options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}{opt.price ? ` (${formatPrice(opt.price)})` : ''}</option>)}
+          </select>
+        )}
+
+        {field.type === 'radio' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {field.options?.map(opt => (
+              <label 
+                key={opt.value} 
+                className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all`}
+                style={{
+                  borderColor: answers[field.id] === opt.value ? themeColor : 'rgba(228, 228, 231, 0.1)',
+                  backgroundColor: answers[field.id] === opt.value ? `${themeColor}10` : undefined
+                }}
+              >
+                <input 
+                  type="radio" 
+                  name={field.id} 
+                  checked={answers[field.id] === opt.value} 
+                  onChange={() => setAnswers({...answers, [field.id]: opt.value})} 
+                  className="w-5 h-5" 
+                  style={{ accentColor: themeColor }}
+                />
+                <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200">{opt.label}</span>
+                {opt.price ? <span className="text-sm font-bold text-emerald-600 ml-auto">{formatPrice(opt.price)}</span> : null}
+              </label>
+            ))}
+          </div>
+        )}
+        
+        {field.type === 'checkbox' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {field.options?.map(opt => (
+              <label 
+                key={opt.value} 
+                className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all`}
+                style={{
+                  borderColor: answers[field.id]?.includes(opt.value) ? themeColor : 'rgba(228, 228, 231, 0.1)',
+                  backgroundColor: answers[field.id]?.includes(opt.value) ? `${themeColor}10` : undefined
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={answers[field.id]?.includes(opt.value)} 
+                  onChange={(e) => handleCheckboxChange(field.id, opt.value, e.target.checked)} 
+                  className="w-5 h-5 rounded" 
+                  style={{ accentColor: themeColor }}
+                />
+                <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200">{opt.label}</span>
+                {opt.price ? <span className="text-sm font-bold text-emerald-600 ml-auto">{formatPrice(opt.price)}</span> : null}
+              </label>
+            ))}
+          </div>
+        )}
+
+        {field.type === 'image_choice' && renderImageChoice(field)}
+        {field.type === 'rating' && renderRating(field)}
+        {field.type === 'scale' && renderScale(field)}
+        {field.type === 'file_upload' && renderFileUpload(field)}
+        {field.type === 'image' && (
+          <div className="space-y-3">
+            {imageUploads[field.id] ? (
+              <div className="space-y-3">
+                <div className="relative rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700">
+                  <img src={imageUploads[field.id]} alt={field.label} className="w-full max-h-80 object-contain bg-zinc-50 dark:bg-zinc-850" />
+                  <button
+                    type="button"
+                    onClick={() => { setImageUploads(prev => ({...prev, [field.id]: ''})); setAnswers(prev => ({...prev, [field.id]: ''})); }}
+                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-55 dark:hover:bg-zinc-800/50 transition-colors">
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleImageUpload(field.id, e.target.files[0])} />
+                  <UploadCloud className="w-8 h-8 text-zinc-300" />
+                  <span className="text-sm font-bold text-zinc-500">Klik untuk upload gambar</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                  <span className="text-xs text-zinc-400 font-bold">ATAU</span>
+                  <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="Atau masukkan URL gambar..."
+                    value={imageUrlInputs[field.id] || ''}
+                    onChange={(e) => {
+                      setImageUrlInputs(prev => ({...prev, [field.id]: e.target.value}));
+                      handleImageUrl(field.id, e.target.value);
+                    }}
+                    className={getInputClass("flex-1 py-4 px-5 transition-all outline-none focus:ring-2 focus:ring-[var(--theme-color)]/30 text-sm")}
+                  />
+                  {imageUrlInputs[field.id] && (
+                    <button
+                      type="button"
+                      onClick={() => handleImageUrl(field.id, imageUrlInputs[field.id])}
+                      className="px-4 py-2 text-white rounded-2xl font-bold text-sm hover:opacity-90 transition-colors"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      <Link2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {field.type === 'addon_group' && renderAddonGroup(field)}
+
+        {field.type === 'payment_section' && (
+          <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-6 border-2 border-emerald-250 dark:border-emerald-900/50 space-y-4">
+            <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-black text-lg">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Pembayaran
+            </div>
+
+            <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 flex items-center justify-between border border-zinc-150 dark:border-zinc-800">
+              <span className="font-bold text-zinc-500">Total Pembayaran</span>
+              <span className="font-black text-2xl text-emerald-600">{formatPrice(computeTotal())}</span>
+            </div>
+
+            {field.qris_image_url && (
+              <div className="text-center space-y-2">
+                <p className="text-sm font-bold text-zinc-500">Scan QRIS untuk membayar</p>
+                <img src={field.qris_image_url} alt="QRIS" className="w-48 h-48 object-contain mx-auto rounded-xl border-2 border-zinc-200 dark:border-zinc-700" />
+                {field.account_name && (
+                  <p className="text-sm text-zinc-500">Rekening: <span className="font-bold text-zinc-800 dark:text-zinc-200">{field.account_name}</span></p>
+                )}
+              </div>
+            )}
+
+            {field.payment_description && (
+              <p className="text-sm text-zinc-500">{field.payment_description}</p>
+            )}
+
+            <div className="space-y-3">
+              <p className="font-bold text-sm text-zinc-650 dark:text-zinc-400">Upload Bukti Transfer</p>
+              {paymentProofs[field.id] ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-950/20 p-4 rounded-xl border border-emerald-150 dark:border-emerald-850">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Bukti terunggah</span>
+                    </div>
+                    <button onClick={() => { setPaymentProofs(prev => ({...prev, [field.id]: ''})); setPaymentVerified(prev => ({...prev, [field.id]: false})); }} className="text-zinc-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                  </div>
+
+                  {field.verify_with_ai !== false && (
+                    <div className="space-y-2">
+                      {paymentVerified[field.id] === true ? (
+                        <div className="flex items-center gap-2 p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl text-emerald-700 dark:text-emerald-400 font-bold text-sm">
+                          <CheckCircle2 className="w-5 h-5" />
+                          Pembayaran terverifikasi
+                        </div>
+                      ) : paymentVerified[field.id] === false ? (
+                        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-red-600 dark:text-red-400 font-bold text-sm">
+                          <AlertCircle className="w-5 h-5" />
+                          Verifikasi gagal, upload ulang bukti yang benar
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => verifyPayment(field.id, computeTotal())}
+                          disabled={aiVerifying[field.id]}
+                          className="w-full py-3 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                          style={{ backgroundColor: themeColor }}
+                        >
+                          {aiVerifying[field.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                          {aiVerifying[field.id] ? 'Memverifikasi...' : 'Verifikasi Bukti dengan AI'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl cursor-pointer hover:bg-white dark:hover:bg-zinc-800/50 transition-colors">
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePaymentProofUpload(field.id, e.target.files[0])} />
+                  <UploadCloud className="w-8 h-8 text-zinc-300" />
+                  <span className="text-sm font-bold text-zinc-500">Klik untuk upload bukti transfer</span>
+                </label>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const cardClassName = (form as any)?.card_glassmorphism
+    ? "bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800/40 rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden"
+    : "bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-10 border border-zinc-100 dark:border-zinc-800 shadow-sm relative overflow-hidden";
+
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-20">
-      <div className="bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 sticky top-0 z-10 shadow-sm">
+    <div 
+      className="min-h-screen bg-zinc-50 dark:bg-zinc-950 pb-20 relative dynamic-font-container"
+      style={{
+        '--theme-color': themeColor,
+        backgroundImage: (form as any)?.bg_image_url ? `url(${(form as any).bg_image_url})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      } as React.CSSProperties}
+    >
+      {/* Background Overlay for image readability */}
+      {(form as any)?.bg_image_url && (
+        <div className="absolute inset-0 bg-zinc-950/20 backdrop-blur-[2px] pointer-events-none" />
+      )}
+
+      {/* Dynamic Font Loading */}
+      {(form as any)?.font_family && (
+        <link
+          href={`https://fonts.googleapis.com/css2?family=${(form as any).font_family.replace(/ /g, '+')}:wght@400;500;700;900&display=swap`}
+          rel="stylesheet"
+        />
+      )}
+      <style>{`
+        .dynamic-font-container {
+          font-family: '${(form as any)?.font_family || 'Inter'}', sans-serif;
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-zinc-150 dark:border-zinc-800 sticky top-0 z-10 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
           <button onClick={() => navigate(-1)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl"><ChevronLeft className="w-6 h-6 text-zinc-500" /></button>
           <div className="flex-1"><h1 className="text-lg md:text-xl font-black text-zinc-900 dark:text-white truncate">{form?.title}</h1></div>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 mt-8">
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-10 border border-zinc-100 dark:border-zinc-800 shadow-sm mb-8">
-           <div className="mb-8 pb-8 border-b border-zinc-100 dark:border-zinc-800">
-              <h2 className="text-2xl font-black text-zinc-900 dark:text-white mb-2">{form?.title}</h2>
-              <p className="text-zinc-500 leading-relaxed">{form?.description}</p>
-           </div>
+      <div className="max-w-3xl mx-auto px-4 mt-8 relative z-20">
+        <div className={cardClassName}>
+          {/* Top Accent Strip if no banner */}
+          {!(form as any)?.banner_url && (
+            <div className="absolute top-0 left-0 right-0 h-2.5" style={{ backgroundColor: themeColor }} />
+          )}
 
            <form onSubmit={handleSubmit} className="space-y-0">
-              {form?.fields.map((field) => {
-                const visible = isFieldVisible(field);
-                return (
-                <motion.div
-                  key={field.id}
-                  layout
-                  animate={{ 
-                    height: visible ? 'auto' : 0, 
-                    opacity: visible ? 1 : 0,
-                    marginBottom: visible ? 40 : 0,
-                    overflow: 'hidden'
-                  }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                >
-                  <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-base font-bold text-zinc-700 dark:text-zinc-300">
-                    {field.label} {field.required && <span className="text-red-500">*</span>}
-                  </label>
-                 
-                 {/* --- Rendering Types --- */}
-                 
-                 {field.type === 'text' && (
-                   <input type="text" required={field.required} placeholder={field.placeholder} value={answers[field.id] || ''} onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl px-5 py-4 focus:border-blue-500 focus:outline-none" />
-                 )}
+             {(form as any)?.layout_type === 'card' ? (
+               <div>
+                 <AnimatePresence mode="wait">
+                   {currentCardIndex === 0 ? (
+                     <motion.div
+                       key="welcome"
+                       initial={{ x: 50, opacity: 0 }}
+                       animate={{ x: 0, opacity: 1 }}
+                       exit={{ x: -50, opacity: 0 }}
+                       transition={{ duration: 0.2 }}
+                       className="text-center py-10 space-y-6"
+                     >
+                       {(form as any)?.banner_url && (
+                         <div className="w-full h-48 md:h-64 overflow-hidden rounded-2xl mb-6">
+                           <img src={(form as any).banner_url} alt="Banner" className="w-full h-full object-cover" />
+                         </div>
+                       )}
+                       <h2 className="text-3xl font-black text-zinc-900 dark:text-white">{form?.title}</h2>
+                       <p className="text-zinc-505 leading-relaxed max-w-xl mx-auto">{form?.description}</p>
+                       
+                       <div className="pt-6">
+                         <button
+                           type="button"
+                           onClick={() => handleNextCard()}
+                           className="px-10 py-4 text-white rounded-full font-black text-lg shadow-lg hover:opacity-90 active:scale-95 transition-all"
+                           style={{ backgroundColor: themeColor, boxShadow: `0 10px 25px -5px ${themeColor}55` }}
+                         >
+                           Mulai Mengisi
+                         </button>
+                       </div>
+                     </motion.div>
+                   ) : (
+                     (() => {
+                       const visibleFields = form?.fields.filter(isFieldVisible) || [];
+                       const fieldIndex = currentCardIndex - 1;
+                       const field = visibleFields[fieldIndex];
+                       
+                       if (!field) return null;
+                       
+                       const isLast = currentCardIndex === visibleFields.length;
+                       
+                       return (
+                         <motion.div
+                           key={field.id}
+                           initial={{ x: 50, opacity: 0 }}
+                           animate={{ x: 0, opacity: 1 }}
+                           exit={{ x: -50, opacity: 0 }}
+                           transition={{ duration: 0.2 }}
+                           className="space-y-6 py-6"
+                         >
+                           <div className="space-y-4">
+                             <label className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
+                               {field.label} {field.required && <span className="text-red-500">*</span>}
+                             </label>
+                             
+                             <div className="pt-2">
+                               {renderFieldComponent(field)}
+                             </div>
+                           </div>
 
-                 {field.type === 'textarea' && (
-                   <textarea required={field.required} rows={4} value={answers[field.id] || ''} onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl px-5 py-4 focus:border-blue-500 focus:outline-none" />
-                 )}
+                           {/* Card controls */}
+                           <div className="pt-10 flex items-center justify-between gap-4 border-t border-zinc-150 dark:border-zinc-800">
+                             <button
+                               type="button"
+                               onClick={handleBackCard}
+                               className="px-6 py-3 border-2 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-350 rounded-full font-bold text-sm hover:bg-zinc-55 dark:hover:bg-zinc-800 transition-colors"
+                             >
+                               Kembali
+                             </button>
 
-                 {field.type === 'number' && (
-                   <input type="number" required={field.required} value={answers[field.id] || ''} onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl px-5 py-4 focus:border-blue-500 focus:outline-none" />
-                 )}
+                             {isLast ? (
+                               <button
+                                 type="submit"
+                                 disabled={submitting}
+                                 className="px-8 py-3 text-white rounded-full font-black text-sm flex items-center gap-2 shadow-lg hover:opacity-90 active:scale-95 transition-all"
+                                 style={{ backgroundColor: themeColor, boxShadow: `0 10px 20px -5px ${themeColor}44` }}
+                               >
+                                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                 Kirim Formulir
+                               </button>
+                             ) : (
+                               <button
+                                 type="button"
+                                 onClick={handleNextCard}
+                                 className="px-8 py-3 text-white rounded-full font-bold text-sm hover:opacity-90 active:scale-95 transition-all"
+                                 style={{ backgroundColor: themeColor }}
+                               >
+                                 Selanjutnya
+                               </button>
+                             )}
+                           </div>
 
-                 {field.type === 'date' && (
-                   <input type="date" required={field.required} value={answers[field.id] || ''} onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl px-5 py-4 focus:border-blue-500 focus:outline-none" />
-                 )}
-
-                 {field.type === 'select' && (
-                   <select required={field.required} value={answers[field.id] || ''} onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl px-5 py-4 appearance-none">
-                     <option value="">-- Pilih --</option>
-                     {field.options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}{opt.price ? ` (${formatPrice(opt.price)})` : ''}</option>)}
-                   </select>
-                 )}
-
-                 {field.type === 'radio' && (
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                     {field.options?.map(opt => (
-                       <label key={opt.value} className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer ${answers[field.id] === opt.value ? 'bg-blue-50 border-blue-500' : 'bg-zinc-50 border-zinc-100'}`}>
-                         <input type="radio" name={field.id} checked={answers[field.id] === opt.value} onChange={() => setAnswers({...answers, [field.id]: opt.value})} className="w-5 h-5 accent-blue-500" />
-                         <span className="font-bold text-sm">{opt.label}</span>
-                         {opt.price ? <span className="text-sm font-bold text-emerald-600 ml-auto">{formatPrice(opt.price)}</span> : null}
-                       </label>
-                     ))}
+                           {/* Progress bar */}
+                           <div className="pt-6">
+                             <div className="w-full bg-zinc-150 dark:bg-zinc-800 h-2 rounded-full overflow-hidden">
+                               <div 
+                                 className="h-full transition-all duration-300" 
+                                 style={{ 
+                                   width: `${(currentCardIndex / visibleFields.length) * 100}%`,
+                                   backgroundColor: themeColor 
+                                 }} 
+                               />
+                             </div>
+                             <p className="text-[10px] text-zinc-400 font-bold text-center mt-2 uppercase tracking-wider">
+                               Pertanyaan {currentCardIndex} dari {visibleFields.length}
+                             </p>
+                           </div>
+                         </motion.div>
+                       );
+                     })()
+                   )}
+                 </AnimatePresence>
+               </div>
+             ) : (
+               // Render Classic Layout
+               <div className="space-y-0">
+                 {(form as any)?.banner_url && (
+                   <div className="w-full h-48 md:h-64 overflow-hidden rounded-2xl mb-8 -mx-6 -mt-6 md:-mx-10 md:-mt-10 border-b border-zinc-150 dark:border-zinc-800">
+                     <img src={(form as any).banner_url} alt="Banner" className="w-full h-full object-cover" />
                    </div>
                  )}
-                 
-                 {field.type === 'checkbox' && (
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                     {field.options?.map(opt => (
-                       <label key={opt.value} className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer ${answers[field.id]?.includes(opt.value) ? 'bg-blue-50 border-blue-500' : 'bg-zinc-50 border-zinc-100'}`}>
-                         <input type="checkbox" checked={answers[field.id]?.includes(opt.value)} onChange={(e) => handleCheckboxChange(field.id, opt.value, e.target.checked)} className="w-5 h-5 accent-blue-500 rounded" />
-                         <span className="font-bold text-sm">{opt.label}</span>
-                         {opt.price ? <span className="text-sm font-bold text-emerald-600 ml-auto">{formatPrice(opt.price)}</span> : null}
-                       </label>
-                     ))}
-                   </div>
-                 )}
 
-                 {field.type === 'image_choice' && renderImageChoice(field)}
-                 {field.type === 'rating' && renderRating(field)}
-                 {field.type === 'scale' && renderScale(field)}
-                  {field.type === 'file_upload' && renderFileUpload(field)}
-                  {field.type === 'image' && (
-                    <div className="space-y-3">
-                      {imageUploads[field.id] ? (
-                        <div className="space-y-3">
-                          <div className="relative rounded-2xl overflow-hidden border-2 border-zinc-200 dark:border-zinc-700">
-                            <img src={imageUploads[field.id]} alt={field.label} className="w-full max-h-80 object-contain bg-zinc-50 dark:bg-zinc-800" />
-                            <button
-                              type="button"
-                              onClick={() => { setImageUploads(prev => ({...prev, [field.id]: ''})); setAnswers(prev => ({...prev, [field.id]: ''})); }}
-                              className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {/* Upload */}
-                          <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleImageUpload(field.id, e.target.files[0])} />
-                            <UploadCloud className="w-8 h-8 text-zinc-300" />
-                            <span className="text-sm font-bold text-zinc-500">Klik untuk upload gambar</span>
-                          </label>
-                          {/* OR divider */}
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                            <span className="text-xs text-zinc-400 font-bold">ATAU</span>
-                            <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                          </div>
-                          {/* URL input */}
-                          <div className="flex gap-2">
-                            <input
-                              type="url"
-                              placeholder="Atau masukkan URL gambar..."
-                              value={imageUrlInputs[field.id] || ''}
-                              onChange={(e) => {
-                                setImageUrlInputs(prev => ({...prev, [field.id]: e.target.value}));
-                                handleImageUrl(field.id, e.target.value);
-                              }}
-                              className="flex-1 bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl px-5 py-4 text-sm focus:border-blue-500 focus:outline-none"
-                            />
-                            {imageUrlInputs[field.id] && (
-                              <button
-                                type="button"
-                                onClick={() => handleImageUrl(field.id, imageUrlInputs[field.id])}
-                                className="px-4 py-2 bg-blue-500 text-white rounded-2xl font-bold text-sm hover:bg-blue-600 transition-colors"
-                              >
-                                <Link2 className="w-5 h-5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {field.type === 'addon_group' && renderAddonGroup(field)}
+                 <div className="mb-8 pb-8 border-b border-zinc-150 dark:border-zinc-800">
+                    <h2 className="text-2xl font-black text-zinc-900 dark:text-white mb-2">{form?.title}</h2>
+                    <p className="text-zinc-500 leading-relaxed">{form?.description}</p>
+                 </div>
 
-                  {field.type === 'payment_section' && (
-                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-6 border-2 border-emerald-200 dark:border-emerald-900 space-y-4">
-                      <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-black text-lg">
-                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        Pembayaran
-                      </div>
-
-                      {/* Total */}
-                      <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 flex items-center justify-between">
-                        <span className="font-bold text-zinc-500">Total Pembayaran</span>
-                        <span className="font-black text-2xl text-emerald-600">{formatPrice(computeTotal())}</span>
-                      </div>
-
-                      {/* QRIS Image */}
-                      {field.qris_image_url && (
-                        <div className="text-center space-y-2">
-                          <p className="text-sm font-bold text-zinc-500">Scan QRIS untuk membayar</p>
-                          <img src={field.qris_image_url} alt="QRIS" className="w-48 h-48 object-contain mx-auto rounded-xl border-2 border-zinc-200 dark:border-zinc-700" />
-                          {field.account_name && (
-                            <p className="text-sm text-zinc-500">Rekening: <span className="font-bold text-zinc-800 dark:text-zinc-200">{field.account_name}</span></p>
-                          )}
-                        </div>
-                      )}
-
-                      {field.payment_description && (
-                        <p className="text-sm text-zinc-500">{field.payment_description}</p>
-                      )}
-
-                      {/* Upload Bukti Transfer */}
-                      <div className="space-y-3">
-                        <p className="font-bold text-sm text-zinc-600">Upload Bukti Transfer</p>
-                        {paymentProofs[field.id] ? (
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl">
-                              <div className="flex items-center gap-3">
-                                <CheckCircle2 className="w-5 h-5 text-blue-600" />
-                                <span className="text-sm font-bold text-blue-700 dark:text-blue-300">Bukti terunggah</span>
-                              </div>
-                              <button onClick={() => { setPaymentProofs(prev => ({...prev, [field.id]: ''})); setPaymentVerified(prev => ({...prev, [field.id]: false})); }} className="text-zinc-400 hover:text-red-500"><X className="w-4 h-4" /></button>
-                            </div>
-
-                            {field.verify_with_ai !== false && (
-                              <div className="space-y-2">
-                                {paymentVerified[field.id] === true ? (
-                                  <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-700 dark:text-emerald-400 font-bold text-sm">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                    Pembayaran terverifikasi
-                                  </div>
-                                ) : paymentVerified[field.id] === false ? (
-                                  <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-red-600 dark:text-red-400 font-bold text-sm">
-                                    <AlertCircle className="w-5 h-5" />
-                                    Verifikasi gagal, upload ulang bukti yang benar
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => verifyPayment(field.id, computeTotal())}
-                                    disabled={aiVerifying[field.id]}
-                                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                                  >
-                                    {aiVerifying[field.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                                    {aiVerifying[field.id] ? 'Memverifikasi...' : 'Verifikasi Bukti dengan AI'}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl cursor-pointer hover:bg-white dark:hover:bg-zinc-800/50 transition-colors">
-                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePaymentProofUpload(field.id, e.target.files[0])} />
-                            <UploadCloud className="w-8 h-8 text-zinc-300" />
-                            <span className="text-sm font-bold text-zinc-500">Klik untuk upload bukti transfer</span>
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-                </motion.div>
-              );})}
-
-             <div className="pt-8 flex flex-col gap-4">
-               {(() => {
-                 const total = computeTotal();
-                 const hasPaymentSection = form?.fields.some(f => f.type === 'payment_section');
-                 if (total > 0 && !hasPaymentSection) {
+                 {form?.fields.map((field) => {
+                   const visible = isFieldVisible(field);
                    return (
-                     <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 flex items-center justify-between border border-emerald-200 dark:border-emerald-800">
-                       <span className="font-bold text-zinc-600 dark:text-zinc-400">Total Pemesanan</span>
-                       <span className="font-black text-xl text-emerald-600">{formatPrice(total)}</span>
-                     </div>
+                     <motion.div
+                       key={field.id}
+                       layout
+                       animate={{ 
+                         height: visible ? 'auto' : 0, 
+                         opacity: visible ? 1 : 0,
+                         marginBottom: visible ? 40 : 0,
+                         overflow: 'hidden'
+                       }}
+                       transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                     >
+                       <div className="space-y-3">
+                         <label className="flex items-center gap-2 text-base font-bold text-zinc-700 dark:text-zinc-300">
+                           {field.label} {field.required && <span className="text-red-500">*</span>}
+                         </label>
+                         {renderFieldComponent(field)}
+                       </div>
+                     </motion.div>
                    );
-                 }
-                 return null;
-               })()}
-               <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 shadow-2xl shadow-blue-500/30">
-                 {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Send className="w-6 h-6" /> Kirim Formulir</>}
-               </button>
-             </div>
+                 })}
+
+                 {/* Classic layout submit block */}
+                 <div className="pt-8 flex flex-col gap-4">
+                   {(() => {
+                     const total = computeTotal();
+                     const hasPaymentSection = form?.fields.some(f => f.type === 'payment_section');
+                     if (total > 0 && !hasPaymentSection) {
+                       return (
+                         <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 flex items-center justify-between border border-emerald-250 dark:border-emerald-800">
+                           <span className="font-bold text-zinc-650 dark:text-zinc-400">Total Pemesanan</span>
+                           <span className="font-black text-xl text-emerald-600">{formatPrice(total)}</span>
+                         </div>
+                       );
+                     }
+                     return null;
+                   })()}
+                   <button 
+                     type="submit" 
+                     disabled={submitting} 
+                     className="w-full text-white py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 shadow-2xl transition-all hover:opacity-90"
+                     style={{ 
+                       backgroundColor: themeColor,
+                       boxShadow: `0 10px 30px -5px ${themeColor}55` 
+                     }}
+                   >
+                     {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Send className="w-6 h-6" /> Kirim Formulir</>}
+                   </button>
+                 </div>
+               </div>
+             )}
            </form>
         </div>
       </div>
@@ -903,5 +1210,5 @@ export default function PortalFormView() {
 function ImageIcon({className}: {className?: string}) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-    )
+    );
 }

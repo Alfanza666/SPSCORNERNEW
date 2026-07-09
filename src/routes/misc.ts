@@ -53,16 +53,16 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
         ],
         max_tokens: 300,
         temperature: 0.1,
+        response_format: { type: "json_object" },
       });
 
       const responseText = result.choices?.[0]?.message?.content || '';
-      const cleanJson = responseText.replace(/```json?\n?|```/g, '').trim();
       let parsed;
       try {
-        parsed = JSON.parse(cleanJson);
+        parsed = JSON.parse(responseText.trim());
       } catch {
         // Fallback: AI returned non-JSON, treat as failed validation
-        console.warn('[Validate] AI returned non-JSON:', cleanJson.substring(0, 200));
+        console.warn('[Validate] AI returned non-JSON:', responseText.substring(0, 200));
         parsed = { valid: false, reason: 'Sistem AI tidak dapat membaca gambar dengan jelas. Pastikan gambar bukti pembayaran terlihat jelas dan coba lagi.' };
       }
 
@@ -83,72 +83,54 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
 
   app.post("/api/ai/generate-form", async (req, res) => {
     try {
-      const { prompt, messages: conversation } = req.body;
+      const { prompt, messages: conversation, currentForm } = req.body;
       const isChat = Array.isArray(conversation) && conversation.length > 0;
 
       const systemPrompt = `
-Kamu adalah asisten AI yang membantu user membuat formulir digital secara CHAT/PERCAKAPAN.
+Kamu adalah asisten AI yang membantu user merancang, membuat, dan memodifikasi formulir digital secara interaktif (seperti JotForm).
 
-PANDUAN PERCAKAPAN:
-- Kamu HARUS BICARA DALAM BAHASA INDONESIA.
-- Jika user belum memberikan deskripsi yang cukup, tanyakan detail yang diperlukan secara ramah dan natural.
-- Jika user sudah memberikan deskripsi yang cukup detail, AKHIRI balasan kamu dengan marker:
-  ---GENERATE---
-  lalu di baris berikutnya output HANYA array JSON dari field-field formulir.
-- Jangan pernah mengeluarkan marker ---GENERATE--- jika masih butuh informasi tambahan.
-- Pastikan user menyebutkan field-field apa saja yang diperlukan sebelum generate.
-
-Tipe field yang tersedia:
-- "text"     : Teks jawaban singkat (input pendek)
-- "textarea" : Paragraf / teks panjang
-- "number"   : Angka
-- "select"   : Dropdown / tarik-turun (butuh options)
-- "radio"    : Pilihan ganda (butuh options)
-- "checkbox" : Centang banyak pilihan (butuh options)
-- "rating"   : Penilaian bintang 1-5
-- "scale"    : Skala linier 1-10
-- "date"     : Tanggal
-- "file_upload" : Upload file
-- "image"    : Upload gambar / URL gambar
-
-Setiap field harus punya properti:
+Tugas utama kamu adalah merespons instruksi user dalam Bahasa Indonesia untuk memperbarui atau membuat konfigurasi formulir digital.
+Kamu HARUS mengembalikan respons dalam format JSON valid dan utuh (TANPA markdown, TANPA tag \`\`\`json) dengan struktur berikut:
 {
-  "id": "string_unik",
-  "type": "salah satu tipe di atas",
-  "label": "Pertanyaan",
-  "required": true/false,
-  "placeholder": "Petunjuk mengisi (optional)",
-  "options": [{"value": "opt1", "label": "Opsi 1"}] // hanya untuk select/radio/checkbox
-}
-
-FIELD BERSYARAT (CONDITIONAL LOGIC):
-Gunakan properti "condition" jika suatu field bergantung pada field sebelumnya:
-{
-  "condition": {
-    "fieldId": "id_dari_field_pemicu",
-    "operator": "eq",    // eq, neq, atau in
-    "value": "nilai_pemicu"
+  "message": "Pesan balasan ramah dalam Bahasa Indonesia yang menjelaskan perubahan apa yang telah dilakukan atau jika membutuhkan detail/tanya jawab.",
+  "updatedForm": { // Objek ini wajib disertakan jika formulir baru dibuat atau dirubah oleh instruksi user.
+    "title": "Judul Formulir",
+    "description": "Deskripsi Formulir",
+    "theme_color": "#HexColor", // default: "#673AB7"
+    "layout_type": "classic" | "card", // classic = scrollable biasa, card = satu pertanyaan per slide/kartu
+    "font_family": "Inter" | "Outfit" | "Playfair Display" | "Space Grotesk", // default: "Inter"
+    "input_style": "rounded" | "sharp" | "underline", // default: "rounded"
+    "bg_image_url": "URL gambar background (opsional)",
+    "card_glassmorphism": true | false, // default: false
+    "fields": [ // Daftar semua field formulir lengkap setelah perubahan
+      {
+        "id": "id_unik_string",
+        "type": "text" | "textarea" | "number" | "select" | "radio" | "checkbox" | "rating" | "scale" | "date" | "file_upload" | "image" | "image_choice" | "addon_group" | "payment_section",
+        "label": "Pertanyaan / Label Field",
+        "required": true | false,
+        "placeholder": "Petunjuk isi (opsional)",
+        "options": [{"value": "opt_value", "label": "Opsi Label", "price": 10000}], // opsional (price opsional) hanya untuk select, radio, checkbox, image_choice
+        "max": 5, // hanya untuk rating
+        "max_scale": 10, // hanya untuk scale
+        "items": [{"id": "item1", "name": "Baju", "sizes": ["S", "M"], "price": 50000}], // hanya untuk addon_group
+        "condition": { // logika bersyarat opsional
+          "fieldId": "id_field_pemicu",
+          "operator": "eq" | "neq" | "in",
+          "value": "nilai_pemicu"
+        }
+      }
+    ]
   }
 }
 
-Contoh:
-{
-  "id": "kehadiran",
-  "type": "radio",
-  "label": "Apakah Anda hadir?",
-  "required": true,
-  "options": [{"value":"ya_hadir","label":"Ya, Hadir"},{"value":"tidak_hadir","label":"Tidak Hadir"}]
-},
-{
-  "id": "ukuran_baju",
-  "type": "select",
-  "label": "Ukuran Baju",
-  "required": true,
-  "options": [{"value":"S","label":"S"},{"value":"M","label":"M"},{"value":"L","label":"L"}],
-  "condition": {"fieldId": "kehadiran", "operator": "eq", "value": "ya_hadir"}
-}
+PANDUAN PERILAKU:
+- Bahasa: Gunakan Bahasa Indonesia yang ramah, sopan, dan profesional.
+- Modifikasi Form: Jika parameter currentForm di bawah ini dikirimkan, maka itu adalah struktur form saat ini. Lakukan modifikasi (tambah/hapus/edit field, ganti tema warna, ganti font, ubah layout) berdasarkan permintaan user. JANGAN menghapus field lain kecuali diminta oleh user.
+- Tipe field baru: Jika menambahkan field baru, berikan ID acak yang unik (contoh: "nama_karyawan", "no_telp" atau random string singkat).
+- Pastikan options selalu valid jika tipe field adalah pilihan (select/radio/checkbox/image_choice).
 
-INGAT: Kamu adalah AI yang CHAT dengan user. Bicaralah secara natural, bantu user mendeskripsikan form yang mereka butuhkan. Jangan langsung generate jika deskripsi masih kurang.
+Formulir saat ini yang sedang diedit:
+${currentForm ? JSON.stringify(currentForm, null, 2) : "Belum ada (rancang baru dari awal sesuai permintaan user)"}
 `;
 
       const messages = [{ role: 'system', content: systemPrompt }];
@@ -168,36 +150,18 @@ INGAT: Kamu adalah AI yang CHAT dengan user. Bicaralah secara natural, bantu use
         messages,
         max_tokens: 4096,
         temperature: 0.7,
+        response_format: { type: "json_object" }
       });
 
-      let raw = result.choices?.[0]?.message?.content || '';
-      console.log('[AI Chat Form] Raw response:', raw.slice(0, 500));
+      let raw = result.choices?.[0]?.message?.content || '{}';
+      console.log('[AI Chat Form] JSON response received');
+      const parsed = JSON.parse(raw.trim());
 
-      const generateMarker = '---GENERATE---';
-      const markerIndex = raw.indexOf(generateMarker);
-
-      if (markerIndex >= 0) {
-        const chatPart = raw.substring(0, markerIndex).trim();
-        const jsonPart = raw.substring(markerIndex + generateMarker.length).trim();
-
-        let clean = jsonPart;
-        const jsonMatch = clean.match(/\[[\s\S]*\]/);
-        if (jsonMatch) clean = jsonMatch[0];
-
-        let fields = [];
-        try {
-          const parsed = JSON.parse(clean);
-          if (Array.isArray(parsed)) fields = parsed;
-        } catch {
-          console.log('[AI Chat Form] JSON parse failed on:', clean.slice(0, 300));
-        }
-
-        if (fields.length > 0) {
-          return res.json({ success: true, type: 'fields', message: chatPart, data: fields });
-        }
-      }
-
-      res.json({ success: true, type: 'chat', message: raw });
+      res.json({ 
+        success: true, 
+        message: parsed.message || 'Formulir berhasil diproses.', 
+        updatedForm: parsed.updatedForm 
+      });
     } catch (error) {
       console.error('[AI Chat Form] Error:', error);
       res.status(500).json({ success: false, error: 'Gagal memproses AI. Coba lagi.' });
