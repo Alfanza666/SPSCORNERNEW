@@ -5,13 +5,15 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import {
   ClipboardList, Plus, X, Trash2, Save, MoveUp, MoveDown,
   Type, List, CheckSquare, Calendar, Loader2, ChevronRight,
-  Settings, AlertCircle, Copy, Link2, ImageIcon, Star,
+  Settings, AlertCircle, Copy, Link2, ImageIcon,
   Sliders, Upload, ShoppingBag, MoreVertical, LayoutTemplate, MoreHorizontal,
   Sparkles, Users, DollarSign, Palette
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import { FormConfig, FormField, FormOption, AddonItem, FieldType } from '../../../types/form';
+import FormCanvas from '../../../components/forms/FormCanvas';
+import { parseAIResponse } from '../../../utils/aiResponseParser';
 
 interface DynamicForm {
   id: string;
@@ -63,8 +65,9 @@ export default function AdminFormBuilder() {
   }, [aiMessages]);
 
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [previewCardIndex, setPreviewCardIndex] = useState(0);
-  const [previewAnswers, setPreviewAnswers] = useState<Record<string, any>>({});
+  // Preview mode state managed internally by FormCanvas
+  const [dragFieldIndex, setDragFieldIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Dynamic font loader for preview
   useEffect(() => {
@@ -81,100 +84,6 @@ export default function AdminFormBuilder() {
       link.href = `https://fonts.googleapis.com/css2?family=${font.replace(/ /g, '+')}:wght@300;400;500;700;800;900&display=swap`;
     }
   }, [editingForm.font_family]);
-
-  // Reset preview card index when layout type changes or exiting preview
-  useEffect(() => {
-    setPreviewCardIndex(0);
-  }, [editingForm.layout_type, isPreviewMode]);
-
-  const getPreviewInputStyle = () => {
-    let base = "w-full p-3 text-sm focus:outline-none transition-all";
-    let borderStyle = "";
-    if (editingForm.input_style === 'rounded') {
-      borderStyle = "border border-zinc-300 dark:border-zinc-700 rounded-xl focus:border-[var(--theme-color)]";
-    } else if (editingForm.input_style === 'underline') {
-      borderStyle = "border-b-2 border-t-0 border-l-0 border-r-0 border-zinc-250 dark:border-zinc-700 bg-transparent px-1 focus:border-[var(--theme-color)]";
-    } else {
-      borderStyle = "border-2 border-zinc-150 dark:border-zinc-800 rounded-none focus:border-[var(--theme-color)]";
-    }
-    return `${base} ${borderStyle} bg-zinc-55 dark:bg-zinc-805 text-zinc-900 dark:text-white`;
-  };
-
-  const renderPreviewField = (field: FormField) => {
-    const inputCls = getPreviewInputStyle();
-    const styleObj = { '--theme-color': editingForm.theme_color || '#673AB7' } as React.CSSProperties;
-
-    switch (field.type) {
-      case 'text':
-        return <input type="text" className={inputCls} style={styleObj} placeholder={field.placeholder || 'Masukkan jawaban singkat...'} disabled />;
-      case 'textarea':
-        return <textarea className={`${inputCls} h-20 resize-none`} style={styleObj} placeholder={field.placeholder || 'Masukkan paragraf...'} disabled />;
-      case 'number':
-        return <input type="number" className={inputCls} style={styleObj} placeholder={field.placeholder || 'Masukkan angka...'} disabled />;
-      case 'date':
-        return <input type="date" className={inputCls} style={styleObj} disabled />;
-      case 'select':
-        return (
-          <select className={inputCls} style={styleObj} disabled>
-            <option value="">Pilih opsi...</option>
-            {field.options?.map((o, idx) => <option key={idx} value={o.value}>{o.label}</option>)}
-          </select>
-        );
-      case 'radio':
-        return (
-          <div className="space-y-2">
-            {field.options?.map((o, idx) => (
-              <label key={idx} className="flex items-center gap-2 text-sm text-zinc-650 dark:text-zinc-400">
-                <input type="radio" name={field.id} disabled className="text-purple-600" />
-                <span>{o.label}</span>
-              </label>
-            ))}
-          </div>
-        );
-      case 'checkbox':
-        return (
-          <div className="space-y-2">
-            {field.options?.map((o, idx) => (
-              <label key={idx} className="flex items-center gap-2 text-sm text-zinc-650 dark:text-zinc-400">
-                <input type="checkbox" disabled className="rounded text-purple-600" />
-                <span>{o.label}</span>
-              </label>
-            ))}
-          </div>
-        );
-      case 'rating':
-        return (
-          <div className="flex gap-1.5 text-zinc-300">
-            {[...Array(field.max || 5)].map((_, i) => <Star key={i} className="w-6 h-6 fill-current" />)}
-          </div>
-        );
-      case 'scale':
-        return (
-          <div className="flex gap-1">
-            {[...Array(field.max_scale || 10)].map((_, i) => (
-              <div key={i} className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
-                {i + 1}
-              </div>
-            ))}
-          </div>
-        );
-      case 'file_upload':
-        return (
-          <div className="border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl p-4 text-center text-zinc-400 text-xs">
-            Upload File (Maks {field.max_size_mb || 5}MB)
-          </div>
-        );
-      case 'payment_section':
-        return (
-          <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-2 text-xs">
-            <p className="font-bold text-zinc-800 dark:text-zinc-200">💳 QRIS & Konfirmasi Pembayaran AI</p>
-            <p className="text-zinc-500">Kirim dana ke: {field.account_name || 'Admin'} - {field.payment_description || 'SPS'}</p>
-          </div>
-        );
-      default:
-        return <div className="text-xs text-zinc-400">Tipe field {field.type}</div>;
-    }
-  };
 
   const sendAIChat = async () => {
     const text = aiChatInput.trim();
@@ -199,50 +108,10 @@ export default function AdminFormBuilder() {
       });
       const json = await res.json();
       if (json.success) {
-        let updatedForm = json.updatedForm;
-        let aiMessageContent = json.message;
-        
-        // Defensive parsing fallback if the model dumps JSON in the message instead of updatedForm
-        if (!updatedForm && json.message) {
-          try {
-            // Find JSON block in the message text
-            const match = json.message.match(/\{[\s\S]*\}/);
-            if (match) {
-              const parsed = JSON.parse(match[0]);
-              if (parsed.fields || parsed.updatedForm) {
-                updatedForm = parsed.updatedForm || parsed;
-                // Clean up the message content to avoid showing raw JSON in chat bubble
-                aiMessageContent = json.message.replace(/\{[\s\S]*\}/, '').replace(/```json/g, '').replace(/```/g, '').trim() || 'Formulir berhasil diperbarui oleh AI.';
-              }
-            }
-          } catch (e) {
-            console.error('Fallback JSON parsing failed:', e);
-          }
-        }
-
-        setAiMessages(prev => [...prev, { role: 'ai', content: aiMessageContent }]);
-        
+        const { chatContent, updatedForm } = parseAIResponse(json);
+        setAiMessages(prev => [...prev, { role: 'ai', content: chatContent }]);
         if (updatedForm) {
-          const fields = (updatedForm.fields || []).map((f: any) => ({
-            id: f.id || Math.random().toString(36).substr(2, 9),
-            type: f.type,
-            label: f.label || 'Pertanyaan',
-            required: f.required || false,
-            placeholder: f.placeholder || '',
-            options: ['select', 'radio', 'checkbox', 'image_choice'].includes(f.type) && f.options ? f.options : undefined,
-            max: f.type === 'rating' ? 5 : undefined,
-            max_scale: f.type === 'scale' ? 10 : undefined,
-            condition: f.condition || undefined,
-            items: f.type === 'addon_group' ? f.items : undefined,
-            qris_image_url: f.type === 'payment_section' ? f.qris_image_url : undefined,
-            account_name: f.type === 'payment_section' ? f.account_name : undefined,
-            payment_description: f.type === 'payment_section' ? f.payment_description : undefined,
-            verify_with_ai: f.type === 'payment_section' ? f.verify_with_ai : undefined,
-          }));
-          setEditingForm({
-            ...updatedForm,
-            fields
-          });
+          setEditingForm(updatedForm);
           toast.success('Formulir diperbarui oleh AI!');
         }
       } else {
@@ -276,47 +145,10 @@ export default function AdminFormBuilder() {
       });
       const json = await res.json();
       if (json.success) {
-        let updatedForm = json.updatedForm;
-        let aiMessageContent = json.message;
-        
-        if (!updatedForm && json.message) {
-          try {
-            const match = json.message.match(/\{[\s\S]*\}/);
-            if (match) {
-              const parsed = JSON.parse(match[0]);
-              if (parsed.fields || parsed.updatedForm) {
-                updatedForm = parsed.updatedForm || parsed;
-                aiMessageContent = json.message.replace(/\{[\s\S]*\}/, '').replace(/```json/g, '').replace(/```/g, '').trim() || 'Formulir berhasil diperbarui oleh AI.';
-              }
-            }
-          } catch (e) {
-            console.error('Fallback JSON parsing failed:', e);
-          }
-        }
-
-        setAiMessages(prev => [...prev, { role: 'ai', content: aiMessageContent }]);
-        
+        const { chatContent, updatedForm } = parseAIResponse(json);
+        setAiMessages(prev => [...prev, { role: 'ai', content: chatContent }]);
         if (updatedForm) {
-          const fields = (updatedForm.fields || []).map((f: any) => ({
-            id: f.id || Math.random().toString(36).substr(2, 9),
-            type: f.type,
-            label: f.label || 'Pertanyaan',
-            required: f.required || false,
-            placeholder: f.placeholder || '',
-            options: ['select', 'radio', 'checkbox', 'image_choice'].includes(f.type) && f.options ? f.options : undefined,
-            max: f.type === 'rating' ? 5 : undefined,
-            max_scale: f.type === 'scale' ? 10 : undefined,
-            condition: f.condition || undefined,
-            items: f.type === 'addon_group' ? f.items : undefined,
-            qris_image_url: f.type === 'payment_section' ? f.qris_image_url : undefined,
-            account_name: f.type === 'payment_section' ? f.account_name : undefined,
-            payment_description: f.type === 'payment_section' ? f.payment_description : undefined,
-            verify_with_ai: f.type === 'payment_section' ? f.verify_with_ai : undefined,
-          }));
-          setEditingForm({
-            ...updatedForm,
-            fields
-          });
+          setEditingForm(updatedForm);
           toast.success('Formulir diperbarui oleh AI!');
         }
       } else {
@@ -937,33 +769,52 @@ export default function AdminFormBuilder() {
                            </div>
                        </div>
 
-                       {/* Form Fields */}
-                       <div className="space-y-4">
-                           <AnimatePresence>
-                               {editingForm.fields?.map((field, index) => (
-                                   <FieldCard 
-                                       key={field.id}
-                                       field={field}
-                                       index={index}
-                                       allFields={editingForm.fields || []}
-                                       isActive={activeFieldId === field.id}
-                                       onClick={() => setActiveFieldId(field.id)}
-                                       onUpdate={(updates) => updateField(field.id, updates)}
-                                       onMove={(dir) => moveField(index, dir)}
-                                       onDuplicate={() => duplicateField(field)}
-                                       onDelete={() => removeField(field.id)}
-                                       isFirst={index === 0}
-                                       isLast={index === (editingForm.fields?.length || 0) - 1}
-                                       visualSettings={{
-                                         font_family: editingForm.font_family,
-                                         theme_color: editingForm.theme_color,
-                                         input_style: editingForm.input_style,
-                                         card_glassmorphism: editingForm.card_glassmorphism
-                                       }}
-                                   />
-                               ))}
-                           </AnimatePresence>
-                       </div>
+                        {/* Form Fields */}
+                        <div className="space-y-4">
+                            <AnimatePresence>
+                                {editingForm.fields?.map((field, index) => (
+                                    <div
+                                        key={field.id}
+                                        draggable
+                                        onDragStart={() => setDragFieldIndex(index)}
+                                        onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index); }}
+                                        onDragEnd={() => { setDragFieldIndex(null); setDragOverIndex(null); }}
+                                        onDrop={() => {
+                                          if (dragFieldIndex !== null && dragFieldIndex !== index) {
+                                            const reordered = [...(editingForm.fields || [])];
+                                            const [moved] = reordered.splice(dragFieldIndex, 1);
+                                            reordered.splice(index, 0, moved);
+                                            setEditingForm(prev => ({ ...prev, fields: reordered }));
+                                            setActiveFieldId(moved.id);
+                                          }
+                                          setDragFieldIndex(null);
+                                          setDragOverIndex(null);
+                                        }}
+                                        className={`transition-all ${dragOverIndex === index && dragFieldIndex !== null && dragFieldIndex !== index ? 'ring-2 ring-purple-400/50 rounded-2xl scale-[1.01]' : ''}`}
+                                    >
+                                        <FieldCard 
+                                            field={field}
+                                            index={index}
+                                            allFields={editingForm.fields || []}
+                                            isActive={activeFieldId === field.id}
+                                            onClick={() => setActiveFieldId(field.id)}
+                                            onUpdate={(updates) => updateField(field.id, updates)}
+                                            onMove={(dir) => moveField(index, dir)}
+                                            onDuplicate={() => duplicateField(field)}
+                                            onDelete={() => removeField(field.id)}
+                                            isFirst={index === 0}
+                                            isLast={index === (editingForm.fields?.length || 0) - 1}
+                                            visualSettings={{
+                                              font_family: editingForm.font_family,
+                                              theme_color: editingForm.theme_color,
+                                              input_style: editingForm.input_style,
+                                              card_glassmorphism: editingForm.card_glassmorphism
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                            </AnimatePresence>
+                        </div>
 
                        {/* Google Forms Style Floating Toolbar */}
                        <div className="fixed right-4 md:absolute md:-right-16 top-1/2 md:top-32 -translate-y-1/2 md:translate-y-0 bg-white dark:bg-zinc-900 p-2 rounded-xl md:rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-3 z-50">
@@ -976,142 +827,18 @@ export default function AdminFormBuilder() {
                            <ToolbarButton icon={<DollarSign />} label="Pembayaran" onClick={() => addField('payment_section')} />
                        </div>
                      </>
-                   ) : (
-                     /* Pratinjau Live Mode */
-                     <div 
-                       className={`w-full rounded-2xl overflow-hidden transition-all relative ${
-                         editingForm.card_glassmorphism 
-                           ? 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-white/25 dark:border-zinc-800/50 shadow-2xl' 
-                           : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl'
-                       }`}
-                     >
-                       {/* Top Accent Strip */}
-                       {!editingForm.banner_url && (
-                         <div className="h-3 w-full" style={{ backgroundColor: editingForm.theme_color || '#673AB7' }} />
-                       )}
-
-                       <div className="p-6 md:p-10">
-                         {editingForm.layout_type === 'card' ? (
-                           <div>
-                             {previewCardIndex === 0 ? (
-                               <div className="text-center py-10 space-y-6">
-                                 {editingForm.banner_url && (
-                                   <div className="w-full h-48 md:h-64 overflow-hidden rounded-2xl mb-6">
-                                     <img src={editingForm.banner_url} alt="Banner" className="w-full h-full object-cover" />
-                                   </div>
-                                 )}
-                                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white">{editingForm.title}</h2>
-                                 <p className="text-zinc-550 leading-relaxed max-w-xl mx-auto">{editingForm.description || 'Deskripsi formulir'}</p>
-                                 <div className="pt-6">
-                                   <button
-                                     type="button"
-                                     onClick={() => setPreviewCardIndex(1)}
-                                     className="px-10 py-4 text-white rounded-full font-black text-base shadow-lg hover:opacity-90 active:scale-95 transition-all"
-                                     style={{ backgroundColor: editingForm.theme_color || '#673AB7', boxShadow: `0 10px 25px -5px ${(editingForm.theme_color || '#673AB7')}55` }}
-                                   >
-                                     Mulai Mengisi
-                                   </button>
-                                 </div>
-                               </div>
-                             ) : (
-                               (() => {
-                                 const visibleFields = editingForm.fields || [];
-                                 const fieldIndex = previewCardIndex - 1;
-                                 const field = visibleFields[fieldIndex];
-
-                                 if (!field) {
-                                   return (
-                                     <div className="text-center py-12 space-y-6">
-                                       <h2 className="text-3xl font-black text-zinc-900 dark:text-white">Terima Kasih!</h2>
-                                       <p className="text-zinc-450 leading-relaxed text-sm">Ini adalah pratinjau bagaimana pengguna Anda akan melihat respon sukses.</p>
-                                       <div className="pt-6">
-                                         <button
-                                           type="button"
-                                           onClick={() => setPreviewCardIndex(0)}
-                                           className="px-8 py-3 border border-zinc-200 dark:border-zinc-700 text-zinc-650 rounded-full font-bold text-xs"
-                                         >
-                                           Ulangi Pengisian
-                                         </button>
-                                       </div>
-                                     </div>
-                                   );
-                                 }
-
-                                 const isLast = previewCardIndex === visibleFields.length;
-
-                                 return (
-                                   <div className="space-y-6 py-6">
-                                     <div className="space-y-4">
-                                       <label className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
-                                         {field.label} {field.required && <span className="text-red-500">*</span>}
-                                       </label>
-                                       <div className="pt-2">
-                                         {renderPreviewField(field)}
-                                       </div>
-                                     </div>
-
-                                     <div className="pt-10 flex items-center justify-between gap-4 border-t border-zinc-150 dark:border-zinc-800">
-                                       <button
-                                         type="button"
-                                         onClick={() => setPreviewCardIndex(prev => Math.max(0, prev - 1))}
-                                         className="px-6 py-3 border-2 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-355 rounded-full font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                                       >
-                                         Kembali
-                                       </button>
-                                       <button
-                                         type="button"
-                                         onClick={() => {
-                                           setPreviewCardIndex(prev => prev + 1);
-                                         }}
-                                         className="px-8 py-3 text-white rounded-full font-bold text-sm shadow-md hover:opacity-90 transition-all"
-                                         style={{ backgroundColor: editingForm.theme_color || '#673AB7' }}
-                                       >
-                                         {isLast ? 'Kirim' : 'Selanjutnya'}
-                                       </button>
-                                     </div>
-                                   </div>
-                                 );
-                               })()
-                             )}
-                           </div>
-                         ) : (
-                           <div className="space-y-8">
-                             {editingForm.banner_url && (
-                               <div className="w-full h-48 md:h-64 overflow-hidden rounded-2xl mb-6">
-                                 <img src={editingForm.banner_url} alt="Banner" className="w-full h-full object-cover" />
-                               </div>
-                             )}
-                             <div>
-                               <h2 className="text-3xl font-black text-zinc-900 dark:text-white">{editingForm.title}</h2>
-                               <p className="text-zinc-500 leading-relaxed text-sm">{editingForm.description || 'Deskripsi formulir'}</p>
-                             </div>
-                             <div className="space-y-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                               {editingForm.fields?.map(field => (
-                                 <div key={field.id} className="space-y-3 pb-6 border-b border-zinc-50 dark:border-zinc-805">
-                                   <label className="block text-sm font-bold text-zinc-900 dark:text-white">
-                                     {field.label} {field.required && <span className="text-red-500">*</span>}
-                                   </label>
-                                   {renderPreviewField(field)}
-                                 </div>
-                               ))}
-                             </div>
-                             <div className="pt-4 flex justify-end">
-                               <button
-                                 type="button"
-                                 onClick={() => toast.success('Formulir berhasil dikirim (mode pratinjau)')}
-                                 className="px-8 py-3 text-white rounded-full font-bold text-sm"
-                                 style={{ backgroundColor: editingForm.theme_color || '#673AB7' }}
-                               >
-                                 Kirim Jawaban
-                               </button>
-                             </div>
-                           </div>
-                         )}
-                       </div>
-                     </div>
-                   )}
-                 </div>
-               </div>
+                    ) : (
+                      <FormCanvas
+                        form={editingForm}
+                        isGenerating={aiChatLoading}
+                        onStart={() => {}}
+                        onFinish={() => toast.success('Formulir berhasil dikirim (mode pratinjau)')}
+                        onFieldClick={(id) => setActiveFieldId(id)}
+                        activeFieldId={activeFieldId}
+                      />
+                    )}
+                  </div>
+                </div>
 
          {/* Right Panel: AI Sidebar */}
          {showAIChat && (

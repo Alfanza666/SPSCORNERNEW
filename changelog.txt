@@ -1,13 +1,39 @@
-v5.5.2 — JotForm-Style Welcome Card & AI Form Generation Templates (PATCH)
+v5.6.0 — WYSIWYG Form Canvas, JSON Parser Engine & Drag-and-Drop Reorder (MINOR)
 ----------------------------------------------------------------------------------
 ### Fitur Baru:
-- **[FEAT] JotForm-Style Welcome Card Mockup:** Jika tipe layout formulir dipilih "Card Form", Main Form Title Card di editor otomatis berubah wujud menjadi layout centered welcome slide (logo Sari Roti terpusat di atas, judul & deskripsi di tengah, dan mock tombol "START →" terpusat di bawah dengan warna tema).
-- **[FEAT] Slaid Index Badge Labels:** Setiap field card di editor kini memiliki badge penunjuk urutan slaid kustom (misal: "Slaid 1", "Slaid 2") untuk memperjelas susunan kartu halaman bagi admin.
-- **[FEAT] AI Quick Start Template Chips:** Asisten AI Sidebar kini menampilkan pilihan template formulir instan (seperti form pendaftaran, kritik & saran, pemesanan Sari Roti) saat chat masih kosong. Admin dapat men-generate formulir lengkap hanya dalam satu klik tanpa ketik basa-basi.
-- **[FEAT] Strict Conciseness AI Prompt:** System prompt backend mewajibkan AI langsung menerapkan perubahan formulir dan memberikan penjelasan super singkat/padat (maksimal 2 kalimat) untuk mengurangi percakapan tidak penting.
 
-### Perbaikan:
-- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** Versi dinaikkan ke v5.5.2.
+**🧩 AI Response Parser Engine (`src/utils/aiResponseParser.ts`):**
+- **[FEAT] Smart JSON Extraction:** Parser otomatis memisahkan teks natural dari blok JSON (```json, { }, ---GENERATE---) di respons AI. Chat hanya menampilkan teks ramah, JSON disimpan ke formState secara real-time.
+- **[FEAT] Sanitasi Field:** Sanitasi otomatis untuk semua tipe field — ID unik, validasi options, price, conditional logic, payment section, addon group.
+- **[FEAT] Fallback Robust:** Jika AI gagal mengikuti format `updatedForm`, parser tetap bisa mengekstrak JSON dari dalam tepesan natural.
+
+**🖼️ WYSIWYG FormCanvas (`src/components/forms/FormCanvas.tsx`):**
+- **[FEAT] Live Preview Canvas:** Menggantikan pratinjau inline — rendering form langsung dari formState dengan real-time update saat AI menghasilkan field baru.
+- **[FEAT] Card Form Layout:** Satu pertanyaan per slide dengan welcome slide, progress indicator, dan tombol Next/Prev. Animasi transisi halus.
+- **[FEAT] Classic Layout:** Semua field dalam satu halaman scroll vertikal. Mendukung banner, title, dan submit button.
+- **[FEAT] Skeleton Loading:** Animasi pulse shimmer saat AI sedang men-generate form — user melihat indikasi visual bahwa form sedang disusun.
+
+**🎨 FormFieldRenderer Component (`src/components/forms/FormFieldRenderer.tsx`):**
+- **[FEAT] 15 Field Types:** Render semua tipe field (text, textarea, number, select, radio, checkbox, rating, scale, date, file_upload, image, image_choice, addon_group, payment_section) dengan gaya konsisten mengikuti theme_color, input_style, dan font_family.
+- **[FEAT] Premium Card Option:** Radio/checkbox options menggunakan card-style dengan border, hover effects, dan label harga.
+
+**↕️ Drag-and-Drop Field Reorder:**
+- **[FEAT] HTML5 DnD:** Geser-urutkan field card di editor mode drag-and-drop native. Visual feedback ring highlight saat drag over.
+- **[FEAT] Auto-activate:** Field yang dipindahkan otomatis teraktivasi (active state) untuk memudahkan edit lanjutan.
+
+**📝 System Prompt Reinforcement (`src/routes/misc.ts`):**
+- **[FEAT] Strict JSON Separation:** Prompt baru mewajibkan AI untuk TIDAK PERNAH menaruh JSON di key "message". Key "message" HANYA teks natural.
+- **[FEAT] Ketat Format:** Larangan markdown, kode block, atau data teknis di chat message. Semua data form wajib di key "updatedForm".
+
+### Perubahan File:
+- **[NEW] src/utils/aiResponseParser.ts:** Parser AI response → chat text + formState
+- **[NEW] src/components/forms/FormCanvas.tsx:** WYSIWYG form canvas (card/classic layout)
+- **[NEW] src/components/forms/FormFieldRenderer.tsx:** Renderer 15 field types
+- **[NEW] src/components/forms/FormSkeleton.tsx:** Loading skeleton shimmer
+- **[CHANGE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** Integrasi FormCanvas, parseAIResponse, drag-and-drop DnD, hapus 170 baris dead code (renderPreviewField, previewCardIndex)
+- **[CHANGE] src/routes/misc.ts:** System prompt diperkuat — pisah teks natural dari JSON
+- **[DELETE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** Hapus `renderPreviewField()`, `getPreviewInputStyle()`, `previewCardIndex`, `previewAnswers`, import `Star` (dead code)
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.5.2 → v5.6.0 (MINOR: WYSIWYG form canvas + DnD)
 
 v5.5.1 — Fix Admin Scanner Sidebar Route Link (PATCH)
 ----------------------------------------------------------------------------------
