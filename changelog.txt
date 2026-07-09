@@ -1,3 +1,21 @@
+v5.5.1 — Fix Admin Scanner Sidebar Route Link (PATCH)
+----------------------------------------------------------------------------------
+### Perbaikan:
+- **[FIX] src/pages/dashboard/DashboardLayout.tsx:** Ganti route sidebar untuk link "Scan QR" dari `/dashboard/scanner` (yang menghasilkan 404/redirect ke home) → `/dashboard/admin/scanner` agar sesuai dengan routing aslinya di `App.tsx`.
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** Versi dinaikkan ke v5.5.1.
+
+v5.5.0 — Premium AI Form Builder & JotForm Visual Customization Engine (MINOR)
+----------------------------------------------------------------------------------
+### Fitur Baru:
+- **[FEAT] JotForm-Style Card Form Layout:** Mendukung layout bertipe "Card Form" (satu pertanyaan per slide dengan animasi transisi geser Framer Motion yang halus, halaman selamat datang, progress bar, dan validasi dinamis per kartu sebelum lanjut).
+- **[FEAT] Visual Customization Engine:** Fitur pengaturan gaya visual lengkap di form builder (Font Family dinamis, Input Style: rounded/sharp/underline, Background Image URL, dan transparansi Glassmorphism blur premium).
+- **[FEAT] Split Screen AI Assistant Sidebar:** Menggantikan overlay AI chat full-screen lama dengan asisten AI sidebar interaktif terintegrasi langsung di editor form builder untuk mempermudah perancangan form langsung.
+- **[FEAT] dynamic font loading:** Pemuatan font kustom dinamis dari Google Fonts API secara client-side di halaman pengisian formulir.
+
+### Perbaikan:
+- **[FIX] src/pages/portal/PortalFormView.tsx:** Penerapan style kustom dinamis (accent colors, backdrop-blur, custom fonts, rounded/sharp/underline input styles) ke seluruh field form input & tombol submit.
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** Versi dinaikkan ke v5.5.0.
+
 v5.4.1 — Excel Employee Import Diagnostics & Date Parsing Fix (PATCH)
 ----------------------------------------------------------------------------------
 ### Root Cause Analysis (RCA):
