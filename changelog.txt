@@ -1,3 +1,14 @@
+v5.5.2 — JotForm-Style Welcome Card & AI Form Generation Templates (PATCH)
+----------------------------------------------------------------------------------
+### Fitur Baru:
+- **[FEAT] JotForm-Style Welcome Card Mockup:** Jika tipe layout formulir dipilih "Card Form", Main Form Title Card di editor otomatis berubah wujud menjadi layout centered welcome slide (logo Sari Roti terpusat di atas, judul & deskripsi di tengah, dan mock tombol "START →" terpusat di bawah dengan warna tema).
+- **[FEAT] Slaid Index Badge Labels:** Setiap field card di editor kini memiliki badge penunjuk urutan slaid kustom (misal: "Slaid 1", "Slaid 2") untuk memperjelas susunan kartu halaman bagi admin.
+- **[FEAT] AI Quick Start Template Chips:** Asisten AI Sidebar kini menampilkan pilihan template formulir instan (seperti form pendaftaran, kritik & saran, pemesanan Sari Roti) saat chat masih kosong. Admin dapat men-generate formulir lengkap hanya dalam satu klik tanpa ketik basa-basi.
+- **[FEAT] Strict Conciseness AI Prompt:** System prompt backend mewajibkan AI langsung menerapkan perubahan formulir dan memberikan penjelasan super singkat/padat (maksimal 2 kalimat) untuk mengurangi percakapan tidak penting.
+
+### Perbaikan:
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** Versi dinaikkan ke v5.5.2.
+
 v5.5.1 — Fix Admin Scanner Sidebar Route Link (PATCH)
 ----------------------------------------------------------------------------------
 ### Perbaikan:

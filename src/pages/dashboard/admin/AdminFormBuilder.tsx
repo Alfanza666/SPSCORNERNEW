@@ -7,7 +7,7 @@ import {
   Type, List, CheckSquare, Calendar, Loader2, ChevronRight,
   Settings, AlertCircle, Copy, Link2, ImageIcon, Star,
   Sliders, Upload, ShoppingBag, MoreVertical, LayoutTemplate, MoreHorizontal,
-  Sparkles, Users, DollarSign
+  Sparkles, Users, DollarSign, Palette
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -50,6 +50,7 @@ export default function AdminFormBuilder() {
 
   // AI Chat Assistant
   const [showAIChat, setShowAIChat] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'ai' | 'design'>('ai');
   const [aiMessages, setAiMessages] = useState<{role:'user'|'ai', content:string}[]>([
     {role:'ai', content:'Halo! Saya asisten AI untuk membuat formulir. Ceritakan formulir apa yang ingin kamu buat? 😊'}
   ]);
@@ -60,6 +61,120 @@ export default function AdminFormBuilder() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [aiMessages]);
+
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [previewCardIndex, setPreviewCardIndex] = useState(0);
+  const [previewAnswers, setPreviewAnswers] = useState<Record<string, any>>({});
+
+  // Dynamic font loader for preview
+  useEffect(() => {
+    const font = editingForm.font_family || 'Inter';
+    if (font !== 'Inter') {
+      const linkId = 'dynamic-preview-font-stylesheet';
+      let link = document.getElementById(linkId) as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+      }
+      link.href = `https://fonts.googleapis.com/css2?family=${font.replace(/ /g, '+')}:wght@300;400;500;700;800;900&display=swap`;
+    }
+  }, [editingForm.font_family]);
+
+  // Reset preview card index when layout type changes or exiting preview
+  useEffect(() => {
+    setPreviewCardIndex(0);
+  }, [editingForm.layout_type, isPreviewMode]);
+
+  const getPreviewInputStyle = () => {
+    let base = "w-full p-3 text-sm focus:outline-none transition-all";
+    let borderStyle = "";
+    if (editingForm.input_style === 'rounded') {
+      borderStyle = "border border-zinc-300 dark:border-zinc-700 rounded-xl focus:border-[var(--theme-color)]";
+    } else if (editingForm.input_style === 'underline') {
+      borderStyle = "border-b-2 border-t-0 border-l-0 border-r-0 border-zinc-250 dark:border-zinc-700 bg-transparent px-1 focus:border-[var(--theme-color)]";
+    } else {
+      borderStyle = "border-2 border-zinc-150 dark:border-zinc-800 rounded-none focus:border-[var(--theme-color)]";
+    }
+    return `${base} ${borderStyle} bg-zinc-55 dark:bg-zinc-805 text-zinc-900 dark:text-white`;
+  };
+
+  const renderPreviewField = (field: FormField) => {
+    const inputCls = getPreviewInputStyle();
+    const styleObj = { '--theme-color': editingForm.theme_color || '#673AB7' } as React.CSSProperties;
+
+    switch (field.type) {
+      case 'text':
+        return <input type="text" className={inputCls} style={styleObj} placeholder={field.placeholder || 'Masukkan jawaban singkat...'} disabled />;
+      case 'textarea':
+        return <textarea className={`${inputCls} h-20 resize-none`} style={styleObj} placeholder={field.placeholder || 'Masukkan paragraf...'} disabled />;
+      case 'number':
+        return <input type="number" className={inputCls} style={styleObj} placeholder={field.placeholder || 'Masukkan angka...'} disabled />;
+      case 'date':
+        return <input type="date" className={inputCls} style={styleObj} disabled />;
+      case 'select':
+        return (
+          <select className={inputCls} style={styleObj} disabled>
+            <option value="">Pilih opsi...</option>
+            {field.options?.map((o, idx) => <option key={idx} value={o.value}>{o.label}</option>)}
+          </select>
+        );
+      case 'radio':
+        return (
+          <div className="space-y-2">
+            {field.options?.map((o, idx) => (
+              <label key={idx} className="flex items-center gap-2 text-sm text-zinc-650 dark:text-zinc-400">
+                <input type="radio" name={field.id} disabled className="text-purple-600" />
+                <span>{o.label}</span>
+              </label>
+            ))}
+          </div>
+        );
+      case 'checkbox':
+        return (
+          <div className="space-y-2">
+            {field.options?.map((o, idx) => (
+              <label key={idx} className="flex items-center gap-2 text-sm text-zinc-650 dark:text-zinc-400">
+                <input type="checkbox" disabled className="rounded text-purple-600" />
+                <span>{o.label}</span>
+              </label>
+            ))}
+          </div>
+        );
+      case 'rating':
+        return (
+          <div className="flex gap-1.5 text-zinc-300">
+            {[...Array(field.max || 5)].map((_, i) => <Star key={i} className="w-6 h-6 fill-current" />)}
+          </div>
+        );
+      case 'scale':
+        return (
+          <div className="flex gap-1">
+            {[...Array(field.max_scale || 10)].map((_, i) => (
+              <div key={i} className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
+                {i + 1}
+              </div>
+            ))}
+          </div>
+        );
+      case 'file_upload':
+        return (
+          <div className="border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl p-4 text-center text-zinc-400 text-xs">
+            Upload File (Maks {field.max_size_mb || 5}MB)
+          </div>
+        );
+      case 'payment_section':
+        return (
+          <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-2 text-xs">
+            <p className="font-bold text-zinc-800 dark:text-zinc-200">💳 QRIS & Konfirmasi Pembayaran AI</p>
+            <p className="text-zinc-500">Kirim dana ke: {field.account_name || 'Admin'} - {field.payment_description || 'SPS'}</p>
+          </div>
+        );
+      default:
+        return <div className="text-xs text-zinc-400">Tipe field {field.type}</div>;
+    }
+  };
 
   const sendAIChat = async () => {
     const text = aiChatInput.trim();
@@ -84,9 +199,31 @@ export default function AdminFormBuilder() {
       });
       const json = await res.json();
       if (json.success) {
-        setAiMessages(prev => [...prev, { role: 'ai', content: json.message }]);
-        if (json.updatedForm) {
-          const fields = (json.updatedForm.fields || []).map((f: any) => ({
+        let updatedForm = json.updatedForm;
+        let aiMessageContent = json.message;
+        
+        // Defensive parsing fallback if the model dumps JSON in the message instead of updatedForm
+        if (!updatedForm && json.message) {
+          try {
+            // Find JSON block in the message text
+            const match = json.message.match(/\{[\s\S]*\}/);
+            if (match) {
+              const parsed = JSON.parse(match[0]);
+              if (parsed.fields || parsed.updatedForm) {
+                updatedForm = parsed.updatedForm || parsed;
+                // Clean up the message content to avoid showing raw JSON in chat bubble
+                aiMessageContent = json.message.replace(/\{[\s\S]*\}/, '').replace(/```json/g, '').replace(/```/g, '').trim() || 'Formulir berhasil diperbarui oleh AI.';
+              }
+            }
+          } catch (e) {
+            console.error('Fallback JSON parsing failed:', e);
+          }
+        }
+
+        setAiMessages(prev => [...prev, { role: 'ai', content: aiMessageContent }]);
+        
+        if (updatedForm) {
+          const fields = (updatedForm.fields || []).map((f: any) => ({
             id: f.id || Math.random().toString(36).substr(2, 9),
             type: f.type,
             label: f.label || 'Pertanyaan',
@@ -103,7 +240,81 @@ export default function AdminFormBuilder() {
             verify_with_ai: f.type === 'payment_section' ? f.verify_with_ai : undefined,
           }));
           setEditingForm({
-            ...json.updatedForm,
+            ...updatedForm,
+            fields
+          });
+          toast.success('Formulir diperbarui oleh AI!');
+        }
+      } else {
+        toast.error('AI gagal merespons. Coba lagi.');
+      }
+    } catch {
+      toast.error('Gagal menghubungi AI. Coba lagi.');
+    } finally {
+      setAiChatLoading(false);
+    }
+  };
+
+  const handleShortcutClick = async (text: string) => {
+    if (aiChatLoading) return;
+    const updatedMessages = [...aiMessages, { role: 'user' as const, content: text }];
+    setAiMessages(updatedMessages);
+    setAiChatLoading(true);
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const conversation = updatedMessages.map(m => ({
+        role: m.role === 'ai' ? 'assistant' : 'user',
+        content: m.content
+      }));
+      const res = await fetch('/api/ai/generate-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ 
+          messages: conversation,
+          currentForm: editingForm
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        let updatedForm = json.updatedForm;
+        let aiMessageContent = json.message;
+        
+        if (!updatedForm && json.message) {
+          try {
+            const match = json.message.match(/\{[\s\S]*\}/);
+            if (match) {
+              const parsed = JSON.parse(match[0]);
+              if (parsed.fields || parsed.updatedForm) {
+                updatedForm = parsed.updatedForm || parsed;
+                aiMessageContent = json.message.replace(/\{[\s\S]*\}/, '').replace(/```json/g, '').replace(/```/g, '').trim() || 'Formulir berhasil diperbarui oleh AI.';
+              }
+            }
+          } catch (e) {
+            console.error('Fallback JSON parsing failed:', e);
+          }
+        }
+
+        setAiMessages(prev => [...prev, { role: 'ai', content: aiMessageContent }]);
+        
+        if (updatedForm) {
+          const fields = (updatedForm.fields || []).map((f: any) => ({
+            id: f.id || Math.random().toString(36).substr(2, 9),
+            type: f.type,
+            label: f.label || 'Pertanyaan',
+            required: f.required || false,
+            placeholder: f.placeholder || '',
+            options: ['select', 'radio', 'checkbox', 'image_choice'].includes(f.type) && f.options ? f.options : undefined,
+            max: f.type === 'rating' ? 5 : undefined,
+            max_scale: f.type === 'scale' ? 10 : undefined,
+            condition: f.condition || undefined,
+            items: f.type === 'addon_group' ? f.items : undefined,
+            qris_image_url: f.type === 'payment_section' ? f.qris_image_url : undefined,
+            account_name: f.type === 'payment_section' ? f.account_name : undefined,
+            payment_description: f.type === 'payment_section' ? f.payment_description : undefined,
+            verify_with_ai: f.type === 'payment_section' ? f.verify_with_ai : undefined,
+          }));
+          setEditingForm({
+            ...updatedForm,
             fields
           });
           toast.success('Formulir diperbarui oleh AI!');
@@ -498,339 +709,626 @@ export default function AdminFormBuilder() {
       ) : (
          <div className="max-w-[1600px] mx-auto pb-32">
             {/* Editor Header */}
-            <div className="flex items-center justify-between mb-6 bg-white dark:bg-zinc-900 p-4 rounded-full shadow-sm border border-zinc-200 dark:border-zinc-800 sticky top-4 z-50">
-               <button onClick={() => setShowEditor(false)} className="flex items-center gap-2 text-zinc-500 hover:text-zinc-800 font-bold px-4 py-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                  Kembali
-               </button>
-               <div className="flex items-center gap-2">
-                    <button onClick={() => { setShowAIChat(!showAIChat); }} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 hover:opacity-90 transition-all text-sm">
-                       <Sparkles className="w-4 h-4" /> AI
-                    </button>
-                   <button onClick={handleSave} disabled={saving} className="bg-[#673AB7] text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 hover:bg-[#5E35B1] transition-all">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan
+            <div className="flex flex-col md:flex-row items-center gap-4 justify-between mb-6 bg-white dark:bg-zinc-900 p-4 rounded-3xl md:rounded-full shadow-sm border border-zinc-200 dark:border-zinc-800 sticky top-4 z-50">
+               <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                 <button onClick={() => setShowEditor(false)} className="flex items-center gap-2 text-zinc-500 hover:text-zinc-850 dark:hover:text-zinc-200 font-bold px-4 py-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all text-xs">
+                    Kembali
+                 </button>
+                 
+                 {/* Mode Tabs */}
+                 <div className="bg-zinc-100 dark:bg-zinc-800 rounded-full p-1 flex items-center shadow-inner">
+                   <button
+                     onClick={() => setIsPreviewMode(false)}
+                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                       !isPreviewMode
+                         ? 'bg-[#673AB7] text-white shadow-sm'
+                         : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-250'
+                     }`}
+                   >
+                     Desain Form
                    </button>
+                   <button
+                     onClick={() => setIsPreviewMode(true)}
+                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                       isPreviewMode
+                         ? 'bg-[#673AB7] text-white shadow-sm'
+                         : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-250'
+                     }`}
+                   >
+                     Pratinjau Live
+                   </button>
+                 </div>
+               </div>
+
+               <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <button 
+                      onClick={() => { 
+                        if (showAIChat && sidebarTab === 'ai') {
+                          setShowAIChat(false);
+                        } else {
+                          setShowAIChat(true);
+                          setSidebarTab('ai');
+                        }
+                      }} 
+                      className={`px-4 py-2 rounded-full font-bold flex items-center gap-2 transition-all text-xs ${
+                        showAIChat && sidebarTab === 'ai'
+                          ? 'bg-[#673AB7] text-white shadow-md'
+                          : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90'
+                      }`}
+                    >
+                       <Sparkles className="w-3.5 h-3.5" /> AI Assistant
+                    </button>
+                    <button 
+                      onClick={() => { 
+                        if (showAIChat && sidebarTab === 'design') {
+                          setShowAIChat(false);
+                        } else {
+                          setShowAIChat(true);
+                          setSidebarTab('design');
+                        }
+                      }} 
+                      className={`px-4 py-2 rounded-full font-bold flex items-center gap-2 transition-all text-xs ${
+                        showAIChat && sidebarTab === 'design'
+                          ? 'bg-[#673AB7] text-white shadow-md'
+                          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-350 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                      }`}
+                    >
+                       <Palette className="w-3.5 h-3.5" /> Tema & Gaya
+                    </button>
+                    <button onClick={handleSave} disabled={saving} className="bg-[#673AB7] text-white px-5 py-2 rounded-full font-bold flex items-center gap-2 hover:bg-[#5E35B1] transition-all text-xs">
+                       {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan
+                    </button>
                 </div>
              </div>
 
             <div className="flex flex-col lg:flex-row gap-6 items-start">
                {/* Left Panel: Form Workspace */}
-               <div className={`flex-1 w-full relative transition-all duration-300 ${showAIChat ? 'lg:max-w-[70%]' : 'max-w-3xl mx-auto'}`}>
+               <div 
+                 className={`flex-1 w-full relative transition-all duration-300 rounded-3xl p-4 md:p-8 min-h-[75vh] ${
+                   showAIChat ? 'lg:max-w-[70%]' : 'max-w-4xl mx-auto'
+                 }`}
+                 style={{
+                   backgroundImage: editingForm.bg_image_url ? `url(${editingForm.bg_image_url})` : undefined,
+                   backgroundSize: 'cover',
+                   backgroundPosition: 'center',
+                   backgroundAttachment: 'local'
+                 }}
+               >
+                 {editingForm.bg_image_url && (
+                   <div className="absolute inset-0 bg-black/35 dark:bg-black/55 backdrop-blur-[2px] rounded-3xl pointer-events-none z-0" />
+                 )}
+                 
+                 <div className="relative z-10" style={{ fontFamily: editingForm.font_family || 'Inter' }}>
+                   {!isPreviewMode ? (
+                     <>
+                       {/* Main Form Title Card */}
+                       <div 
+                           onClick={() => setActiveFieldId('header')}
+                           style={{
+                             borderColor: activeFieldId === 'header' ? (editingForm.theme_color || '#673AB7') : undefined
+                           }}
+                           className={`rounded-2xl overflow-hidden border transition-all mb-4 relative ${
+                               editingForm.card_glassmorphism 
+                                 ? 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-white/20 dark:border-zinc-800/50 shadow-md' 
+                                 : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 shadow-sm'
+                           } ${activeFieldId === 'header' ? 'shadow-lg ring-1' : 'shadow-sm'}`}
+                       >
+                           <div className="h-3 w-full" style={{ backgroundColor: editingForm.theme_color || '#673AB7' }} />
+                           {activeFieldId === 'header' && <div className="absolute left-0 top-3 bottom-0 w-1.5" style={{ backgroundColor: editingForm.theme_color || '#673AB7' }} />}
+                           
+                           <div className={`p-6 md:p-8 flex flex-col ${editingForm.layout_type === 'card' ? 'items-center text-center' : ''}`}>
+                                {editingForm.layout_type === 'card' && (
+                                  <span className="self-end bg-[#673AB7]/10 text-[#673AB7] text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider mb-4" style={{ color: editingForm.theme_color, backgroundColor: `${editingForm.theme_color}15` }}>
+                                    Welcome Slide
+                                  </span>
+                                )}
 
-            <div className="relative">
-                {/* Main Form Title Card */}
-                <div 
-                    onClick={() => setActiveFieldId('header')}
-                    className={`bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border transition-all mb-4 relative ${
-                        activeFieldId === 'header' ? 'border-[#673AB7] shadow-lg' : 'border-zinc-200 dark:border-zinc-800 shadow-sm'
-                    }`}
-                >
-                    <div className="h-3 w-full" style={{ backgroundColor: editingForm.theme_color || '#673AB7' }} />
-                    {activeFieldId === 'header' && <div className="absolute left-0 top-3 bottom-0 w-1.5 bg-[#673AB7]" />}
-                    
-                    <div className="p-6 md:p-8">
-                        <input
-                            type="text"
-                            value={editingForm.title}
-                            onChange={(e) => setEditingForm(prev => ({ ...prev, title: e.target.value }))}
-                            className="text-4xl font-normal w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-[#673AB7] focus:ring-0 px-0 py-2 mb-4 text-zinc-900 dark:text-white transition-colors"
-                            placeholder="Judul Formulir"
-                        />
-                        <textarea
-                            value={editingForm.description}
-                            onChange={(e) => setEditingForm(prev => ({ ...prev, description: e.target.value }))}
-                            className="w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-[#673AB7] focus:ring-0 px-0 py-2 text-zinc-600 dark:text-zinc-400 resize-none min-h-[60px] text-sm"
-                            placeholder="Deskripsi formulir"
-                        />
+                                {editingForm.layout_type === 'card' && editingForm.banner_url && (
+                                  <div className="w-full max-w-[240px] h-20 overflow-hidden rounded-xl mb-4 border border-zinc-150 dark:border-zinc-800">
+                                    <img src={editingForm.banner_url} alt="Logo" className="w-full h-full object-cover" />
+                                  </div>
+                                )}
 
-                        {activeFieldId === 'header' && (
-                            <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-4">
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase">Tema Warna (Hex)</label>
-                                    <div className="flex items-center gap-3">
-                                      <input
-                                          type="color"
-                                          value={editingForm.theme_color || '#673AB7'}
-                                          onChange={(e) => setEditingForm(prev => ({ ...prev, theme_color: e.target.value }))}
-                                          className="w-10 h-10 rounded cursor-pointer border-0 p-0"
-                                      />
-                                      <input
-                                          type="text"
-                                          value={editingForm.theme_color || '#673AB7'}
-                                          onChange={(e) => setEditingForm(prev => ({ ...prev, theme_color: e.target.value }))}
-                                          className="flex-1 p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none uppercase"
-                                          placeholder="#673AB7"
-                                      />
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase">Banner URL (Gambar Opsional)</label>
-                                    <input
-                                        type="text"
-                                        value={editingForm.banner_url || ''}
-                                        onChange={(e) => setEditingForm(prev => ({ ...prev, banner_url: e.target.value }))}
-                                        className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none"
-                                        placeholder="https://contoh.com/banner.jpg"
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase">Tautkan ke Program Acara</label>
-                                    <select
-                                        value={linkedProgramId}
-                                        onChange={(e) => setLinkedProgramId(e.target.value)}
-                                        className="w-full md:w-1/2 p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none"
+                                <input
+                                    type="text"
+                                    value={editingForm.title}
+                                    onChange={(e) => setEditingForm(prev => ({ ...prev, title: e.target.value }))}
+                                    className={`text-4xl font-normal w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-[var(--theme-color)] focus:ring-0 px-0 py-2 mb-4 text-zinc-900 dark:text-white transition-colors ${editingForm.layout_type === 'card' ? 'text-center font-bold' : ''}`}
+                                    placeholder="Judul Formulir"
+                                    style={{ '--theme-color': editingForm.theme_color } as any}
+                                />
+                                <textarea
+                                    value={editingForm.description}
+                                    onChange={(e) => setEditingForm(prev => ({ ...prev, description: e.target.value }))}
+                                    className={`w-full bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-[var(--theme-color)] focus:ring-0 px-0 py-2 text-zinc-650 dark:text-zinc-400 resize-none min-h-[60px] text-sm ${editingForm.layout_type === 'card' ? 'text-center' : ''}`}
+                                    placeholder="Deskripsi formulir"
+                                    style={{ '--theme-color': editingForm.theme_color } as any}
+                                />
+
+                                {editingForm.layout_type === 'card' && (
+                                  <div className="pt-2 pb-2 w-full flex justify-center">
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="px-10 py-3 text-white font-black text-sm rounded-full shadow-md cursor-not-allowed opacity-90 flex items-center gap-1.5"
+                                      style={{ backgroundColor: editingForm.theme_color || '#673AB7' }}
                                     >
-                                        <option value="">-- Tidak Ditautkan --</option>
-                                        {availablePrograms.map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Target NIK */}
-                                <div className="flex flex-col gap-2">
-                                  <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
-                                    <Users className="w-3.5 h-3.5" /> Target NIK
-                                  </label>
-                                  <textarea
-                                    value={targetNiks}
-                                    onChange={(e) => setTargetNiks(e.target.value)}
-                                    className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none h-16 resize-none font-mono"
-                                    placeholder="Pisahkan dengan koma atau enter. Contoh: 12345, 67890"
-                                  />
-                                </div>
-
-                                {/* Target Departments */}
-                                <div className="flex flex-col gap-2">
-                                  <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
-                                    <Users className="w-3.5 h-3.5" /> Target Departemen
-                                  </label>
-                                  {availableDepartments.length === 0 ? (
-                                    <p className="text-xs text-zinc-400 italic">Belum ada data departemen</p>
-                                  ) : (
-                                    <div className="flex flex-wrap gap-2">
-                                      {availableDepartments.map(dept => {
-                                        const selected = targetDepartments.includes(dept);
-                                        return (
-                                          <button
-                                            key={dept}
-                                            type="button"
-                                            onClick={() => setTargetDepartments(prev =>
-                                              selected ? prev.filter(d => d !== dept) : [...prev, dept]
-                                            )}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                              selected
-                                                ? 'bg-purple-600 text-white shadow-md'
-                                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                                            }`}
-                                          >
-                                            {dept}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Cutoff Tanggal Masuk */}
-                                <div className="flex flex-col gap-2 mb-4">
-                                  <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
-                                    <Calendar className="w-3.5 h-3.5" /> Cutoff Tgl Masuk
-                                  </label>
-                                  <p className="text-[10px] text-zinc-400 -mt-1">Hanya karyawan dengan tgl masuk ≤ cutoff yang bisa mengisi</p>
-                                  <input
-                                    type="date"
-                                    value={targetCutoffDate}
-                                    onChange={(e) => setTargetCutoffDate(e.target.value)}
-                                    className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none"
-                                  />
-                                </div>
-
-                                {/* JotForm Visual Settings */}
-                                <div className="mt-4 pt-4 border-t border-zinc-150 dark:border-zinc-800 space-y-4">
-                                  <h4 className="text-xs font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-                                    🎨 GAYA DAN DESAIN VISUAL (JotForm Style)
-                                  </h4>
-                                  
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Layout Type */}
-                                    <div className="flex flex-col gap-1.5">
-                                      <label className="text-[10px] font-bold text-zinc-400 uppercase">Tipe Layout</label>
-                                      <select
-                                        value={editingForm.layout_type || 'classic'}
-                                        onChange={(e) => setEditingForm(prev => ({ ...prev, layout_type: e.target.value as any }))}
-                                        className="p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none font-semibold text-zinc-700 dark:text-zinc-300"
-                                      >
-                                        <option value="classic">Classic Form (Scrollable Kebawah)</option>
-                                        <option value="card">Card Form (Satu Pertanyaan Per Halaman)</option>
-                                      </select>
-                                    </div>
-
-                                    {/* Font Family */}
-                                    <div className="flex flex-col gap-1.5">
-                                      <label className="text-[10px] font-bold text-zinc-400 uppercase">Gaya Huruf (Font)</label>
-                                      <select
-                                        value={editingForm.font_family || 'Inter'}
-                                        onChange={(e) => setEditingForm(prev => ({ ...prev, font_family: e.target.value }))}
-                                        className="p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none font-semibold text-zinc-700 dark:text-zinc-300"
-                                      >
-                                        <option value="Inter">Inter (Clean & Modern)</option>
-                                        <option value="Outfit">Outfit (Friendly & Round)</option>
-                                        <option value="Playfair Display">Playfair Display (Elegant & Serif)</option>
-                                        <option value="Space Grotesk">Space Grotesk (Tech & Bold)</option>
-                                      </select>
-                                    </div>
-
-                                    {/* Input Style */}
-                                    <div className="flex flex-col gap-1.5">
-                                      <label className="text-[10px] font-bold text-zinc-400 uppercase">Gaya Input</label>
-                                      <select
-                                        value={editingForm.input_style || 'rounded'}
-                                        onChange={(e) => setEditingForm(prev => ({ ...prev, input_style: e.target.value as any }))}
-                                        className="p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none font-semibold text-zinc-700 dark:text-zinc-300"
-                                      >
-                                        <option value="rounded">Rounded Card (Bulat Premium)</option>
-                                        <option value="sharp">Sharp Border (Minimalis Kotak)</option>
-                                        <option value="underline">Underline Only (Klasik Bottom Line)</option>
-                                      </select>
-                                    </div>
-
-                                    {/* Glassmorphism Toggle */}
-                                    <div className="flex flex-col gap-1.5 justify-center">
-                                      <label className="text-[10px] font-bold text-zinc-400 uppercase mb-1">Efek Kaca (Glassmorphism)</label>
-                                      <label className="flex items-center gap-2 text-sm cursor-pointer select-none font-semibold text-zinc-700 dark:text-zinc-300">
-                                        <input
-                                          type="checkbox"
-                                          checked={editingForm.card_glassmorphism || false}
-                                          onChange={(e) => setEditingForm(prev => ({ ...prev, card_glassmorphism: e.target.checked }))}
-                                          className="w-4 h-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
-                                        />
-                                        <span>Aktifkan Transparansi Blur</span>
-                                      </label>
-                                    </div>
+                                      START &rarr;
+                                    </button>
                                   </div>
+                                )}
 
-                                  {/* Background Image URL */}
-                                  <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-bold text-zinc-400 uppercase">Gambar Latar Belakang (URL Background)</label>
-                                    <input
-                                      type="text"
-                                      value={editingForm.bg_image_url || ''}
-                                      onChange={(e) => setEditingForm(prev => ({ ...prev, bg_image_url: e.target.value }))}
-                                      className="p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm outline-none font-semibold text-zinc-700 dark:text-zinc-300"
-                                      placeholder="https://example.com/background.jpg"
-                                    />
-                                  </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                               {activeFieldId === 'header' && (
+                                   <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-4">
+                                       <div className="flex flex-col gap-2">
+                                           <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase">Tautkan ke Program Acara</label>
+                                           <select
+                                               value={linkedProgramId}
+                                               onChange={(e) => setLinkedProgramId(e.target.value)}
+                                               className="w-full md:w-1/2 p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none"
+                                           >
+                                               <option value="">-- Tidak Ditautkan --</option>
+                                               {availablePrograms.map(p => (
+                                                   <option key={p.id} value={p.id}>{p.name}</option>
+                                               ))}
+                                           </select>
+                                       </div>
 
-                {/* Form Fields */}
-                <div className="space-y-4">
-                    <AnimatePresence>
-                        {editingForm.fields?.map((field, index) => (
-                            <FieldCard 
-                                key={field.id}
-                                field={field}
-                                allFields={editingForm.fields || []}
-                                isActive={activeFieldId === field.id}
-                                onClick={() => setActiveFieldId(field.id)}
-                                onUpdate={(updates) => updateField(field.id, updates)}
-                                onMove={(dir) => moveField(index, dir)}
-                                onDuplicate={() => duplicateField(field)}
-                                onDelete={() => removeField(field.id)}
-                                isFirst={index === 0}
-                                isLast={index === (editingForm.fields?.length || 0) - 1}
-                            />
-                        ))}
-                    </AnimatePresence>
-                </div>
+                                       {/* Target NIK */}
+                                       <div className="flex flex-col gap-2">
+                                           <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
+                                               <Users className="w-3.5 h-3.5" /> Target NIK
+                                           </label>
+                                           <textarea
+                                               value={targetNiks}
+                                               onChange={(e) => setTargetNiks(e.target.value)}
+                                               className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none h-16 resize-none font-mono"
+                                               placeholder="Pisahkan dengan koma atau enter. Contoh: 12345, 67890"
+                                           />
+                                       </div>
 
-                {/* Google Forms Style Floating Toolbar */}
-                <div className="fixed right-4 md:absolute md:-right-16 top-1/2 md:top-32 -translate-y-1/2 md:translate-y-0 bg-white dark:bg-zinc-900 p-2 rounded-xl md:rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-3 z-50">
-                    <ToolbarButton icon={<Plus />} label="Teks Pendek" onClick={() => addField('text')} />
-                    <ToolbarButton icon={<List />} label="Paragraf" onClick={() => addField('textarea')} />
-                    <ToolbarButton icon={<CheckSquare />} label="Pilihan Ganda" onClick={() => addField('radio')} />
-                    <ToolbarButton icon={<Sliders />} label="Skala Penilaian" onClick={() => addField('scale')} />
-                    <ToolbarButton icon={<ShoppingBag />} label="Grup Pemesanan" onClick={() => addField('addon_group')} />
-                    <ToolbarButton icon={<ImageIcon />} label="Gambar" onClick={() => addField('image')} />
-                    <ToolbarButton icon={<DollarSign />} label="Pembayaran" onClick={() => addField('payment_section')} />
-                </div>
+                                       {/* Target Departments */}
+                                       <div className="flex flex-col gap-2">
+                                           <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
+                                               <Users className="w-3.5 h-3.5" /> Target Departemen
+                                           </label>
+                                           {availableDepartments.length === 0 ? (
+                                               <p className="text-xs text-zinc-400 italic">Belum ada data departemen</p>
+                                           ) : (
+                                               <div className="flex flex-wrap gap-2">
+                                                   {availableDepartments.map(dept => {
+                                                       const selected = targetDepartments.includes(dept);
+                                                       return (
+                                                           <button
+                                                               key={dept}
+                                                               type="button"
+                                                               onClick={() => setTargetDepartments(prev =>
+                                                                   selected ? prev.filter(d => d !== dept) : [...prev, dept]
+                                                               )}
+                                                               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                                   selected
+                                                                       ? 'bg-[#673AB7] text-white shadow-md'
+                                                                       : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                                               }`}
+                                                           >
+                                                               {dept}
+                                                           </button>
+                                                       );
+                                                   })}
+                                               </div>
+                                           )}
+                                       </div>
 
+                                       {/* Cutoff Tanggal Masuk */}
+                                       <div className="flex flex-col gap-2 mb-4">
+                                           <label className="text-xs font-bold tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
+                                               <Calendar className="w-3.5 h-3.5" /> Cutoff Tgl Masuk
+                                           </label>
+                                           <p className="text-[10px] text-zinc-400 -mt-1">Hanya karyawan dengan tgl masuk ≤ cutoff yang bisa mengisi</p>
+                                           <input
+                                               type="date"
+                                               value={targetCutoffDate}
+                                               onChange={(e) => setTargetCutoffDate(e.target.value)}
+                                               className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-[#673AB7] outline-none"
+                                           />
+                                       </div>
+                                   </div>
+                               )}
+                           </div>
+                       </div>
 
-            </div>
-         </div>
+                       {/* Form Fields */}
+                       <div className="space-y-4">
+                           <AnimatePresence>
+                               {editingForm.fields?.map((field, index) => (
+                                   <FieldCard 
+                                       key={field.id}
+                                       field={field}
+                                       index={index}
+                                       allFields={editingForm.fields || []}
+                                       isActive={activeFieldId === field.id}
+                                       onClick={() => setActiveFieldId(field.id)}
+                                       onUpdate={(updates) => updateField(field.id, updates)}
+                                       onMove={(dir) => moveField(index, dir)}
+                                       onDuplicate={() => duplicateField(field)}
+                                       onDelete={() => removeField(field.id)}
+                                       isFirst={index === 0}
+                                       isLast={index === (editingForm.fields?.length || 0) - 1}
+                                       visualSettings={{
+                                         font_family: editingForm.font_family,
+                                         theme_color: editingForm.theme_color,
+                                         input_style: editingForm.input_style,
+                                         card_glassmorphism: editingForm.card_glassmorphism
+                                       }}
+                                   />
+                               ))}
+                           </AnimatePresence>
+                       </div>
+
+                       {/* Google Forms Style Floating Toolbar */}
+                       <div className="fixed right-4 md:absolute md:-right-16 top-1/2 md:top-32 -translate-y-1/2 md:translate-y-0 bg-white dark:bg-zinc-900 p-2 rounded-xl md:rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800 flex flex-col gap-3 z-50">
+                           <ToolbarButton icon={<Plus />} label="Teks Pendek" onClick={() => addField('text')} />
+                           <ToolbarButton icon={<List />} label="Paragraf" onClick={() => addField('textarea')} />
+                           <ToolbarButton icon={<CheckSquare />} label="Pilihan Ganda" onClick={() => addField('radio')} />
+                           <ToolbarButton icon={<Sliders />} label="Skala Penilaian" onClick={() => addField('scale')} />
+                           <ToolbarButton icon={<ShoppingBag />} label="Grup Pemesanan" onClick={() => addField('addon_group')} />
+                           <ToolbarButton icon={<ImageIcon />} label="Gambar" onClick={() => addField('image')} />
+                           <ToolbarButton icon={<DollarSign />} label="Pembayaran" onClick={() => addField('payment_section')} />
+                       </div>
+                     </>
+                   ) : (
+                     /* Pratinjau Live Mode */
+                     <div 
+                       className={`w-full rounded-2xl overflow-hidden transition-all relative ${
+                         editingForm.card_glassmorphism 
+                           ? 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-white/25 dark:border-zinc-800/50 shadow-2xl' 
+                           : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl'
+                       }`}
+                     >
+                       {/* Top Accent Strip */}
+                       {!editingForm.banner_url && (
+                         <div className="h-3 w-full" style={{ backgroundColor: editingForm.theme_color || '#673AB7' }} />
+                       )}
+
+                       <div className="p-6 md:p-10">
+                         {editingForm.layout_type === 'card' ? (
+                           <div>
+                             {previewCardIndex === 0 ? (
+                               <div className="text-center py-10 space-y-6">
+                                 {editingForm.banner_url && (
+                                   <div className="w-full h-48 md:h-64 overflow-hidden rounded-2xl mb-6">
+                                     <img src={editingForm.banner_url} alt="Banner" className="w-full h-full object-cover" />
+                                   </div>
+                                 )}
+                                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white">{editingForm.title}</h2>
+                                 <p className="text-zinc-550 leading-relaxed max-w-xl mx-auto">{editingForm.description || 'Deskripsi formulir'}</p>
+                                 <div className="pt-6">
+                                   <button
+                                     type="button"
+                                     onClick={() => setPreviewCardIndex(1)}
+                                     className="px-10 py-4 text-white rounded-full font-black text-base shadow-lg hover:opacity-90 active:scale-95 transition-all"
+                                     style={{ backgroundColor: editingForm.theme_color || '#673AB7', boxShadow: `0 10px 25px -5px ${(editingForm.theme_color || '#673AB7')}55` }}
+                                   >
+                                     Mulai Mengisi
+                                   </button>
+                                 </div>
+                               </div>
+                             ) : (
+                               (() => {
+                                 const visibleFields = editingForm.fields || [];
+                                 const fieldIndex = previewCardIndex - 1;
+                                 const field = visibleFields[fieldIndex];
+
+                                 if (!field) {
+                                   return (
+                                     <div className="text-center py-12 space-y-6">
+                                       <h2 className="text-3xl font-black text-zinc-900 dark:text-white">Terima Kasih!</h2>
+                                       <p className="text-zinc-450 leading-relaxed text-sm">Ini adalah pratinjau bagaimana pengguna Anda akan melihat respon sukses.</p>
+                                       <div className="pt-6">
+                                         <button
+                                           type="button"
+                                           onClick={() => setPreviewCardIndex(0)}
+                                           className="px-8 py-3 border border-zinc-200 dark:border-zinc-700 text-zinc-650 rounded-full font-bold text-xs"
+                                         >
+                                           Ulangi Pengisian
+                                         </button>
+                                       </div>
+                                     </div>
+                                   );
+                                 }
+
+                                 const isLast = previewCardIndex === visibleFields.length;
+
+                                 return (
+                                   <div className="space-y-6 py-6">
+                                     <div className="space-y-4">
+                                       <label className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
+                                         {field.label} {field.required && <span className="text-red-500">*</span>}
+                                       </label>
+                                       <div className="pt-2">
+                                         {renderPreviewField(field)}
+                                       </div>
+                                     </div>
+
+                                     <div className="pt-10 flex items-center justify-between gap-4 border-t border-zinc-150 dark:border-zinc-800">
+                                       <button
+                                         type="button"
+                                         onClick={() => setPreviewCardIndex(prev => Math.max(0, prev - 1))}
+                                         className="px-6 py-3 border-2 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-355 rounded-full font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                                       >
+                                         Kembali
+                                       </button>
+                                       <button
+                                         type="button"
+                                         onClick={() => {
+                                           setPreviewCardIndex(prev => prev + 1);
+                                         }}
+                                         className="px-8 py-3 text-white rounded-full font-bold text-sm shadow-md hover:opacity-90 transition-all"
+                                         style={{ backgroundColor: editingForm.theme_color || '#673AB7' }}
+                                       >
+                                         {isLast ? 'Kirim' : 'Selanjutnya'}
+                                       </button>
+                                     </div>
+                                   </div>
+                                 );
+                               })()
+                             )}
+                           </div>
+                         ) : (
+                           <div className="space-y-8">
+                             {editingForm.banner_url && (
+                               <div className="w-full h-48 md:h-64 overflow-hidden rounded-2xl mb-6">
+                                 <img src={editingForm.banner_url} alt="Banner" className="w-full h-full object-cover" />
+                               </div>
+                             )}
+                             <div>
+                               <h2 className="text-3xl font-black text-zinc-900 dark:text-white">{editingForm.title}</h2>
+                               <p className="text-zinc-500 leading-relaxed text-sm">{editingForm.description || 'Deskripsi formulir'}</p>
+                             </div>
+                             <div className="space-y-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                               {editingForm.fields?.map(field => (
+                                 <div key={field.id} className="space-y-3 pb-6 border-b border-zinc-50 dark:border-zinc-805">
+                                   <label className="block text-sm font-bold text-zinc-900 dark:text-white">
+                                     {field.label} {field.required && <span className="text-red-500">*</span>}
+                                   </label>
+                                   {renderPreviewField(field)}
+                                 </div>
+                               ))}
+                             </div>
+                             <div className="pt-4 flex justify-end">
+                               <button
+                                 type="button"
+                                 onClick={() => toast.success('Formulir berhasil dikirim (mode pratinjau)')}
+                                 className="px-8 py-3 text-white rounded-full font-bold text-sm"
+                                 style={{ backgroundColor: editingForm.theme_color || '#673AB7' }}
+                               >
+                                 Kirim Jawaban
+                               </button>
+                             </div>
+                           </div>
+                         )}
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               </div>
 
          {/* Right Panel: AI Sidebar */}
          {showAIChat && (
             <div className="w-full lg:w-[400px] lg:sticky lg:top-24 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-xl flex flex-col h-[600px] lg:h-[calc(100vh-12rem)] z-40 overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-white animate-pulse" />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-sm text-zinc-950 dark:text-white">AI Form Assistant</h2>
-                    <p className="text-[10px] text-zinc-400">Merancang formulir interaktif</p>
-                  </div>
-                </div>
+              {/* Tabs Header */}
+              <div className="flex border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
                 <button
+                  type="button"
+                  onClick={() => setSidebarTab('ai')}
+                  className={`flex-1 py-3.5 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+                    sidebarTab === 'ai'
+                      ? 'border-[#673AB7] text-[#673AB7] dark:text-white'
+                      : 'border-transparent text-zinc-400 hover:text-zinc-650'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Asisten AI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarTab('design')}
+                  className={`flex-1 py-3.5 text-xs font-bold flex items-center justify-center gap-1.5 border-b-2 transition-colors ${
+                    sidebarTab === 'design'
+                      ? 'border-[#673AB7] text-[#673AB7] dark:text-white'
+                      : 'border-transparent text-zinc-400 hover:text-zinc-655'
+                  }`}
+                >
+                  <Palette className="w-3.5 h-3.5" /> Desain Visual
+                </button>
+                <button
+                  type="button"
                   onClick={() => setShowAIChat(false)}
-                  className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400"
+                  className="px-4 py-3 text-zinc-400 hover:text-zinc-600 border-b-2 border-transparent"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-50 dark:bg-zinc-950">
-                {aiMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
-                        msg.role === 'user'
-                          ? 'bg-[#673AB7] text-white rounded-br-none'
-                          : 'bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 text-zinc-850 dark:text-zinc-200 rounded-bl-none shadow-sm'
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
+              {sidebarTab === 'design' ? (
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  <div>
+                    <h3 className="font-bold text-sm text-zinc-900 dark:text-white mb-1">Desain Visual Formulir</h3>
+                    <p className="text-xs text-zinc-500">Kustomisasi visual ala JotForm untuk mempercantik tampilan.</p>
                   </div>
-                ))}
-                {aiChatLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl rounded-bl-none px-4 py-2.5 text-xs flex items-center gap-1.5 shadow-sm">
-                      <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
-                      <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
-                      <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
 
-              {/* Input */}
-              <div className="border-t border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-900">
-                <div className="flex items-center gap-2">
-                  <input
-                    value={aiChatInput}
-                    onChange={e => setAiChatInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAIChat(); } }}
-                    placeholder="Ubah tema ke merah, tambah field email..."
-                    className="flex-1 px-4 py-2 text-xs rounded-full border border-zinc-250 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-[#673AB7] text-zinc-900 dark:text-white"
-                    disabled={aiChatLoading}
-                  />
-                  <button
-                    onClick={sendAIChat}
-                    disabled={aiChatLoading || !aiChatInput.trim()}
-                    className="p-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
-                  >
-                    {aiChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-                  </button>
+                  {/* Theme Color */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Tema Warna (Hex)</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={editingForm.theme_color || '#673AB7'}
+                        onChange={(e) => setEditingForm(prev => ({ ...prev, theme_color: e.target.value }))}
+                        className="w-10 h-10 rounded cursor-pointer border border-zinc-200 dark:border-zinc-700 p-0"
+                      />
+                      <input
+                        type="text"
+                        value={editingForm.theme_color || '#673AB7'}
+                        onChange={(e) => setEditingForm(prev => ({ ...prev, theme_color: e.target.value }))}
+                        className="flex-1 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-semibold uppercase outline-none focus:border-[#673AB7] text-zinc-800 dark:text-white"
+                        placeholder="#673AB7"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Layout Type */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Tipe Layout</label>
+                    <select
+                      value={editingForm.layout_type || 'classic'}
+                      onChange={(e) => setEditingForm(prev => ({ ...prev, layout_type: e.target.value as any }))}
+                      className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-bold outline-none focus:border-[#673AB7] text-zinc-800 dark:text-white"
+                    >
+                      <option value="classic">Classic Form (Scroll Kebawah)</option>
+                      <option value="card">Card Form (Slide Per Kartu)</option>
+                    </select>
+                  </div>
+
+                  {/* Font Family */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Gaya Huruf (Font)</label>
+                    <select
+                      value={editingForm.font_family || 'Inter'}
+                      onChange={(e) => setEditingForm(prev => ({ ...prev, font_family: e.target.value }))}
+                      className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-bold outline-none focus:border-[#673AB7] text-zinc-800 dark:text-white"
+                    >
+                      <option value="Inter">Inter (Clean & Modern)</option>
+                      <option value="Outfit">Outfit (Friendly & Round)</option>
+                      <option value="Playfair Display">Playfair Display (Elegant & Serif)</option>
+                      <option value="Space Grotesk">Space Grotesk (Tech & Bold)</option>
+                    </select>
+                  </div>
+
+                  {/* Input Style */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Gaya Input</label>
+                    <select
+                      value={editingForm.input_style || 'rounded'}
+                      onChange={(e) => setEditingForm(prev => ({ ...prev, input_style: e.target.value as any }))}
+                      className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-bold outline-none focus:border-[#673AB7] text-zinc-800 dark:text-white"
+                    >
+                      <option value="rounded">Rounded Card (Bulat Premium)</option>
+                      <option value="sharp">Sharp Border (Kotak Minimalis)</option>
+                      <option value="underline">Underline Only (Klasik Bawah)</option>
+                    </select>
+                  </div>
+
+                  {/* Glassmorphism */}
+                  <div className="pt-2">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none font-bold text-zinc-700 dark:text-zinc-350">
+                      <input
+                        type="checkbox"
+                        checked={editingForm.card_glassmorphism || false}
+                        onChange={(e) => setEditingForm(prev => ({ ...prev, card_glassmorphism: e.target.checked }))}
+                        className="w-4 h-4 rounded border-zinc-305 text-[#673AB7] focus:ring-[#673AB7]"
+                      />
+                      <span>Efek Kaca Transparansi Blur</span>
+                    </label>
+                  </div>
+
+                  {/* Background Image URL */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Gambar Latar Belakang (URL Background)</label>
+                    <input
+                      type="text"
+                      value={editingForm.bg_image_url || ''}
+                      onChange={(e) => setEditingForm(prev => ({ ...prev, bg_image_url: e.target.value }))}
+                      className="w-full p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-[#673AB7] font-semibold text-zinc-800 dark:text-white"
+                      placeholder="https://example.com/background.jpg"
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                   {/* Messages */}
+                   <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-zinc-50 dark:bg-zinc-950 flex flex-col justify-between">
+                     <div>
+                       {aiMessages.length === 0 ? (
+                         <div className="flex flex-col justify-center items-center text-center p-4 space-y-5 my-auto pt-8">
+                           <div className="p-3 bg-purple-50 dark:bg-zinc-900 rounded-full text-[#673AB7] shadow-inner animate-pulse">
+                             <Sparkles className="w-6 h-6" />
+                           </div>
+                           <div>
+                             <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Halo! Saya adalah Asisten AI SPS Corner.</p>
+                             <p className="text-[10px] text-zinc-400 mt-1 max-w-[240px] mx-auto">Sebutkan formulir yang ingin Anda buat, atau gunakan pintasan cepat di bawah:</p>
+                           </div>
+                           
+                           <div className="w-full space-y-2 pt-2 text-left">
+                             <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest px-1">Pilih Template Cepat:</p>
+                             {[
+                               "Buat Form Pendaftaran Anggota Koperasi",
+                               "Buat Form Kritik & Saran dan Pengaduan",
+                               "Buat Form Pemesanan Roti Sari Roti",
+                               "Buat Form Evaluasi Program Acara Serikat"
+                             ].map((shortcut, idx) => (
+                               <button
+                                 key={idx}
+                                 type="button"
+                                 onClick={() => handleShortcutClick(shortcut)}
+                                 className="w-full text-left p-2.5 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl text-[10px] font-bold text-zinc-650 dark:text-zinc-350 hover:border-[#673AB7] hover:text-[#673AB7] transition-all shadow-sm flex items-center gap-2 hover:scale-[1.01]"
+                               >
+                                 <Sparkles className="w-3.5 h-3.5 text-zinc-450" />
+                                 {shortcut}
+                               </button>
+                             ))}
+                           </div>
+                         </div>
+                       ) : (
+                         aiMessages.map((msg, i) => (
+                           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-3`}>
+                             <div
+                               className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
+                                 msg.role === 'user'
+                                   ? 'bg-[#673AB7] text-white rounded-br-none'
+                                   : 'bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 text-zinc-850 dark:text-zinc-200 rounded-bl-none shadow-sm'
+                               }`}
+                             >
+                               {msg.content}
+                             </div>
+                           </div>
+                         ))
+                       )}
+
+                       {aiChatLoading && (
+                         <div className="flex justify-start mb-3">
+                           <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl rounded-bl-none px-4 py-2.5 text-xs flex items-center gap-1.5 shadow-sm">
+                             <span className="w-1.5 h-1.5 bg-zinc-450 rounded-full animate-bounce" style={{animationDelay:'0ms'}} />
+                             <span className="w-1.5 h-1.5 bg-zinc-450 rounded-full animate-bounce" style={{animationDelay:'150ms'}} />
+                             <span className="w-1.5 h-1.5 bg-zinc-450 rounded-full animate-bounce" style={{animationDelay:'300ms'}} />
+                           </div>
+                         </div>
+                       )}
+                     </div>
+                     <div ref={chatEndRef} />
+                   </div>
+
+                  {/* Input */}
+                  <div className="border-t border-zinc-200 dark:border-zinc-800 p-4 bg-white dark:bg-zinc-900">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={aiChatInput}
+                        onChange={e => setAiChatInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAIChat(); } }}
+                        placeholder="Ubah tema ke merah, tambah field email..."
+                        className="flex-1 px-4 py-2 text-xs rounded-full border border-zinc-250 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-[#673AB7] text-zinc-900 dark:text-white"
+                        disabled={aiChatLoading}
+                      />
+                      <button
+                        onClick={sendAIChat}
+                        disabled={aiChatLoading || !aiChatInput.trim()}
+                        className="p-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+                      >
+                        {aiChatLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
          )}
          </div> {/* Close flex container */}
@@ -854,8 +1352,10 @@ function ToolbarButton({ icon, label, onClick }: { icon: React.ReactNode, label:
 
 // --- Field Card ---
 function FieldCard({ 
-  field, allFields, isActive, onClick, onUpdate, onMove, onDuplicate, onDelete, isFirst, isLast 
+  field, allFields, isActive, onClick, onUpdate, onMove, onDuplicate, onDelete, isFirst, isLast, visualSettings, index 
 }: any) {
+  
+  const themeColor = visualSettings?.theme_color || '#673AB7';
 
   return (
     <motion.div
@@ -863,11 +1363,18 @@ function FieldCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       onClick={onClick}
-      className={`bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden transition-all relative ${
-        isActive ? 'border border-[#673AB7] shadow-xl' : 'border border-zinc-200 dark:border-zinc-800 shadow-sm'
-      }`}
+      style={{
+        borderColor: isActive ? themeColor : undefined,
+        fontFamily: visualSettings?.font_family || 'Inter',
+        '--theme-color': themeColor
+      } as any}
+      className={`rounded-2xl overflow-hidden transition-all relative ${
+        visualSettings?.card_glassmorphism 
+          ? 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-white/20 dark:border-zinc-800/50 shadow-md' 
+          : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm'
+      } ${isActive ? 'shadow-xl ring-1' : ''}`}
     >
-      {isActive && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#673AB7]" />}
+      {isActive && <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: themeColor }} />}
       
       {/* Drag Handle Top Bar */}
       {isActive && (
@@ -880,7 +1387,12 @@ function FieldCard({
         {!isActive ? (
             // Preview Mode
                 <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        {visualSettings?.layout_type === 'card' && (
+                          <span className="text-[9px] font-black bg-zinc-100 dark:bg-zinc-805 text-zinc-500 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            Slaid {index + 1}
+                          </span>
+                        )}
                         <span className="text-[15px] font-medium text-zinc-800 dark:text-zinc-200">{field.label}</span>
                         {field.required && <span className="text-red-500">*</span>}
                     </div>
@@ -892,7 +1404,7 @@ function FieldCard({
                         : field.condition.value;
                       const opLabel = field.condition.operator === 'eq' ? '=' : field.condition.operator === 'neq' ? '≠' : '∈';
                       return (
-                        <div className="text-xs text-[#673AB7] font-bold flex items-center gap-1.5">
+                        <div className="text-xs text-[#673AB7] font-bold flex items-center gap-1.5" style={{ color: themeColor }}>
                           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 8L22 12L18 16"/><path d="M6 8L2 12L6 16"/><path d="M9 4L15 20"/></svg>
                           Tampil jika "{label}" {opLabel} "{valDisplay}"
                         </div>
@@ -906,13 +1418,19 @@ function FieldCard({
             // Edit Mode
             <div className="space-y-6">
                 <div className="flex flex-col md:flex-row gap-4 md:items-start">
-                    <div className="flex-1">
+                    <div className="flex-1 flex flex-col gap-1.5">
+                        {visualSettings?.layout_type === 'card' && (
+                          <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block">
+                            Slaid Kartu Pertanyaan Ke-{index + 1}
+                          </span>
+                        )}
                         <input
                             type="text"
                             value={field.label}
                             onChange={(e) => onUpdate({ label: e.target.value })}
-                            className="w-full bg-zinc-50 dark:bg-zinc-800 border-b-2 border-zinc-300 focus:border-[#673AB7] p-3 text-base text-zinc-900 dark:text-white outline-none rounded-t-md"
+                            className="w-full bg-zinc-50 dark:bg-zinc-800 border-b-2 border-zinc-300 focus:border-[var(--theme-color)] p-3 text-base text-zinc-900 dark:text-white outline-none rounded-t-md font-semibold"
                             placeholder="Pertanyaan"
+                            style={{ '--theme-color': themeColor } as any}
                         />
                     </div>
                     <select 
@@ -979,7 +1497,7 @@ function FieldCard({
                         <div className="flex items-center gap-3">
                             <div className="w-4 h-4 rounded-full border-2 border-transparent flex-shrink-0" />
                             <button onClick={() => onUpdate({ options: [...(field.options || []), { value: `opt${Date.now()}`, label: `Opsi ${(field.options?.length || 0) + 1}`, image: '' }] })}
-                            className="text-sm font-medium text-zinc-500 hover:text-[#673AB7]">
+                            className="text-sm font-medium text-zinc-500 hover:text-[var(--theme-color)]">
                                 Tambahkan opsi
                             </button>
                         </div>
@@ -1146,7 +1664,7 @@ function FieldCard({
                   ) : (
                     <button
                       onClick={() => onUpdate({ condition: { fieldId: '', operator: 'eq', value: '' } })}
-                      className="flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-[#673AB7] hover:bg-[#673AB7]/5 px-3 py-2 rounded-lg transition-colors"
+                      className="flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-[var(--theme-color)] hover:bg-[var(--theme-color)]/5 px-3 py-2 rounded-lg transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                       Tambah Aturan Logika
