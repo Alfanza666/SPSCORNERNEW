@@ -66,12 +66,24 @@ export function parseAIResponse(response: { message: string; updatedForm?: any }
   let chatContent = response.message || '';
   let formUpdates: any = response.updatedForm || null;
 
+  // Fallback 1: extract JSON nested inside message text
   if (!formUpdates && response.message) {
     const { cleaned, json } = extractJSON(response.message);
     chatContent = cleaned;
-    if (json && (json.fields || json.updatedForm)) {
+    if (json && (json.fields || json.updatedForm || json.title)) {
       formUpdates = json.updatedForm || json;
     }
+  }
+
+  // Fallback 2: entire message might BE a JSON string
+  if (!formUpdates && response.message && response.message.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(response.message);
+      if (parsed && (parsed.fields || parsed.updatedForm || parsed.title)) {
+        formUpdates = parsed.updatedForm || parsed;
+        chatContent = 'Formulir berhasil diproses.';
+      }
+    } catch {}
   }
 
   chatContent = chatContent
@@ -88,13 +100,13 @@ export function parseAIResponse(response: { message: string; updatedForm?: any }
   }
 
   let updatedForm: FormConfig | null = null;
-  if (formUpdates) {
+  if (formUpdates && (formUpdates.fields || formUpdates.title)) {
     updatedForm = {
       title: formUpdates.title || 'Formulir Tanpa Judul',
       description: formUpdates.description || '',
-      theme_color: formUpdates.theme_color || '#673AB7',
+      theme_color: formUpdates.theme_color || '#6366F1',
       banner_url: formUpdates.banner_url || '',
-      layout_type: formUpdates.layout_type || 'classic',
+      layout_type: formUpdates.layout_type || 'card',
       font_family: formUpdates.font_family || 'Inter',
       input_style: formUpdates.input_style || 'rounded',
       bg_image_url: formUpdates.bg_image_url || '',

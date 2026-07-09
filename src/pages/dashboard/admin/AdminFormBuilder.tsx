@@ -116,7 +116,56 @@ export default function AdminFormBuilder() {
       });
       const json = await res.json();
       if (json.success) {
-        const { chatContent, updatedForm } = parseAIResponse(json);
+        let { chatContent, updatedForm } = parseAIResponse(json);
+        // Inline fallback: if parseAIResponse failed, try raw regex extraction
+        if (!updatedForm && json.message) {
+          try {
+            const match = json.message.match(/\{[\s\S]*\}/);
+            if (match) {
+              const parsed = JSON.parse(match[0]);
+              if (parsed.fields || parsed.updatedForm || parsed.title) {
+                const formData = parsed.updatedForm || parsed;
+                const fields = (formData.fields || []).map((f: any) => ({
+                  id: f.id || Math.random().toString(36).substr(2, 9),
+                  type: f.type || 'text',
+                  label: f.label || 'Pertanyaan',
+                  required: f.required || false,
+                  placeholder: f.placeholder || '',
+                  description: f.description || '',
+                  options: ['select','radio','checkbox','image_choice'].includes(f.type) && f.options ? f.options.filter((o: any) => o.label?.trim()) : undefined,
+                  max: f.type === 'rating' ? (f.max || 5) : undefined,
+                  max_scale: f.type === 'scale' ? (f.max_scale || 10) : undefined,
+                  condition: f.condition || undefined,
+                  items: f.type === 'addon_group' ? f.items : undefined,
+                  allow_multiple: f.type === 'addon_group' ? (f.allow_multiple ?? true) : undefined,
+                  qris_image_url: f.type === 'payment_section' ? (f.qris_image_url || '') : undefined,
+                  account_name: f.type === 'payment_section' ? (f.account_name || '') : undefined,
+                  payment_description: f.type === 'payment_section' ? (f.payment_description || '') : undefined,
+                  verify_with_ai: f.type === 'payment_section' ? (f.verify_with_ai ?? true) : undefined,
+                }));
+                updatedForm = {
+                  title: formData.title || 'Formulir Tanpa Judul',
+                  description: formData.description || '',
+                  theme_color: formData.theme_color || '#6366F1',
+                  banner_url: formData.banner_url || '',
+                  layout_type: formData.layout_type || 'card',
+                  font_family: formData.font_family || 'Inter',
+                  input_style: formData.input_style || 'rounded',
+                  bg_image_url: formData.bg_image_url || '',
+                  card_glassmorphism: formData.card_glassmorphism || false,
+                  fields,
+                };
+                chatContent = json.message
+                  .replace(match[0], '')
+                  .replace(/```json/g, '')
+                  .replace(/```/g, '')
+                  .trim() || 'Formulir berhasil diperbarui oleh AI.';
+              }
+            }
+          } catch (e) {
+            console.warn('[Inline fallback] Gagal parse JSON:', e);
+          }
+        }
         setAiMessages(prev => [...prev, { role: 'ai', content: chatContent }]);
         if (updatedForm) {
           setEditingForm(updatedForm);
@@ -150,7 +199,55 @@ export default function AdminFormBuilder() {
       });
       const json = await res.json();
       if (json.success) {
-        const { chatContent, updatedForm } = parseAIResponse(json);
+        let { chatContent, updatedForm } = parseAIResponse(json);
+        if (!updatedForm && json.message) {
+          try {
+            const match = json.message.match(/\{[\s\S]*\}/);
+            if (match) {
+              const parsed = JSON.parse(match[0]);
+              if (parsed.fields || parsed.updatedForm || parsed.title) {
+                const formData = parsed.updatedForm || parsed;
+                const fields = (formData.fields || []).map((f: any) => ({
+                  id: f.id || Math.random().toString(36).substr(2, 9),
+                  type: f.type || 'text',
+                  label: f.label || 'Pertanyaan',
+                  required: f.required || false,
+                  placeholder: f.placeholder || '',
+                  description: f.description || '',
+                  options: ['select','radio','checkbox','image_choice'].includes(f.type) && f.options ? f.options.filter((o: any) => o.label?.trim()) : undefined,
+                  max: f.type === 'rating' ? (f.max || 5) : undefined,
+                  max_scale: f.type === 'scale' ? (f.max_scale || 10) : undefined,
+                  condition: f.condition || undefined,
+                  items: f.type === 'addon_group' ? f.items : undefined,
+                  allow_multiple: f.type === 'addon_group' ? (f.allow_multiple ?? true) : undefined,
+                  qris_image_url: f.type === 'payment_section' ? (f.qris_image_url || '') : undefined,
+                  account_name: f.type === 'payment_section' ? (f.account_name || '') : undefined,
+                  payment_description: f.type === 'payment_section' ? (f.payment_description || '') : undefined,
+                  verify_with_ai: f.type === 'payment_section' ? (f.verify_with_ai ?? true) : undefined,
+                }));
+                updatedForm = {
+                  title: formData.title || 'Formulir Tanpa Judul',
+                  description: formData.description || '',
+                  theme_color: formData.theme_color || '#6366F1',
+                  banner_url: formData.banner_url || '',
+                  layout_type: formData.layout_type || 'card',
+                  font_family: formData.font_family || 'Inter',
+                  input_style: formData.input_style || 'rounded',
+                  bg_image_url: formData.bg_image_url || '',
+                  card_glassmorphism: formData.card_glassmorphism || false,
+                  fields,
+                };
+                chatContent = json.message
+                  .replace(match[0], '')
+                  .replace(/```json/g, '')
+                  .replace(/```/g, '')
+                  .trim() || 'Formulir berhasil diperbarui oleh AI.';
+              }
+            }
+          } catch (e) {
+            console.warn('[Shortcut fallback] Gagal parse JSON:', e);
+          }
+        }
         setAiMessages(prev => [...prev, { role: 'ai', content: chatContent }]);
         if (updatedForm) {
           setEditingForm(updatedForm);
