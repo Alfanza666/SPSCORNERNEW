@@ -5,13 +5,14 @@ export type FieldType =
   | 'select' 
   | 'radio' 
   | 'checkbox' 
-  | 'image_choice' // Polling Visual
-  | 'rating'       // Bintang
-  | 'scale'        // 1-10
-  | 'file_upload'  // Unggah File
-  | 'image'        // Unggah Gambar / URL
+  | 'image_choice'
+  | 'rating'
+  | 'scale'
+  | 'file_upload'
+  | 'image'
   | 'addon_group'
-  | 'date';        // Tanggal
+  | 'date'
+  | 'payment_section';
 
 export interface Condition {
   fieldId: string;
@@ -23,6 +24,7 @@ export interface FormOption {
   value: string;
   label: string;
   image?: string; // URL untuk image_choice
+  price?: number; // Harga untuk auto-kalkulasi total
 }
 
 export interface AddonItem {
@@ -58,6 +60,12 @@ export interface FormField {
   // Untuk addon_group
   allow_multiple?: boolean;
   items?: AddonItem[];
+
+  // Untuk payment_section
+  qris_image_url?: string;
+  account_name?: string;
+  payment_description?: string;
+  verify_with_ai?: boolean;
 
   // Conditional logic
   condition?: Condition;

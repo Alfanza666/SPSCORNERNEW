@@ -47,6 +47,11 @@ export default function PortalFormView() {
   const [imageUploads, setImageUploads] = useState<Record<string, string>>({});
   const [imageUrlInputs, setImageUrlInputs] = useState<Record<string, string>>({});
 
+  // State untuk payment
+  const [paymentProofs, setPaymentProofs] = useState<Record<string, string>>({});
+  const [paymentVerified, setPaymentVerified] = useState<Record<string, boolean>>({});
+  const [aiVerifying, setAiVerifying] = useState<Record<string, boolean>>({});
+
   // Department targeting
   const [userDepartment, setUserDepartment] = useState<string>('');
 
@@ -182,13 +187,12 @@ export default function PortalFormView() {
     // Validasi manual — hanya field yang visible
     const visibleFields = form?.fields.filter(isFieldVisible) || [];
     const missingFields = visibleFields.filter(f => {
-        if (!f.required) return false;
+        if (!f.required || f.type === 'payment_section') return false;
         if (f.type === 'checkbox' && (!answers[f.id] || answers[f.id].length === 0)) return true;
         if (f.type === 'addon_group') {
-            // Validasi addon: cek apakah ada pesanan yang quantity > 0
             const orders = addonOrders[f.id] || [];
             const hasOrder = orders.some(o => o.quantity > 0);
-            return !hasOrder; // Jika wajib tapi tidak ada pesanan sama sekali
+            return !hasOrder;
         }
         if (f.type === 'file_upload' && !fileUploads[f.id]) return true;
         if (f.type === 'image' && !imageUploads[f.id]) return true;
@@ -198,6 +202,19 @@ export default function PortalFormView() {
     if (missingFields && missingFields.length > 0) {
       toast.error(`Mohon lengkapi kolom wajib: ${missingFields.map(f => f.label).join(', ')}`);
       return;
+    }
+
+    // Validasi payment — cek apakah ada payment_section yang butuh verifikasi
+    const paymentFields = visibleFields.filter(f => f.type === 'payment_section');
+    for (const pf of paymentFields) {
+      if (!paymentProofs[pf.id]) {
+        toast.error('Upload bukti transfer terlebih dahulu');
+        return;
+      }
+      if (pf.verify_with_ai !== false && !paymentVerified[pf.id]) {
+        toast.error('Verifikasi pembayaran terlebih dahulu');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -221,6 +238,13 @@ export default function PortalFormView() {
       // Inject addon orders ke jawaban
       Object.keys(addonOrders).forEach(key => {
         if (visibleFields.some(f => f.id === key)) finalAnswers[key] = addonOrders[key];
+      });
+
+      // Inject payment total
+      visibleFields.filter(f => f.type === 'payment_section').forEach(pf => {
+        finalAnswers[`_payment_total`] = computeTotal();
+        finalAnswers[`_payment_proof`] = paymentProofs[pf.id] || '';
+        finalAnswers[`_payment_verified`] = paymentVerified[pf.id] || false;
       });
 
       const { error: respError } = await supabase
@@ -252,6 +276,102 @@ export default function PortalFormView() {
       if (checked) return { ...prev, [fieldId]: [...current, option] };
       return { ...prev, [fieldId]: current.filter((o: string) => o !== option) };
     });
+  };
+
+  // --- Payment Helpers ---
+  const computeTotal = (): number => {
+    let total = 0;
+    form?.fields.forEach(f => {
+      if (f.type === 'radio' || f.type === 'select') {
+        const selectedVal = answers[f.id];
+        const opt = f.options?.find(o => o.value === selectedVal);
+        if (opt?.price) total += opt.price;
+      }
+      if (f.type === 'checkbox') {
+        const selected = answers[f.id] as string[] || [];
+        f.options?.forEach(o => {
+          if (selected.includes(o.value) && o.price) total += o.price;
+        });
+      }
+      if (f.type === 'addon_group') {
+        const orders = addonOrders[f.id] || [];
+        orders.forEach(order => {
+          const item = f.items?.find(i => i.id === order.item_id);
+          if (item && order.quantity > 0) total += item.price * order.quantity;
+        });
+      }
+    });
+    return total;
+  };
+
+  const formatPrice = (amount: number) => {
+    return 'Rp ' + amount.toLocaleString('id-ID');
+  };
+
+  const verifyPayment = async (fieldId: string, expectedAmount: number) => {
+    const imageBase64 = paymentProofs[fieldId];
+    if (!imageBase64) {
+      toast.error('Upload bukti transfer terlebih dahulu');
+      return;
+    }
+    setAiVerifying(prev => ({ ...prev, [fieldId]: true }));
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const res = await fetch('/api/validate/receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ imageBase64, totalAmount: expectedAmount }),
+      });
+      const json = await res.json();
+      if (json.success && json.data?.valid) {
+        setPaymentVerified(prev => ({ ...prev, [fieldId]: true }));
+        toast.success('Pembayaran terverifikasi!');
+      } else {
+        setPaymentVerified(prev => ({ ...prev, [fieldId]: false }));
+        toast.error('Bukti transfer tidak valid: ' + (json.data?.reason || 'Nominal tidak sesuai'));
+      }
+    } catch {
+      toast.error('Gagal verifikasi. Coba lagi.');
+    } finally {
+      setAiVerifying(prev => ({ ...prev, [fieldId]: false }));
+    }
+  };
+
+  const handlePaymentProofUpload = async (fieldId: string, file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `payment_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      const filePath = `${user?.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('program-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          metadata: { owner: user?.id }
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('program-files')
+        .getPublicUrl(filePath);
+
+      // Convert to base64 for AI verification
+      const toBase64 = (f: File): Promise<string> => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(f);
+      });
+      const base64 = await toBase64(file);
+
+      setPaymentProofs(prev => ({ ...prev, [fieldId]: base64 }));
+      setAnswers(prev => ({ ...prev, [fieldId]: publicUrl }));
+      toast.success('Bukti transfer berhasil diunggah');
+    } catch (error: any) {
+      toast.error('Gagal mengunggah bukti transfer');
+    }
   };
 
   // --- Conditional Logic ---
@@ -584,7 +704,7 @@ export default function PortalFormView() {
                  {field.type === 'select' && (
                    <select required={field.required} value={answers[field.id] || ''} onChange={(e) => setAnswers({...answers, [field.id]: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 rounded-2xl px-5 py-4 appearance-none">
                      <option value="">-- Pilih --</option>
-                     {field.options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                     {field.options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}{opt.price ? ` (${formatPrice(opt.price)})` : ''}</option>)}
                    </select>
                  )}
 
@@ -594,6 +714,7 @@ export default function PortalFormView() {
                        <label key={opt.value} className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer ${answers[field.id] === opt.value ? 'bg-blue-50 border-blue-500' : 'bg-zinc-50 border-zinc-100'}`}>
                          <input type="radio" name={field.id} checked={answers[field.id] === opt.value} onChange={() => setAnswers({...answers, [field.id]: opt.value})} className="w-5 h-5 accent-blue-500" />
                          <span className="font-bold text-sm">{opt.label}</span>
+                         {opt.price ? <span className="text-sm font-bold text-emerald-600 ml-auto">{formatPrice(opt.price)}</span> : null}
                        </label>
                      ))}
                    </div>
@@ -605,6 +726,7 @@ export default function PortalFormView() {
                        <label key={opt.value} className={`flex items-center gap-3 p-4 rounded-2xl border-2 cursor-pointer ${answers[field.id]?.includes(opt.value) ? 'bg-blue-50 border-blue-500' : 'bg-zinc-50 border-zinc-100'}`}>
                          <input type="checkbox" checked={answers[field.id]?.includes(opt.value)} onChange={(e) => handleCheckboxChange(field.id, opt.value, e.target.checked)} className="w-5 h-5 accent-blue-500 rounded" />
                          <span className="font-bold text-sm">{opt.label}</span>
+                         {opt.price ? <span className="text-sm font-bold text-emerald-600 ml-auto">{formatPrice(opt.price)}</span> : null}
                        </label>
                      ))}
                    </div>
@@ -671,11 +793,102 @@ export default function PortalFormView() {
                   )}
                   {field.type === 'addon_group' && renderAddonGroup(field)}
 
+                  {field.type === 'payment_section' && (
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl p-6 border-2 border-emerald-200 dark:border-emerald-900 space-y-4">
+                      <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-black text-lg">
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        Pembayaran
+                      </div>
+
+                      {/* Total */}
+                      <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 flex items-center justify-between">
+                        <span className="font-bold text-zinc-500">Total Pembayaran</span>
+                        <span className="font-black text-2xl text-emerald-600">{formatPrice(computeTotal())}</span>
+                      </div>
+
+                      {/* QRIS Image */}
+                      {field.qris_image_url && (
+                        <div className="text-center space-y-2">
+                          <p className="text-sm font-bold text-zinc-500">Scan QRIS untuk membayar</p>
+                          <img src={field.qris_image_url} alt="QRIS" className="w-48 h-48 object-contain mx-auto rounded-xl border-2 border-zinc-200 dark:border-zinc-700" />
+                          {field.account_name && (
+                            <p className="text-sm text-zinc-500">Rekening: <span className="font-bold text-zinc-800 dark:text-zinc-200">{field.account_name}</span></p>
+                          )}
+                        </div>
+                      )}
+
+                      {field.payment_description && (
+                        <p className="text-sm text-zinc-500">{field.payment_description}</p>
+                      )}
+
+                      {/* Upload Bukti Transfer */}
+                      <div className="space-y-3">
+                        <p className="font-bold text-sm text-zinc-600">Upload Bukti Transfer</p>
+                        {paymentProofs[field.id] ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl">
+                              <div className="flex items-center gap-3">
+                                <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                                <span className="text-sm font-bold text-blue-700 dark:text-blue-300">Bukti terunggah</span>
+                              </div>
+                              <button onClick={() => { setPaymentProofs(prev => ({...prev, [field.id]: ''})); setPaymentVerified(prev => ({...prev, [field.id]: false})); }} className="text-zinc-400 hover:text-red-500"><X className="w-4 h-4" /></button>
+                            </div>
+
+                            {field.verify_with_ai !== false && (
+                              <div className="space-y-2">
+                                {paymentVerified[field.id] === true ? (
+                                  <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-700 dark:text-emerald-400 font-bold text-sm">
+                                    <CheckCircle2 className="w-5 h-5" />
+                                    Pembayaran terverifikasi
+                                  </div>
+                                ) : paymentVerified[field.id] === false ? (
+                                  <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-red-600 dark:text-red-400 font-bold text-sm">
+                                    <AlertCircle className="w-5 h-5" />
+                                    Verifikasi gagal, upload ulang bukti yang benar
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => verifyPayment(field.id, computeTotal())}
+                                    disabled={aiVerifying[field.id]}
+                                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                                  >
+                                    {aiVerifying[field.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                    {aiVerifying[field.id] ? 'Memverifikasi...' : 'Verifikasi Bukti dengan AI'}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <label className="flex flex-col items-center gap-2 p-6 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl cursor-pointer hover:bg-white dark:hover:bg-zinc-800/50 transition-colors">
+                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePaymentProofUpload(field.id, e.target.files[0])} />
+                            <UploadCloud className="w-8 h-8 text-zinc-300" />
+                            <span className="text-sm font-bold text-zinc-500">Klik untuk upload bukti transfer</span>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
                 </motion.div>
               );})}
 
              <div className="pt-8 flex flex-col gap-4">
+               {(() => {
+                 const total = computeTotal();
+                 const hasPaymentSection = form?.fields.some(f => f.type === 'payment_section');
+                 if (total > 0 && !hasPaymentSection) {
+                   return (
+                     <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 flex items-center justify-between border border-emerald-200 dark:border-emerald-800">
+                       <span className="font-bold text-zinc-600 dark:text-zinc-400">Total Pemesanan</span>
+                       <span className="font-black text-xl text-emerald-600">{formatPrice(total)}</span>
+                     </div>
+                   );
+                 }
+                 return null;
+               })()}
                <button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 shadow-2xl shadow-blue-500/30">
                  {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><Send className="w-6 h-6" /> Kirim Formulir</>}
                </button>

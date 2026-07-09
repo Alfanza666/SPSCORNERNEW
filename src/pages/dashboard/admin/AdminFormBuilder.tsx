@@ -7,7 +7,7 @@ import {
   Type, List, CheckSquare, Calendar, Loader2, ChevronRight,
   Settings, AlertCircle, Copy, Link2, ImageIcon, Star,
   Sliders, Upload, ShoppingBag, MoreVertical, LayoutTemplate, MoreHorizontal,
-  Sparkles, Users
+  Sparkles, Users, DollarSign
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
@@ -147,7 +147,7 @@ export default function AdminFormBuilder() {
     const newField: FormField = {
       id: Math.random().toString(36).substr(2, 9),
       type,
-      label: type === 'addon_group' ? 'Pesanan Ekstra (Mandiri)' : 'Pertanyaan Tanpa Judul',
+      label: type === 'addon_group' ? 'Pesanan Ekstra (Mandiri)' : type === 'payment_section' ? 'Pembayaran' : 'Pertanyaan Tanpa Judul',
       required: false,
       placeholder: 'Masukkan jawaban...',
       options: type === 'select' || type === 'radio' || type === 'image_choice' 
@@ -156,7 +156,11 @@ export default function AdminFormBuilder() {
       max: type === 'rating' ? 5 : undefined,
       max_scale: type === 'scale' ? 10 : undefined,
       items: type === 'addon_group' ? [{ id: 'item1', name: 'Baju Tambahan', sizes: ['S','M','L','XL'], price: 0 }] : undefined,
-      allow_multiple: type === 'addon_group' ? true : undefined
+      allow_multiple: type === 'addon_group' ? true : undefined,
+      qris_image_url: type === 'payment_section' ? '' : undefined,
+      account_name: type === 'payment_section' ? '' : undefined,
+      payment_description: type === 'payment_section' ? '' : undefined,
+      verify_with_ai: type === 'payment_section' ? true : undefined,
     };
     
     setEditingForm(prev => {
@@ -552,6 +556,7 @@ export default function AdminFormBuilder() {
                     <ToolbarButton icon={<Sliders />} label="Skala Penilaian" onClick={() => addField('scale')} />
                     <ToolbarButton icon={<ShoppingBag />} label="Grup Pemesanan" onClick={() => addField('addon_group')} />
                     <ToolbarButton icon={<ImageIcon />} label="Gambar" onClick={() => addField('image')} />
+                    <ToolbarButton icon={<DollarSign />} label="Pembayaran" onClick={() => addField('payment_section')} />
                 </div>
 
                 {/* AI Generation Modal */}
@@ -658,7 +663,7 @@ function FieldCard({
                       );
                     })()}
                     <div className="text-sm text-zinc-400 border-b border-dashed border-zinc-300 pb-1 w-2/3">
-                        {field.type === 'radio' ? 'Opsi 1' : field.type === 'text' ? 'Teks jawaban singkat' : field.placeholder}
+                        {field.type === 'payment_section' ? '💳 Pembayaran QRIS' : field.type === 'radio' ? 'Opsi 1' : field.type === 'text' ? 'Teks jawaban singkat' : field.placeholder}
                     </div>
                 </div>
         ) : (
@@ -691,6 +696,7 @@ function FieldCard({
                         <option value="image">Upload Gambar / URL</option>
                         <option value="image_choice">Pilihan Gambar</option>
                         <option value="addon_group">Grup Pesanan (Add-on)</option>
+                        <option value="payment_section">Pembayaran QRIS</option>
                     </select>
                 </div>
 
@@ -698,7 +704,7 @@ function FieldCard({
                 {(field.type === 'select' || field.type === 'radio' || field.type === 'checkbox') && (
                     <div className="space-y-3">
                         {field.options?.map((opt: any, optIndex: number) => (
-                            <div key={optIndex} className="flex items-center gap-3 group">
+                            <div key={optIndex} className="flex items-center gap-2 group">
                                 {field.type === 'radio' ? <div className="w-4 h-4 rounded-full border-2 border-zinc-300 flex-shrink-0" /> : 
                                  field.type === 'checkbox' ? <div className="w-4 h-4 rounded border-2 border-zinc-300 flex-shrink-0" /> : 
                                  <span className="text-zinc-400 font-mono text-sm">{optIndex + 1}.</span>}
@@ -711,9 +717,23 @@ function FieldCard({
                                         newOpts[optIndex] = { ...newOpts[optIndex], label: e.target.value };
                                         onUpdate({ options: newOpts });
                                     }}
-                                    className="flex-1 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-[#673AB7] py-1 text-sm outline-none dark:text-white"
+                                    className="flex-1 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-[#673AB7] py-1 text-sm outline-none dark:text-white min-w-0"
                                     placeholder={`Opsi ${optIndex + 1}`}
                                 />
+                                <div className="flex items-center gap-1 text-sm text-zinc-400">
+                                    <span>Rp</span>
+                                    <input
+                                        type="number"
+                                        value={opt.price || ''}
+                                        onChange={(e) => {
+                                            const newOpts = [...(field.options || [])];
+                                            newOpts[optIndex] = { ...newOpts[optIndex], price: e.target.value ? parseInt(e.target.value) : undefined };
+                                            onUpdate({ options: newOpts });
+                                        }}
+                                        className="w-20 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-[#673AB7] py-1 text-sm outline-none text-right dark:text-white"
+                                        placeholder="0"
+                                    />
+                                </div>
                                 <button onClick={() => {
                                     const newOpts = field.options?.filter((_:any, i:number) => i !== optIndex);
                                     onUpdate({ options: newOpts });
@@ -754,6 +774,56 @@ function FieldCard({
                             </div>
                         ))}
                         <button onClick={() => onUpdate({ items: [...(field.items || []), { id: `item${Date.now()}`, name: '', sizes: ['S'], price: 0 }] })} className="text-xs text-blue-600 font-bold">Tambah Barang</button>
+                    </div>
+                )}
+
+                {/* Payment Section Editor */}
+                {field.type === 'payment_section' && (
+                    <div className="space-y-4 bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                        <p className="text-xs font-bold text-zinc-500 uppercase">Pengaturan Pembayaran QRIS</p>
+                        <div>
+                            <label className="text-xs text-zinc-400 mb-1 block">Upload Gambar QRIS</label>
+                            <input
+                                type="text"
+                                value={field.qris_image_url || ''}
+                                onChange={(e) => onUpdate({ qris_image_url: e.target.value })}
+                                className="w-full p-2 text-sm border rounded"
+                                placeholder="https://example.com/qris.png"
+                            />
+                        </div>
+                        {field.qris_image_url && (
+                            <img src={field.qris_image_url} alt="QRIS" className="w-40 h-40 object-contain mx-auto rounded-lg border" />
+                        )}
+                        <div className="flex gap-2">
+                            <div className="flex-1">
+                                <label className="text-xs text-zinc-400 mb-1 block">Nama Rekening</label>
+                                <input
+                                    type="text"
+                                    value={field.account_name || ''}
+                                    onChange={(e) => onUpdate({ account_name: e.target.value })}
+                                    className="w-full p-2 text-sm border rounded"
+                                    placeholder="misal: SPS Corner"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-xs text-zinc-400 mb-1 block">Keterangan (opsional)</label>
+                            <textarea
+                                value={field.payment_description || ''}
+                                onChange={(e) => onUpdate({ payment_description: e.target.value })}
+                                className="w-full p-2 text-sm border rounded"
+                                placeholder="misal: Transfer ke rekening di atas lalu upload bukti transfer"
+                                rows={2}
+                            />
+                        </div>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={field.verify_with_ai !== false}
+                                onChange={(e) => onUpdate({ verify_with_ai: e.target.checked })}
+                            />
+                            Verifikasi bukti bayar otomatis dengan AI
+                        </label>
                     </div>
                 )}
 
