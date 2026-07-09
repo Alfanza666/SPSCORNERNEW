@@ -1,4 +1,4 @@
-v5.6.0 — WYSIWYG Form Canvas, JSON Parser Engine & Drag-and-Drop Reorder (MINOR)
+v5.6.0 — JotForm-Style Form Builder: 3-Panel Layout, AI Copilot & Tech Minimalist (MINOR)
 ----------------------------------------------------------------------------------
 ### Fitur Baru:
 
@@ -30,10 +30,12 @@ v5.6.0 — WYSIWYG Form Canvas, JSON Parser Engine & Drag-and-Drop Reorder (MINO
 - **[NEW] src/components/forms/FormCanvas.tsx:** WYSIWYG form canvas (card/classic layout)
 - **[NEW] src/components/forms/FormFieldRenderer.tsx:** Renderer 15 field types
 - **[NEW] src/components/forms/FormSkeleton.tsx:** Loading skeleton shimmer
-- **[CHANGE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** Integrasi FormCanvas, parseAIResponse, drag-and-drop DnD, hapus 170 baris dead code (renderPreviewField, previewCardIndex)
-- **[CHANGE] src/routes/misc.ts:** System prompt diperkuat — pisah teks natural dari JSON
-- **[DELETE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** Hapus `renderPreviewField()`, `getPreviewInputStyle()`, `previewCardIndex`, `previewAnswers`, import `Star` (dead code)
-- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.5.2 → v5.6.0 (MINOR: WYSIWYG form canvas + DnD)
+- **[CHANGE] src/pages/dashboard/admin/AdminFormBuilder.tsx:** Complete JotForm-style rewrite — 3-panel layout (field palette, canvas, AI copilot), FormCanvas integration, drag-and-drop, AI JSON parser, tech-minimalist styling
+- **[CHANGE] src/routes/misc.ts:** System prompt diperkuat — pisah teks natural dari JSON, larangan JSON di message
+- **[CHANGE] src/components/forms/FormCanvas.tsx:** Classic field card styling untuk tampilan JotForm premium
+- **[CHANGE] src/components/forms/FormFieldRenderer.tsx:** Tech-minimalist restyle — clean borders, hover effects, consistent spacing
+- **[DELETE] ~150 baris dead code:** renderPreviewField, getPreviewInputStyle, previewCardIndex/previewAnswers, unused imports
+- **[CHANGE] package.json, Home.tsx, DashboardLayout.tsx, PortalLayout.tsx:** v5.5.2 → v5.6.0 (MINOR: JotForm-style form builder)
 
 v5.5.1 — Fix Admin Scanner Sidebar Route Link (PATCH)
 ----------------------------------------------------------------------------------

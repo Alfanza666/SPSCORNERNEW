@@ -7,83 +7,46 @@ interface FieldRendererProps {
   themeColor: string;
   inputStyle: string;
   disabled?: boolean;
-  value?: any;
-  onChange?: (value: any) => void;
 }
 
-const getInputCls = (inputStyle: string, themeColor: string, isCard: boolean) => {
-  let base = "w-full p-3 text-sm focus:outline-none transition-all";
-  let borderStyle = "";
-  if (inputStyle === 'rounded') {
-    borderStyle = "border border-zinc-300 dark:border-zinc-600 rounded-xl focus:border-[var(--theme-color)]";
-  } else if (inputStyle === 'underline') {
-    borderStyle = "border-b-2 border-t-0 border-l-0 border-r-0 border-zinc-250 dark:border-zinc-600 bg-transparent px-1 focus:border-[var(--theme-color)]";
-  } else {
-    borderStyle = "border-2 border-zinc-150 dark:border-zinc-700 rounded-none focus:border-[var(--theme-color)]";
-  }
-  return `${base} ${borderStyle} bg-white dark:bg-zinc-800/80 text-zinc-900 dark:text-white`;
-};
-
 export default function FormFieldRenderer({ field, themeColor, inputStyle, disabled }: FieldRendererProps) {
-  const inputCls = getInputCls(inputStyle, themeColor, false);
   const styleObj = { '--theme-color': themeColor } as React.CSSProperties;
+  const borderCls = inputStyle === 'rounded' ? 'rounded-lg border' : inputStyle === 'underline' ? 'border-b-2 border-t-0 border-l-0 border-r-0 bg-transparent px-1' : 'rounded-none border-2';
+
+  const inputCls = `w-full px-4 py-2.5 text-sm transition-all outline-none ${borderCls} border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/80 text-zinc-900 dark:text-white focus:border-[var(--theme-color)] placeholder:text-zinc-400`;
 
   switch (field.type) {
     case 'text':
-      return (
-        <input
-          type="text"
-          className={inputCls}
-          style={styleObj}
-          placeholder={field.placeholder || 'Masukkan jawaban singkat...'}
-          disabled={disabled}
-        />
-      );
+      return <input type="text" className={inputCls} style={styleObj} placeholder={field.placeholder || 'Masukkan jawaban...'} disabled={disabled} />;
 
     case 'textarea':
-      return (
-        <textarea
-          className={`${inputCls} h-20 resize-none`}
-          style={styleObj}
-          placeholder={field.placeholder || 'Masukkan paragraf...'}
-          disabled={disabled}
-        />
-      );
+      return <textarea className={`${inputCls} h-24 resize-none`} style={styleObj} placeholder={field.placeholder || 'Masukkan paragraf...'} disabled={disabled} />;
 
     case 'number':
-      return (
-        <input
-          type="number"
-          className={inputCls}
-          style={styleObj}
-          placeholder={field.placeholder || 'Masukkan angka...'}
-          disabled={disabled}
-        />
-      );
+      return <input type="number" className={inputCls} style={styleObj} placeholder={field.placeholder || '0'} disabled={disabled} />;
 
     case 'date':
-      return (
-        <input type="date" className={inputCls} style={styleObj} disabled={disabled} />
-      );
+      return <input type="date" className={inputCls} style={styleObj} disabled={disabled} />;
 
     case 'select':
       return (
         <select className={inputCls} style={styleObj} disabled={disabled}>
-          <option value="">Pilih opsi...</option>
-          {field.options?.map((o, idx) => (
-            <option key={idx} value={o.value}>{o.label}{o.price ? ` (Rp${o.price.toLocaleString('id-ID')})` : ''}</option>
+          <option value="">Pilih...</option>
+          {field.options?.map((o, i) => (
+            <option key={i} value={o.value}>{o.label}{o.price ? ` (Rp${o.price.toLocaleString('id-ID')})` : ''}</option>
           ))}
         </select>
       );
 
     case 'radio':
       return (
-        <div className="space-y-3">
-          {field.options?.map((o, idx) => (
-            <label key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:border-[var(--theme-color)] cursor-pointer transition-colors">
-              <input type="radio" name={field.id} disabled={disabled} className="text-[var(--theme-color)] focus:ring-[var(--theme-color)]" />
-              <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">{o.label}</span>
-              {o.price ? <span className="text-xs font-bold text-zinc-500 ml-auto">+Rp{o.price.toLocaleString('id-ID')}</span> : null}
+        <div className="space-y-2">
+          {field.options?.map((o, i) => (
+            <label key={i} className="flex items-center gap-3 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 hover:border-[var(--theme-color)] hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-all">
+              <input type="radio" name={field.id} disabled={disabled}
+                className="text-[var(--theme-color)] focus:ring-[var(--theme-color)]" />
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">{o.label}</span>
+              {o.price ? <span className="text-xs font-medium text-zinc-500 ml-auto">+Rp{o.price.toLocaleString('id-ID')}</span> : null}
             </label>
           ))}
         </div>
@@ -91,12 +54,13 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
 
     case 'checkbox':
       return (
-        <div className="space-y-3">
-          {field.options?.map((o, idx) => (
-            <label key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:border-[var(--theme-color)] cursor-pointer transition-colors">
-              <input type="checkbox" disabled={disabled} className="rounded text-[var(--theme-color)] focus:ring-[var(--theme-color)]" />
-              <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">{o.label}</span>
-              {o.price ? <span className="text-xs font-bold text-zinc-500 ml-auto">+Rp{o.price.toLocaleString('id-ID')}</span> : null}
+        <div className="space-y-2">
+          {field.options?.map((o, i) => (
+            <label key={i} className="flex items-center gap-3 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 hover:border-[var(--theme-color)] hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-all">
+              <input type="checkbox" disabled={disabled}
+                className="rounded text-[var(--theme-color)] focus:ring-[var(--theme-color)]" />
+              <span className="text-sm text-zinc-700 dark:text-zinc-300">{o.label}</span>
+              {o.price ? <span className="text-xs font-medium text-zinc-500 ml-auto">+Rp{o.price.toLocaleString('id-ID')}</span> : null}
             </label>
           ))}
         </div>
@@ -106,11 +70,8 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
       return (
         <div className="flex gap-1.5">
           {[...Array(field.max || 5)].map((_, i) => (
-            <button
-              key={i}
-              disabled={disabled}
-              className="p-1 text-zinc-300 dark:text-zinc-600 hover:text-yellow-400 transition-colors disabled:cursor-not-allowed"
-            >
+            <button key={i} disabled={disabled}
+              className="p-1 text-zinc-200 dark:text-zinc-700 hover:text-yellow-400 transition-colors disabled:cursor-default">
               <Star className="w-7 h-7 fill-current" />
             </button>
           ))}
@@ -119,13 +80,10 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
 
     case 'scale':
       return (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2">
           {[...Array(field.max_scale || 10)].map((_, i) => (
-            <button
-              key={i}
-              disabled={disabled}
-              className="w-10 h-10 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:border-[var(--theme-color)] hover:text-[var(--theme-color)] transition-all disabled:cursor-not-allowed"
-            >
+            <button key={i} disabled={disabled}
+              className="w-9 h-9 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:border-[var(--theme-color)] hover:text-[var(--theme-color)] transition-all disabled:cursor-default">
               {i + 1}
             </button>
           ))}
@@ -134,28 +92,28 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
 
     case 'file_upload':
       return (
-        <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-xl p-6 text-center hover:border-[var(--theme-color)] transition-colors cursor-pointer">
-          <Upload className="w-8 h-8 mx-auto text-zinc-400 mb-2" />
-          <p className="text-xs text-zinc-500 font-medium">Upload File {field.max_size_mb ? `(Maks ${field.max_size_mb}MB)` : ''}</p>
+        <div className="border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg p-5 text-center hover:border-[var(--theme-color)] transition-colors cursor-pointer">
+          <UploadIcon className="w-7 h-7 mx-auto text-zinc-300 mb-1.5" />
+          <p className="text-xs text-zinc-500">Upload File {field.max_size_mb ? `(max ${field.max_size_mb}MB)` : ''}</p>
         </div>
       );
 
     case 'image':
       return (
-        <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-xl p-6 text-center hover:border-[var(--theme-color)] transition-colors cursor-pointer">
-          <ImageIcon className="w-8 h-8 mx-auto text-zinc-400 mb-2" />
-          <p className="text-xs text-zinc-500 font-medium">Upload Gambar</p>
+        <div className="border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-lg p-5 text-center hover:border-[var(--theme-color)] transition-colors cursor-pointer">
+          <ImageIconSvg className="w-7 h-7 mx-auto text-zinc-300 mb-1.5" />
+          <p className="text-xs text-zinc-500">Upload Gambar</p>
         </div>
       );
 
     case 'image_choice':
       return (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {field.options?.map((o, idx) => (
-            <div key={idx} className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden hover:border-[var(--theme-color)] cursor-pointer transition-all">
-              {o.image && <img src={o.image} alt={o.label} className="w-full h-24 object-cover" />}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {field.options?.map((o, i) => (
+            <div key={i} className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden hover:border-[var(--theme-color)] cursor-pointer transition-all">
+              {o.image && <img src={o.image} alt={o.label} className="w-full h-20 object-cover" />}
               <div className="p-2 text-center">
-                <p className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{o.label}</p>
+                <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{o.label}</p>
                 {o.price ? <p className="text-[10px] text-zinc-500">Rp{o.price.toLocaleString('id-ID')}</p> : null}
               </div>
             </div>
@@ -165,15 +123,16 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
 
     case 'addon_group':
       return (
-        <div className="space-y-3">
-          {field.items?.map((item, idx) => (
-            <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
-              <input type={field.allow_multiple ? 'checkbox' : 'radio'} disabled={disabled} className="text-[var(--theme-color)]" />
+        <div className="space-y-2">
+          {field.items?.map((item, i) => (
+            <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800">
+              <input type={field.allow_multiple ? 'checkbox' : 'radio'} disabled={disabled}
+                className="text-[var(--theme-color)]" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{item.name}</p>
-                <p className="text-[10px] text-zinc-500">Ukuran: {item.sizes.join(', ')}</p>
+                <p className="text-[10px] text-zinc-400">Ukuran: {item.sizes.join(', ')}</p>
               </div>
-              <p className="text-sm font-bold text-[var(--theme-color)]">Rp{item.price.toLocaleString('id-ID')}</p>
+              <p className="text-sm font-semibold text-[var(--theme-color)]">Rp{item.price.toLocaleString('id-ID')}</p>
             </div>
           ))}
         </div>
@@ -181,27 +140,27 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
 
     case 'payment_section':
       return (
-        <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-5 space-y-4 bg-white dark:bg-zinc-800/50">
+        <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-3 bg-white dark:bg-zinc-800/50">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-emerald-500" />
-            <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200">Pembayaran</span>
+            <DollarSign className="w-4 h-4 text-emerald-500" />
+            <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">Pembayaran</span>
           </div>
           {field.qris_image_url && (
-            <img src={field.qris_image_url} alt="QRIS" className="w-40 h-40 object-contain mx-auto rounded-lg border" />
+            <img src={field.qris_image_url} alt="QRIS" className="w-32 h-32 object-contain mx-auto rounded border" />
           )}
-          <div className="text-xs text-zinc-500 space-y-1">
-            <p><span className="font-bold">Rekening:</span> {field.account_name || 'Admin SPS'}</p>
-            <p><span className="font-bold">Keterangan:</span> {field.payment_description || 'Transfer ke rekening di atas'}</p>
+          <div className="text-xs text-zinc-500 space-y-0.5">
+            <p><span className="font-medium text-zinc-700 dark:text-zinc-300">Rekening:</span> {field.account_name || 'Admin SPS'}</p>
+            <p>{field.payment_description || 'Transfer ke rekening di atas'}</p>
           </div>
         </div>
       );
 
     default:
-      return <div className="text-xs text-zinc-400 italic">Tipe field tidak dikenal: {field.type}</div>;
+      return <div className="text-xs text-zinc-400 italic">Tipe: {field.type}</div>;
   }
 }
 
-function Upload(props: any) {
+function UploadIcon(props: any) {
   return (
     <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -211,7 +170,7 @@ function Upload(props: any) {
   );
 }
 
-function ImageIcon(props: any) {
+function ImageIconSvg(props: any) {
   return (
     <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />

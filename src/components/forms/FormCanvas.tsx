@@ -292,11 +292,15 @@ function ClassicField(props: {
   return (
     <div
       onClick={onClick}
-      className={`pb-6 ${!isLast ? 'border-b border-zinc-50 dark:border-zinc-800' : ''} cursor-pointer transition-all`}
+      className={`rounded-xl border p-5 transition-all cursor-pointer ${
+        isActive
+          ? 'border-indigo-500 ring-1 ring-indigo-500/20 shadow-sm'
+          : 'border-zinc-100 dark:border-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700'
+      } ${!isLast ? 'mb-5' : ''}`}
     >
-      <label className="block text-sm font-bold text-zinc-900 dark:text-white mb-3">
+      <label className="block text-sm font-semibold text-zinc-900 dark:text-white mb-3">
         {field.label}
-        {field.required && <span className="text-red-500 ml-1">*</span>}
+        {field.required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       <FormFieldRenderer
         field={field}
