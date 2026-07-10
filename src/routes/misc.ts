@@ -83,36 +83,124 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
 
   app.post("/api/ai/generate-form", async (req, res) => {
     try {
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.split(" ")[1];
+      if (!token) return res.status(401).json({ success: false, error: "Unauthorized" });
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) return res.status(401).json({ success: false, error: "Unauthorized" });
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      if (profile?.role !== "admin" && profile?.role !== "superadmin") {
+        return res.status(403).json({ success: false, error: "Forbidden: Admin only" });
+      }
+      if (!process.env.GROQ_API_KEY) {
+        return res.status(503).json({ success: false, error: 'AI belum dikonfigurasi di server. Hubungi administrator.' });
+      }
+
       const { prompt, messages: conversation, currentForm } = req.body;
       const isChat = Array.isArray(conversation) && conversation.length > 0;
+      const latestUserMessage = isChat
+        ? [...conversation].reverse().find(message => message?.role === 'user')?.content
+        : prompt;
+      const userInstruction = typeof latestUserMessage === 'string' ? latestUserMessage.trim() : '';
+      if (!userInstruction) return res.status(400).json({ success: false, error: 'Instruksi formulir wajib diisi.' });
+      if (userInstruction.length > 4000) return res.status(400).json({ success: false, error: 'Instruksi terlalu panjang (maksimal 4.000 karakter).' });
+      if (currentForm?.fields?.length > 100) return res.status(400).json({ success: false, error: 'Maksimal 100 pertanyaan per formulir.' });
 
       // Helper to sanitize fields from AI output
       function sanitizeAIFields(fields) {
         if (!Array.isArray(fields)) return [];
-        return fields.map((f) => ({
-          id: f.id || Math.random().toString(36).substr(2, 9),
-          type: f.type || 'text',
-          label: f.label || 'Pertanyaan',
-          required: f.required || false,
-          placeholder: f.placeholder || '',
-          description: f.description || '',
-          options: ['select', 'radio', 'checkbox', 'image_choice'].includes(f.type) && Array.isArray(f.options)
-            ? f.options.filter((o) => o && o.label && o.label.trim())
-            : undefined,
-          max: f.type === 'rating' ? (f.max || 5) : undefined,
-          max_scale: f.type === 'scale' ? (f.max_scale || 10) : undefined,
-          condition: f.condition || undefined,
-          items: f.type === 'addon_group' && Array.isArray(f.items) ? f.items : undefined,
-          allow_multiple: f.type === 'addon_group' ? (f.allow_multiple ?? true) : undefined,
-          qris_image_url: f.type === 'payment_section' ? (f.qris_image_url || '') : undefined,
-          account_name: f.type === 'payment_section' ? (f.account_name || '') : undefined,
-          payment_description: f.type === 'payment_section' ? (f.payment_description || '') : undefined,
-          verify_with_ai: f.type === 'payment_section' ? (f.verify_with_ai ?? true) : undefined,
-        }));
+        const sourceFields = fields.slice(0, 100);
+        const supportedTypes = [
+          'text', 'textarea', 'number', 'select', 'radio', 'checkbox', 'image_choice',
+          'rating', 'scale', 'date', 'file_upload', 'image', 'addon_group', 'payment_section',
+        ];
+        const usedIds = new Set();
+        const rawIdToSafeId = new Map();
+        const sanitizedFields = sourceFields.map((rawField, index) => {
+          const f = rawField && typeof rawField === 'object' ? rawField : {};
+          const type = supportedTypes.includes(f?.type) ? f.type : 'text';
+          const rawId = String(f?.id || `field_${index + 1}`);
+          const idBase = rawId.toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g, '');
+          let id = idBase || `field_${index + 1}`;
+          let suffix = 2;
+          while (usedIds.has(id)) id = `${idBase}_${suffix++}`;
+          usedIds.add(id);
+          rawIdToSafeId.set(rawId, id);
+          rawIdToSafeId.set(id, id);
+
+          const supportsOptions = ['select', 'radio', 'checkbox', 'image_choice'].includes(type);
+          const options = supportsOptions && Array.isArray(f.options)
+            ? f.options.flatMap((rawOption, optionIndex) => {
+                const option = rawOption && typeof rawOption === 'object' ? rawOption : {};
+                const label = String(option.label || '').trim();
+                if (!label) return [];
+                return [{
+                  value: String(option.value || `option_${optionIndex + 1}`),
+                  label,
+                  image: option.image ? String(option.image) : undefined,
+                  price: Number.isFinite(Number(option.price)) ? Number(option.price) : undefined,
+                }];
+              })
+            : undefined;
+
+          return {
+            id,
+            type,
+            label: String(f?.label || `Pertanyaan ${index + 1}`).trim(),
+            required: f?.required === true,
+            placeholder: String(f?.placeholder || ''),
+            description: String(f?.description || ''),
+            options,
+            max: type === 'rating' ? Math.min(10, Math.max(3, Number(f.max) || 5)) : undefined,
+            max_scale: type === 'scale' ? Math.min(10, Math.max(2, Number(f.max_scale) || 10)) : undefined,
+            items: type === 'addon_group' && Array.isArray(f.items)
+              ? f.items.slice(0, 50).map((item, itemIndex) => ({
+                  id: String(item?.id || `item_${itemIndex + 1}`),
+                  name: String(item?.name || `Item ${itemIndex + 1}`),
+                  sizes: Array.isArray(item?.sizes) ? item.sizes.map(String) : ['M'],
+                  price: Number(item?.price) || 0,
+                }))
+              : undefined,
+            allow_multiple: type === 'addon_group' ? (f.allow_multiple ?? true) : undefined,
+            qris_image_url: type === 'payment_section' ? String(f.qris_image_url || '') : undefined,
+            account_name: type === 'payment_section' ? String(f.account_name || '') : undefined,
+            payment_description: type === 'payment_section' ? String(f.payment_description || '') : undefined,
+            verify_with_ai: type === 'payment_section' ? (f.verify_with_ai ?? true) : undefined,
+          };
+        });
+
+        return sanitizedFields.map((field, index) => {
+          const rawCondition = sourceFields[index]?.condition;
+          const safeParentId = rawIdToSafeId.get(String(rawCondition?.fieldId || ''));
+          const parentField = sanitizedFields.slice(0, index).find(candidate => candidate.id === safeParentId);
+          if (!parentField || !['eq', 'neq', 'in'].includes(rawCondition?.operator)) return field;
+
+          const normalizeValue = (value) => {
+            const comparable = String(value).trim().toLowerCase();
+            const option = parentField.options?.find(candidate =>
+              candidate.value.trim().toLowerCase() === comparable
+              || candidate.label.trim().toLowerCase() === comparable
+            );
+            return option?.value || String(value);
+          };
+          const values = (Array.isArray(rawCondition.value) ? rawCondition.value : [rawCondition.value])
+            .filter(value => value !== undefined && value !== null && String(value).trim())
+            .map(normalizeValue);
+          if (values.length === 0) return field;
+
+          return {
+            ...field,
+            condition: {
+              fieldId: parentField.id,
+              operator: rawCondition.operator,
+              value: rawCondition.operator === 'in' ? values : values[0],
+            },
+          };
+        });
       }
 
       // Helper to extract updatedForm from raw parsed JSON (handles various model output shapes)
-      function extractUpdatedForm(parsed, fallback) {
+      function extractUpdatedForm(parsed) {
         // Shape 1: { updatedForm: { title, fields } }
         if (parsed.updatedForm && (parsed.updatedForm.fields || parsed.updatedForm.title)) {
           return parsed.updatedForm;
@@ -132,7 +220,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
         return null;
       }
 
-      const systemPrompt = `Kamu adalah asisten AI pembuat formulir digital seperti JotForm.
+      const systemPrompt = `Kamu adalah mesin pembuat dan pengubah schema formulir digital seperti Jotform.
 
 TUGAS: Selalu kembalikan JSON valid dengan dua key: "message" dan "updatedForm".
 
@@ -141,12 +229,16 @@ ATURAN WAJIB:
 2. "message": string teks Bahasa Indonesia, singkat 1-2 kalimat, TIDAK boleh mengandung JSON atau kode.
 3. "updatedForm": objek formulir LENGKAP dengan semua field yang diminta user. WAJIB ADA, TIDAK BOLEH null atau undefined.
 4. Jika user minta buat form baru, LANGSUNG buat field-fieldnya. JANGAN hanya membalas dengan teks.
-5. Jika currentForm ada, PERTAHANKAN field yang tidak dimodifikasi.
+5. Jika currentForm ada, PERTAHANKAN id form, gaya, dan field yang tidak dimodifikasi. Selalu kirim schema formulir lengkap, bukan delta.
+6. ID field harus unik, stabil, huruf kecil, dan tanpa spasi.
+7. Untuk select/radio/checkbox, setiap options wajib memiliki value dan label.
+8. Untuk percabangan, pasang condition pada PERTANYAAN TUJUAN (bukan induk) dan hanya referensikan field yang muncul sebelumnya.
 
 FORMAT OUTPUT WAJIB (tidak boleh ada yang berbeda):
-{"message":"Teks respons singkat","updatedForm":{"title":"...","description":"...","theme_color":"#6366F1","layout_type":"classic","font_family":"Inter","input_style":"rounded","bg_image_url":"","card_glassmorphism":false,"fields":[{"id":"field_1","type":"text","label":"...","required":true,"placeholder":"..."}]}}
+{"message":"Teks respons singkat","updatedForm":{"title":"...","description":"...","theme_color":"#6366F1","layout_type":"classic","font_family":"Inter","input_style":"rounded","bg_image_url":"","card_glassmorphism":false,"fields":[{"id":"field_1","type":"text","label":"...","required":true,"placeholder":"...","condition":{"fieldId":"field_induk","operator":"eq","value":"nilai_opsi"}}]}}
 
-TIPE FIELD YANG TERSEDIA: text, textarea, number, select, radio, checkbox, rating, scale, date, file_upload
+TIPE FIELD YANG TERSEDIA: text, textarea, number, select, radio, checkbox, image_choice, rating, scale, date, file_upload, image, addon_group, payment_section
+OPERATOR CONDITION: eq, neq, in. Nilai condition harus memakai option.value, bukan option.label.
 
 CONTOH: Jika user minta "buat form pendaftaran karyawan baru", output harus:
 {"message":"Form pendaftaran karyawan baru sudah siap dengan 6 pertanyaan.","updatedForm":{"title":"Form Pendaftaran Karyawan Baru","description":"Isi data diri Anda dengan lengkap","theme_color":"#6366F1","layout_type":"classic","font_family":"Inter","input_style":"rounded","bg_image_url":"","card_glassmorphism":false,"fields":[{"id":"nama_lengkap","type":"text","label":"Nama Lengkap","required":true,"placeholder":"Masukkan nama lengkap Anda"},{"id":"nik_karyawan","type":"text","label":"NIK Karyawan","required":true,"placeholder":"Nomor Induk Karyawan"},{"id":"departemen","type":"select","label":"Departemen","required":true,"options":[{"value":"hr","label":"HR"},{"value":"produksi","label":"Produksi"},{"value":"engineering","label":"Engineering"}]},{"id":"tanggal_masuk","type":"date","label":"Tanggal Mulai Kerja","required":true},{"id":"no_hp","type":"text","label":"Nomor HP","required":true,"placeholder":"08xxxxxxxxxx"},{"id":"keterangan","type":"textarea","label":"Keterangan Tambahan","required":false,"placeholder":"Informasi lain yang perlu disampaikan"}]}}
@@ -155,56 +247,71 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
 
       const messages = [{ role: 'system', content: systemPrompt }];
 
-      if (isChat) {
-        for (const msg of conversation) {
-          if (msg.role === 'user' || msg.role === 'assistant') {
-            messages.push({ role: msg.role, content: msg.content });
-          }
+      messages.push({ role: 'user', content: userInstruction });
+
+      const callFormModel = async (requestMessages) => {
+        const result = await groq.chat.completions.create({
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          messages: requestMessages,
+          max_tokens: 4096,
+          temperature: 0.25,
+          response_format: { type: "json_object" }
+        });
+        return result.choices?.[0]?.message?.content || '{}';
+      };
+
+      const parseModelJSON = (content) => {
+        const candidates = [
+          content.trim(),
+          content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim(),
+        ];
+        for (const candidate of candidates) {
+          try { return JSON.parse(candidate); } catch { /* try next representation */ }
         }
-      } else {
-        messages.push({ role: 'user', content: prompt || '' });
+        return null;
+      };
+
+      let raw = await callFormModel(messages);
+      let parsed = parseModelJSON(raw);
+      let rawForm = parsed ? extractUpdatedForm(parsed) : null;
+
+      // A model occasionally returns only a friendly chat message. Repair once
+      // automatically so the user action always targets the canvas schema.
+      if (!rawForm) {
+        const repairMessages = [
+          ...messages,
+          { role: 'assistant', content: raw.slice(0, 8000) },
+          {
+            role: 'user',
+            content: 'Respons sebelumnya belum memiliki updatedForm. Ulangi sekarang sebagai JSON murni dengan updatedForm lengkap dan minimal satu field.',
+          },
+        ];
+        raw = await callFormModel(repairMessages);
+        parsed = parseModelJSON(raw);
+        rawForm = parsed ? extractUpdatedForm(parsed) : null;
       }
 
-      const result = await groq.chat.completions.create({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages,
-        max_tokens: 4096,
-        temperature: 0.4,
-        response_format: { type: "json_object" }
-      });
-
-      let raw = result.choices?.[0]?.message?.content || '{}';
-      console.log('[AI Chat Form] Raw response length:', raw.length);
-
-      let parsed;
-      try {
-        parsed = JSON.parse(raw.trim());
-      } catch (parseErr) {
-        // Strip any accidental markdown fences and retry
-        const stripped = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-        try {
-          parsed = JSON.parse(stripped);
-        } catch {
-          console.error('[AI Chat Form] JSON parse failed:', raw.substring(0, 300));
-          return res.status(500).json({ success: false, error: 'AI mengembalikan format yang tidak valid. Coba lagi.' });
-        }
+      if (!parsed) {
+        console.error('[AI Chat Form] JSON parse failed after retry:', raw.substring(0, 300));
+        return res.status(502).json({ success: false, error: 'AI mengembalikan format yang tidak valid. Silakan coba lagi.' });
       }
 
-      const rawForm = extractUpdatedForm(parsed, currentForm);
       let updatedForm = null;
 
       if (rawForm && (rawForm.fields || rawForm.title)) {
-        const sanitizedFields = sanitizeAIFields(rawForm.fields || []);
+        const sanitizedFields = sanitizeAIFields(rawForm.fields || currentForm?.fields || []);
         updatedForm = {
-          title: rawForm.title || 'Formulir Baru',
-          description: rawForm.description || '',
-          theme_color: rawForm.theme_color || '#6366F1',
-          banner_url: rawForm.banner_url || '',
-          layout_type: rawForm.layout_type || 'classic',
-          font_family: rawForm.font_family || 'Inter',
-          input_style: rawForm.input_style || 'rounded',
-          bg_image_url: rawForm.bg_image_url || '',
-          card_glassmorphism: rawForm.card_glassmorphism || false,
+          // Never trust a model-generated form id; database identity must remain stable.
+          id: currentForm?.id,
+          title: rawForm.title || currentForm?.title || 'Formulir Baru',
+          description: rawForm.description ?? currentForm?.description ?? '',
+          theme_color: rawForm.theme_color || currentForm?.theme_color || '#6366F1',
+          banner_url: rawForm.banner_url ?? currentForm?.banner_url ?? '',
+          layout_type: rawForm.layout_type || currentForm?.layout_type || 'classic',
+          font_family: rawForm.font_family || currentForm?.font_family || 'Inter',
+          input_style: rawForm.input_style || currentForm?.input_style || 'rounded',
+          bg_image_url: rawForm.bg_image_url ?? currentForm?.bg_image_url ?? '',
+          card_glassmorphism: rawForm.card_glassmorphism ?? currentForm?.card_glassmorphism ?? false,
           fields: sanitizedFields,
         };
       }
@@ -212,16 +319,17 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
       // If AI still didn't return a form, log for debugging
       if (!updatedForm) {
         console.warn('[AI Chat Form] No updatedForm in response. Keys:', Object.keys(parsed));
+        return res.status(422).json({ success: false, error: 'AI belum menghasilkan schema formulir. Ulangi dengan kriteria yang lebih spesifik.' });
       }
 
       const message = typeof parsed.message === 'string' && !parsed.message.includes('{')
         ? parsed.message
         : (updatedForm ? `Formulir "${updatedForm.title}" berhasil dibuat dengan ${updatedForm.fields.length} pertanyaan.` : 'Permintaan Anda telah diproses.');
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         message,
-        updatedForm 
+        updatedForm
       });
     } catch (error) {
       console.error('[AI Chat Form] Error:', error);
