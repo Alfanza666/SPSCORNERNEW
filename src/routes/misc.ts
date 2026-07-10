@@ -86,60 +86,72 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
       const { prompt, messages: conversation, currentForm } = req.body;
       const isChat = Array.isArray(conversation) && conversation.length > 0;
 
-      const systemPrompt = `
-Kamu adalah asisten AI yang membantu user merancang, membuat, dan memodifikasi formulir digital secara interaktif (seperti JotForm).
-
-Tugas utama kamu adalah merespons instruksi user dalam Bahasa Indonesia untuk memperbarui atau membuat konfigurasi formulir digital.
-
-ATURAN KETAT:
-- Kamu HARUS mengembalikan respons dalam bentuk JSON object valid, TANPA markdown, TANPA tag \`\`\`json, TANPA blok kode apapun.
-- Key "message" HANYA BOLEH berisi teks natural Bahasa Indonesia (ramah, singkat, maksimal 2 kalimat). DILARANG KERAS menaruh JSON atau data teknis apapun di key "message".
-- Key "updatedForm" berisi objek konfigurasi formulir LENGKAP. JANGAN pernah menyisipkan JSON di dalam "message".
-- Jika user tidak meminta perubahan apapun pada struktur form (hanya bertanya), tetap sertakan "updatedForm" dengan nilai yang sama persis seperti currentForm.
-
-Struktur JSON output:
-{
-  "message": "Pesan teks natural Bahasa Indonesia saja. SANGAT SINGKAT, maksimal 2 kalimat. Contoh: 'Formulir pendaftaran sudah siap dengan 5 pertanyaan. Silakan cek pratinjau.' JANGAN pernah menaruh JSON atau kode di sini.",
-  "updatedForm": {
-    "title": "Judul Formulir",
-    "description": "Deskripsi Formulir",
-    "theme_color": "#HexColor",
-    "layout_type": "classic" | "card",
-    "font_family": "Inter" | "Outfit" | "Playfair Display" | "Space Grotesk",
-    "input_style": "rounded" | "sharp" | "underline",
-    "bg_image_url": "URL gambar background (opsional)",
-    "card_glassmorphism": true | false,
-    "fields": [
-      {
-        "id": "id_unik_string",
-        "type": "text" | "textarea" | "number" | "select" | "radio" | "checkbox" | "rating" | "scale" | "date" | "file_upload" | "image" | "image_choice" | "addon_group" | "payment_section",
-        "label": "Pertanyaan / Label Field",
-        "required": true | false,
-        "placeholder": "Petunjuk isi (opsional)",
-        "options": [{"value": "opt_value", "label": "Opsi Label", "price": 10000}],
-        "max": 5,
-        "max_scale": 10,
-        "items": [{"id": "item1", "name": "Baju", "sizes": ["S", "M"], "price": 50000}],
-        "condition": {
-          "fieldId": "id_field_pemicu",
-          "operator": "eq" | "neq" | "in",
-          "value": "nilai_pemicu"
-        }
+      // Helper to sanitize fields from AI output
+      function sanitizeAIFields(fields) {
+        if (!Array.isArray(fields)) return [];
+        return fields.map((f) => ({
+          id: f.id || Math.random().toString(36).substr(2, 9),
+          type: f.type || 'text',
+          label: f.label || 'Pertanyaan',
+          required: f.required || false,
+          placeholder: f.placeholder || '',
+          description: f.description || '',
+          options: ['select', 'radio', 'checkbox', 'image_choice'].includes(f.type) && Array.isArray(f.options)
+            ? f.options.filter((o) => o && o.label && o.label.trim())
+            : undefined,
+          max: f.type === 'rating' ? (f.max || 5) : undefined,
+          max_scale: f.type === 'scale' ? (f.max_scale || 10) : undefined,
+          condition: f.condition || undefined,
+          items: f.type === 'addon_group' && Array.isArray(f.items) ? f.items : undefined,
+          allow_multiple: f.type === 'addon_group' ? (f.allow_multiple ?? true) : undefined,
+          qris_image_url: f.type === 'payment_section' ? (f.qris_image_url || '') : undefined,
+          account_name: f.type === 'payment_section' ? (f.account_name || '') : undefined,
+          payment_description: f.type === 'payment_section' ? (f.payment_description || '') : undefined,
+          verify_with_ai: f.type === 'payment_section' ? (f.verify_with_ai ?? true) : undefined,
+        }));
       }
-    ]
-  }
-}
 
-PANDUAN PERILAKU:
-- Bahasa: Gunakan Bahasa Indonesia yang ramah, sopan, langsung, dan profesional.
-- "message": HANYA teks natural. JANGAN pernah menyertakan JSON, markdown, atau kode. PISAHKAN teks dari data teknis.
-- Modifikasi Form: Jika currentForm dikirimkan, modifikasi berdasarkan permintaan user. JANGAN hapus field lain kecuali diminta.
-- ID field baru: Gunakan string unik seperti "nama_karyawan", "no_telp", atau random singkat.
-- Pastikan options dan items selalu valid untuk tipe field yang sesuai.
+      // Helper to extract updatedForm from raw parsed JSON (handles various model output shapes)
+      function extractUpdatedForm(parsed, fallback) {
+        // Shape 1: { updatedForm: { title, fields } }
+        if (parsed.updatedForm && (parsed.updatedForm.fields || parsed.updatedForm.title)) {
+          return parsed.updatedForm;
+        }
+        // Shape 2: { form: { title, fields } }
+        if (parsed.form && (parsed.form.fields || parsed.form.title)) {
+          return parsed.form;
+        }
+        // Shape 3: top-level has fields directly { title, fields, ... }
+        if (parsed.fields && Array.isArray(parsed.fields)) {
+          return parsed;
+        }
+        // Shape 4: { data: { updatedForm: ... } }
+        if (parsed.data && parsed.data.updatedForm) {
+          return parsed.data.updatedForm;
+        }
+        return null;
+      }
 
-Formulir saat ini yang sedang diedit:
-${currentForm ? JSON.stringify(currentForm, null, 2) : "Belum ada (rancang baru dari awal sesuai permintaan user)"}
-`;
+      const systemPrompt = `Kamu adalah asisten AI pembuat formulir digital seperti JotForm.
+
+TUGAS: Selalu kembalikan JSON valid dengan dua key: "message" dan "updatedForm".
+
+ATURAN WAJIB:
+1. Output HARUS berupa JSON murni — TANPA markdown, TANPA \`\`\`json, TANPA teks di luar JSON.
+2. "message": string teks Bahasa Indonesia, singkat 1-2 kalimat, TIDAK boleh mengandung JSON atau kode.
+3. "updatedForm": objek formulir LENGKAP dengan semua field yang diminta user. WAJIB ADA, TIDAK BOLEH null atau undefined.
+4. Jika user minta buat form baru, LANGSUNG buat field-fieldnya. JANGAN hanya membalas dengan teks.
+5. Jika currentForm ada, PERTAHANKAN field yang tidak dimodifikasi.
+
+FORMAT OUTPUT WAJIB (tidak boleh ada yang berbeda):
+{"message":"Teks respons singkat","updatedForm":{"title":"...","description":"...","theme_color":"#6366F1","layout_type":"classic","font_family":"Inter","input_style":"rounded","bg_image_url":"","card_glassmorphism":false,"fields":[{"id":"field_1","type":"text","label":"...","required":true,"placeholder":"..."}]}}
+
+TIPE FIELD YANG TERSEDIA: text, textarea, number, select, radio, checkbox, rating, scale, date, file_upload
+
+CONTOH: Jika user minta "buat form pendaftaran karyawan baru", output harus:
+{"message":"Form pendaftaran karyawan baru sudah siap dengan 6 pertanyaan.","updatedForm":{"title":"Form Pendaftaran Karyawan Baru","description":"Isi data diri Anda dengan lengkap","theme_color":"#6366F1","layout_type":"classic","font_family":"Inter","input_style":"rounded","bg_image_url":"","card_glassmorphism":false,"fields":[{"id":"nama_lengkap","type":"text","label":"Nama Lengkap","required":true,"placeholder":"Masukkan nama lengkap Anda"},{"id":"nik_karyawan","type":"text","label":"NIK Karyawan","required":true,"placeholder":"Nomor Induk Karyawan"},{"id":"departemen","type":"select","label":"Departemen","required":true,"options":[{"value":"hr","label":"HR"},{"value":"produksi","label":"Produksi"},{"value":"engineering","label":"Engineering"}]},{"id":"tanggal_masuk","type":"date","label":"Tanggal Mulai Kerja","required":true},{"id":"no_hp","type":"text","label":"Nomor HP","required":true,"placeholder":"08xxxxxxxxxx"},{"id":"keterangan","type":"textarea","label":"Keterangan Tambahan","required":false,"placeholder":"Informasi lain yang perlu disampaikan"}]}}
+
+Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.length > 0 ? JSON.stringify(currentForm) : 'null (buat dari awal)'}`;
 
       const messages = [{ role: 'system', content: systemPrompt }];
 
@@ -157,18 +169,59 @@ ${currentForm ? JSON.stringify(currentForm, null, 2) : "Belum ada (rancang baru 
         model: 'meta-llama/llama-4-scout-17b-16e-instruct',
         messages,
         max_tokens: 4096,
-        temperature: 0.7,
+        temperature: 0.4,
         response_format: { type: "json_object" }
       });
 
       let raw = result.choices?.[0]?.message?.content || '{}';
-      console.log('[AI Chat Form] JSON response received');
-      const parsed = JSON.parse(raw.trim());
+      console.log('[AI Chat Form] Raw response length:', raw.length);
+
+      let parsed;
+      try {
+        parsed = JSON.parse(raw.trim());
+      } catch (parseErr) {
+        // Strip any accidental markdown fences and retry
+        const stripped = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        try {
+          parsed = JSON.parse(stripped);
+        } catch {
+          console.error('[AI Chat Form] JSON parse failed:', raw.substring(0, 300));
+          return res.status(500).json({ success: false, error: 'AI mengembalikan format yang tidak valid. Coba lagi.' });
+        }
+      }
+
+      const rawForm = extractUpdatedForm(parsed, currentForm);
+      let updatedForm = null;
+
+      if (rawForm && (rawForm.fields || rawForm.title)) {
+        const sanitizedFields = sanitizeAIFields(rawForm.fields || []);
+        updatedForm = {
+          title: rawForm.title || 'Formulir Baru',
+          description: rawForm.description || '',
+          theme_color: rawForm.theme_color || '#6366F1',
+          banner_url: rawForm.banner_url || '',
+          layout_type: rawForm.layout_type || 'classic',
+          font_family: rawForm.font_family || 'Inter',
+          input_style: rawForm.input_style || 'rounded',
+          bg_image_url: rawForm.bg_image_url || '',
+          card_glassmorphism: rawForm.card_glassmorphism || false,
+          fields: sanitizedFields,
+        };
+      }
+
+      // If AI still didn't return a form, log for debugging
+      if (!updatedForm) {
+        console.warn('[AI Chat Form] No updatedForm in response. Keys:', Object.keys(parsed));
+      }
+
+      const message = typeof parsed.message === 'string' && !parsed.message.includes('{')
+        ? parsed.message
+        : (updatedForm ? `Formulir "${updatedForm.title}" berhasil dibuat dengan ${updatedForm.fields.length} pertanyaan.` : 'Permintaan Anda telah diproses.');
 
       res.json({ 
         success: true, 
-        message: parsed.message || 'Formulir berhasil diproses.', 
-        updatedForm: parsed.updatedForm 
+        message,
+        updatedForm 
       });
     } catch (error) {
       console.error('[AI Chat Form] Error:', error);
