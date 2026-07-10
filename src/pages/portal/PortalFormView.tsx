@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { FormConfig, FormField, AddonItem } from '../../types/form';
+import { calculateVisibleFormTotal, getVisibleFields } from '../../utils/formLogic';
 
 interface DynamicForm {
   id: string;
@@ -58,6 +59,16 @@ export default function PortalFormView() {
   // Card layout navigation state
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
+  // Keep card navigation valid when conditional answers add/remove questions.
+  // Without this, changing a parent answer can leave the renderer pointing at
+  // an index that no longer exists (an apparently blank form).
+  const visibleFields = form ? getVisibleFields(form.fields || [], answers) : [];
+
+  useEffect(() => {
+    if (!form || (form as any).layout_type !== 'card') return;
+    setCurrentCardIndex(index => Math.min(Math.max(index, 0), visibleFields.length));
+  }, [form, visibleFields.length]);
+
   useEffect(() => {
     if (formId) {
       fetchForm();
@@ -79,6 +90,15 @@ export default function PortalFormView() {
 
   const fetchForm = async () => {
     setLoading(true);
+    setSubmitted(false);
+    setCurrentCardIndex(0);
+    setAddonOrders({});
+    setFileUploads({});
+    setImageUploads({});
+    setImageUrlInputs({});
+    setPaymentProofs({});
+    setPaymentVerified({});
+    setAiVerifying({});
     try {
       const { data, error } = await supabase
         .from('dynamic_forms')
@@ -203,7 +223,6 @@ export default function PortalFormView() {
     if (!user) return;
 
     // Validasi manual — hanya field yang visible
-    const visibleFields = form?.fields.filter(isFieldVisible) || [];
     const missingFields = visibleFields.filter(f => {
         if (!f.required || f.type === 'payment_section') return false;
         if (f.type === 'checkbox' && (!answers[f.id] || answers[f.id].length === 0)) return true;
@@ -297,30 +316,7 @@ export default function PortalFormView() {
   };
 
   // --- Payment Helpers ---
-  const computeTotal = (): number => {
-    let total = 0;
-    form?.fields.forEach(f => {
-      if (f.type === 'radio' || f.type === 'select') {
-        const selectedVal = answers[f.id];
-        const opt = f.options?.find(o => o.value === selectedVal);
-        if (opt?.price) total += opt.price;
-      }
-      if (f.type === 'checkbox') {
-        const selected = answers[f.id] as string[] || [];
-        f.options?.forEach(o => {
-          if (selected.includes(o.value) && o.price) total += o.price;
-        });
-      }
-      if (f.type === 'addon_group') {
-        const orders = addonOrders[f.id] || [];
-        orders.forEach(order => {
-          const item = f.items?.find(i => i.id === order.item_id);
-          if (item && order.quantity > 0) total += item.price * order.quantity;
-        });
-      }
-    });
-    return total;
-  };
+  const computeTotal = (): number => calculateVisibleFormTotal(form?.fields || [], answers, addonOrders);
 
   const formatPrice = (amount: number) => {
     return 'Rp ' + amount.toLocaleString('id-ID');
@@ -407,8 +403,11 @@ export default function PortalFormView() {
   };
 
   const handleNextCard = () => {
-    const visibleFields = form?.fields.filter(isFieldVisible) || [];
     if (currentCardIndex === 0) {
+      if (visibleFields.length === 0) {
+        toast.error('Formulir ini belum memiliki pertanyaan yang dapat diisi.');
+        return;
+      }
       setCurrentCardIndex(1);
       return;
     }
@@ -450,25 +449,6 @@ export default function PortalFormView() {
   const handleBackCard = () => {
     if (currentCardIndex > 0) {
       setCurrentCardIndex(currentCardIndex - 1);
-    }
-  };
-
-  // --- Conditional Logic ---
-  const isFieldVisible = (field: FormField): boolean => {
-    if (!field.condition) return true;
-    const parentAnswer = answers[field.condition.fieldId];
-    
-    switch (field.condition.operator) {
-      case 'eq':
-        return parentAnswer === field.condition.value;
-      case 'neq':
-        return parentAnswer !== field.condition.value;
-      case 'in': {
-        const values = Array.isArray(field.condition.value) ? field.condition.value : [field.condition.value];
-        return values.includes(parentAnswer);
-      }
-      default:
-        return true;
     }
   };
 
@@ -1053,7 +1033,6 @@ export default function PortalFormView() {
                      </motion.div>
                    ) : (
                      (() => {
-                       const visibleFields = form?.fields.filter(isFieldVisible) || [];
                        const fieldIndex = currentCardIndex - 1;
                        const field = visibleFields[fieldIndex];
                        
@@ -1147,35 +1126,29 @@ export default function PortalFormView() {
                     <p className="text-zinc-500 leading-relaxed">{form?.description}</p>
                  </div>
 
-                 {form?.fields.map((field) => {
-                   const visible = isFieldVisible(field);
-                   return (
-                     <motion.div
-                       key={field.id}
-                       layout
-                       animate={{ 
-                         height: visible ? 'auto' : 0, 
-                         opacity: visible ? 1 : 0,
-                         marginBottom: visible ? 40 : 0,
-                         overflow: 'hidden'
-                       }}
-                       transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                     >
+                  {visibleFields.map((field) => (
+                      <motion.div
+                        key={field.id}
+                        layout
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0, marginBottom: 40 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                      >
                        <div className="space-y-3">
                          <label className="flex items-center gap-2 text-base font-bold text-zinc-700 dark:text-zinc-300">
                            {field.label} {field.required && <span className="text-red-500">*</span>}
                          </label>
                          {renderFieldComponent(field)}
                        </div>
-                     </motion.div>
-                   );
-                 })}
+                      </motion.div>
+                  ))}
 
                  {/* Classic layout submit block */}
                  <div className="pt-8 flex flex-col gap-4">
                    {(() => {
                      const total = computeTotal();
-                     const hasPaymentSection = form?.fields.some(f => f.type === 'payment_section');
+                      const hasPaymentSection = visibleFields.some(f => f.type === 'payment_section');
                      if (total > 0 && !hasPaymentSection) {
                        return (
                          <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl p-4 flex items-center justify-between border border-emerald-250 dark:border-emerald-800">

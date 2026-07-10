@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FormConfig, FormField } from '../../types/form';
 
 import FormFieldRenderer from './FormFieldRenderer';
 import FormSkeleton from './FormSkeleton';
+import { getVisibleFields, hasAnswer } from '../../utils/formLogic';
 
 interface FormCanvasProps {
   form: FormConfig;
@@ -11,7 +12,6 @@ interface FormCanvasProps {
   onFinish: () => void;
   onFieldClick?: (fieldId: string | null) => void;
   activeFieldId?: string | null;
-  onFieldsReorder?: (fields: FormField[]) => void;
 }
 
 export default function FormCanvas({
@@ -21,22 +21,57 @@ export default function FormCanvas({
   onFinish,
   onFieldClick,
   activeFieldId,
-  onFieldsReorder,
 }: FormCanvasProps) {
   const themeColor = form.theme_color || '#673AB7';
   const [cardIndex, setCardIndex] = useState(0);
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const dragOverIndex = useRef<number | null>(null);
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     setCardIndex(0);
+    setAnswers({});
+    setValidationError('');
   }, [form.layout_type]);
 
+  const visibleFields = getVisibleFields(form.fields, answers);
+
+  const updateAnswer = (fieldId: string, value: unknown) => {
+    setAnswers(previous => ({ ...previous, [fieldId]: value }));
+    setValidationError('');
+  };
+
+  const startPreview = () => {
+    setCardIndex(visibleFields.length > 0 ? 1 : 0);
+    setValidationError(visibleFields.length > 0 ? '' : 'Tambahkan minimal satu pertanyaan untuk memulai preview.');
+    onStart();
+  };
+
+  const finishPreview = () => {
+    const missingField = visibleFields.find(field => field.required && field.type !== 'payment_section' && !hasAnswer(answers[field.id]));
+    if (missingField) {
+      setValidationError(`Pertanyaan wajib belum diisi: ${missingField.label}`);
+      return;
+    }
+    setCardIndex(visibleFields.length + 1);
+    setValidationError('');
+    onFinish();
+  };
+
+  const advanceCard = () => {
+    const currentField = visibleFields[cardIndex - 1];
+    if (currentField?.required && currentField.type !== 'payment_section' && !hasAnswer(answers[currentField.id])) {
+      setValidationError('Pertanyaan ini wajib diisi sebelum melanjutkan.');
+      return;
+    }
+    if (cardIndex >= visibleFields.length) finishPreview();
+    else setCardIndex(index => index + 1);
+  };
+
   useEffect(() => {
-    if (form.layout_type === 'card' && cardIndex > form.fields.length) {
+    if (form.layout_type === 'card' && cardIndex > visibleFields.length + 1) {
       setCardIndex(0);
     }
-  }, [form.fields.length, form.layout_type, cardIndex]);
+  }, [visibleFields.length, form.layout_type, cardIndex]);
 
   if (isGenerating) {
     return <FormSkeleton />;
@@ -55,6 +90,9 @@ export default function FormCanvas({
           border: form.card_glassmorphism
             ? '1px solid rgba(255,255,255,0.25)'
             : undefined,
+          backgroundImage: form.bg_image_url ? `url(${form.bg_image_url})` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
         }}
       >
         {!form.banner_url && (
@@ -85,7 +123,7 @@ export default function FormCanvas({
               <div className="pt-4">
                 <button
                   type="button"
-                  onClick={onStart}
+                  onClick={startPreview}
                   className="px-10 py-4 text-white rounded-full font-black text-base shadow-lg hover:opacity-90 active:scale-95 transition-all"
                   style={{
                     backgroundColor: themeColor,
@@ -96,7 +134,7 @@ export default function FormCanvas({
                 </button>
               </div>
             </div>
-          ) : cardIndex > form.fields.length ? (
+          ) : cardIndex > visibleFields.length ? (
             <div className="text-center py-12 space-y-6">
               <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
                 <svg className="w-8 h-8 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -112,7 +150,7 @@ export default function FormCanvas({
               <div className="pt-4">
                 <button
                   type="button"
-                  onClick={() => setCardIndex(0)}
+                  onClick={() => { setAnswers({}); setCardIndex(0); }}
                   className="px-8 py-3 border-2 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 rounded-full font-bold text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                 >
                   Isi Ulang
@@ -121,17 +159,20 @@ export default function FormCanvas({
             </div>
           ) : (
             <CardSlide
-              field={form.fields[cardIndex - 1]}
+              field={visibleFields[cardIndex - 1]}
               index={cardIndex - 1}
-              total={form.fields.length}
+              total={visibleFields.length}
               themeColor={themeColor}
               inputStyle={form.input_style || 'rounded'}
               onPrev={() => setCardIndex((p) => Math.max(0, p - 1))}
-              onNext={() => setCardIndex((p) => p + 1)}
-              isLast={cardIndex === form.fields.length}
-              onFinish={onFinish}
-              onClick={() => onFieldClick?.(form.fields[cardIndex - 1]?.id || null)}
-              isActive={activeFieldId === form.fields[cardIndex - 1]?.id}
+              onNext={advanceCard}
+              isLast={cardIndex === visibleFields.length}
+              onFinish={finishPreview}
+              onClick={() => onFieldClick?.(visibleFields[cardIndex - 1]?.id || null)}
+              isActive={activeFieldId === visibleFields[cardIndex - 1]?.id}
+              value={answers[visibleFields[cardIndex - 1]?.id]}
+              onChange={(value) => updateAnswer(visibleFields[cardIndex - 1].id, value)}
+              validationError={validationError}
             />
           )}
         </div>
@@ -146,7 +187,13 @@ export default function FormCanvas({
           ? 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border border-white/25 dark:border-zinc-800/50 shadow-xl'
           : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm'
       }`}
-      style={{ fontFamily: form.font_family || 'Inter' }}
+      style={{
+        fontFamily: form.font_family || 'Inter',
+        backgroundImage: form.bg_image_url ? `url(${form.bg_image_url})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+      data-layout="classic"
     >
       {!form.banner_url && (
         <div className="h-3 w-full" style={{ backgroundColor: themeColor }} />
@@ -167,16 +214,17 @@ export default function FormCanvas({
         </div>
 
         <div className="space-y-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-          {form.fields.map((field, idx) => (
+          {visibleFields.map((field, idx) => (
             <ClassicField
               key={field.id}
               field={field}
-              idx={idx}
               themeColor={themeColor}
               inputStyle={form.input_style || 'rounded'}
               isActive={activeFieldId === field.id}
               onClick={() => onFieldClick?.(field.id)}
-              isLast={idx === form.fields.length - 1}
+              isLast={idx === visibleFields.length - 1}
+              value={answers[field.id]}
+              onChange={(value) => updateAnswer(field.id, value)}
             />
           ))}
         </div>
@@ -184,13 +232,14 @@ export default function FormCanvas({
         <div className="pt-6 flex justify-end">
           <button
             type="button"
-            onClick={onFinish}
+            onClick={finishPreview}
             className="px-8 py-3 text-white rounded-full font-bold text-sm shadow-md hover:opacity-90 transition-all"
             style={{ backgroundColor: themeColor }}
           >
             Kirim Jawaban
           </button>
         </div>
+        {validationError && <p className="pt-3 text-sm font-semibold text-red-500" role="alert">{validationError}</p>}
       </div>
     </div>
   );
@@ -199,7 +248,7 @@ export default function FormCanvas({
 function CardSlide({
   field, index, total, themeColor, inputStyle,
   onPrev, onNext, isLast, onFinish,
-  onClick, isActive,
+  onClick, isActive, value, onChange, validationError,
 }: {
   field: FormField;
   index: number;
@@ -212,6 +261,9 @@ function CardSlide({
   onFinish: () => void;
   onClick: () => void;
   isActive: boolean;
+  value?: unknown;
+  onChange: (value: unknown) => void;
+  validationError: string;
 }) {
   return (
     <div className="space-y-6 py-4">
@@ -222,17 +274,11 @@ function CardSlide({
         >
           Pertanyaan {index + 1} / {total}
         </span>
-        <div className="flex gap-1">
-          {Array.from({ length: total }).map((_, i) => (
-            <div
-              key={i}
-              className="w-2 h-2 rounded-full transition-all duration-300"
-              style={{
-                backgroundColor: i === index ? themeColor : '#e4e4e7',
-                width: i === index ? 16 : 8,
-              }}
-            />
-          ))}
+        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700" aria-label={`Progres ${index + 1} dari ${total}`}>
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{ backgroundColor: themeColor, width: `${((index + 1) / Math.max(total, 1)) * 100}%` }}
+          />
         </div>
       </div>
 
@@ -243,7 +289,7 @@ function CardSlide({
             ? 'ring-2 shadow-lg'
             : 'border border-zinc-100 dark:border-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700'
         }`}
-        style={isActive ? { ringColor: themeColor } : undefined}
+        style={isActive ? { borderColor: themeColor, boxShadow: `0 0 0 2px ${themeColor}33` } : undefined}
       >
         <label className="flex items-start gap-2 text-lg font-bold text-zinc-900 dark:text-white mb-4">
           {field.label}
@@ -253,9 +299,13 @@ function CardSlide({
           field={field}
           themeColor={themeColor}
           inputStyle={inputStyle}
-          disabled
+          value={value}
+          onChange={onChange}
         />
+        {field.description && <p className="mt-2 text-xs text-zinc-400">{field.description}</p>}
       </div>
+
+      {validationError && <p className="text-sm font-semibold text-red-500" role="alert">{validationError}</p>}
 
       <div className="pt-6 flex items-center justify-between gap-4 border-t border-zinc-100 dark:border-zinc-800">
         <button
@@ -280,23 +330,25 @@ function CardSlide({
 
 function ClassicField(props: {
   field: FormField;
-  idx: number;
   themeColor: string;
   inputStyle: string;
   isActive: boolean;
   onClick: () => void;
   isLast: boolean;
+  value?: unknown;
+  onChange: (value: unknown) => void;
   key?: string;
 }) {
-  const { field, idx, themeColor, inputStyle, isActive, onClick, isLast } = props;
+  const { field, themeColor, inputStyle, isActive, onClick, isLast, value, onChange } = props;
   return (
     <div
       onClick={onClick}
       className={`rounded-xl border p-5 transition-all cursor-pointer ${
         isActive
-          ? 'border-indigo-500 ring-1 ring-indigo-500/20 shadow-sm'
+          ? 'ring-2 shadow-sm'
           : 'border-zinc-100 dark:border-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700'
       } ${!isLast ? 'mb-5' : ''}`}
+      style={isActive ? { borderColor: themeColor, boxShadow: `0 0 0 2px ${themeColor}22` } : undefined}
     >
       <label className="block text-sm font-semibold text-zinc-900 dark:text-white mb-3">
         {field.label}
@@ -306,8 +358,10 @@ function ClassicField(props: {
         field={field}
         themeColor={themeColor}
         inputStyle={inputStyle}
-        disabled
+        value={value}
+        onChange={onChange}
       />
+      {field.description && <p className="mt-2 text-xs text-zinc-400">{field.description}</p>}
     </div>
   );
 }

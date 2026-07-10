@@ -147,7 +147,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
             id,
             type,
             label: String(f?.label || `Pertanyaan ${index + 1}`).trim(),
-            required: f?.required === true,
+            required: type === 'payment_section' ? false : f?.required === true,
             placeholder: String(f?.placeholder || ''),
             description: String(f?.description || ''),
             options,

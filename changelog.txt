@@ -1,3 +1,23 @@
+v5.7.0 — Jotform Builder UX, AI Schema Execution & Conditional Form Stability (MINOR)
+----------------------------------------------------------------------------------
+### Root Cause Analysis:
+- AI dapat mengembalikan chat sukses tanpa `updatedForm`, sehingga canvas tidak berubah.
+- ID form/field dari model belum dipetakan secara aman; ID database dapat tertimpa dan conditional branch dapat terlepas setelah sanitasi.
+- Halaman pengisi dan preview memakai evaluasi conditional berbeda; percabangan bertingkat, hidden required field, dan total pembayaran dapat memakai state cabang lama.
+- Palette dan panel editor menggunakan layout desktop tetap sehingga editor terhimpit atau tidak dapat digunakan pada mobile/tablet.
+
+### Fitur & Perbaikan:
+- **[FEAT] Jotform-style responsive builder:** palette searchable, drag-to-canvas, mobile element drawer, mobile preview, WYSIWYG field cards, dan side panel overlay adaptif.
+- **[FEAT] Field coverage:** palette/editor mendukung image, image choice, addon group, dan payment section dengan default konfigurasi yang valid.
+- **[FIX] AI direct execution:** respons message-only diperbaiki otomatis sekali; tanpa schema endpoint gagal eksplisit, sedangkan schema valid langsung diterapkan ke canvas.
+- **[SECURITY] AI endpoint:** token dan role admin diverifikasi, rate limit ditambahkan, serta konfigurasi `GROQ_API_KEY` divalidasi tanpa fallback kredensial untuk request nyata.
+- **[FIX] Stable identity:** ID form dari AI diabaikan; ID field dinormalisasi dan referensi conditional ikut dipetakan.
+- **[FIX] Conditional engine:** ancestor-aware, kompatibel label/value lama, case-insensitive, dan jawaban whitespace dianggap kosong.
+- **[FIX] Portal rendering/payment:** hidden required field tidak lagi mounted, hidden priced field tidak dihitung, dan card navigation tidak dapat menunjuk card kosong.
+- **[FIX] Interactive preview:** upload file/gambar dan addon group dapat dijawab; scale/rating responsif; progress card menggunakan progress bar.
+- **[TEST]** Ditambahkan regression tests untuk AI response parser, ID mapping, conditional bertingkat, label/value, dan whitespace answer.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, dan PortalLayout disinkronkan ke v5.7.0.
+
 v5.6.0 — JotForm-Style Form Builder: 3-Panel Layout, AI Copilot & Tech Minimalist (MINOR)
 ----------------------------------------------------------------------------------
 ### Fitur Baru:
@@ -503,3 +523,8 @@ v5.2.4 — QRIS Otomatis Stock Fix & Order of Operations (PATCH)
 
 ### Versi:
 - v5.2.3 → v5.2.4 (PATCH)
+v5.6.1 — Conditional card form rendering and live branching fix (PATCH)
+----------------------------------------------------------------------------------
+- [FIX] Portal card forms now use the same condition engine as builder preview, including option value/label normalization and array answers.
+- [FIX] Card navigation is clamped when conditional answers change the visible question count, preventing blank cards.
+- [QA] `npm run lint` passes.

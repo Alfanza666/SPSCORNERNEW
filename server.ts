@@ -160,6 +160,12 @@ const validateLimiter = rateLimit({
   message: { error: 'Terlalu banyak validasi. Coba lagi dalam 1 menit.' },
   standardHeaders: true,
 });
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { success: false, error: 'Terlalu banyak permintaan AI. Coba lagi dalam 1 menit.' },
+  standardHeaders: true,
+});
 
 // Terapkan rate limiter ke endpoint sensitif
 app.use('/api/payment', paymentLimiter);
@@ -168,6 +174,7 @@ app.use('/api/transactions', transactionLimiter);
 app.use('/api/digital', digitalLimiter);
 app.use('/api/seller-register', registerLimiter);
 app.use('/api/validate', validateLimiter);
+app.use('/api/ai', aiLimiter);
 
 // Auth middleware — attach user to req for protected routes
 app.use('/api/admin', requireAuth(supabase), requireRole(supabase, 'admin', 'superadmin'));

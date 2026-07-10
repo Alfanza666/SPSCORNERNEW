@@ -1,4 +1,9 @@
 Riwayat Error & Fix:
+- [FIXED] AI Form Builder hanya membalas chat tanpa menerapkan pertanyaan ke canvas; schema sekarang diwajibkan, divalidasi, dan di-retry sekali (v5.7.0).
+- [FIXED] Conditional bertingkat dapat menampilkan field yatim dan hidden field masih memengaruhi validasi/total pembayaran (v5.7.0).
+- [FIXED] ID database form dapat tertimpa placeholder dari AI dan condition field hilang setelah normalisasi ID (v5.7.0).
+- [FIXED] Form Builder terhimpit/tidak usable pada mobile karena palette tidak dirender dan panel kanan fixed-width dalam flex (v5.7.0).
+- [FIXED] Portal card form showed no follow-up questions when conditional option labels differed from stored values; unified visibility evaluation with `src/utils/formLogic.ts` (v5.6.1).
 - [FIXED] 502 Bad Gateway (Cloudflare sin1::m64wr-17807) — VPS down total (ping, SSH, HTTP semua timeout). Solusi: Implementasi auto-failover ke Vercel via Cloudflare Worker + frontend fetch patch. (v4.22.0)
 - [FIXED] PWA cache conflicts resolved via vite-plugin-pwa.
 - [FIXED] Info icon lucide-react tidak ditemukan di SellerProducts.
