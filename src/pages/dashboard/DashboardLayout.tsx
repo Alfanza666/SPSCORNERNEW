@@ -311,6 +311,7 @@ export default function DashboardLayout() {
           { to: "/dashboard/admin/scanner", icon: QrCode, label: "Scan QR" },
           { to: "/dashboard/admin/doorprize", icon: Gift, label: "Undian Doorprize" },
           { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
+          { to: "/dashboard/admin/program-registrations", icon: ShieldCheck, label: "Verifikasi RSVP" },
           { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
           { to: "/dashboard/admin/kritik-saran", icon: MessageSquare, label: "Kritik & Saran" },
           { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" }
@@ -585,7 +586,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v5.7.0
+                      v5.8.0
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"

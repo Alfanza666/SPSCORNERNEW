@@ -1,6 +1,6 @@
 import React from 'react';
 import { FormField } from '../../types/form';
-import { Star, DollarSign } from 'lucide-react';
+import { Star, DollarSign, Plus, QrCode, Building2, UsersRound } from 'lucide-react';
 
 interface FieldRendererProps {
   field: FormField;
@@ -25,7 +25,7 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
       return <textarea value={String(value ?? '')} onChange={(event) => onChange?.(event.target.value)} className={`${inputCls} h-24 resize-none`} style={styleObj} placeholder={field.placeholder || 'Masukkan paragraf...'} disabled={disabled} />;
 
     case 'number':
-      return <input type="number" value={String(value ?? '')} onChange={(event) => onChange?.(event.target.value)} className={inputCls} style={styleObj} placeholder={field.placeholder || '0'} disabled={disabled} />;
+      return <input type="number" min={field.min} max={field.max} step={field.step} value={String(value ?? '')} onChange={(event) => onChange?.(event.target.value === '' ? '' : Number(event.target.value))} className={inputCls} style={styleObj} placeholder={field.placeholder || '0'} disabled={disabled} />;
 
     case 'date':
       return <input type="date" value={String(value ?? '')} onChange={(event) => onChange?.(event.target.value)} className={inputCls} style={styleObj} disabled={disabled} />;
@@ -167,20 +167,36 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
         </div>
       );
 
+    case 'repeater': {
+      const entries = Array.isArray(value) ? value : [];
+      return (
+        <div className="space-y-3" style={styleObj}>
+          {entries.length > 0 ? entries.map((entry: any, index) => (
+            <div key={entry?.id || index} className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/60">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-xs font-bold text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">{index + 1}</span>
+              <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-200">{entry?.name || `${field.item_label || 'Item'} ${index + 1}`}</p><p className="text-[10px] text-zinc-400">{entry?.relation || 'Detail diisi oleh peserta'}</p></div>
+              {(field.item_unit_price || 0) > 0 && <span className="text-xs font-bold text-violet-600">Rp{(field.item_unit_price || 0).toLocaleString('id-ID')}</span>}
+            </div>
+          )) : (
+            <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-center dark:border-zinc-700 dark:bg-zinc-800/40"><UsersRound className="mx-auto h-6 w-6 text-zinc-300" /><p className="mt-2 text-xs font-medium text-zinc-500">Belum ada {field.item_label?.toLowerCase() || 'item'} ditambahkan</p></div>
+          )}
+          <button type="button" disabled={disabled} onClick={() => onChange?.([...entries, { id: `entry_${Date.now()}` }])} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-violet-300 bg-violet-50/60 px-3 py-3 text-xs font-bold text-violet-700 disabled:cursor-default disabled:opacity-70 dark:border-violet-900 dark:bg-violet-950/20 dark:text-violet-300"><Plus className="h-3.5 w-3.5" /> Tambah {field.item_label || 'item'}</button>
+        </div>
+      );
+    }
+
     case 'payment_section':
       return (
-        <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 space-y-3 bg-white dark:bg-zinc-800/50">
+        <div className="space-y-4 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 dark:border-emerald-900/50 dark:from-emerald-950/20 dark:to-zinc-900">
           <div className="flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-emerald-500" />
-            <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">Pembayaran</span>
+            <span className="font-bold text-sm text-zinc-800 dark:text-zinc-200">Pembayaran manual</span>
           </div>
-          {field.qris_image_url && (
-            <img src={field.qris_image_url} alt="QRIS" className="w-32 h-32 object-contain mx-auto rounded border" />
-          )}
-          <div className="text-xs text-zinc-500 space-y-0.5">
-            <p><span className="font-medium text-zinc-700 dark:text-zinc-300">Rekening:</span> {field.account_name || 'Admin SPS'}</p>
-            <p>{field.payment_description || 'Transfer ke rekening di atas'}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {field.payment_methods?.includes('bank_transfer') && <div className="flex items-center gap-2 rounded-xl border border-white bg-white/80 p-3 text-xs font-semibold text-zinc-700 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"><Building2 className="h-4 w-4 text-emerald-600" /> Transfer bank</div>}
+            {field.payment_methods?.includes('manual_qris') && <div className="flex items-center gap-2 rounded-xl border border-white bg-white/80 p-3 text-xs font-semibold text-zinc-700 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"><QrCode className="h-4 w-4 text-emerald-600" /> QRIS manual</div>}
           </div>
+          <p className="text-xs leading-5 text-zinc-500">{field.payment_description || 'Peserta mengunggah bukti pembayaran untuk ditinjau admin.'}</p>
         </div>
       );
 

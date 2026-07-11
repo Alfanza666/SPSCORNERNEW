@@ -59,6 +59,26 @@ cp .env.example .env
 | `VAPID_PRIVATE_KEY` | VAPID private key |
 | `GEMINI_API_KEY` | Google Gemini API key |
 
+## Form Studio & Program Workflow V2
+
+Form Studio v2 menyediakan builder tiga area (palette, canvas, inspector), AI schema execution, conditional branches, terminal outcomes, pricing, repeater anggota keluarga, serta pengalaman Card Form premium yang sama pada preview dan portal.
+
+Workflow program RSVP menggunakan backend server-authoritative:
+
+- browser hanya mengirim jawaban dan bukti pembayaran;
+- server mengambil identitas/NIK dari sesi, menghitung ulang harga, dan menyimpan snapshot audit;
+- pembayaran manual mendukung transfer bank dan QRIS;
+- QR attendance dan meal diterbitkan terpisah untuk karyawan serta setiap anggota keluarga;
+- seluruh entitlement berbayar ditahan sampai admin menyetujui bukti.
+
+Sebelum mengaktifkan workflow di production, jalankan migration berikut melalui Supabase SQL Editor:
+
+```text
+database/migrations/006_program_registration_workflow_v2.sql
+```
+
+Rancangan tabel, RLS, compatibility, serta urutan rollout dijelaskan di `docs/form-workflow-v2-schema.md`.
+
 ## Project Structure
 
 ```

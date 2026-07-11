@@ -33,6 +33,7 @@ import { registerDigitalRoutes } from "./src/routes/digital.js";
 import { registerTransactionRoutes } from "./src/routes/transactions.js";
 import { registerAdminRoutes } from "./src/routes/admin.js";
 import { registerStockTraceRoutes } from "./src/routes/stock-trace.js";
+import { registerProgramRegistrationWorkflowRoutes } from "./src/routes/programRegistrationWorkflow.js";
 import { initNotificationService, sendNotification, sendPushToUser, sendPushToAdmins } from "./src/services/notification.js";
 import { initStockService, restoreTransactionStock, deductTransactionStock, atomicAdjustStock, reconcileStock, checkLowStockAndNotify } from "./src/services/stock.js";
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail } from "./src/services/email.js";
@@ -166,6 +167,12 @@ const aiLimiter = rateLimit({
   message: { success: false, error: 'Terlalu banyak permintaan AI. Coba lagi dalam 1 menit.' },
   standardHeaders: true,
 });
+const programWorkflowLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { success: false, error: 'Terlalu banyak request formulir program. Coba lagi dalam 1 menit.' },
+  standardHeaders: true,
+});
 
 // Terapkan rate limiter ke endpoint sensitif
 app.use('/api/payment', paymentLimiter);
@@ -175,6 +182,7 @@ app.use('/api/digital', digitalLimiter);
 app.use('/api/seller-register', registerLimiter);
 app.use('/api/validate', validateLimiter);
 app.use('/api/ai', aiLimiter);
+app.use('/api/portal/programs/:programId/registration-v2', programWorkflowLimiter);
 
 // Auth middleware — attach user to req for protected routes
 app.use('/api/admin', requireAuth(supabase), requireRole(supabase, 'admin', 'superadmin'));
@@ -278,6 +286,7 @@ registerAnalyticsRoutes(app, { supabase });
 registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal });
 registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
 registerPortalRoutes(app, { supabase, sendNotification, ipaymuClient });
+registerProgramRegistrationWorkflowRoutes(app, { supabase, sendNotification });
 
 // API 404 catch-all — return JSON instead of HTML for unmatched API routes (must be BEFORE SPA fallback)
 app.use('/api/*', (req, res) => {

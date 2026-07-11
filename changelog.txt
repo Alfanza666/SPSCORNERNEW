@@ -1,3 +1,24 @@
+v5.8.0 — Premium Form Studio, Event RSVP Workflow & Manual Payment Approval (MINOR)
+----------------------------------------------------------------------------------
+### Root Cause Analysis:
+- Builder lama masih mengedit field secara inline di canvas, sehingga ruang kerja sempit dan tampak seperti form biasa meskipun palet sudah ditambahkan.
+- Preview builder dan portal pengisi memakai renderer berbeda; schema yang terlihat benar di admin dapat kosong atau berperilaku lain saat diisi.
+- Submit program gathering masih berupa `setTimeout`/toast simulasi, sedangkan jalur keluarga lama mempercayai total dari browser dan dapat mengaktifkan kupon sebelum pembayaran disetujui.
+- Tidak ada aggregate registrasi yang idempoten untuk mengikat jawaban, rincian harga server-side, bukti pembayaran, penerima manfaat, dan QR per peserta.
+
+### Fitur & Perbaikan:
+- **[UI/UX] Premium Form Studio:** hero workspace baru, topbar publish, device switcher, searchable/drag field palette, canvas WYSIWYG, inspector terpisah, dan logic flow map responsif.
+- **[UI/UX] Premium respondent experience:** cover acara, satu pertanyaan per langkah, choice cards, progress, family repeater, review final, rincian biaya, pembayaran manual, serta outcome screen yang konsisten antara preview dan portal.
+- **[FEAT] RSVP event template:** attendance → shirt size → camping → family members → configurable pricing → transfer/QRIS proof; seluruh harga, batas keluarga, rekening, QRIS, dan outcome dapat diedit dari builder.
+- **[FEAT] AI schema execution V2:** AI mendukung repeater, terminal outcome, pricing, manual payment, program automation, dan selalu menerapkan schema lengkap ke canvas.
+- **[BACKEND] Program Workflow V2:** server menghitung ulang harga, membersihkan hidden answers, menyimpan registrasi idempoten, menahan entitlement saat pembayaran, dan menerbitkan QR terpisah untuk attendance/meal setiap karyawan/anggota keluarga.
+- **[ADMIN] Payment control center:** antrean bukti manual, approve/reject, alasan audit, penerbitan QR setelah approve, serta unlock aman untuk registrasi non-paid yang belum memiliki QR terpakai.
+- **[SECURITY]** Browser tidak dapat menentukan total, user/NIK, status pembayaran, atau penerbitan kupon; semua berasal dari profil dan konfigurasi server.
+- **[COMPAT]** Form lama tetap memakai renderer V1; program yang memiliki `dynamic_form_id` V2 diarahkan ke workflow baru tanpa menghapus jalur legacy yang tidak terkait.
+- **[DB]** Menambahkan migration `006_program_registration_workflow_v2.sql` dan dokumentasi schema/rollout.
+- **[TEST]** Menambahkan regression tests untuk terminal branches, repeater pricing, server quote, deterministic IDs, AI schema, dan workflow configuration.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, changelog, error history, dan README disinkronkan ke v5.8.0.
+
 v5.7.0 — Jotform Builder UX, AI Schema Execution & Conditional Form Stability (MINOR)
 ----------------------------------------------------------------------------------
 ### Root Cause Analysis:

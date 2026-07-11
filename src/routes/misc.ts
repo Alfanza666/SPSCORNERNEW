@@ -112,7 +112,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
         const sourceFields = fields.slice(0, 100);
         const supportedTypes = [
           'text', 'textarea', 'number', 'select', 'radio', 'checkbox', 'image_choice',
-          'rating', 'scale', 'date', 'file_upload', 'image', 'addon_group', 'payment_section',
+          'rating', 'scale', 'date', 'file_upload', 'image', 'addon_group', 'repeater', 'payment_section',
         ];
         const usedIds = new Set();
         const rawIdToSafeId = new Map();
@@ -139,6 +139,8 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
                   label,
                   image: option.image ? String(option.image) : undefined,
                   price: Number.isFinite(Number(option.price)) ? Number(option.price) : undefined,
+                  outcome_id: option.outcome_id ? String(option.outcome_id) : undefined,
+                  helper_text: option.helper_text ? String(option.helper_text) : undefined,
                 }];
               })
             : undefined;
@@ -150,8 +152,14 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
             required: type === 'payment_section' ? false : f?.required === true,
             placeholder: String(f?.placeholder || ''),
             description: String(f?.description || ''),
+            system_key: f?.system_key ? String(f.system_key) : undefined,
             options,
-            max: type === 'rating' ? Math.min(10, Math.max(3, Number(f.max) || 5)) : undefined,
+            min: type === 'number' && Number.isFinite(Number(f.min)) ? Number(f.min) : undefined,
+            max: type === 'rating'
+              ? Math.min(10, Math.max(3, Number(f.max) || 5))
+              : type === 'number' && Number.isFinite(Number(f.max)) ? Number(f.max) : undefined,
+            step: type === 'number' && Number.isFinite(Number(f.step)) ? Math.max(Number(f.step), 0.01) : undefined,
+            unit_price: type === 'number' && Number.isFinite(Number(f.unit_price)) ? Math.max(Number(f.unit_price), 0) : undefined,
             max_scale: type === 'scale' ? Math.min(10, Math.max(2, Number(f.max_scale) || 10)) : undefined,
             items: type === 'addon_group' && Array.isArray(f.items)
               ? f.items.slice(0, 50).map((item, itemIndex) => ({
@@ -162,10 +170,29 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
                 }))
               : undefined,
             allow_multiple: type === 'addon_group' ? (f.allow_multiple ?? true) : undefined,
+            subfields: type === 'repeater' ? sanitizeAIFields(f.subfields || []) : undefined,
+            min_items: type === 'repeater' ? Math.max(0, Number(f.min_items) || 0) : undefined,
+            max_items: type === 'repeater' ? Math.min(50, Math.max(1, Number(f.max_items) || 5)) : undefined,
+            item_label: type === 'repeater' ? String(f.item_label || 'Anggota') : undefined,
+            item_unit_price: type === 'repeater' ? Math.max(0, Number(f.item_unit_price) || 0) : undefined,
             qris_image_url: type === 'payment_section' ? String(f.qris_image_url || '') : undefined,
             account_name: type === 'payment_section' ? String(f.account_name || '') : undefined,
             payment_description: type === 'payment_section' ? String(f.payment_description || '') : undefined,
-            verify_with_ai: type === 'payment_section' ? (f.verify_with_ai ?? true) : undefined,
+            verify_with_ai: type === 'payment_section' ? false : undefined,
+            payment_methods: type === 'payment_section'
+              ? (Array.isArray(f.payment_methods) ? f.payment_methods : ['bank_transfer', 'manual_qris'])
+                  .filter(method => ['bank_transfer', 'manual_qris'].includes(method))
+              : undefined,
+            bank_accounts: type === 'payment_section' && Array.isArray(f.bank_accounts)
+              ? f.bank_accounts.slice(0, 10).map((account, accountIndex) => ({
+                  id: String(account?.id || `bank_${accountIndex + 1}`),
+                  bank_name: String(account?.bank_name || ''),
+                  account_number: String(account?.account_number || ''),
+                  account_name: String(account?.account_name || ''),
+                }))
+              : undefined,
+            payment_required_when: type === 'payment_section' ? 'total_positive' : undefined,
+            proof_required: type === 'payment_section' ? (f.proof_required ?? true) : undefined,
           };
         });
 
@@ -233,11 +260,15 @@ ATURAN WAJIB:
 6. ID field harus unik, stabil, huruf kecil, dan tanpa spasi.
 7. Untuk select/radio/checkbox, setiap options wajib memiliki value dan label.
 8. Untuk percabangan, pasang condition pada PERTANYAAN TUJUAN (bukan induk) dan hanya referensikan field yang muncul sebelumnya.
+9. Gunakan experience_version 2, layout_type card, review_enabled true, dan theme premium untuk formulir baru.
+10. Jika satu jawaban harus langsung mengakhiri formulir, beri outcome_id pada opsi tersebut dan definisikan outcomes.
+11. Harga selalu configurable: gunakan option.price, number.unit_price, repeater.item_unit_price, atau addon_group.items.price. Jangan menulis harga di label.
+12. Untuk data anggota berulang gunakan repeater + subfields. Untuk pembayaran gunakan payment_section manual (bank_transfer/manual_qris), proof_required true, verify_with_ai false.
 
 FORMAT OUTPUT WAJIB (tidak boleh ada yang berbeda):
-{"message":"Teks respons singkat","updatedForm":{"title":"...","description":"...","theme_color":"#6366F1","layout_type":"classic","font_family":"Inter","input_style":"rounded","bg_image_url":"","card_glassmorphism":false,"fields":[{"id":"field_1","type":"text","label":"...","required":true,"placeholder":"...","condition":{"fieldId":"field_induk","operator":"eq","value":"nilai_opsi"}}]}}
+{"message":"Teks respons singkat","updatedForm":{"title":"...","description":"...","experience_version":2,"theme_color":"#4F46E5","layout_type":"card","review_enabled":true,"autosave_draft":true,"theme":{"preset":"sps_event_premium","choice_style":"cards","show_progress":true},"outcomes":[],"fields":[{"id":"field_1","type":"text","label":"...","required":true,"placeholder":"...","condition":{"fieldId":"field_induk","operator":"eq","value":"nilai_opsi"}}]}}
 
-TIPE FIELD YANG TERSEDIA: text, textarea, number, select, radio, checkbox, image_choice, rating, scale, date, file_upload, image, addon_group, payment_section
+TIPE FIELD YANG TERSEDIA: text, textarea, number, select, radio, checkbox, image_choice, rating, scale, date, file_upload, image, addon_group, repeater, payment_section
 OPERATOR CONDITION: eq, neq, in. Nilai condition harus memakai option.value, bukan option.label.
 
 CONTOH: Jika user minta "buat form pendaftaran karyawan baru", output harus:
@@ -312,6 +343,13 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
           input_style: rawForm.input_style || currentForm?.input_style || 'rounded',
           bg_image_url: rawForm.bg_image_url ?? currentForm?.bg_image_url ?? '',
           card_glassmorphism: rawForm.card_glassmorphism ?? currentForm?.card_glassmorphism ?? false,
+          experience_version: rawForm.experience_version === 1 ? 1 : (currentForm?.experience_version || 2),
+          theme: rawForm.theme || currentForm?.theme,
+          outcomes: Array.isArray(rawForm.outcomes) ? rawForm.outcomes : (currentForm?.outcomes || []),
+          default_outcome_id: rawForm.default_outcome_id || currentForm?.default_outcome_id,
+          review_enabled: rawForm.review_enabled ?? currentForm?.review_enabled ?? true,
+          autosave_draft: rawForm.autosave_draft ?? currentForm?.autosave_draft ?? true,
+          program_automation: rawForm.program_automation || currentForm?.program_automation,
           fields: sanitizedFields,
         };
       }

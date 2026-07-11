@@ -31,6 +31,9 @@ interface Program {
   end_date: string;
   form_config: any;
   metadata?: ProgramMetadata;
+  dynamic_form_id?: string | null;
+  banner_url?: string | null;
+  is_active?: boolean;
 }
 
 interface Coupon {
@@ -38,7 +41,13 @@ interface Coupon {
   gate_type: string;
   status: string;
   coupon_code: string;
+  qr_code?: string;
   claimed_at: string;
+  entitlement_code?: string;
+  beneficiary_type?: 'employee' | 'family';
+  beneficiary_index?: number | null;
+  entitlement_metadata?: { beneficiary_label?: string; beneficiary_name?: string };
+  metadata?: { family_count?: number; beneficiary_label?: string; beneficiary_name?: string };
 }
 
 export default function PortalProgram() {
@@ -361,6 +370,41 @@ export default function PortalProgram() {
 
       {/* SECTION 2: DYNAMIC INTERACTION - CLAYMORPHISM CARDS */}
       <div className="px-4 space-y-6">
+        {selectedProgram.dynamic_form_id && (
+          <section className="overflow-hidden rounded-[2rem] bg-zinc-950 text-white shadow-2xl dark:bg-zinc-900">
+            <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-200"><FileText className="h-3.5 w-3.5" /> Konfirmasi digital</span>
+                <h2 className="mt-4 text-2xl font-black tracking-tight">Lengkapi RSVP program</h2>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Jawaban mengikuti alur yang relevan, biaya dihitung otomatis, dan QR diterbitkan hanya setelah status valid.</p>
+              </div>
+              <button
+                type="button"
+                disabled={isProgramExpired}
+                onClick={() => navigate(`/portal/forms/${selectedProgram.dynamic_form_id}?programId=${selectedProgram.id}`)}
+                className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 text-sm font-black text-white shadow-xl shadow-indigo-950/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FileText className="h-5 w-5" /> {isProgramExpired ? 'Program sudah selesai' : 'Buka formulir RSVP'}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {selectedProgram.dynamic_form_id && myCoupons.length > 0 && (
+          <section className="rounded-[2rem] border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"><QrCodeIcon className="h-5 w-5" /></span>
+              <div><h2 className="font-black text-zinc-900 dark:text-white">Tiket & kupon Anda</h2><p className="mt-1 text-xs leading-5 text-zinc-500">Setiap penerima dan setiap manfaat menggunakan QR terpisah.</p></div>
+            </div>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {myCoupons.map((coupon, couponIndex) => {
+                const entitlement = coupon.entitlement_code || coupon.gate_type;
+                const beneficiary = coupon.entitlement_metadata?.beneficiary_name || coupon.metadata?.beneficiary_name || (coupon.beneficiary_type === 'family' ? `Keluarga ${coupon.beneficiary_index || couponIndex + 1}` : user?.name || 'Karyawan');
+                return <article key={coupon.id} className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-950/50"><div className="mx-auto w-fit rounded-2xl bg-white p-3 shadow-sm"><QRCode value={coupon.coupon_code || coupon.qr_code || coupon.id} size={132} /></div><p className="mt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600">{entitlement === 'meal' ? 'Kupon makan' : 'Tiket kehadiran'}</p><h3 className="mt-1 truncate text-sm font-bold text-zinc-900 dark:text-white">{beneficiary}</h3><span className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700' : coupon.status === 'claimed' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-200 text-zinc-600'}`}>{coupon.status === 'active' ? 'Aktif' : coupon.status === 'claimed' ? 'Sudah digunakan' : coupon.status}</span></article>;
+              })}
+            </div>
+          </section>
+        )}
         
         {/* === TYPE: KURBAN / BINGKISAN === */}
         {(isKurban || selectedProgram.program_type === 'bingkisan') && (
@@ -420,7 +464,7 @@ export default function PortalProgram() {
         )}
 
         {/* === TYPE: GATHERING / TURNAMEN === */}
-        {(isGathering || selectedProgram.program_type === 'turnamen') && (
+        {(isGathering || selectedProgram.program_type === 'turnamen') && !selectedProgram.dynamic_form_id && (
           <div className="mx-4 space-y-6">
             {/* Form Config */}
             {selectedProgram.form_config?.fields?.length > 0 && (

@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { calculateVisibleFormTotal, getVisibleFields, hasAnswer, matchesCondition } from '../utils/formLogic';
+import {
+  calculateVisibleFormTotal,
+  getActiveFormFields,
+  getFormPricingBreakdown,
+  getTerminalOutcomeId,
+  getVisibleFields,
+  hasAnswer,
+  matchesCondition,
+  sanitizeVisibleAnswers,
+  validateVisibleAnswers,
+} from '../utils/formLogic';
 import { FormField } from '../types/form';
 
 const parent: FormField = {
@@ -81,5 +91,63 @@ describe('form conditional logic', () => {
 
     expect(calculateVisibleFormTotal(fields, { bersedia: 'tidak', paket_ya: 'premium' })).toBe(0);
     expect(calculateVisibleFormTotal(fields, { bersedia: 'ya', paket_ya: 'premium' })).toBe(100_000);
+  });
+
+  it('menghitung quantity dan repeater menggunakan harga configurable', () => {
+    const fields: FormField[] = [
+      { id: 'jumlah', type: 'number', label: 'Jumlah keluarga', required: true, unit_price: 30_000, min: 1, max: 5 },
+      {
+        id: 'anggota', type: 'repeater', label: 'Data keluarga', required: true,
+        item_unit_price: 10_000, min_items: 1, max_items: 5,
+        subfields: [{ id: 'nama', type: 'text', label: 'Nama', required: true }],
+      },
+    ];
+    const answers = { jumlah: 2, anggota: [{ nama: 'A' }, { nama: 'B' }] };
+
+    expect(calculateVisibleFormTotal(fields, answers)).toBe(80_000);
+    expect(getFormPricingBreakdown(fields, answers)).toHaveLength(2);
+  });
+
+  it('menentukan terminal outcome dari opsi yang dipilih', () => {
+    const fields: FormField[] = [{
+      ...parent,
+      options: [
+        { value: 'ya', label: 'Ya' },
+        { value: 'tidak', label: 'Tidak', outcome_id: 'declined' },
+      ],
+    }];
+    expect(getTerminalOutcomeId(fields, { bersedia: 'tidak' })).toBe('declined');
+  });
+
+  it('menghentikan validasi dan harga setelah opsi terminal', () => {
+    const fields: FormField[] = [
+      {
+        ...parent,
+        options: [
+          { value: 'ya', label: 'Ya' },
+          { value: 'tidak', label: 'Tidak', outcome_id: 'declined' },
+        ],
+      },
+      { id: 'biaya', type: 'radio', label: 'Paket', required: true, options: [{ value: 'x', label: 'X', price: 90_000 }] },
+    ];
+    const answers = { bersedia: 'tidak', biaya: 'x' };
+
+    expect(getActiveFormFields(fields, answers).map(field => field.id)).toEqual(['bersedia']);
+    expect(calculateVisibleFormTotal(fields, answers)).toBe(0);
+    expect(sanitizeVisibleAnswers(fields, answers)).toEqual({ bersedia: 'tidak' });
+    expect(validateVisibleAnswers(fields, { bersedia: 'tidak' }).valid).toBe(true);
+  });
+
+  it('membersihkan jawaban cabang tersembunyi dan memvalidasi batas quantity', () => {
+    const fields: FormField[] = [
+      parent,
+      { id: 'alasan', type: 'text', label: 'Alasan', required: true, condition: { fieldId: 'bersedia', operator: 'eq', value: 'ya' } },
+      { id: 'jumlah', type: 'number', label: 'Jumlah', required: true, min: 1, max: 3 },
+    ];
+    const answers = { bersedia: 'tidak', alasan: 'jawaban lama', jumlah: 5 };
+
+    expect(sanitizeVisibleAnswers(fields, answers)).toEqual({ bersedia: 'tidak', jumlah: 5 });
+    expect(validateVisibleAnswers(fields, answers).errors.jumlah).toBe('Maksimal 3.');
+    expect(validateVisibleAnswers(fields, answers).errors.alasan).toBeUndefined();
   });
 });

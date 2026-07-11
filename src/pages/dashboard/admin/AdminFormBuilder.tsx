@@ -1,26 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/useAuthStore';
 import {
-  Plus, X, Trash2, Save, MoveUp, MoveDown,
-  Type, CheckSquare, Calendar, Loader2,
-  Settings, Copy, ImageIcon,
-  Upload, LayoutTemplate,
-  Palette, GripVertical,
-  Star, Eye, ArrowLeft, Send,
-  FileText, AlignLeft, CircleDot, ChevronDown,
-  GanttChart, Hash, HelpCircle,
-  Layers, Wand2, PanelLeftOpen, X as XIcon, BarChart3,
-  ClipboardList, Search,
-  MousePointer2, DollarSign, ShoppingCart
+  Plus, X, Trash2, Calendar, Loader2,
+  Settings, Copy, LayoutTemplate, Send,
+  Wand2, PanelLeftOpen, BarChart3, ClipboardList, Sparkles, ArrowRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
-import { FormConfig, FormField, FormOption, FieldType } from '../../../types/form';
+import { FormConfig, FormField, FieldType } from '../../../types/form';
 import FormCanvas from '../../../components/forms/FormCanvas';
-import FormFieldRenderer from '../../../components/forms/FormFieldRenderer';
+import PremiumFormExperience from '../../../components/forms/PremiumFormExperience';
 import { parseAIResponse } from '../../../utils/aiResponseParser';
+import { createEventRsvpTemplate } from '../../../utils/formTemplates';
+import { createProgramWorkflowConfig } from '../../../utils/programWorkflowConfig';
+import BuilderTopbar from '../../../components/form-builder/BuilderTopbar';
+import FieldPalette from '../../../components/form-builder/FieldPalette';
+import BuilderCanvas from '../../../components/form-builder/BuilderCanvas';
+import InspectorPanel from '../../../components/form-builder/InspectorPanel';
+import FieldSettingsPanel from '../../../components/form-builder/FieldSettingsPanel';
+import LogicFlowPanel from '../../../components/form-builder/LogicFlowPanel';
+import type { BuilderDevice, InspectorTab } from '../../../components/form-builder/types';
 
 interface DynamicForm {
   id: string;
@@ -34,46 +35,6 @@ interface DynamicForm {
   target_cutoff_date?: string;
 }
 
-// ─── Field catalogue with JotForm-style grouping ───────────────────────────
-const FIELD_GROUPS = [
-  {
-    label: 'Dasar',
-    items: [
-      { type: 'text' as FieldType, icon: Type, label: 'Teks Singkat', color: '#6366F1', bg: '#EEF2FF' },
-      { type: 'textarea' as FieldType, icon: AlignLeft, label: 'Paragraf', color: '#8B5CF6', bg: '#F5F3FF' },
-      { type: 'number' as FieldType, icon: Hash, label: 'Angka', color: '#06B6D4', bg: '#ECFEFF' },
-      { type: 'date' as FieldType, icon: Calendar, label: 'Tanggal', color: '#8B5CF6', bg: '#F5F3FF' },
-    ]
-  },
-  {
-    label: 'Pilihan',
-    items: [
-      { type: 'select' as FieldType, icon: ChevronDown, label: 'Dropdown', color: '#10B981', bg: '#ECFDF5' },
-      { type: 'radio' as FieldType, icon: CircleDot, label: 'Pilihan Ganda', color: '#F59E0B', bg: '#FFFBEB' },
-      { type: 'checkbox' as FieldType, icon: CheckSquare, label: 'Centang', color: '#EC4899', bg: '#FDF2F8' },
-    ]
-  },
-  {
-    label: 'Rating',
-    items: [
-      { type: 'rating' as FieldType, icon: Star, label: 'Bintang', color: '#F43F5E', bg: '#FFF1F2' },
-      { type: 'scale' as FieldType, icon: GanttChart, label: 'Skala', color: '#14B8A6', bg: '#F0FDFA' },
-    ]
-  },
-  {
-    label: 'Lainnya',
-    items: [
-      { type: 'file_upload' as FieldType, icon: Upload, label: 'Upload File', color: '#6366F1', bg: '#EEF2FF' },
-      { type: 'image' as FieldType, icon: ImageIcon, label: 'Upload Gambar', color: '#0EA5E9', bg: '#F0F9FF' },
-      { type: 'image_choice' as FieldType, icon: ImageIcon, label: 'Pilihan Gambar', color: '#D946EF', bg: '#FDF4FF' },
-      { type: 'addon_group' as FieldType, icon: ShoppingCart, label: 'Daftar Pesanan', color: '#F97316', bg: '#FFF7ED' },
-      { type: 'payment_section' as FieldType, icon: DollarSign, label: 'Pembayaran', color: '#059669', bg: '#ECFDF5' },
-    ]
-  },
-];
-
-const ALL_FIELD_TYPES = FIELD_GROUPS.flatMap(g => g.items);
-
 function getFieldTypeDefaults(type: FieldType): Partial<FormField> {
   return {
     options: ['select', 'radio', 'checkbox', 'image_choice'].includes(type)
@@ -83,10 +44,53 @@ function getFieldTypeDefaults(type: FieldType): Partial<FormField> {
     max_scale: type === 'scale' ? 10 : undefined,
     items: type === 'addon_group' ? [{ id: 'item1', name: 'Item', sizes: ['M'], price: 0 }] : undefined,
     allow_multiple: type === 'addon_group' ? true : undefined,
+    subfields: type === 'repeater' ? [
+      { id: 'name', type: 'text', label: 'Nama lengkap', required: true },
+      { id: 'relation', type: 'text', label: 'Hubungan', required: true },
+    ] : undefined,
+    min_items: type === 'repeater' ? 0 : undefined,
+    max_items: type === 'repeater' ? 5 : undefined,
+    item_label: type === 'repeater' ? 'Anggota' : undefined,
+    item_unit_price: type === 'repeater' ? 0 : undefined,
     qris_image_url: type === 'payment_section' ? '' : undefined,
     account_name: type === 'payment_section' ? '' : undefined,
     payment_description: type === 'payment_section' ? '' : undefined,
-    verify_with_ai: type === 'payment_section' ? true : undefined,
+    verify_with_ai: type === 'payment_section' ? false : undefined,
+    payment_methods: type === 'payment_section' ? ['bank_transfer', 'manual_qris'] : undefined,
+    proof_required: type === 'payment_section' ? true : undefined,
+  };
+}
+
+function createBlankPremiumForm(): FormConfig {
+  return {
+    title: 'Formulir Tanpa Judul',
+    description: '',
+    theme_color: '#4F46E5',
+    banner_url: '',
+    fields: [],
+    layout_type: 'card',
+    font_family: 'Inter',
+    input_style: 'rounded',
+    bg_image_url: '',
+    card_glassmorphism: false,
+    experience_version: 2,
+    theme: {
+      preset: 'sps_event_premium',
+      primary_color: '#4F46E5',
+      accent_color: '#7C3AED',
+      radius: 'rounded',
+      density: 'comfortable',
+      choice_style: 'cards',
+      button_style: 'gradient',
+      cover_overlay: 'soft',
+      show_progress: true,
+    },
+    outcomes: [
+      { id: 'submitted', kind: 'submitted', title: 'Jawaban berhasil dikirim' },
+    ],
+    default_outcome_id: 'submitted',
+    review_enabled: true,
+    autosave_draft: true,
   };
 }
 
@@ -99,26 +103,16 @@ export default function AdminFormBuilder() {
   const [showEditor, setShowEditor] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [editingForm, setEditingForm] = useState<FormConfig>({
-    title: 'Formulir Tanpa Judul',
-    description: '',
-    theme_color: '#6366F1',
-    banner_url: '',
-    fields: [],
-    layout_type: 'classic',
-    font_family: 'Inter',
-    input_style: 'rounded',
-    bg_image_url: '',
-    card_glassmorphism: false
-  });
+  const [editingForm, setEditingForm] = useState<FormConfig>(() => createBlankPremiumForm());
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
   const [linkedProgramId, setLinkedProgramId] = useState<string>('');
   const [availablePrograms, setAvailablePrograms] = useState<any[]>([]);
 
-  const [rightPanel, setRightPanel] = useState<'ai' | 'design' | 'settings' | null>('ai');
+  const [builderDevice, setBuilderDevice] = useState<BuilderDevice>('desktop');
+  const [inspectorTab, setInspectorTab] = useState<InspectorTab>('ai');
+  const [isMobileInspectorOpen, setIsMobileInspectorOpen] = useState(false);
   const [isMobileFieldPaletteOpen, setIsMobileFieldPaletteOpen] = useState(false);
   const [fieldSearch, setFieldSearch] = useState('');
-  const [isCanvasDropActive, setIsCanvasDropActive] = useState(false);
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai'; content: string }[]>([
     { role: 'ai', content: 'Halo! Saya asisten AI untuk membuat formulir. Ceritakan formulir apa yang ingin kamu buat?' }
   ]);
@@ -127,8 +121,6 @@ export default function AdminFormBuilder() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [dragFieldIndex, setDragFieldIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
   const [targetNiks, setTargetNiks] = useState('');
@@ -189,7 +181,7 @@ export default function AdminFormBuilder() {
       setActiveFieldId(updatedForm.fields[0]?.id || null);
       setIsPreviewMode(false);
       setAiMessages(prev => [...prev, { role: 'ai', content: `${chatContent}\n\n✓ ${updatedForm.fields.length} pertanyaan diterapkan ke canvas.` }]);
-      if (window.innerWidth < 1280) setRightPanel(null);
+      if (window.innerWidth < 1280) setIsMobileInspectorOpen(false);
       toast.success(`Formulir diterapkan: ${updatedForm.fields.length} pertanyaan`);
     } catch (error: any) {
       const message = error?.message || 'Gagal menghubungi AI. Coba lagi.';
@@ -239,7 +231,13 @@ export default function AdminFormBuilder() {
   const createNewField = (type: FieldType): FormField => ({
     id: Math.random().toString(36).substr(2, 9),
     type,
-    label: type === 'addon_group' ? 'Pesanan Ekstra' : type === 'payment_section' ? 'Pembayaran' : 'Pertanyaan Baru',
+    label: type === 'addon_group'
+      ? 'Pesanan Ekstra'
+      : type === 'payment_section'
+        ? 'Pembayaran'
+        : type === 'repeater'
+          ? 'Daftar Anggota'
+          : 'Pertanyaan Baru',
     required: false,
     placeholder: 'Masukkan jawaban...',
     ...getFieldTypeDefaults(type),
@@ -255,6 +253,31 @@ export default function AdminFormBuilder() {
       return { ...prev, fields };
     });
     setActiveFieldId(newField.id);
+    setInspectorTab('field');
+  };
+
+  const insertFieldAt = (type: FieldType, targetIndex: number) => {
+    const newField = createNewField(type);
+    setEditingForm(previous => {
+      const fields = [...(previous.fields || [])];
+      fields.splice(Math.min(Math.max(targetIndex, 0), fields.length), 0, newField);
+      return { ...previous, fields };
+    });
+    setActiveFieldId(newField.id);
+    setInspectorTab('field');
+  };
+
+  const reorderFieldById = (fieldId: string, targetIndex: number) => {
+    setEditingForm(previous => {
+      const fields = [...(previous.fields || [])];
+      const sourceIndex = fields.findIndex(field => field.id === fieldId);
+      if (sourceIndex < 0) return previous;
+      const [moved] = fields.splice(sourceIndex, 1);
+      const adjustedIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      fields.splice(Math.min(Math.max(adjustedIndex, 0), fields.length), 0, moved);
+      return { ...previous, fields };
+    });
+    setActiveFieldId(fieldId);
   };
 
   const duplicateField = (field: FormField) => {
@@ -297,6 +320,31 @@ export default function AdminFormBuilder() {
   const handleSave = async () => {
     if (!editingForm.title) { toast.error('Judul formulir wajib diisi'); return; }
     if (!editingForm.fields?.length) { toast.error('Tambahkan minimal satu pertanyaan'); return; }
+    const hasConfiguredCharge = editingForm.fields.some(field =>
+      (field.options || []).some(option => Number(option.price || 0) > 0)
+      || (field.items || []).some(item => Number(item.price || 0) > 0)
+      || Number(field.unit_price || 0) > 0
+      || Number(field.item_unit_price || 0) > 0,
+    );
+    const paymentField = editingForm.fields.find(field => field.type === 'payment_section');
+    if (editingForm.experience_version === 2 && hasConfiguredCharge && !linkedProgramId) {
+      toast.error('Formulir berbayar wajib dihubungkan ke Program Kerja agar harga dan QR diproses aman.');
+      setInspectorTab('settings');
+      return;
+    }
+    if (hasConfiguredCharge && paymentField) {
+      const methods = paymentField.payment_methods || [];
+      const bankConfigured = paymentField.bank_accounts?.some(account => account.account_number.trim() && account.account_name.trim());
+      const qrisConfigured = Boolean(paymentField.qris_image_url?.trim());
+      if (methods.length === 0
+        || (methods.includes('bank_transfer') && !bankConfigured)
+        || (methods.includes('manual_qris') && !qrisConfigured)) {
+        toast.error('Lengkapi rekening/QRIS untuk setiap metode pembayaran yang diaktifkan.');
+        setActiveFieldId(paymentField.id);
+        setInspectorTab('field');
+        return;
+      }
+    }
     setSaving(true);
     try {
       const cleanFields = editingForm.fields.map((f, index, fields) => {
@@ -330,7 +378,14 @@ export default function AdminFormBuilder() {
           font_family: editingForm.font_family || 'Inter',
           input_style: editingForm.input_style || 'rounded',
           bg_image_url: editingForm.bg_image_url || '',
-          card_glassmorphism: editingForm.card_glassmorphism || false
+          card_glassmorphism: editingForm.card_glassmorphism || false,
+          experience_version: editingForm.experience_version || 1,
+          theme_config: editingForm.theme || null,
+          outcomes: editingForm.outcomes || [],
+          default_outcome_id: editingForm.default_outcome_id || null,
+          review_enabled: editingForm.review_enabled ?? true,
+          autosave_draft: editingForm.autosave_draft ?? false,
+          program_automation: editingForm.program_automation || null,
         }),
         fields: cleanFields,
         is_active: true,
@@ -350,7 +405,40 @@ export default function AdminFormBuilder() {
       }
 
       if (linkedProgramId && currentFormId) {
-        await supabase.from('union_programs').update({ dynamic_form_id: currentFormId }).eq('id', linkedProgramId);
+        const { error: linkError } = await supabase.from('union_programs').update({ dynamic_form_id: currentFormId }).eq('id', linkedProgramId);
+        if (linkError) throw linkError;
+
+        if (editingForm.experience_version === 2) {
+          const workflowPayload = createProgramWorkflowConfig(editingForm, linkedProgramId, currentFormId, user?.id);
+          if (workflowPayload) {
+            const { data: activeWorkflow, error: activeWorkflowError } = await supabase
+              .from('program_workflow_configs')
+              .select('id, version')
+              .eq('program_id', linkedProgramId)
+              .eq('is_active', true)
+              .maybeSingle();
+            if (activeWorkflowError) throw new Error(`Workflow V2 belum siap: ${activeWorkflowError.message}`);
+            if (activeWorkflow) {
+              const { created_by: _createdBy, ...updates } = workflowPayload;
+              const { error: workflowError } = await supabase.from('program_workflow_configs').update(updates).eq('id', activeWorkflow.id);
+              if (workflowError) throw workflowError;
+            } else {
+              const { data: latestWorkflow, error: versionError } = await supabase
+                .from('program_workflow_configs')
+                .select('version')
+                .eq('program_id', linkedProgramId)
+                .order('version', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (versionError) throw versionError;
+              const { error: workflowError } = await supabase.from('program_workflow_configs').insert({
+                ...workflowPayload,
+                version: Number(latestWorkflow?.version || 0) + 1,
+              });
+              if (workflowError) throw workflowError;
+            }
+          }
+        }
       }
       toast.success('✅ Formulir berhasil disimpan!');
       setShowEditor(false);
@@ -373,11 +461,7 @@ export default function AdminFormBuilder() {
   };
 
   function resetForm() {
-    setEditingForm({
-      title: 'Formulir Tanpa Judul', description: '', theme_color: '#6366F1', banner_url: '',
-      fields: [], layout_type: 'classic', font_family: 'Inter', input_style: 'rounded',
-      bg_image_url: '', card_glassmorphism: false
-    });
+    setEditingForm(createBlankPremiumForm());
     setActiveFieldId(null);
     setLinkedProgramId('');
     setTargetNiks('');
@@ -385,7 +469,8 @@ export default function AdminFormBuilder() {
     setTargetCutoffDate('');
     setAiMessages([{ role: 'ai', content: 'Halo! Saya asisten AI untuk membuat formulir. Ceritakan formulir apa yang ingin kamu buat?' }]);
     setIsPreviewMode(false);
-    setRightPanel('ai');
+    setInspectorTab('ai');
+    setBuilderDevice('desktop');
     setIsMobileFieldPaletteOpen(false);
   }
 
@@ -396,37 +481,43 @@ export default function AdminFormBuilder() {
   if (!showEditor) {
     return (
       <div className="min-h-screen bg-[#F7F8FC] dark:bg-zinc-950">
-        {/* Header */}
-        <div className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex w-full items-center gap-3 sm:w-auto">
-              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center">
-                <LayoutTemplate className="w-5 h-5 text-white" />
-              </div>
+        <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 sm:pt-8">
+          <section className="relative overflow-hidden rounded-[2.25rem] bg-zinc-950 px-5 py-7 text-white shadow-[0_35px_90px_-45px_rgba(15,23,42,0.9)] sm:px-8 sm:py-10 dark:bg-zinc-900">
+            <div aria-hidden="true" className="absolute -right-24 -top-28 h-80 w-80 rounded-full bg-indigo-500/20 blur-3xl" />
+            <div aria-hidden="true" className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
+            <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)] lg:items-end">
               <div>
-                <h1 className="text-lg font-bold text-zinc-900 dark:text-white">Form Builder</h1>
-                <p className="text-xs text-zinc-500">Kelola formulir digital Anda</p>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-200"><Sparkles className="h-3.5 w-3.5" /> SPS Form Studio 2.0</span>
+                <h1 className="mt-5 max-w-3xl text-3xl font-black leading-tight tracking-[-0.04em] sm:text-5xl">Bangun pengalaman formulir yang terasa premium.</h1>
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">Susun pertanyaan secara visual, atur cabang jawaban, hitung biaya, dan terbitkan QR program dari satu workflow.</p>
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                  <button onClick={() => { resetForm(); setShowEditor(true); setInspectorTab('ai'); }} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 text-sm font-bold text-white shadow-xl shadow-indigo-950/40 transition hover:-translate-y-0.5"><Wand2 className="h-4 w-4" /> Buat dengan AI</button>
+                  <button onClick={() => { resetForm(); setShowEditor(true); setInspectorTab('design'); }} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 text-sm font-bold text-white transition hover:bg-white/15"><Plus className="h-4 w-4" /> Mulai dari kosong</button>
+                </div>
               </div>
-            </div>
-            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center sm:gap-3">
               <button
-                onClick={() => { resetForm(); setShowEditor(true); setRightPanel('ai'); }}
-                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-md shadow-indigo-500/20 transition-all active:scale-95"
+                onClick={() => {
+                  resetForm();
+                  const template = createEventRsvpTemplate();
+                  setEditingForm(template);
+                  setActiveFieldId(template.fields[0]?.id || null);
+                  setInspectorTab('field');
+                  setShowEditor(true);
+                }}
+                className="group rounded-[1.75rem] border border-white/10 bg-white/[0.07] p-5 text-left backdrop-blur transition hover:-translate-y-1 hover:border-indigo-400/50 hover:bg-white/10"
               >
-                <Wand2 className="w-4 h-4" /> Buat dengan AI
-              </button>
-              <button
-                onClick={() => { resetForm(); setShowEditor(true); setRightPanel('design'); }}
-                className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95"
-              >
-                <Plus className="w-4 h-4" /> Form Baru
+                <div className="flex items-start justify-between gap-4"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500 text-white shadow-lg shadow-indigo-950/40"><Calendar className="h-5 w-5" /></span><ArrowRight className="h-5 w-5 text-zinc-500 transition group-hover:translate-x-1 group-hover:text-white" /></div>
+                <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-300">Template unggulan</p>
+                <h2 className="mt-2 text-xl font-black">RSVP acara & keluarga</h2>
+                <p className="mt-2 text-xs leading-6 text-zinc-400">Kehadiran, ukuran baju, camping, anggota keluarga, biaya, pembayaran manual, dan QR terpisah.</p>
               </button>
             </div>
-          </div>
+          </section>
         </div>
 
         {/* Forms Grid */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+          <div className="mb-5 flex items-end justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">Workspace</p><h2 className="mt-1 text-xl font-black text-zinc-900 dark:text-white">Formulir Anda</h2></div><span className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">{forms.length} form</span></div>
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
@@ -439,7 +530,7 @@ export default function AdminFormBuilder() {
               <h3 className="text-base font-bold text-zinc-700 dark:text-zinc-300 mb-1">Belum ada formulir</h3>
               <p className="text-sm text-zinc-400 mb-6">Buat formulir pertama Anda dengan AI atau manual</p>
               <button
-                onClick={() => { resetForm(); setShowEditor(true); setRightPanel('ai'); }}
+                onClick={() => { resetForm(); setShowEditor(true); setInspectorTab('ai'); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors"
               >
                 <Wand2 className="w-4 h-4" /> Buat dengan AI
@@ -453,7 +544,10 @@ export default function AdminFormBuilder() {
                   form={form}
                   onEdit={() => {
                     let desc = form.description, theme = '#6366F1', banner = '', layout_type = 'classic',
-                      font_family = 'Inter', input_style = 'rounded', bg_image_url = '', card_glassmorphism = false;
+                      font_family = 'Inter', input_style = 'rounded', bg_image_url = '', card_glassmorphism = false,
+                      experience_version: 1 | 2 = 1, theme_config = undefined, outcomes = undefined,
+                      default_outcome_id = undefined, review_enabled = true, autosave_draft = false,
+                      program_automation = undefined;
                     try {
                       const p = JSON.parse(form.description);
                       if (p.text !== undefined) {
@@ -461,16 +555,25 @@ export default function AdminFormBuilder() {
                         layout_type = p.layout_type || 'classic'; font_family = p.font_family || 'Inter';
                         input_style = p.input_style || 'rounded'; bg_image_url = p.bg_image_url || '';
                         card_glassmorphism = p.card_glassmorphism || false;
+                        experience_version = p.experience_version === 2 ? 2 : 1;
+                        theme_config = p.theme_config;
+                        outcomes = p.outcomes;
+                        default_outcome_id = p.default_outcome_id;
+                        review_enabled = p.review_enabled ?? true;
+                        autosave_draft = p.autosave_draft ?? false;
+                        program_automation = p.program_automation;
                       }
                     } catch { }
                     setEditingForm({
                       ...form, description: desc, theme_color: theme, banner_url: banner,
-                      layout_type, font_family, input_style, bg_image_url, card_glassmorphism
+                      layout_type, font_family, input_style, bg_image_url, card_glassmorphism,
+                      experience_version, theme: theme_config, outcomes, default_outcome_id,
+                      review_enabled, autosave_draft, program_automation,
                     });
                     setTargetNiks(form.target_niks?.join('\n') || '');
                     setTargetDepartments(form.target_departments || []);
                     setTargetCutoffDate(form.target_cutoff_date || '');
-                    setRightPanel('design');
+                    setInspectorTab('design');
                     setShowEditor(true);
                     supabase.from('union_programs').select('id').eq('dynamic_form_id', form.id).single()
                       .then(({ data }) => setLinkedProgramId(data?.id || ''));
@@ -488,458 +591,222 @@ export default function AdminFormBuilder() {
   }
 
   // ─── Editor View ─────────────────────────────────────────────────────────
-  const themeColor = editingForm.theme_color || '#6366F1';
-  const fieldCount = editingForm.fields?.length || 0;
-  const normalizedFieldSearch = fieldSearch.trim().toLocaleLowerCase('id-ID');
-  const filteredFieldGroups = FIELD_GROUPS
-    .map(group => ({
-      ...group,
-      items: group.items.filter(item => item.label.toLocaleLowerCase('id-ID').includes(normalizedFieldSearch)),
-    }))
-    .filter(group => group.items.length > 0);
 
-  const handlePaletteDragStart = (event: React.DragEvent, type: FieldType) => {
-    event.dataTransfer.effectAllowed = 'copy';
-    event.dataTransfer.setData('application/x-sps-form-field', type);
-  };
 
-  const handleCanvasDrop = (event: React.DragEvent) => {
-    const type = event.dataTransfer.getData('application/x-sps-form-field') as FieldType;
-    setIsCanvasDropActive(false);
-    if (!ALL_FIELD_TYPES.some(fieldType => fieldType.type === type)) return;
-    event.preventDefault();
-    addField(type);
-  };
+  const selectedFieldIndex = editingForm.fields.findIndex(field => field.id === activeFieldId);
+  const selectedField = selectedFieldIndex >= 0 ? editingForm.fields[selectedFieldIndex] : null;
+  const fieldInspector = selectedField ? (
+    <FieldSettingsPanel
+      field={selectedField}
+      index={selectedFieldIndex}
+      allFields={editingForm.fields}
+      outcomes={editingForm.outcomes}
+      onUpdate={updates => updateField(selectedField.id, updates)}
+      onDuplicate={() => duplicateField(selectedField)}
+      onDelete={() => removeField(selectedField.id)}
+      onMove={direction => moveField(selectedFieldIndex, direction)}
+    />
+  ) : undefined;
+
+  const aiInspector = (
+    <AICopilotPanel
+      aiMessages={aiMessages}
+      aiChatInput={aiChatInput}
+      setAiChatInput={setAiChatInput}
+      aiChatLoading={aiChatLoading}
+      chatEndRef={chatEndRef}
+      onSend={sendAIChat}
+      onShortcutClick={handleShortcutClick}
+      onClose={() => setIsMobileInspectorOpen(false)}
+    />
+  );
+
+  const settingsInspector = (
+    <SettingsPanel
+      linkedProgramId={linkedProgramId}
+      setLinkedProgramId={setLinkedProgramId}
+      availablePrograms={availablePrograms}
+      targetNiks={targetNiks}
+      setTargetNiks={setTargetNiks}
+      targetDepartments={targetDepartments}
+      setTargetDepartments={setTargetDepartments}
+      targetCutoffDate={targetCutoffDate}
+      setTargetCutoffDate={setTargetCutoffDate}
+      availableDepartments={availableDepartments}
+      onClose={() => setIsMobileInspectorOpen(false)}
+    />
+  );
+
+  const renderInspector = (className: string, onClose?: () => void) => (
+    <InspectorPanel
+      form={editingForm}
+      selectedField={selectedField}
+      activeTab={inspectorTab}
+      onTabChange={setInspectorTab}
+      onUpdateField={updateField}
+      onUpdateForm={updates => setEditingForm(previous => ({ ...previous, ...updates }))}
+      panels={{
+        field: fieldInspector,
+        logic: (
+          <LogicFlowPanel
+            form={editingForm}
+            selectedFieldId={activeFieldId}
+            onSelectField={fieldId => { setActiveFieldId(fieldId); setInspectorTab('field'); }}
+            onUpdateField={updateField}
+          />
+        ),
+        ai: aiInspector,
+        settings: settingsInspector,
+      }}
+      onClose={onClose}
+      className={className}
+    />
+  );
 
   return (
-    <div className="h-screen flex flex-col bg-[#F0F2F7] dark:bg-zinc-950 overflow-hidden">
-      {/* ── Top Bar ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0 shadow-sm">
-        <button
-          onClick={() => { setShowEditor(false); fetchForms(); }}
-          className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 text-sm font-medium px-2 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="hidden sm:inline">Kembali</span>
-        </button>
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-100 dark:bg-zinc-950">
+      <BuilderTopbar
+        title={editingForm.title}
+        onTitleChange={title => setEditingForm(previous => ({ ...previous, title }))}
+        device={builderDevice}
+        onDeviceChange={setBuilderDevice}
+        saveStatus={saving ? 'saving' : 'unsaved'}
+        previewActive={isPreviewMode}
+        publishing={saving}
+        onBack={() => { setShowEditor(false); fetchForms(); }}
+        onSave={handleSave}
+        onTogglePreview={() => setIsPreviewMode(previous => !previous)}
+        onPublish={handleSave}
+      />
 
-        <div className="w-px h-5 bg-zinc-200 dark:bg-zinc-700" />
-
-        {/* Title edit */}
-        <input
-          type="text"
-          value={editingForm.title}
-          onChange={(e) => setEditingForm(prev => ({ ...prev, title: e.target.value }))}
-          className="flex-1 min-w-0 text-sm font-semibold bg-transparent border-none focus:outline-none focus:ring-0 text-zinc-800 dark:text-white truncate max-w-xs"
-          placeholder="Judul Formulir"
-        />
-
-        <div className="flex items-center gap-1.5 ml-auto">
-          {!isPreviewMode && (
-            <button
-              type="button"
-              onClick={() => setIsMobileFieldPaletteOpen(true)}
-              title="Tambah elemen"
-              aria-label="Buka daftar elemen formulir"
-              className="lg:hidden p-2 rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400 transition-colors"
-            >
-              <PanelLeftOpen className="w-4 h-4" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => setIsPreviewMode(previous => !previous)}
-            title={isPreviewMode ? 'Kembali mengedit' : 'Pratinjau formulir'}
-            aria-label={isPreviewMode ? 'Kembali mengedit formulir' : 'Pratinjau formulir'}
-            className={`sm:hidden rounded-lg p-2 transition-colors ${isPreviewMode ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-          >
-            {isPreviewMode ? <FileText className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-
-          {/* Edit/Preview toggle */}
-          <div className="hidden sm:flex bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
-            <button
-              onClick={() => setIsPreviewMode(false)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1 ${!isPreviewMode ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-            >
-              <FileText className="w-3.5 h-3.5" /> Edit
-            </button>
-            <button
-              onClick={() => setIsPreviewMode(true)}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1 ${isPreviewMode ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
-            >
-              <Eye className="w-3.5 h-3.5" /> Preview
-            </button>
-          </div>
-
-          {/* Panel toggles */}
-          <button
-            onClick={() => setRightPanel(rightPanel === 'ai' ? null : 'ai')}
-            title="AI Copilot"
-            className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${rightPanel === 'ai' ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-          >
-            <Wand2 className="w-4 h-4" />
-            <span className="hidden sm:inline">AI</span>
-          </button>
-          <button
-            onClick={() => setRightPanel(rightPanel === 'design' ? null : 'design')}
-            title="Desain"
-            className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${rightPanel === 'design' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-          >
-            <Palette className="w-4 h-4" />
-            <span className="hidden sm:inline">Tema</span>
-          </button>
-          <button
-            onClick={() => setRightPanel(rightPanel === 'settings' ? null : 'settings')}
-            title="Pengaturan"
-            className={`p-2 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${rightPanel === 'settings' ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200' : 'text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-          >
-            <Settings className="w-4 h-4" />
-          </button>
-
-          <div className="w-px h-5 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
-
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            type="button"
-            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50 shadow-sm"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            Simpan
-          </button>
-        </div>
-      </div>
-
-      {/* ── Body: 3-column layout ─────────────────────────────────────────── */}
-      <div className="flex flex-1 min-h-0">
-        {/* ── Left Sidebar: Field Palette ─────────────────────────────────── */}
+      <div className="flex min-h-0 flex-1">
         {!isPreviewMode && (
-          <div className="hidden lg:flex flex-col w-52 xl:w-60 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 shrink-0 overflow-y-auto">
-            <div className="sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 px-4 py-3 z-10">
-              <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Elemen Form</p>
-              <div className="relative mt-3">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-                <input
-                  type="search"
-                  value={fieldSearch}
-                  onChange={(event) => setFieldSearch(event.target.value)}
-                  placeholder="Cari elemen..."
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-9 pr-3 text-xs text-zinc-800 outline-none transition focus:border-indigo-400 focus:bg-white dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:focus:bg-zinc-900"
-                />
-              </div>
-            </div>
-            <div className="p-3 space-y-4">
-              {filteredFieldGroups.map(group => (
-                <div key={group.label}>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest px-1 mb-1.5">{group.label}</p>
-                  <div className="space-y-1">
-                    {group.items.map(item => (
-                      <button
-                        key={item.type}
-                        type="button"
-                        draggable
-                        onDragStart={(event) => handlePaletteDragStart(event, item.type)}
-                        onClick={() => addField(item.type)}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all group text-left cursor-grab active:cursor-grabbing"
-                      >
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all"
-                          style={{ backgroundColor: item.bg, color: item.color }}>
-                          <item.icon className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white">{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {filteredFieldGroups.length === 0 && (
-                <p className="px-2 py-8 text-center text-xs text-zinc-400">Elemen tidak ditemukan.</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        <AnimatePresence>
-          {!isPreviewMode && isMobileFieldPaletteOpen && (
-            <>
-              <motion.button
-                type="button"
-                aria-label="Tutup daftar elemen"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setIsMobileFieldPaletteOpen(false)}
-                className="fixed inset-0 z-40 bg-zinc-950/40 backdrop-blur-[1px] lg:hidden"
-              />
-              <motion.aside
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                className="fixed inset-y-0 left-0 z-50 flex w-[min(88vw,360px)] flex-col bg-white shadow-2xl dark:bg-zinc-900 lg:hidden"
-              >
-                <div className="flex items-center gap-3 border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
-                    <PanelLeftOpen className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-zinc-900 dark:text-white">Tambah Elemen</p>
-                    <p className="text-[11px] text-zinc-400">Pilih elemen untuk ditambahkan ke formulir</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileFieldPaletteOpen(false)}
-                    className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="border-b border-zinc-100 p-3 dark:border-zinc-800">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                    <input
-                      type="search"
-                      value={fieldSearch}
-                      onChange={(event) => setFieldSearch(event.target.value)}
-                      placeholder="Cari elemen formulir..."
-                      autoFocus
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-3 text-sm text-zinc-900 outline-none focus:border-indigo-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
-                    />
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {filteredFieldGroups.flatMap(group => group.items).map(item => (
-                      <button
-                        key={item.type}
-                        type="button"
-                        onClick={() => {
-                          addField(item.type);
-                          setIsMobileFieldPaletteOpen(false);
-                        }}
-                        className="flex min-h-24 flex-col items-start justify-between rounded-2xl border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800"
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: item.bg, color: item.color }}>
-                          <item.icon className="h-4 w-4" />
-                        </span>
-                        <span className="mt-3 text-xs font-semibold text-zinc-700 dark:text-zinc-200">{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {filteredFieldGroups.length === 0 && (
-                    <p className="py-12 text-center text-sm text-zinc-400">Elemen tidak ditemukan.</p>
-                  )}
-                </div>
-              </motion.aside>
-            </>
-          )}
-        </AnimatePresence>
-
-        {/* ── Center: Canvas ───────────────────────────────────────────────── */}
-        <div
-          onDragOver={(event) => {
-            if (!event.dataTransfer.types.includes('application/x-sps-form-field')) return;
-            event.preventDefault();
-            event.dataTransfer.dropEffect = 'copy';
-            setIsCanvasDropActive(true);
-          }}
-          onDragLeave={(event) => {
-            if (event.currentTarget.contains(event.relatedTarget as Node)) return;
-            setIsCanvasDropActive(false);
-          }}
-          onDrop={handleCanvasDrop}
-          className={`relative flex-1 overflow-y-auto transition-colors ${isPreviewMode ? 'bg-zinc-200/60 dark:bg-zinc-900' : 'bg-[#F0F2F7] dark:bg-zinc-950'} ${isCanvasDropActive ? 'bg-indigo-50 dark:bg-indigo-950/20' : ''}`}
-        >
-          {isCanvasDropActive && !isPreviewMode && (
-            <div className="pointer-events-none sticky top-3 z-20 mx-auto -mb-14 flex w-fit items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg">
-              <Plus className="h-3.5 w-3.5" /> Lepaskan untuk menambahkan elemen
-            </div>
-          )}
-          <div className="max-w-2xl mx-auto px-4 py-8">
-            {isPreviewMode ? (
-              <FormCanvas
-                form={editingForm}
-                isGenerating={aiChatLoading}
-                onStart={() => { }}
-                onFinish={() => toast.success('Formulir dikirim (mode pratinjau)')}
-                onFieldClick={(id: any) => setActiveFieldId(id)}
-                activeFieldId={activeFieldId}
-              />
-            ) : (
-              <div className="space-y-2">
-                {/* Form Header Card */}
-                <div
-                  onClick={() => setActiveFieldId('header')}
-                  className={`bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border transition-all cursor-pointer ${activeFieldId === 'header' ? 'border-indigo-400 shadow-md ring-2 ring-indigo-500/20' : 'border-zinc-200/80 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm'}`}
-                >
-                  {/* Color bar */}
-                  <div className="h-2 w-full" style={{ backgroundColor: themeColor }} />
-                  <div className="p-6">
-                    <input
-                      type="text"
-                      value={editingForm.title}
-                      onChange={(e) => setEditingForm(prev => ({ ...prev, title: e.target.value }))}
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-xl font-bold w-full bg-transparent border-none focus:outline-none focus:ring-0 text-zinc-900 dark:text-white mb-2"
-                      placeholder="Judul Formulir"
-                    />
-                    <textarea
-                      value={editingForm.description}
-                      onChange={(e) => setEditingForm(prev => ({ ...prev, description: e.target.value }))}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full bg-transparent border-none focus:outline-none focus:ring-0 text-zinc-400 dark:text-zinc-500 resize-none text-sm min-h-[36px]"
-                      placeholder="Deskripsi formulir (opsional)"
-                      rows={2}
-                    />
-                  </div>
-
-                  {activeFieldId === 'header' && (
-                    <div className="px-6 pb-5 pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-3" onClick={e => e.stopPropagation()}>
-                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Program / Target</p>
-                      <select
-                        value={linkedProgramId}
-                        onChange={(e) => setLinkedProgramId(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-indigo-500 text-zinc-700 dark:text-zinc-300"
-                      >
-                        <option value="">-- Tidak terhubung program --</option>
-                        {availablePrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                      <textarea
-                        value={targetNiks}
-                        onChange={(e) => setTargetNiks(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none h-16 resize-none font-mono"
-                        placeholder="Target NIK (pisahkan dengan koma/enter)"
-                      />
-                      <div className="flex flex-wrap gap-1.5">
-                        {availableDepartments.map((dept: string) => {
-                          const sel = targetDepartments.includes(dept);
-                          return (
-                            <button key={dept} type="button"
-                              onClick={() => setTargetDepartments(prev => sel ? prev.filter(d => d !== dept) : [...prev, dept])}
-                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all border ${sel ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}>
-                              {dept}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <input type="date" value={targetCutoffDate}
-                        onChange={(e) => setTargetCutoffDate(e.target.value)}
-                        className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-indigo-500" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Field Cards */}
-                <AnimatePresence initial={false}>
-                  {editingForm.fields?.map((field, index) => (
-                    <motion.div key={field.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ duration: 0.15 }}>
-                      <FieldCard
-                        field={field}
-                        index={index}
-                        allFields={editingForm.fields}
-                        isActive={activeFieldId === field.id}
-                        onClick={() => setActiveFieldId(field.id === activeFieldId ? null : field.id)}
-                        onUpdate={(u: Partial<FormField>) => updateField(field.id, u)}
-                        onMove={(d: 'up' | 'down') => moveField(index, d)}
-                        onDuplicate={() => duplicateField(field)}
-                        onDelete={() => removeField(field.id)}
-                        isFirst={index === 0}
-                        isLast={index === (editingForm.fields?.length || 0) - 1}
-                        themeColor={themeColor}
-                        dragFieldIndex={dragFieldIndex}
-                        setDragFieldIndex={setDragFieldIndex}
-                        dragOverIndex={dragOverIndex}
-                        setDragOverIndex={setDragOverIndex}
-                        onReorder={(from: number, to: number) => {
-                          const f = [...(editingForm.fields || [])];
-                          const [m] = f.splice(from, 1);
-                          f.splice(to, 0, m);
-                          setEditingForm(prev => ({ ...prev, fields: f }));
-                          setActiveFieldId(m.id);
-                        }}
-                      />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-
-                {/* Add field button */}
-                <button
-                  onClick={() => addField('text')}
-                  className="w-full py-4 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl text-sm font-semibold text-zinc-400 hover:text-indigo-600 hover:border-indigo-400 dark:hover:border-indigo-600 transition-all hover:bg-indigo-50/50 dark:hover:bg-indigo-950/10 flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-4 h-4" /> Tambah Pertanyaan
-                </button>
-
-                {/* Stats bar */}
-                {fieldCount > 0 && (
-                  <div className="flex items-center justify-center gap-6 py-3 text-xs text-zinc-400">
-                    <span><b className="text-zinc-600 dark:text-zinc-300">{fieldCount}</b> pertanyaan</span>
-                    <span><b className="text-zinc-600 dark:text-zinc-300">{editingForm.fields?.filter(f => f.required).length}</b> wajib diisi</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Right Panel ───────────────────────────────────────────────────── */}
-        {rightPanel && (
-          <button
-            type="button"
-            aria-label="Tutup panel samping"
-            onClick={() => setRightPanel(null)}
-            className="fixed inset-0 z-30 bg-zinc-950/35 backdrop-blur-[1px] xl:hidden"
+          <FieldPalette
+            onAddField={addField}
+            searchValue={fieldSearch}
+            onSearchChange={setFieldSearch}
+            className="hidden w-64 shrink-0 lg:flex xl:w-72"
           />
         )}
-        <AnimatePresence>
-          {rightPanel && (
-            <motion.div
-              key={rightPanel}
-              initial={{ x: 32, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 32, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-y-0 right-0 z-40 flex w-[min(92vw,380px)] flex-col overflow-hidden border-l border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 xl:relative xl:z-auto xl:w-[340px] xl:shrink-0 xl:shadow-none"
-            >
-              {rightPanel === 'ai' && (
-                <AICopilotPanel
-                  aiMessages={aiMessages}
-                  aiChatInput={aiChatInput}
-                  setAiChatInput={setAiChatInput}
-                  aiChatLoading={aiChatLoading}
-                  chatEndRef={chatEndRef}
-                  onSend={sendAIChat}
-                  onShortcutClick={handleShortcutClick}
-                  onClose={() => setRightPanel(null)}
+
+        {isPreviewMode ? (
+          <main className="min-w-0 flex-1 overflow-y-auto bg-slate-100 px-3 py-6 sm:px-6 dark:bg-zinc-950">
+            <div className="mx-auto max-w-5xl">
+              {editingForm.experience_version === 2 ? (
+                <PremiumFormExperience form={editingForm} mode="preview" />
+              ) : (
+                <FormCanvas
+                  form={editingForm}
+                  isGenerating={aiChatLoading}
+                  onStart={() => undefined}
+                  onFinish={() => toast.success('Formulir dikirim (mode pratinjau)')}
+                  onFieldClick={(id: string) => { setActiveFieldId(id); setInspectorTab('field'); }}
+                  activeFieldId={activeFieldId}
                 />
               )}
-              {rightPanel === 'design' && (
-                <DesignPanel
-                  editingForm={editingForm}
-                  setEditingForm={setEditingForm}
-                  onClose={() => setRightPanel(null)}
-                />
-              )}
-              {rightPanel === 'settings' && (
-                <SettingsPanel
-                  linkedProgramId={linkedProgramId}
-                  setLinkedProgramId={setLinkedProgramId}
-                  availablePrograms={availablePrograms}
-                  targetNiks={targetNiks}
-                  setTargetNiks={setTargetNiks}
-                  targetDepartments={targetDepartments}
-                  setTargetDepartments={setTargetDepartments}
-                  targetCutoffDate={targetCutoffDate}
-                  setTargetCutoffDate={setTargetCutoffDate}
-                  availableDepartments={availableDepartments}
-                  onClose={() => setRightPanel(null)}
-                />
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </main>
+        ) : (
+          <BuilderCanvas
+            form={editingForm}
+            device={builderDevice}
+            selectedFieldId={activeFieldId}
+            onSelectField={fieldId => {
+              setActiveFieldId(fieldId);
+              setInspectorTab(fieldId && fieldId !== 'header' ? 'field' : 'design');
+            }}
+            onUpdateForm={updates => setEditingForm(previous => ({ ...previous, ...updates }))}
+            onInsertField={targetIndex => insertFieldAt('text', targetIndex)}
+            onDropField={insertFieldAt}
+            onReorderField={reorderFieldById}
+            onDuplicateField={fieldId => {
+              const field = editingForm.fields.find(candidate => candidate.id === fieldId);
+              if (field) duplicateField(field);
+            }}
+            onDeleteField={removeField}
+            className="min-w-0 flex-1"
+          />
+        )}
+
+        {!isPreviewMode && renderInspector('hidden w-[360px] shrink-0 xl:flex')}
       </div>
+
+      {!isPreviewMode && (
+        <div className="fixed bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-slate-200 bg-white/95 p-1.5 shadow-2xl backdrop-blur xl:hidden dark:border-zinc-700 dark:bg-zinc-900/95">
+          <button
+            type="button"
+            onClick={() => setIsMobileFieldPaletteOpen(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold text-slate-600 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            <PanelLeftOpen className="h-4 w-4" /> Elemen
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsMobileInspectorOpen(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-slate-950 px-3 text-xs font-bold text-white dark:bg-white dark:text-zinc-950"
+          >
+            <Settings className="h-4 w-4" /> Inspector
+          </button>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {!isPreviewMode && isMobileFieldPaletteOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Tutup daftar elemen"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileFieldPaletteOpen(false)}
+              className="fixed inset-0 z-40 bg-zinc-950/45 backdrop-blur-[1px] lg:hidden"
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+              className="fixed inset-y-0 left-0 z-50 w-[min(92vw,380px)] shadow-2xl lg:hidden"
+            >
+              <FieldPalette
+                onAddField={type => {
+                  addField(type);
+                  setIsMobileFieldPaletteOpen(false);
+                }}
+                searchValue={fieldSearch}
+                onSearchChange={setFieldSearch}
+                onClose={() => setIsMobileFieldPaletteOpen(false)}
+                compact
+                className="w-full"
+              />
+            </motion.div>
+          </>
+        )}
+
+        {!isPreviewMode && isMobileInspectorOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Tutup inspector"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileInspectorOpen(false)}
+              className="fixed inset-0 z-40 bg-zinc-950/45 backdrop-blur-[1px] xl:hidden"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+              className="fixed inset-y-0 right-0 z-50 w-[min(94vw,400px)] shadow-2xl xl:hidden"
+            >
+              {renderInspector('w-full', () => setIsMobileInspectorOpen(false))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1097,131 +964,7 @@ function AICopilotPanel({ aiMessages, aiChatInput, setAiChatInput, aiChatLoading
 }
 
 // ─── Design Panel ────────────────────────────────────────────────────────────
-const THEME_PRESETS = [
-  '#6366F1', '#8B5CF6', '#EC4899', '#EF4444',
-  '#F59E0B', '#10B981', '#06B6D4', '#3B82F6',
-  '#1E293B', '#374151',
-];
 
-function DesignPanel({ editingForm, setEditingForm, onClose }: any) {
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
-        <div className="flex items-center gap-2">
-          <Palette className="w-4 h-4 text-indigo-500" />
-          <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">Desain & Tema</p>
-        </div>
-        <button onClick={onClose} className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {/* Color */}
-        <div>
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Warna Tema</label>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {THEME_PRESETS.map(color => (
-              <button key={color} onClick={() => setEditingForm((p: any) => ({ ...p, theme_color: color }))}
-                className="w-7 h-7 rounded-lg border-2 transition-all hover:scale-110"
-                style={{
-                  backgroundColor: color,
-                  borderColor: editingForm.theme_color === color ? 'white' : 'transparent',
-                  boxShadow: editingForm.theme_color === color ? `0 0 0 2px ${color}` : 'none'
-                }} />
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input type="color" value={editingForm.theme_color || '#6366F1'}
-              onChange={(e) => setEditingForm((p: any) => ({ ...p, theme_color: e.target.value }))}
-              className="w-9 h-9 rounded-lg cursor-pointer border border-zinc-200 dark:border-zinc-700 p-0.5" />
-            <input type="text" value={editingForm.theme_color || '#6366F1'}
-              onChange={(e) => setEditingForm((p: any) => ({ ...p, theme_color: e.target.value }))}
-              className="flex-1 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-mono outline-none focus:border-indigo-500 text-zinc-800 dark:text-white uppercase" />
-          </div>
-        </div>
-
-        {/* Layout */}
-        <div>
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Layout</label>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { value: 'classic', label: 'Classic', desc: 'Satu halaman scroll', icon: Layers },
-              { value: 'card', label: 'Card', desc: 'Satu pertanyaan per slide', icon: MousePointer2 },
-            ].map(({ value, label, desc, icon: Icon }) => (
-              <button key={value}
-                onClick={() => setEditingForm((p: any) => ({ ...p, layout_type: value }))}
-                className={`p-3 rounded-xl border-2 text-left transition-all ${editingForm.layout_type === value ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'}`}
-              >
-                <Icon className={`w-4 h-4 mb-1 ${editingForm.layout_type === value ? 'text-indigo-600' : 'text-zinc-400'}`} />
-                <p className={`text-xs font-bold ${editingForm.layout_type === value ? 'text-indigo-700 dark:text-indigo-300' : 'text-zinc-600 dark:text-zinc-400'}`}>{label}</p>
-                <p className="text-[10px] text-zinc-400 mt-0.5">{desc}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Font */}
-        <div>
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Font</label>
-          <select value={editingForm.font_family || 'Inter'}
-            onChange={(e) => setEditingForm((p: any) => ({ ...p, font_family: e.target.value }))}
-            className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-semibold outline-none focus:border-indigo-500 text-zinc-800 dark:text-white">
-            <option value="Inter">Inter (Default)</option>
-            <option value="Outfit">Outfit</option>
-            <option value="Playfair Display">Playfair Display</option>
-            <option value="Space Grotesk">Space Grotesk</option>
-          </select>
-        </div>
-
-        {/* Input Style */}
-        <div>
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Gaya Input</label>
-          <div className="space-y-1.5">
-            {[
-              { value: 'rounded', label: 'Rounded', preview: 'border rounded-xl' },
-              { value: 'sharp', label: 'Sharp', preview: 'border rounded' },
-              { value: 'underline', label: 'Underline', preview: 'border-b' },
-            ].map(({ value, label, preview }) => (
-              <button key={value}
-                onClick={() => setEditingForm((p: any) => ({ ...p, input_style: value }))}
-                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all ${editingForm.input_style === value ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}
-              >
-                <div className={`h-6 flex-1 bg-zinc-100 dark:bg-zinc-700 ${preview}`} />
-                <span className={`text-xs font-semibold ${editingForm.input_style === value ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-500'}`}>{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Glassmorphism */}
-        <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-          <div>
-            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Glassmorphism</p>
-            <p className="text-[10px] text-zinc-400">Efek kaca transparan</p>
-          </div>
-          <button
-            onClick={() => setEditingForm((p: any) => ({ ...p, card_glassmorphism: !p.card_glassmorphism }))}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${editingForm.card_glassmorphism ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`}
-          >
-            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${editingForm.card_glassmorphism ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-          </button>
-        </div>
-
-        {/* Background */}
-        <div>
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Background Image (URL)</label>
-          <input type="text" value={editingForm.bg_image_url || ''}
-            onChange={(e) => setEditingForm((p: any) => ({ ...p, bg_image_url: e.target.value }))}
-            className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-indigo-500 text-zinc-800 dark:text-white"
-            placeholder="https://..." />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Settings Panel ──────────────────────────────────────────────────────────
 function SettingsPanel({ linkedProgramId, setLinkedProgramId, availablePrograms, targetNiks, setTargetNiks, targetDepartments, setTargetDepartments, targetCutoffDate, setTargetCutoffDate, availableDepartments, onClose }: any) {
   return (
     <div className="flex flex-col h-full">
@@ -1275,354 +1018,3 @@ function SettingsPanel({ linkedProgramId, setLinkedProgramId, availablePrograms,
 }
 
 // ─── Field Card ──────────────────────────────────────────────────────────────
-function FieldCard({ field, index, allFields, isActive, onClick, onUpdate, onMove, onDuplicate, onDelete, isFirst, isLast, themeColor, dragFieldIndex, setDragFieldIndex, dragOverIndex, setDragOverIndex, onReorder }: any) {
-  const meta = ALL_FIELD_TYPES.find(t => t.type === field.type);
-
-  return (
-    <div
-      onClick={onClick}
-      draggable={!isActive}
-      onDragStart={() => setDragFieldIndex(index)}
-      onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index); }}
-      onDragEnd={() => { setDragFieldIndex(null); setDragOverIndex(null); }}
-      onDrop={() => {
-        if (dragFieldIndex !== null && dragFieldIndex !== index) onReorder(dragFieldIndex, index);
-        setDragFieldIndex(null); setDragOverIndex(null);
-      }}
-      className={`bg-white dark:bg-zinc-900 rounded-2xl border cursor-pointer transition-all ${isActive
-        ? 'border-indigo-400 shadow-md ring-2 ring-indigo-500/15'
-        : 'border-zinc-200/80 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 shadow-sm'
-        } ${dragFieldIndex === index ? 'opacity-40 scale-95' : ''} ${dragOverIndex === index && dragFieldIndex !== index ? 'border-indigo-400 ring-2 ring-indigo-400/20 scale-[1.01]' : ''}`}
-    >
-      {!isActive ? (
-        /* Collapsed view */
-        <div>
-          <div className="flex items-center gap-3 px-4 py-3.5">
-            <GripVertical className="w-4 h-4 text-zinc-300 cursor-grab shrink-0 hover:text-zinc-400" />
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-              style={{ backgroundColor: meta?.bg || '#EEF2FF', color: meta?.color || '#6366F1' }}>
-              {meta ? <meta.icon className="w-3.5 h-3.5" /> : <Type className="w-3.5 h-3.5" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
-                {field.label}
-                {field.required && <span className="text-red-400 ml-0.5">*</span>}
-              </p>
-              <p className="text-[10px] text-zinc-400 capitalize">{field.type.replace(/_/g, ' ')}</p>
-            </div>
-            <span className="text-[10px] text-zinc-300 font-mono shrink-0">{index + 1}</span>
-            <div className="flex items-center gap-0.5 shrink-0">
-              <button onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="p-1.5 text-zinc-300 hover:text-zinc-600 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-              <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 text-zinc-300 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-          <div className="pointer-events-none border-t border-zinc-100 px-5 py-4 opacity-90 dark:border-zinc-800">
-            <FormFieldRenderer field={field} themeColor={themeColor} inputStyle="rounded" disabled />
-          </div>
-        </div>
-      ) : (
-        /* Expanded editor */
-        <FieldEditor
-          field={field}
-          index={index}
-          allFields={allFields}
-          onUpdate={onUpdate}
-          onMove={onMove}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-          isFirst={isFirst}
-          isLast={isLast}
-          themeColor={themeColor}
-          meta={meta}
-        />
-      )}
-    </div>
-  );
-}
-
-// ─── Field Editor ────────────────────────────────────────────────────────────
-function FieldEditor({ field, index, allFields, onUpdate, onMove, onDuplicate, onDelete, isFirst, isLast, themeColor, meta }: any) {
-  const conditionalParents = (allFields || [])
-    .slice(0, index)
-    .filter((candidate: FormField) => ['select', 'radio', 'checkbox'].includes(candidate.type) && candidate.options?.length);
-  const selectedParent = conditionalParents.find((candidate: FormField) => candidate.id === field.condition?.fieldId);
-
-  return (
-    <div className="p-4 space-y-4">
-      {/* Field header */}
-      <div className="flex items-center gap-2 pb-3 border-b border-zinc-100 dark:border-zinc-800">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: meta?.bg || '#EEF2FF', color: meta?.color || '#6366F1' }}>
-          {meta ? <meta.icon className="w-3.5 h-3.5" /> : <Type className="w-3.5 h-3.5" />}
-        </div>
-        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex-1">Field #{index + 1} · {field.type.replace(/_/g, ' ')}</span>
-        <div className="flex gap-0.5">
-          {!isFirst && <button onClick={(e) => { e.stopPropagation(); onMove('up'); }} className="p-1.5 text-zinc-300 hover:text-zinc-600 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"><MoveUp className="w-3.5 h-3.5" /></button>}
-          {!isLast && <button onClick={(e) => { e.stopPropagation(); onMove('down'); }} className="p-1.5 text-zinc-300 hover:text-zinc-600 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"><MoveDown className="w-3.5 h-3.5" /></button>}
-          <button onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="p-1.5 text-zinc-300 hover:text-zinc-600 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"><Copy className="w-3.5 h-3.5" /></button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 text-zinc-300 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20"><Trash2 className="w-3.5 h-3.5" /></button>
-        </div>
-      </div>
-
-      {/* Label + type selector */}
-      <div className="space-y-2">
-        <input
-          type="text"
-          value={field.label}
-          onChange={(e) => onUpdate({ label: e.target.value })}
-          className="w-full px-0 py-1 bg-transparent border-b-2 border-zinc-200 dark:border-zinc-700 focus:border-indigo-500 text-sm font-semibold text-zinc-900 dark:text-white outline-none transition-colors"
-          placeholder="Label pertanyaan"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <select
-          value={field.type}
-          onChange={(e) => {
-            const nextType = e.target.value as FieldType;
-            onUpdate({
-              type: nextType,
-              ...getFieldTypeDefaults(nextType),
-              ...(nextType === 'payment_section' ? { required: false } : {}),
-            });
-          }}
-          className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs font-semibold outline-none focus:border-indigo-500 text-zinc-700 dark:text-zinc-300"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <option value="text">Teks Singkat</option>
-          <option value="textarea">Paragraf</option>
-          <option value="number">Angka</option>
-          <option value="radio">Pilihan Ganda</option>
-          <option value="checkbox">Centang Ganda</option>
-          <option value="select">Dropdown</option>
-          <option value="scale">Skala</option>
-          <option value="date">Tanggal</option>
-          <option value="rating">Bintang</option>
-          <option value="file_upload">Upload File</option>
-          <option value="image">Upload Gambar</option>
-          <option value="image_choice">Pilihan Gambar</option>
-          <option value="addon_group">Daftar Pesanan</option>
-          <option value="payment_section">Pembayaran</option>
-        </select>
-      </div>
-
-      {/* Placeholder */}
-      {['text', 'textarea', 'number'].includes(field.type) && (
-        <input
-          type="text"
-          value={field.placeholder || ''}
-          onChange={(e) => onUpdate({ placeholder: e.target.value })}
-          className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-indigo-500 text-zinc-600 dark:text-zinc-400"
-          placeholder="Teks placeholder (opsional)"
-          onClick={(e) => e.stopPropagation()}
-        />
-      )}
-
-      <input
-        type="text"
-        value={field.description || ''}
-        onChange={(event) => onUpdate({ description: event.target.value })}
-        className="w-full px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-indigo-500 text-zinc-600 dark:text-zinc-400"
-        placeholder="Petunjuk tambahan untuk pengisi (opsional)"
-        onClick={(event) => event.stopPropagation()}
-      />
-
-      {/* Options editor */}
-      {['select', 'radio', 'checkbox', 'image_choice'].includes(field.type) && (
-        <div className="space-y-2 pl-3 border-l-2 border-zinc-100 dark:border-zinc-800" onClick={(e) => e.stopPropagation()}>
-          {field.options?.map((opt: any, i: number) => (
-            <div key={i} className="flex items-center gap-2">
-              {field.type === 'radio' && <CircleDot className="w-3.5 h-3.5 text-zinc-300 shrink-0" />}
-              {field.type === 'checkbox' && <CheckSquare className="w-3.5 h-3.5 text-zinc-300 shrink-0" />}
-              {field.type === 'select' && <span className="text-[10px] text-zinc-400 w-4 shrink-0">{i + 1}.</span>}
-              <input
-                type="text"
-                value={opt.label}
-                onChange={(e) => {
-                  const newOpts = [...(field.options || [])];
-                  newOpts[i] = { ...newOpts[i], label: e.target.value };
-                  onUpdate({ options: newOpts });
-                }}
-                className="flex-1 bg-transparent border-b border-transparent hover:border-zinc-300 dark:hover:border-zinc-600 focus:border-indigo-500 py-0.5 text-xs outline-none dark:text-white transition-colors"
-                placeholder={`Opsi ${i + 1}`}
-              />
-              {field.type === 'image_choice' && (
-                <input
-                  type="url"
-                  value={opt.image || ''}
-                  onChange={(event) => {
-                    const newOptions = [...(field.options || [])];
-                    newOptions[i] = { ...newOptions[i], image: event.target.value };
-                    onUpdate({ options: newOptions });
-                  }}
-                  className="hidden min-w-0 flex-1 border-b border-transparent bg-transparent py-0.5 text-xs outline-none transition-colors focus:border-indigo-500 sm:block dark:text-white"
-                  placeholder="URL gambar"
-                />
-              )}
-              <button
-                onClick={() => onUpdate({ options: field.options?.filter((_: any, j: number) => j !== i) })}
-                className="text-zinc-300 hover:text-red-400 p-0.5 transition-colors"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-          <button
-            onClick={() => onUpdate({ options: [...(field.options || []), { value: `opt${Date.now()}`, label: `Opsi ${(field.options?.length || 0) + 1}` }] })}
-            className="text-xs font-semibold text-indigo-500 hover:text-indigo-600 flex items-center gap-1 mt-1"
-          >
-            <Plus className="w-3 h-3" /> Tambah opsi
-          </button>
-        </div>
-      )}
-
-      {/* Scale */}
-      {field.type === 'scale' && (
-        <div className="flex items-center gap-2 text-xs text-zinc-500" onClick={(e) => e.stopPropagation()}>
-          <span>Skala 1 hingga</span>
-          <select
-            value={field.max_scale || 5}
-            onChange={(e) => onUpdate({ max_scale: parseInt(e.target.value) })}
-            className="border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1.5 bg-white dark:bg-zinc-800 text-xs outline-none focus:border-indigo-500"
-          >
-            {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </div>
-      )}
-
-      {/* Rating */}
-      {field.type === 'rating' && (
-        <div className="flex items-center gap-2 text-xs text-zinc-500" onClick={(e) => e.stopPropagation()}>
-          <span>Jumlah bintang</span>
-          <select
-            value={field.max || 5}
-            onChange={(e) => onUpdate({ max: parseInt(e.target.value) })}
-            className="border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1.5 bg-white dark:bg-zinc-800 text-xs outline-none"
-          >
-            {[3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </div>
-      )}
-
-      {/* Addon Group */}
-      {field.type === 'addon_group' && (
-        <div className="space-y-2 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase">Produk</label>
-            <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 cursor-pointer">
-              <input type="checkbox" checked={field.allow_multiple} onChange={(e) => onUpdate({ allow_multiple: e.target.checked })} className="w-3 h-3" /> Multi pilih
-            </label>
-          </div>
-          {field.items?.map((item: any, i: number) => (
-            <div key={i} className="flex gap-2">
-              <input type="text" value={item.name}
-                onChange={(e) => { const items = [...field.items]; items[i].name = e.target.value; onUpdate({ items }); }}
-                className="flex-1 px-2 py-1.5 text-xs border rounded-lg bg-white dark:bg-zinc-800 dark:border-zinc-700 outline-none" placeholder="Nama" />
-              <input type="number" value={item.price}
-                onChange={(e) => { const items = [...field.items]; items[i].price = parseInt(e.target.value) || 0; onUpdate({ items }); }}
-                className="w-20 px-2 py-1.5 text-xs border rounded-lg bg-white dark:bg-zinc-800 dark:border-zinc-700 outline-none" placeholder="Rp" />
-            </div>
-          ))}
-          <button onClick={() => onUpdate({ items: [...(field.items || []), { id: `item${Date.now()}`, name: '', sizes: ['M'], price: 0 }] })}
-            className="text-xs text-indigo-500 font-semibold flex items-center gap-1">
-            <Plus className="w-3 h-3" /> Tambah item
-          </button>
-        </div>
-      )}
-
-      {/* Payment Section */}
-      {field.type === 'payment_section' && (
-        <div className="space-y-3 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700" onClick={(e) => e.stopPropagation()}>
-          <div>
-            <label className="text-[10px] text-zinc-500 block mb-1 font-semibold">QRIS Image URL</label>
-            <input type="text" value={field.qris_image_url || ''} onChange={(e) => onUpdate({ qris_image_url: e.target.value })}
-              className="w-full px-2.5 py-1.5 text-xs border rounded-xl bg-white dark:bg-zinc-800 dark:border-zinc-700 outline-none" placeholder="https://..." />
-          </div>
-          {field.qris_image_url && <img src={field.qris_image_url} alt="QRIS" className="w-20 h-20 object-contain mx-auto rounded-lg border" />}
-          <div>
-            <label className="text-[10px] text-zinc-500 block mb-1 font-semibold">Nama Rekening</label>
-            <input type="text" value={field.account_name || ''} onChange={(e) => onUpdate({ account_name: e.target.value })}
-              className="w-full px-2.5 py-1.5 text-xs border rounded-xl bg-white dark:bg-zinc-800 dark:border-zinc-700 outline-none" />
-          </div>
-          <label className="flex items-center gap-2 text-xs text-zinc-500 cursor-pointer">
-            <input type="checkbox" checked={field.verify_with_ai !== false} onChange={(e) => onUpdate({ verify_with_ai: e.target.checked })} />
-            Verifikasi otomatis dengan AI
-          </label>
-        </div>
-      )}
-
-      {/* Conditional branching */}
-      <div className="space-y-2 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 dark:border-indigo-900/40 dark:bg-indigo-950/20" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center gap-2">
-          <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Logika kondisi</span>
-        </div>
-        <select
-          value={field.condition?.fieldId || ''}
-          onChange={(event) => {
-            const parent = conditionalParents.find((candidate: FormField) => candidate.id === event.target.value);
-            if (!parent) return onUpdate({ condition: undefined });
-            onUpdate({ condition: { fieldId: parent.id, operator: 'eq', value: parent.options?.[0]?.value || '' } });
-          }}
-          className="w-full rounded-lg border border-indigo-100 bg-white px-2.5 py-2 text-xs text-zinc-700 outline-none focus:border-indigo-400 dark:border-indigo-900/50 dark:bg-zinc-900 dark:text-zinc-300"
-        >
-          <option value="">Selalu tampil</option>
-          {conditionalParents.map((parent: FormField) => <option key={parent.id} value={parent.id}>Jika: {parent.label}</option>)}
-        </select>
-
-        {field.condition && selectedParent && (
-          <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-2">
-            <select
-              value={field.condition.operator}
-              onChange={(event) => {
-                const operator = event.target.value as 'eq' | 'neq' | 'in';
-                const currentValue = Array.isArray(field.condition.value) ? field.condition.value[0] : field.condition.value;
-                onUpdate({ condition: { ...field.condition, operator, value: operator === 'in' ? [currentValue] : currentValue } });
-              }}
-              className="rounded-lg border border-indigo-100 bg-white px-2 py-2 text-xs outline-none dark:border-indigo-900/50 dark:bg-zinc-900"
-            >
-              <option value="eq">sama dengan</option>
-              <option value="neq">tidak sama</option>
-              <option value="in">salah satu</option>
-            </select>
-            <select
-              value={Array.isArray(field.condition.value) ? field.condition.value[0] || '' : field.condition.value}
-              onChange={(event) => onUpdate({
-                condition: {
-                  ...field.condition,
-                  value: field.condition.operator === 'in' ? [event.target.value] : event.target.value,
-                },
-              })}
-              className="min-w-0 rounded-lg border border-indigo-100 bg-white px-2 py-2 text-xs outline-none dark:border-indigo-900/50 dark:bg-zinc-900"
-            >
-              {selectedParent.options?.map((option: FormOption) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </div>
-        )}
-        {conditionalParents.length === 0 && (
-          <p className="text-[10px] leading-relaxed text-zinc-400">Tambahkan pertanyaan pilihan di atas field ini untuk membuat cabang Ya/Tidak.</p>
-        )}
-      </div>
-
-      {/* Required toggle */}
-      {field.type === 'payment_section' ? (
-        <p className="border-t border-zinc-100 pt-3 text-[10px] leading-relaxed text-zinc-400 dark:border-zinc-800">
-          Bukti pembayaran divalidasi otomatis pada halaman pengisi sehingga tidak memakai toggle wajib umum.
-        </p>
-      ) : (
-        <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-zinc-800">
-          <span className="text-xs text-zinc-400">Wajib diisi</span>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onUpdate({ required: !field.required }); }}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${field.required ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`}
-          >
-            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${field.required ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}

@@ -11,8 +11,58 @@ export type FieldType =
   | 'file_upload'
   | 'image'
   | 'addon_group'
+  | 'repeater'
   | 'date'
   | 'payment_section';
+
+export type FormOutcomeKind = 'declined' | 'confirmed' | 'pending_payment' | 'submitted';
+export type ManualPaymentMethod = 'bank_transfer' | 'manual_qris';
+
+export interface FormOutcome {
+  id: string;
+  kind: FormOutcomeKind;
+  title: string;
+  message?: string;
+  button_label?: string;
+  issue_entitlements?: boolean;
+}
+
+export interface BankAccountConfig {
+  id: string;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+}
+
+export interface FormThemeConfig {
+  preset?: 'sps_event_premium' | 'minimal' | 'editorial' | 'legacy';
+  primary_color?: string;
+  accent_color?: string;
+  surface_color?: string;
+  text_color?: string;
+  muted_color?: string;
+  heading_font?: string;
+  body_font?: string;
+  radius?: 'soft' | 'rounded' | 'pill';
+  density?: 'comfortable' | 'compact';
+  choice_style?: 'cards' | 'buttons' | 'classic';
+  button_style?: 'solid' | 'gradient' | 'soft';
+  cover_overlay?: 'none' | 'soft' | 'dramatic';
+  show_progress?: boolean;
+}
+
+export interface ProgramAutomationConfig {
+  attendance_field_id?: string;
+  attending_value?: string;
+  declined_value?: string;
+  family_count_field_id?: string;
+  family_repeater_field_id?: string;
+  issue_employee_attendance?: boolean;
+  issue_employee_meal?: boolean;
+  issue_family_attendance?: boolean;
+  issue_family_meal?: boolean;
+  hold_entitlements_until_paid?: boolean;
+}
 
 export interface Condition {
   fieldId: string;
@@ -25,6 +75,8 @@ export interface FormOption {
   label: string;
   image?: string; // URL untuk image_choice
   price?: number; // Harga untuk auto-kalkulasi total
+  outcome_id?: string; // Akhiri flow pada outcome tertentu
+  helper_text?: string;
 }
 
 export interface AddonItem {
@@ -41,6 +93,7 @@ export interface FormField {
   description?: string;
   required: boolean;
   placeholder?: string;
+  system_key?: 'attendance' | 'shirt_size' | 'camping' | 'family_count' | 'family_members' | 'payment' | string;
   
   // Untuk select, radio, image_choice
   options?: FormOption[];
@@ -51,6 +104,9 @@ export interface FormField {
   
   // Untuk scale
   min?: number;
+  step?: number;
+  unit_price?: number; // number × unit_price
+  currency?: 'IDR';
   max_scale?: number; // Default 10
   
   // Untuk file_upload
@@ -61,11 +117,22 @@ export interface FormField {
   allow_multiple?: boolean;
   items?: AddonItem[];
 
+  // Untuk repeater (mis. anggota keluarga)
+  subfields?: FormField[];
+  min_items?: number;
+  max_items?: number;
+  item_label?: string;
+  item_unit_price?: number;
+
   // Untuk payment_section
   qris_image_url?: string;
   account_name?: string;
   payment_description?: string;
   verify_with_ai?: boolean;
+  payment_methods?: ManualPaymentMethod[];
+  bank_accounts?: BankAccountConfig[];
+  payment_required_when?: 'always' | 'total_positive';
+  proof_required?: boolean;
 
   // Conditional logic
   condition?: Condition;
@@ -85,4 +152,11 @@ export interface FormConfig {
   input_style?: 'rounded' | 'sharp' | 'underline';
   bg_image_url?: string;
   card_glassmorphism?: boolean;
+  experience_version?: 1 | 2;
+  theme?: FormThemeConfig;
+  outcomes?: FormOutcome[];
+  default_outcome_id?: string;
+  review_enabled?: boolean;
+  autosave_draft?: boolean;
+  program_automation?: ProgramAutomationConfig;
 }

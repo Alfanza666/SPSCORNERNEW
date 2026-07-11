@@ -10,14 +10,46 @@ import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { FormConfig, FormField, AddonItem } from '../../types/form';
 import { calculateVisibleFormTotal, getVisibleFields } from '../../utils/formLogic';
+import PremiumFormExperience, {
+  type PremiumFormSubmitPayload,
+  type PremiumFormSubmitResult,
+} from '../../components/forms/PremiumFormExperience';
 
-interface DynamicForm {
+interface DynamicForm extends FormConfig {
   id: string;
-  title: string;
   description: string;
-  fields: FormField[];
   target_niks?: string[];
   target_departments?: string[];
+}
+
+interface PremiumPaymentInstructions {
+  method?: string;
+  qris_image_url?: string;
+  account_name?: string;
+  account_number?: string;
+  instructions?: string;
+  proof_required?: boolean;
+}
+
+function mapPremiumRegistrationResult(registration: any): PremiumFormSubmitResult {
+  const declined = registration?.attendance_status === 'declined';
+  const pending = ['pending', 'under_review'].includes(registration?.payment_status)
+    || registration?.registration_status === 'pending_payment';
+  return {
+    status: declined ? 'declined' : pending ? 'pending' : 'success',
+    title: declined
+      ? 'Konfirmasi tidak hadir tersimpan'
+      : pending
+        ? 'Bukti pembayaran sedang diperiksa'
+        : 'Kehadiran berhasil dikonfirmasi',
+    message: declined
+      ? 'Terima kasih. Konfirmasi Anda telah disimpan dan formulir sudah dikunci.'
+      : pending
+        ? 'Seluruh tiket dan kupon akan diterbitkan setelah pembayaran disetujui admin.'
+        : 'Tiket kehadiran dan kupon makan Anda sudah diproses.',
+    reference: registration?.id ? String(registration.id).slice(0, 8).toUpperCase() : undefined,
+    total: Number(registration?.total_amount || 0),
+  };
 }
 
 interface AddonOrder {
@@ -55,6 +87,10 @@ export default function PortalFormView() {
 
   // Department targeting
   const [userDepartment, setUserDepartment] = useState<string>('');
+  const [premiumStatusLoading, setPremiumStatusLoading] = useState(false);
+  const [premiumInitialAnswers, setPremiumInitialAnswers] = useState<Record<string, unknown>>({});
+  const [premiumInitialResult, setPremiumInitialResult] = useState<PremiumFormSubmitResult | null>(null);
+  const [premiumPaymentInstructions, setPremiumPaymentInstructions] = useState<PremiumPaymentInstructions | null>(null);
 
   // Card layout navigation state
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -75,6 +111,41 @@ export default function PortalFormView() {
       fetchUserDepartment();
     }
   }, [formId]);
+
+  useEffect(() => {
+    if (form?.experience_version !== 2 || !programId || !user) return;
+    let cancelled = false;
+    const fetchRegistrationStatus = async () => {
+      setPremiumStatusLoading(true);
+      try {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (!token) return;
+        const response = await fetch(`/api/portal/programs/${encodeURIComponent(programId)}/registration-v2`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Status registrasi belum dapat dimuat.');
+        if (cancelled) return;
+        setPremiumPaymentInstructions(payload.payment_instructions || null);
+        const registration = payload.data;
+        if (!registration) return;
+        const payment = registration.payments?.[0];
+        const proofRecorded = Boolean(payment?.proof_url || payment?.proof_path);
+        if (registration.registration_status === 'draft' || (registration.payment_status === 'pending' && !proofRecorded)) {
+          setPremiumInitialAnswers(registration.answers_snapshot || {});
+          return;
+        }
+        setPremiumInitialAnswers(registration.answers_snapshot || {});
+        setPremiumInitialResult(mapPremiumRegistrationResult(registration));
+      } catch (statusError) {
+        console.warn('[Form V2] Registration status:', statusError);
+      } finally {
+        if (!cancelled) setPremiumStatusLoading(false);
+      }
+    };
+    void fetchRegistrationStatus();
+    return () => { cancelled = true; };
+  }, [form?.experience_version, programId, user?.id]);
 
   const fetchUserDepartment = async () => {
     if (!user?.nik) return;
@@ -117,6 +188,13 @@ export default function PortalFormView() {
       let input_style = 'rounded';
       let bg_image_url = '';
       let card_glassmorphism = false;
+      let experience_version: 1 | 2 = 1;
+      let theme_config: FormConfig['theme'];
+      let outcomes: FormConfig['outcomes'];
+      let default_outcome_id: string | undefined;
+      let review_enabled = true;
+      let autosave_draft = false;
+      let program_automation: FormConfig['program_automation'];
       try {
         const parsed = JSON.parse(data.description);
         if (parsed.text !== undefined) {
@@ -128,6 +206,13 @@ export default function PortalFormView() {
           input_style = parsed.input_style || 'rounded';
           bg_image_url = parsed.bg_image_url || '';
           card_glassmorphism = parsed.card_glassmorphism || false;
+          experience_version = parsed.experience_version === 2 ? 2 : 1;
+          theme_config = parsed.theme_config;
+          outcomes = parsed.outcomes;
+          default_outcome_id = parsed.default_outcome_id;
+          review_enabled = parsed.review_enabled ?? true;
+          autosave_draft = parsed.autosave_draft ?? false;
+          program_automation = parsed.program_automation;
         }
       } catch(e) {}
       
@@ -139,6 +224,13 @@ export default function PortalFormView() {
       (data as any).input_style = input_style;
       (data as any).bg_image_url = bg_image_url;
       (data as any).card_glassmorphism = card_glassmorphism;
+      (data as any).experience_version = experience_version;
+      (data as any).theme = theme_config;
+      (data as any).outcomes = outcomes;
+      (data as any).default_outcome_id = default_outcome_id;
+      (data as any).review_enabled = review_enabled;
+      (data as any).autosave_draft = autosave_draft;
+      (data as any).program_automation = program_automation;
 
       setForm(data);
       
@@ -446,6 +538,86 @@ export default function PortalFormView() {
     }
   };
 
+  const uploadPremiumFile = async (fieldId: string, file: File): Promise<string> => {
+    const field = form?.fields.find(candidate => candidate.id === fieldId);
+    const maximumMb = field?.max_size_mb || (fieldId === 'payment-proof' ? 8 : 5);
+    if (file.size > maximumMb * 1024 * 1024) throw new Error(`Ukuran file maksimal ${maximumMb} MB.`);
+    if (fieldId === 'payment-proof' && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      throw new Error('Bukti pembayaran harus berupa JPG, PNG, atau WEBP.');
+    }
+    const extension = file.name.split('.').pop()?.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'bin';
+    const uniqueName = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const filePath = `${user?.id}/${fieldId}/${uniqueName}.${extension}`;
+    const { error: uploadError } = await supabase.storage.from('program-files').upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+      metadata: { owner: user?.id, field_id: fieldId },
+    });
+    if (uploadError) throw uploadError;
+    if (fieldId === 'payment-proof') return filePath;
+    return supabase.storage.from('program-files').getPublicUrl(filePath).data.publicUrl;
+  };
+
+  const handlePremiumSubmit = async (submission: PremiumFormSubmitPayload): Promise<PremiumFormSubmitResult> => {
+    if (!user || !formId) throw new Error('Sesi Anda tidak valid. Silakan masuk kembali.');
+
+    const serverAnswers: Record<string, unknown> = { ...submission.answers };
+    Object.entries(submission.addonOrders).forEach(([fieldId, orders]) => { serverAnswers[fieldId] = orders; });
+    if (submission.paymentMethod) serverAnswers._payment_method = submission.paymentMethod;
+
+    if (!programId) {
+      if (submission.total > 0) throw new Error('Formulir berbayar harus dihubungkan ke program kerja sebelum dipublikasikan.');
+      const { data, error: responseError } = await supabase.from('dynamic_form_responses').insert({
+        form_id: formId,
+        user_id: user.id,
+        answers: serverAnswers,
+      }).select('id').single();
+      if (responseError) throw responseError;
+      const declined = Boolean(submission.outcomeId && form?.outcomes?.find(outcome => outcome.id === submission.outcomeId)?.kind === 'declined');
+      return {
+        status: declined ? 'declined' : 'success',
+        reference: data?.id ? String(data.id).slice(0, 8).toUpperCase() : undefined,
+        total: 0,
+      };
+    }
+
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    if (!token) throw new Error('Sesi login berakhir. Silakan masuk kembali.');
+    const submitResponse = await fetch(`/api/portal/programs/${encodeURIComponent(programId)}/registration-v2/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ answers: serverAnswers }),
+    });
+    const submitPayload = await submitResponse.json().catch(() => ({}));
+    if (!submitResponse.ok) throw new Error(submitPayload.error || submitPayload.message || 'Registrasi belum berhasil disimpan.');
+
+    const registration = submitPayload.data;
+    if (submission.total > 0) {
+      if (!submission.paymentProof) throw new Error('Bukti pembayaran wajib diunggah.');
+      const payment = submitPayload.payment || registration?.payments?.[0];
+      if (!payment?.id) throw new Error('Data pembayaran belum tersedia. Hubungi admin program.');
+      const proofUrl = await uploadPremiumFile('payment-proof', submission.paymentProof);
+      const proofResponse = await fetch(`/api/portal/programs/${encodeURIComponent(programId)}/registration-v2/payment-proof`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ paymentId: payment.id, proofUrl, declaredAmount: submission.total }),
+      });
+      const proofPayload = await proofResponse.json().catch(() => ({}));
+      if (!proofResponse.ok) throw new Error(proofPayload.error || proofPayload.message || 'Bukti pembayaran belum berhasil dicatat.');
+      return {
+        status: 'pending',
+        title: 'Bukti pembayaran sedang diperiksa',
+        message: proofPayload.message || 'Tiket dan kupon akan diterbitkan setelah pembayaran disetujui admin.',
+        reference: registration?.id ? String(registration.id).slice(0, 8).toUpperCase() : undefined,
+        total: Number(registration?.total_amount || submission.total),
+      };
+    }
+
+    return mapPremiumRegistrationResult(registration);
+  };
+
   const handleBackCard = () => {
     if (currentCardIndex > 0) {
       setCurrentCardIndex(currentCardIndex - 1);
@@ -690,6 +862,45 @@ export default function PortalFormView() {
           <button onClick={() => navigate('/portal')} className="w-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-4 rounded-2xl font-black">Kembali</button>
         </div>
       </div>
+    );
+  }
+
+  if (form?.experience_version === 2) {
+    if (premiumStatusLoading) {
+      return <div className="min-h-screen bg-zinc-50 flex items-center justify-center dark:bg-zinc-950"><div className="text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-indigo-600" /><p className="mt-3 text-sm font-semibold text-zinc-500">Menyiapkan pengalaman formulir…</p></div></div>;
+    }
+    const premiumForm: FormConfig = {
+      ...form,
+      fields: form.fields.map(field => field.type !== 'payment_section' || !premiumPaymentInstructions
+        ? field
+        : {
+            ...field,
+            qris_image_url: premiumPaymentInstructions.qris_image_url || field.qris_image_url,
+            account_name: premiumPaymentInstructions.account_name || field.account_name,
+            bank_accounts: premiumPaymentInstructions.account_number
+              ? [{
+                  id: 'program-payment-account',
+                  bank_name: premiumPaymentInstructions.method || 'Transfer bank',
+                  account_number: premiumPaymentInstructions.account_number,
+                  account_name: premiumPaymentInstructions.account_name || '',
+                }]
+              : field.bank_accounts,
+            payment_description: premiumPaymentInstructions.instructions || field.payment_description,
+            proof_required: premiumPaymentInstructions.proof_required ?? field.proof_required,
+          }),
+    };
+    return (
+      <PremiumFormExperience
+        form={premiumForm}
+        initialAnswers={premiumInitialAnswers}
+        initialResult={premiumInitialResult}
+        draftKey={`sps-form-draft:${form.id}:${user.id}`}
+        respondentName={user.name}
+        programName={programId ? 'Program Kerja SPS' : undefined}
+        onBack={() => navigate(programId ? `/portal/program/${programId}` : '/portal/forms')}
+        onUploadFile={uploadPremiumFile}
+        onSubmit={handlePremiumSubmit}
+      />
     );
   }
 

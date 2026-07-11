@@ -8,7 +8,7 @@ interface ParsedAIResult {
 
 const SUPPORTED_FIELD_TYPES: FieldType[] = [
   'text', 'textarea', 'number', 'select', 'radio', 'checkbox', 'image_choice',
-  'rating', 'scale', 'file_upload', 'image', 'addon_group', 'date', 'payment_section',
+  'rating', 'scale', 'file_upload', 'image', 'addon_group', 'repeater', 'date', 'payment_section',
 ];
 
 function createSafeId(rawId: unknown, index: number, usedIds: Set<string>): string {
@@ -36,6 +36,8 @@ function sanitizeFields(updatedForm: any): FormField[] {
           label: String(option.label).trim(),
           image: option.image ? String(option.image) : undefined,
           price: Number.isFinite(Number(option.price)) ? Number(option.price) : undefined,
+          outcome_id: option.outcome_id ? String(option.outcome_id) : undefined,
+          helper_text: option.helper_text ? String(option.helper_text) : undefined,
         }))
       : undefined;
 
@@ -50,15 +52,41 @@ function sanitizeFields(updatedForm: any): FormField[] {
       required: type === 'payment_section' ? false : field.required === true,
       placeholder: String(field.placeholder || ''),
       description: String(field.description || ''),
+      system_key: field.system_key ? String(field.system_key) : undefined,
       options,
-      max: type === 'rating' ? Math.min(10, Math.max(3, Number(field.max) || 5)) : undefined,
+      min: type === 'number' && Number.isFinite(Number(field.min)) ? Number(field.min) : undefined,
+      max: type === 'rating'
+        ? Math.min(10, Math.max(3, Number(field.max) || 5))
+        : type === 'number' && Number.isFinite(Number(field.max)) ? Number(field.max) : undefined,
+      step: type === 'number' && Number.isFinite(Number(field.step)) ? Number(field.step) : undefined,
+      unit_price: type === 'number' && Number.isFinite(Number(field.unit_price)) ? Math.max(0, Number(field.unit_price)) : undefined,
       max_scale: type === 'scale' ? Math.min(10, Math.max(2, Number(field.max_scale) || 10)) : undefined,
       items: type === 'addon_group' && Array.isArray(field.items) ? field.items : undefined,
       allow_multiple: type === 'addon_group' ? (field.allow_multiple ?? true) : undefined,
+      subfields: type === 'repeater' && Array.isArray(field.subfields)
+        ? sanitizeFields({ fields: field.subfields })
+        : undefined,
+      min_items: type === 'repeater' ? Math.max(0, Number(field.min_items) || 0) : undefined,
+      max_items: type === 'repeater' ? Math.max(1, Number(field.max_items) || 10) : undefined,
+      item_label: type === 'repeater' ? String(field.item_label || 'Anggota') : undefined,
+      item_unit_price: type === 'repeater' && Number.isFinite(Number(field.item_unit_price)) ? Math.max(0, Number(field.item_unit_price)) : undefined,
       qris_image_url: type === 'payment_section' ? String(field.qris_image_url || '') : undefined,
       account_name: type === 'payment_section' ? String(field.account_name || '') : undefined,
       payment_description: type === 'payment_section' ? String(field.payment_description || '') : undefined,
-      verify_with_ai: type === 'payment_section' ? (field.verify_with_ai ?? true) : undefined,
+      verify_with_ai: type === 'payment_section' ? false : undefined,
+      payment_methods: type === 'payment_section' && Array.isArray(field.payment_methods)
+        ? field.payment_methods.filter((method: unknown) => method === 'bank_transfer' || method === 'manual_qris')
+        : undefined,
+      bank_accounts: type === 'payment_section' && Array.isArray(field.bank_accounts)
+        ? field.bank_accounts.slice(0, 10).map((account: any, accountIndex: number) => ({
+            id: String(account?.id || `bank_${accountIndex + 1}`),
+            bank_name: String(account?.bank_name || ''),
+            account_number: String(account?.account_number || ''),
+            account_name: String(account?.account_name || ''),
+          }))
+        : undefined,
+      payment_required_when: type === 'payment_section' ? (field.payment_required_when === 'always' ? 'always' : 'total_positive') : undefined,
+      proof_required: type === 'payment_section' ? field.proof_required !== false : undefined,
     };
   });
 
@@ -158,6 +186,22 @@ export function parseAIResponse(response: { message: string; updatedForm?: any }
 
   let updatedForm: FormConfig | null = null;
   if (formUpdates && (formUpdates.fields || formUpdates.title)) {
+    const outcomes = Array.isArray(formUpdates.outcomes)
+      ? formUpdates.outcomes.slice(0, 20).flatMap((outcome: any, index: number) => {
+          if (!outcome || typeof outcome !== 'object') return [];
+          const kind = ['declined', 'confirmed', 'pending_payment', 'submitted'].includes(outcome.kind)
+            ? outcome.kind
+            : 'submitted';
+          return [{
+            id: String(outcome.id || `outcome_${index + 1}`),
+            kind,
+            title: String(outcome.title || 'Formulir selesai'),
+            message: outcome.message ? String(outcome.message) : undefined,
+            button_label: outcome.button_label ? String(outcome.button_label) : undefined,
+            issue_entitlements: outcome.issue_entitlements === true,
+          }];
+        })
+      : currentForm?.outcomes;
     updatedForm = {
       // Form identity is controlled by the database, never by model output.
       id: currentForm?.id,
@@ -170,6 +214,13 @@ export function parseAIResponse(response: { message: string; updatedForm?: any }
       input_style: formUpdates.input_style || currentForm?.input_style || 'rounded',
       bg_image_url: formUpdates.bg_image_url ?? currentForm?.bg_image_url ?? '',
       card_glassmorphism: formUpdates.card_glassmorphism ?? currentForm?.card_glassmorphism ?? false,
+      experience_version: formUpdates.experience_version === 2 ? 2 : currentForm?.experience_version || 1,
+      theme: formUpdates.theme || currentForm?.theme,
+      outcomes,
+      default_outcome_id: formUpdates.default_outcome_id ?? currentForm?.default_outcome_id,
+      review_enabled: formUpdates.review_enabled ?? currentForm?.review_enabled ?? true,
+      autosave_draft: formUpdates.autosave_draft ?? currentForm?.autosave_draft ?? true,
+      program_automation: formUpdates.program_automation || currentForm?.program_automation,
       fields: Array.isArray(formUpdates.fields) ? sanitizeFields(formUpdates) : (currentForm?.fields || []),
     };
   }
