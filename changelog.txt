@@ -1,3 +1,16 @@
+v5.8.2 — Form Studio V2 Review & Agent Handoff Documentation (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Perubahan Form Studio, AI, RSVP, pembayaran, dan QR tersebar pada puluhan file sehingga agent baru berisiko mengulang audit atau menganggap bagian parsial sudah production-ready.
+- Dokumentasi schema sebelumnya terlalu umum ketika menjelaskan write boundary; admin builder memang menulis workflow config melalui RLS, sementara transaksi responden tetap wajib melalui backend.
+
+### Perbaikan:
+- **[DOCS]** Menambahkan dokumen handoff rinci berisi workflow lama vs baru, arsitektur, alur AI, payment, QR, data model, file inventory, status implementasi, known gaps, serta urutan review.
+- **[DOCS]** Menambahkan tautan dokumen handoff pada README agar agent berikutnya menemukannya saat orientasi awal.
+- **[DOCS]** Menandai migration production yang belum aktif dan membedakan status implemented, partial, blocked, serta schema-only.
+- **[DOCS]** Mengoreksi batas kepercayaan: admin dapat menulis config melalui RLS; respondent tidak dapat menulis tabel transaksi workflow.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, changelog, dan error history disinkronkan ke v5.8.2.
+
 v5.8.1 — Server-side Form Path & Answer Validation Hardening (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

@@ -1,4 +1,5 @@
 Riwayat Error & Fix:
+- [FIXED] Dokumentasi workflow tersebar dan write boundary admin/config versus respondent/transaction belum dijelaskan akurat; ditambahkan review handoff terpusat (v5.8.2).
 - [FIXED] Endpoint registrasi V2 belum menolak opsi palsu, angka di luar batas, detail repeater tidak lengkap, dan jawaban sesudah terminal outcome; validasi authoritative server ditambahkan (v5.8.1).
 - [FIXED] UI Form Builder masih terasa seperti form editor biasa karena field editor memenuhi canvas; diganti Premium Form Studio dengan palette/canvas/inspector/logic map terpisah (v5.8.0).
 - [FIXED] Preview admin dan halaman pengisi memakai renderer berbeda sehingga form Card dapat tampak kosong atau bercabang tidak konsisten; Form Experience V2 kini digunakan bersama (v5.8.0).

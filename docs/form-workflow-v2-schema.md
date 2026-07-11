@@ -81,7 +81,11 @@ The values above are examples, not production prices. Confirm XXL/XXXL surcharge
 
 ## Server-side consistency boundary
 
-The application never writes these workflow tables directly from the browser. The Express workflow route performs retry-safe, idempotent orchestration that:
+Authenticated admins may create or update program workflow configuration from
+the builder through admin-only RLS policies. Respondent browsers never write
+the transactional workflow tables directly. The Express workflow route
+performs retry-safe, idempotent orchestration for registrations, price items,
+payments, and coupon issuance:
 
 1. Authenticates the current user and loads their NIK from trusted profile/employee data.
 2. Locks the active workflow configuration for the selected program.
