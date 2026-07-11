@@ -75,6 +75,35 @@ export function getVisibleWorkflowFields(fields: any[], answers: Record<string, 
   });
 }
 
+/**
+ * Terminal outcomes (for example "Tidak Hadir") close the respondent path.
+ * Answers after that option are intentionally excluded from validation,
+ * pricing, and persistence even if they were submitted by a modified client.
+ */
+export function getActiveWorkflowFields(fields: any[], answers: Record<string, any>): any[] {
+  const activeFields: any[] = [];
+
+  for (const field of getVisibleWorkflowFields(fields, answers)) {
+    activeFields.push(field);
+    if (!Array.isArray(field?.options) || field.options.length === 0) continue;
+
+    const rawAnswer = answers[field.id];
+    const selectedValues = (Array.isArray(rawAnswer) ? rawAnswer : [rawAnswer])
+      .map(normalizeWorkflowValue)
+      .filter(Boolean);
+    const reachesTerminalOutcome = field.options.some((option: any) =>
+      option?.outcome_id
+      && (
+        selectedValues.includes(normalizeWorkflowValue(option.value))
+        || selectedValues.includes(normalizeWorkflowValue(option.label))
+      )
+    );
+    if (reachesTerminalOutcome) break;
+  }
+
+  return activeFields;
+}
+
 function bindingDefinition(workflow: any, key: string): any {
   const binding = workflow?.field_bindings?.[key];
   return typeof binding === "string" ? { field_id: binding } : (isPlainObject(binding) ? binding : null);
@@ -305,7 +334,7 @@ function validateAnswersPayload(answers: unknown): Record<string, any> {
 }
 
 function visibleAnswerSnapshot(fields: any[], answers: Record<string, any>) {
-  const visibleFields = getVisibleWorkflowFields(fields, answers);
+  const visibleFields = getActiveWorkflowFields(fields, answers);
   const snapshot: Record<string, any> = {};
   for (const field of visibleFields) {
     if (Object.prototype.hasOwnProperty.call(answers, field.id)) snapshot[field.id] = answers[field.id];
@@ -313,7 +342,69 @@ function visibleAnswerSnapshot(fields: any[], answers: Record<string, any>) {
   return { visibleFields, snapshot };
 }
 
-function validateRequiredFields(visibleFields: any[], answers: Record<string, any>) {
+function assertConfiguredOption(field: any, value: unknown, label: string) {
+  if (!Array.isArray(field?.options) || field.options.length === 0) return;
+  const normalized = normalizeWorkflowValue(value);
+  const allowed = field.options.some((option: any) =>
+    normalizeWorkflowValue(option?.value) === normalized
+    || normalizeWorkflowValue(option?.label) === normalized
+  );
+  if (!allowed) {
+    throw new WorkflowHttpError(422, "INVALID_OPTION", `${label} berisi pilihan yang tidak tersedia.`, {
+      field_id: field.id,
+    });
+  }
+}
+
+function validateFieldValue(field: any, value: unknown, label: string) {
+  if (!hasAnswer(value)) return;
+
+  if (["select", "radio", "image_choice"].includes(field.type)) {
+    if (Array.isArray(value) || isPlainObject(value)) {
+      throw new WorkflowHttpError(422, "INVALID_OPTION", `${label} harus berisi satu pilihan.`, {
+        field_id: field.id,
+      });
+    }
+    assertConfiguredOption(field, value, label);
+  }
+
+  if (field.type === "checkbox") {
+    if (!Array.isArray(value)) {
+      throw new WorkflowHttpError(422, "INVALID_OPTION", `${label} harus berupa daftar pilihan.`, {
+        field_id: field.id,
+      });
+    }
+    value.forEach(selectedValue => assertConfiguredOption(field, selectedValue, label));
+  }
+
+  if (field.type === "number") {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) {
+      throw new WorkflowHttpError(422, "INVALID_NUMBER", `${label} harus berupa angka yang valid.`, {
+        field_id: field.id,
+      });
+    }
+    const minimum = field.min === undefined ? null : Number(field.min);
+    const maximum = field.max === undefined ? null : Number(field.max);
+    if ((minimum !== null && !Number.isFinite(minimum)) || (maximum !== null && !Number.isFinite(maximum))) {
+      throw new WorkflowHttpError(422, "INVALID_NUMBER_CONFIG", `Konfigurasi batas ${label} tidak valid.`, {
+        field_id: field.id,
+      });
+    }
+    if (minimum !== null && numberValue < minimum) {
+      throw new WorkflowHttpError(422, "NUMBER_OUT_OF_RANGE", `${label} minimal ${field.min}.`, {
+        field_id: field.id,
+      });
+    }
+    if (maximum !== null && numberValue > maximum) {
+      throw new WorkflowHttpError(422, "NUMBER_OUT_OF_RANGE", `${label} maksimal ${field.max}.`, {
+        field_id: field.id,
+      });
+    }
+  }
+}
+
+export function validateWorkflowAnswers(visibleFields: any[], answers: Record<string, any>) {
   const missing = visibleFields.filter(field => {
     if (!field?.required || field.type === "payment_section") return false;
     const answer = answers[field.id];
@@ -329,6 +420,66 @@ function validateRequiredFields(visibleFields: any[], answers: Record<string, an
       `Kolom wajib belum diisi: ${missing.map(field => field.label).join(", ")}.`,
       { field_ids: missing.map(field => field.id) },
     );
+  }
+
+  for (const field of visibleFields) {
+    const answer = answers[field.id];
+    const fieldLabel = field.label || field.id || "Pertanyaan";
+
+    if (field.type !== "repeater") {
+      validateFieldValue(field, answer, fieldLabel);
+      continue;
+    }
+
+    const rows = answer === undefined || answer === null ? [] : answer;
+    if (!Array.isArray(rows)) {
+      throw new WorkflowHttpError(422, "INVALID_REPEATER", `${fieldLabel} harus berupa daftar data.`, {
+        field_id: field.id,
+      });
+    }
+
+    const configuredMin = field.min_items === undefined ? 0 : Number(field.min_items);
+    const configuredMax = field.max_items === undefined
+      ? MAX_FAMILY_MEMBERS_HARD_LIMIT
+      : Number(field.max_items);
+    if (!Number.isInteger(configuredMin) || !Number.isInteger(configuredMax)
+      || configuredMin < 0 || configuredMin > MAX_FAMILY_MEMBERS_HARD_LIMIT
+      || configuredMax < configuredMin) {
+      throw new WorkflowHttpError(422, "INVALID_REPEATER_CONFIG", `Konfigurasi ${fieldLabel} tidak valid.`);
+    }
+    const maximum = Math.min(configuredMax, MAX_FAMILY_MEMBERS_HARD_LIMIT);
+    if (rows.length < configuredMin || rows.length > maximum) {
+      throw new WorkflowHttpError(
+        422,
+        "REPEATER_OUT_OF_RANGE",
+        `${fieldLabel} harus berisi antara ${configuredMin} dan ${maximum} data.`,
+        { field_id: field.id },
+      );
+    }
+
+    const subfields = Array.isArray(field.subfields) ? field.subfields : [];
+    rows.forEach((row: unknown, rowIndex: number) => {
+      if (!isPlainObject(row)) {
+        throw new WorkflowHttpError(
+          422,
+          "INVALID_REPEATER_ROW",
+          `${fieldLabel} baris ${rowIndex + 1} tidak valid.`,
+          { field_id: field.id, row_index: rowIndex },
+        );
+      }
+      for (const subfield of subfields) {
+        const subfieldValue = row[subfield.id];
+        const subfieldLabel = `${subfield.label || subfield.id} anggota ke-${rowIndex + 1}`;
+        if (subfield.required && !hasAnswer(subfieldValue)) {
+          throw new WorkflowHttpError(422, "MISSING_REPEATER_FIELD", `${subfieldLabel} wajib diisi.`, {
+            field_id: field.id,
+            subfield_id: subfield.id,
+            row_index: rowIndex,
+          });
+        }
+        validateFieldValue(subfield, subfieldValue, subfieldLabel);
+      }
+    });
   }
 }
 
@@ -389,17 +540,36 @@ function sanitizeProofReference(value: unknown): string {
   throw new WorkflowHttpError(400, "INVALID_PROOF_REFERENCE", "Bukti pembayaran harus berupa URL HTTPS atau storage path yang valid.");
 }
 
-function paymentInstructions(workflow: any) {
+export function paymentInstructions(workflow: any) {
   const rules = isPlainObject(workflow?.payment_rules) ? workflow.payment_rules : {};
+  const configuredMethods = Array.isArray(rules.methods)
+    ? rules.methods.filter((method: unknown) => ["bank_transfer", "manual_qris"].includes(String(method)))
+    : [];
+  const fallbackMethod = String(rules.method || "");
+  const paymentMethods = configuredMethods.length > 0
+    ? configuredMethods
+    : fallbackMethod === "manual_qris"
+      ? ["manual_qris"]
+      : fallbackMethod === "manual_transfer_or_qris"
+        ? ["bank_transfer", "manual_qris"]
+        : ["bank_transfer"];
   return {
     provider: String(rules.provider || "manual"),
-    method: String(rules.method || "manual_transfer"),
+    method: paymentMethods[0],
+    payment_methods: paymentMethods,
     qris_image_url: typeof rules.qris_image_url === "string" ? rules.qris_image_url : null,
+    bank_name: typeof rules.bank_name === "string" ? rules.bank_name : null,
     account_name: typeof rules.account_name === "string" ? rules.account_name : null,
     account_number: typeof rules.account_number === "string" ? rules.account_number : null,
     instructions: typeof rules.instructions === "string" ? rules.instructions : null,
     proof_required: rules.proof_required !== false,
   };
+}
+
+export function resolveWorkflowPaymentMethod(workflow: any, requestedMethod?: unknown): string {
+  const instructions = paymentInstructions(workflow);
+  const requested = String(requestedMethod || "");
+  return instructions.payment_methods.includes(requested) ? requested : instructions.method;
 }
 
 async function authenticateRequest(supabase: any, req: any) {
@@ -811,9 +981,7 @@ async function expireUnlinkedLegacyEntitlements(supabase: any, registration: any
 
 async function createOrReusePendingPayment(supabase: any, registration: any, workflow: any, answerHash: string, requestedMethod?: unknown) {
   const instructions = paymentInstructions(workflow);
-  const paymentMethod = ["bank_transfer", "manual_qris"].includes(String(requestedMethod || ""))
-    ? String(requestedMethod)
-    : instructions.method;
+  const paymentMethod = resolveWorkflowPaymentMethod(workflow, requestedMethod);
   const idempotencyKey = `program-registration:${registration.id}:${answerHash}`;
   const referenceHash = crypto
     .createHash("sha256")
@@ -873,7 +1041,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       const { workflow, form } = await loadProgramContext(supabase, programId, profile);
 
       const { visibleFields, snapshot } = visibleAnswerSnapshot(form.fields || [], submittedAnswers);
-      validateRequiredFields(visibleFields, snapshot);
+      validateWorkflowAnswers(visibleFields, snapshot);
       const quote = buildRegistrationQuote(workflow, snapshot);
       const answerCanonical = canonicalJson(snapshot);
       const answerHash = crypto.createHash("sha256").update(answerCanonical).digest("hex");

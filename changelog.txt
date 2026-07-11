@@ -1,3 +1,17 @@
+v5.8.1 — Server-side Form Path & Answer Validation Hardening (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Validasi V2 di browser sudah membatasi repeater dan opsi, tetapi endpoint registrasi belum menegakkan aturan yang sama sehingga client yang dimodifikasi dapat mengirim opsi, angka, atau data anggota keluarga yang tidak valid.
+- Field setelah pilihan terminal masih dapat ikut masuk ke snapshot server apabila dikirim langsung, walaupun alur UI sudah berakhir.
+
+### Perbaikan:
+- **[SECURITY]** Server sekarang memvalidasi keanggotaan opsi, rentang angka, tipe repeater, jumlah minimum/maksimum, object setiap baris, dan subfield wajib.
+- **[SECURITY]** Metode pembayaran hanya dapat dipilih dari metode yang diaktifkan admin dan keputusan upload memakai total authoritative dari server.
+- **[FIX]** Pilihan terminal seperti “Tidak Hadir” memotong active path; jawaban lanjutan tidak divalidasi, dihitung, atau disimpan.
+- **[FIX]** Instruksi transfer kini menampilkan nama bank yang benar, bukan kode metode pembayaran.
+- **[TEST]** Menambahkan regresi untuk terminal outcome, spoofed option, number range, repeater limit, dan nama anggota wajib.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, changelog, dan error history disinkronkan ke v5.8.1.
+
 v5.8.0 — Premium Form Studio, Event RSVP Workflow & Manual Payment Approval (MINOR)
 ----------------------------------------------------------------------------------
 ### Root Cause Analysis:

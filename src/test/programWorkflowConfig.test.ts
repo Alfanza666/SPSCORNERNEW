@@ -16,6 +16,10 @@ describe('program workflow config builder', () => {
       family: { entry_unit_price: 30_000, max_members: 7 },
     });
     expect(config?.entitlement_rules).toEqual({ employee: ['attendance', 'meal'], family: ['attendance', 'meal'] });
+    expect(config?.payment_rules).toMatchObject({
+      provider: 'manual',
+      methods: ['bank_transfer', 'manual_qris'],
+    });
   });
 
   it('does not activate event workflow without an attendance binding', () => {

@@ -24,7 +24,9 @@ interface DynamicForm extends FormConfig {
 
 interface PremiumPaymentInstructions {
   method?: string;
+  payment_methods?: Array<'bank_transfer' | 'manual_qris'>;
   qris_image_url?: string;
+  bank_name?: string;
   account_name?: string;
   account_number?: string;
   instructions?: string;
@@ -594,7 +596,8 @@ export default function PortalFormView() {
     if (!submitResponse.ok) throw new Error(submitPayload.error || submitPayload.message || 'Registrasi belum berhasil disimpan.');
 
     const registration = submitPayload.data;
-    if (submission.total > 0) {
+    const authoritativeTotal = Number(registration?.total_amount || 0);
+    if (authoritativeTotal > 0) {
       if (!submission.paymentProof) throw new Error('Bukti pembayaran wajib diunggah.');
       const payment = submitPayload.payment || registration?.payments?.[0];
       if (!payment?.id) throw new Error('Data pembayaran belum tersedia. Hubungi admin program.');
@@ -602,7 +605,7 @@ export default function PortalFormView() {
       const proofResponse = await fetch(`/api/portal/programs/${encodeURIComponent(programId)}/registration-v2/payment-proof`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ paymentId: payment.id, proofUrl, declaredAmount: submission.total }),
+        body: JSON.stringify({ paymentId: payment.id, proofUrl, declaredAmount: authoritativeTotal }),
       });
       const proofPayload = await proofResponse.json().catch(() => ({}));
       if (!proofResponse.ok) throw new Error(proofPayload.error || proofPayload.message || 'Bukti pembayaran belum berhasil dicatat.');
@@ -611,7 +614,7 @@ export default function PortalFormView() {
         title: 'Bukti pembayaran sedang diperiksa',
         message: proofPayload.message || 'Tiket dan kupon akan diterbitkan setelah pembayaran disetujui admin.',
         reference: registration?.id ? String(registration.id).slice(0, 8).toUpperCase() : undefined,
-        total: Number(registration?.total_amount || submission.total),
+        total: authoritativeTotal,
       };
     }
 
@@ -875,12 +878,15 @@ export default function PortalFormView() {
         ? field
         : {
             ...field,
+            payment_methods: premiumPaymentInstructions.payment_methods?.length
+              ? premiumPaymentInstructions.payment_methods
+              : field.payment_methods,
             qris_image_url: premiumPaymentInstructions.qris_image_url || field.qris_image_url,
             account_name: premiumPaymentInstructions.account_name || field.account_name,
             bank_accounts: premiumPaymentInstructions.account_number
               ? [{
                   id: 'program-payment-account',
-                  bank_name: premiumPaymentInstructions.method || 'Transfer bank',
+                  bank_name: premiumPaymentInstructions.bank_name || 'Transfer bank',
                   account_number: premiumPaymentInstructions.account_number,
                   account_name: premiumPaymentInstructions.account_name || '',
                 }]

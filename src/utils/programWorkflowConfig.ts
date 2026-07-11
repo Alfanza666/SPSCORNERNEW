@@ -84,6 +84,7 @@ export function createProgramWorkflowConfig(
     },
     payment_rules: {
       provider: 'manual',
+      methods: payment?.payment_methods?.length ? payment.payment_methods : ['bank_transfer'],
       method: payment?.payment_methods?.includes('manual_qris') && payment.payment_methods.includes('bank_transfer')
         ? 'manual_transfer_or_qris'
         : payment?.payment_methods?.includes('manual_qris') ? 'manual_qris' : 'manual_transfer',

@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   buildDeterministicUuid,
   buildRegistrationQuote,
+  getActiveWorkflowFields,
   getVisibleWorkflowFields,
+  paymentInstructions,
+  resolveWorkflowPaymentMethod,
+  validateWorkflowAnswers,
 } from '../routes/programRegistrationWorkflow';
 
 const workflow = {
@@ -99,5 +103,75 @@ describe('Program Registration Workflow V2 form logic', () => {
     const first = buildDeterministicUuid('program:user:form');
     expect(first).toBe(buildDeterministicUuid('program:user:form'));
     expect(first).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('stops the active path after a terminal outcome', () => {
+    const fields = [
+      {
+        id: 'attendance',
+        type: 'radio',
+        options: [
+          { value: 'yes', label: 'Hadir' },
+          { value: 'no', label: 'Tidak Hadir', outcome_id: 'declined' },
+        ],
+      },
+      { id: 'shirt', type: 'select', required: true },
+    ];
+    expect(getActiveWorkflowFields(fields, { attendance: 'no', shirt: 'XXL' }).map(field => field.id))
+      .toEqual(['attendance']);
+  });
+
+  it('validates repeater limits and required member details on the server', () => {
+    const fields = [{
+      id: 'family_members',
+      type: 'repeater',
+      label: 'Anggota keluarga',
+      required: true,
+      min_items: 1,
+      max_items: 2,
+      subfields: [{ id: 'name', type: 'text', label: 'Nama', required: true }],
+    }];
+
+    expect(() => validateWorkflowAnswers(fields, { family_members: [{ name: '' }] }))
+      .toThrow(/Nama anggota ke-1 wajib diisi/);
+    expect(() => validateWorkflowAnswers(fields, {
+      family_members: [{ name: 'Ani' }, { name: 'Budi' }, { name: 'Citra' }],
+    })).toThrow(/antara 1 dan 2/);
+    expect(() => validateWorkflowAnswers(fields, { family_members: [{ name: 'Ani' }] }))
+      .not.toThrow();
+  });
+
+  it('rejects option spoofing and out-of-range numbers', () => {
+    const optionField = {
+      id: 'shirt',
+      type: 'select',
+      label: 'Ukuran baju',
+      required: true,
+      options: [{ value: 'S', label: 'Small' }],
+    };
+    const numberField = { id: 'count', type: 'number', label: 'Jumlah', required: true, min: 1, max: 5 };
+
+    expect(() => validateWorkflowAnswers([optionField], { shirt: 'XXXXL' }))
+      .toThrow(/pilihan yang tidak tersedia/);
+    expect(() => validateWorkflowAnswers([numberField], { count: 6 }))
+      .toThrow(/maksimal 5/);
+  });
+
+  it('accepts only payment methods enabled by the workflow', () => {
+    const paymentWorkflow = {
+      payment_rules: {
+        methods: ['bank_transfer'],
+        method: 'manual_transfer',
+        bank_name: 'Bank SPS',
+      },
+    };
+
+    expect(paymentInstructions(paymentWorkflow)).toMatchObject({
+      payment_methods: ['bank_transfer'],
+      method: 'bank_transfer',
+      bank_name: 'Bank SPS',
+    });
+    expect(resolveWorkflowPaymentMethod(paymentWorkflow, 'manual_qris')).toBe('bank_transfer');
+    expect(resolveWorkflowPaymentMethod(paymentWorkflow, 'bank_transfer')).toBe('bank_transfer');
   });
 });
