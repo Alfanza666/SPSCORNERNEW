@@ -1,8 +1,12 @@
-v5.9.2 — Pembersihan Komponen Accordion Formulir Pendaftaran Legacy (PATCH)
+v5.9.2 — Pembersihan Komponen Accordion Formulir Pendaftaran Legacy & Perbaikan Filter Program (PATCH)
 ------------------------------------------------------------------------
 ### Perbaikan:
 - **[CLEANUP] src/pages/dashboard/admin/AdminUnionPrograms.tsx:**
   Menghapus secara permanen accordion "Formulir Pendaftaran" legacy (Google Form style) dari modal buat/edit program kerja. Pengaturan formulir kini terpusat dan didelegasikan sepenuhnya ke Form Builder baru.
+
+- **[FIX] src/pages/dashboard/admin/AdminFormBuilder.tsx:**
+  Menghapus filter `.eq('is_active', true)` pada method `fetchPrograms` sehingga program yang baru dibuat (meski berstatus draft/non-aktif) tetap muncul di dropdown Program Acara pada tab Setup/Pengaturan Form Builder.
+
 
 v5.9.1 — Perbaikan Alur Form Builder & Cleanup Form Program Kerja (PATCH)
 ------------------------------------------------------------------------

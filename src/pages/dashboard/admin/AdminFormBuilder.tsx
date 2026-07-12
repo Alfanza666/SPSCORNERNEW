@@ -215,9 +215,8 @@ export default function AdminFormBuilder() {
     await runAIChat(updated);
   };
 
-  // ─── Data helpers ─────────────────────────────────────────────────────────
   const fetchPrograms = async () => {
-    const { data } = await supabase.from('union_programs').select('id, name, program_type, is_active').eq('is_active', true).order('name');
+    const { data } = await supabase.from('union_programs').select('id, name, program_type, is_active').order('name');
     if (data) setAvailablePrograms(data);
   };
 
