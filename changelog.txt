@@ -1,6 +1,16 @@
+v5.9.2 — Pembersihan Komponen Accordion Formulir Pendaftaran Legacy (PATCH)
+------------------------------------------------------------------------
+### Perbaikan:
+- **[CLEANUP] src/pages/dashboard/admin/AdminUnionPrograms.tsx:**
+  Menghapus secara permanen accordion "Formulir Pendaftaran" legacy (Google Form style) dari modal buat/edit program kerja. Pengaturan formulir kini terpusat dan didelegasikan sepenuhnya ke Form Builder baru.
+
 v5.9.1 — Perbaikan Alur Form Builder & Cleanup Form Program Kerja (PATCH)
 ------------------------------------------------------------------------
 ### Perbaikan:
+- **[FIX] src/components/forms/PremiumFormExperience.tsx:**
+  Memperbaiki bug di mana total biaya tambahan di halaman pembayaran manual selalu tampil sebagai **Rp 0**. 
+  Root cause: kode UI memanggil properti `evaluation.total` padahal data evaluasi alur menggunakan nama `evaluation.total_amount`.
+
 - **[FIX] src/pages/dashboard/admin/AdminFormBuilder.tsx:**
   Validasi "Formulir berbayar wajib dihubungkan ke Program Kerja" diubah dari
   hard block (return) menjadi soft warning toast kuning 5 detik. Form tetap

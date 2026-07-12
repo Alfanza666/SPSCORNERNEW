@@ -245,7 +245,7 @@ export default function PremiumFormExperience({
         ? await onSubmit({
             answers: evaluation.answers,
             addonOrders,
-            total: evaluation.total,
+            total: evaluation.total_amount,
             outcomeId: evaluation.outcome?.id || terminalOutcomeId,
             paymentMethod,
             paymentProof,
@@ -271,7 +271,7 @@ export default function PremiumFormExperience({
   const orderSummary = (
     <OrderSummary
       items={pricingLines.map(line => ({ id: `${line.field_id}-${line.option_value || 'line'}`, label: line.label, quantity: line.quantity, unitPrice: line.unit_price, amount: line.line_total }))}
-      total={evaluation.total}
+      total={evaluation.total_amount}
       emptyMessage="Tidak ada biaya tambahan."
       note={evaluation.requires_payment ? 'Hak dasar karyawan tetap aktif. Hanya QR keluarga yang menunggu pembayaran.' : 'Tidak ada pembayaran yang perlu diselesaikan.'}
     />
@@ -337,7 +337,7 @@ export default function PremiumFormExperience({
               <button type="button" onClick={handleNext} className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-indigo-600 dark:bg-white dark:text-zinc-950 dark:hover:bg-indigo-300">{questionIndex >= questions.length - 1 || terminalOutcomeId ? 'Periksa jawaban' : 'Lanjut'} <ArrowRight className="h-4 w-4" /></button>
             </div>
           </div>
-          {evaluation.total > 0 && <div className="mt-4 text-center text-xs font-bold text-indigo-600 dark:text-indigo-300">Biaya tambahan sementara: {formatCurrency(evaluation.total)}</div>}
+          {evaluation.total_amount > 0 && <div className="mt-4 text-center text-xs font-bold text-indigo-600 dark:text-indigo-300">Biaya tambahan sementara: {formatCurrency(evaluation.total_amount)}</div>}
         </div>
       )}
 
@@ -367,7 +367,7 @@ export default function PremiumFormExperience({
             {paymentField.payment_methods?.includes('manual_qris') && <ChoiceCard value="manual_qris" label="QRIS manual" description="Scan QRIS lalu unggah buktinya." selected={paymentMethod === 'manual_qris'} onChange={() => { setPaymentMethod('manual_qris'); setError(null); }} />}
           </div>
           <ManualPaymentStep
-            amount={evaluation.total}
+            amount={evaluation.total_amount}
             title="Selesaikan biaya tambahan"
             description={paymentField.payment_description || 'Bayar sesuai total, lalu unggah bukti untuk ditinjau admin.'}
             qrImageUrl={paymentMethod === 'manual_qris' ? paymentField.qris_image_url : undefined}
@@ -397,8 +397,9 @@ export default function PremiumFormExperience({
           reference={result.reference}
           details={[
             { id: 'status', label: 'Status', value: result.status === 'pending' ? 'Menunggu verifikasi admin' : result.status === 'declined' ? 'Tidak hadir' : 'Terkonfirmasi' },
-            { id: 'total', label: 'Total tambahan', value: formatCurrency(result.total ?? evaluation.total) },
+            { id: 'total', label: 'Total tambahan', value: formatCurrency(result.total ?? evaluation.total_amount) },
           ]}
+
           primaryAction={mode === 'preview' ? { label: 'Ulangi preview', onClick: () => { setAnswers({}); setQuestionIndex(0); setResult(null); setStage('cover'); } } : undefined}
           secondaryAction={onBack ? { label: 'Kembali ke portal', onClick: onBack } : undefined}
         >
