@@ -54,13 +54,13 @@ export function FormExperienceShell({
       style={shellStyle}
     >
       <header className="sticky top-0 z-40 border-b border-zinc-200/70 bg-white/85 backdrop-blur-xl dark:border-zinc-800/80 dark:bg-zinc-950/85">
-        <div className="mx-auto flex min-h-16 max-w-6xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center gap-2 px-3 py-2.5 sm:min-h-16 sm:gap-3 sm:px-6 sm:py-3 lg:px-8">
           {onBack ? (
             <button
               type="button"
               onClick={onBack}
               aria-label={backLabel}
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:-translate-y-0.5 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--experience-accent)] focus-visible:ring-offset-2 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-white dark:focus-visible:ring-offset-zinc-950"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:-translate-y-0.5 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--experience-accent)] focus-visible:ring-offset-2 sm:size-10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:text-white dark:focus-visible:ring-offset-zinc-950"
             >
               <ArrowLeft aria-hidden="true" className="size-4" />
             </button>
@@ -68,7 +68,7 @@ export function FormExperienceShell({
 
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div
-              className="flex size-10 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg"
+              className="flex size-9 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg sm:size-10"
               style={{ backgroundColor: accentColor, boxShadow: `0 10px 24px ${accentColor}33` }}
               aria-hidden="true"
             >
@@ -84,7 +84,7 @@ export function FormExperienceShell({
         </div>
 
         {progress && total > 0 ? (
-          <div className="mx-auto max-w-6xl px-4 pb-3 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-6xl px-3 pb-3 sm:px-6 lg:px-8">
             <div className="mb-1.5 flex items-center justify-between gap-4 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
               <span className="truncate">{progress.label ?? `Langkah ${current} dari ${total}`}</span>
               <span className="tabular-nums" aria-hidden="true">{percentage}%</span>
@@ -106,7 +106,7 @@ export function FormExperienceShell({
         ) : null}
       </header>
 
-      <main className={cx('mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8', contentClassName)}>
+      <main className={cx('mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-10 lg:px-8', contentClassName)}>
         {children}
       </main>
 
@@ -122,4 +122,3 @@ export function FormExperienceShell({
 }
 
 export default FormExperienceShell;
-

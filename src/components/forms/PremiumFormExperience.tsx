@@ -313,9 +313,9 @@ export default function PremiumFormExperience({
 
       {stage === 'questions' && currentField && (
         <div className="mx-auto max-w-3xl">
-          <div className="rounded-[2rem] border border-zinc-200 bg-white p-5 shadow-[0_30px_90px_-50px_rgba(24,24,27,0.7)] sm:p-9 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-[0_30px_90px_-50px_rgba(24,24,27,0.7)] sm:rounded-[2rem] sm:p-9 dark:border-zinc-800 dark:bg-zinc-900">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-300"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/50">{questionIndex + 1}</span> Informasi peserta</div>
-            <h2 className="mt-5 text-2xl font-black leading-tight tracking-tight text-zinc-950 sm:text-3xl dark:text-white">{currentField.label}{currentField.required && <span className="ml-1 text-rose-500">*</span>}</h2>
+            <h2 className="mt-5 text-xl font-black leading-tight tracking-tight text-zinc-950 sm:text-3xl dark:text-white">{currentField.label}{currentField.required && <span className="ml-1 text-rose-500">*</span>}</h2>
             {currentField.description && <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">{currentField.description}</p>}
             <div className="mt-7"><PremiumField
               field={currentField}
@@ -332,9 +332,9 @@ export default function PremiumFormExperience({
               }}
             /></div>
             {error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{error}</p>}
-            <div className="mt-8 flex items-center justify-between gap-3 border-t border-zinc-100 pt-6 dark:border-zinc-800">
-              <button type="button" onClick={handlePrevious} className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-bold text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"><ArrowLeft className="h-4 w-4" /> Kembali</button>
-              <button type="button" onClick={handleNext} className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-indigo-600 dark:bg-white dark:text-zinc-950 dark:hover:bg-indigo-300">{questionIndex >= questions.length - 1 || terminalOutcomeId ? 'Periksa jawaban' : 'Lanjut'} <ArrowRight className="h-4 w-4" /></button>
+            <div className="mt-8 flex flex-col-reverse gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
+              <button type="button" onClick={handlePrevious} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-bold text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"><ArrowLeft className="h-4 w-4" /> Kembali</button>
+              <button type="button" onClick={handleNext} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-indigo-600 dark:bg-white dark:text-zinc-950 dark:hover:bg-indigo-300">{questionIndex >= questions.length - 1 || terminalOutcomeId ? 'Periksa jawaban' : 'Lanjut'} <ArrowRight className="h-4 w-4" /></button>
             </div>
           </div>
           {evaluation.total_amount > 0 && <div className="mt-4 text-center text-xs font-bold text-indigo-600 dark:text-indigo-300">Biaya tambahan sementara: {formatCurrency(evaluation.total_amount)}</div>}

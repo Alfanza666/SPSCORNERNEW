@@ -1,3 +1,80 @@
+v5.10.4 - Portal Kantin Shortcut & Layout Scroll Reset (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Portal mobile belum memiliki akses cepat ke Kantin/Kiosk pada bottom navigation, sehingga pengguna harus membuka sidebar/drawer terlebih dahulu.
+- Dashboard dan Portal memakai container scroll internal (`overflow-auto`). Saat berpindah subhalaman, React mengganti outlet tanpa mereset posisi scroll container, sehingga halaman baru terbuka di posisi scroll lama pada mobile maupun desktop.
+
+### Perbaikan:
+- **[MOBILE UX] src/pages/dashboard/PortalLayout.tsx:** Bottom nav portal mobile sekarang berisi Home, Program, Kantin, Formulir, dan Profil; tombol Kantin dibuat menonjol dan mengarah aman ke `/kiosk`.
+- **[UX FIX] src/pages/dashboard/DashboardLayout.tsx:** Menambahkan auto-scroll-to-top pada container konten dashboard setiap berpindah subhalaman biasa.
+- **[UX FIX] src/pages/dashboard/PortalLayout.tsx:** Menambahkan auto-scroll-to-top pada container konten portal setiap berpindah subhalaman biasa.
+- **[ANCHOR SAFETY]** URL dengan hash/anchor tidak dipaksa ke atas agar deep link section tetap bisa bekerja.
+- **[SAFETY]** Tidak ada perubahan pada logika Kiosk, checkout, PPOB, cart, database, atau backend.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.10.4.
+
+v5.10.3 - Portal Mobile Quick Kantin Access (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Bottom navigation portal mobile belum menyediakan akses cepat ke Kantin/Kiosk. Akses tersebut hanya tersedia di sidebar/drawer, sehingga pengguna ponsel perlu membuka menu terlebih dahulu dan berpotensi bingung saat ingin kembali belanja.
+- Menambahkan item keenam akan membuat bottom nav terlalu padat, sehingga prioritas mobile perlu disederhanakan.
+
+### Perbaikan:
+- **[MOBILE UX] src/pages/dashboard/PortalLayout.tsx:** Bottom nav portal mobile sekarang berisi Home, Program, Kantin, Formulir, dan Profil.
+- **[UX]** Tombol Kantin dibuat menonjol sebagai quick action dan mengarah aman ke `/kiosk`.
+- **[SAFETY]** Pengaduan tetap tersedia melalui sidebar/menu portal, dan tidak ada perubahan pada logika Kiosk, checkout, PPOB, cart, database, atau backend.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.10.3.
+
+v5.10.2 - Ticket QR 3:4 Frame Layout (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Komponen frame tiket masih memakai rasio kotak (`aspect-square`) dan posisi elemen dinamis mengikuti desain lama. Frame QR baru memakai rasio 3:4, sehingga QR, judul, data peserta, status, dan branding berisiko tidak proporsional bila tetap memakai layout lama.
+- Data peserta sebelumnya ditaruh sebagai teks satu baris di area bawah sehingga mudah berdesakan saat nama/kode lebih panjang.
+
+### Perbaikan:
+- **[UI/UX] src/components/portal/TicketQrFrame.tsx:** Menggunakan asset `Frame QR New.png` sebagai background frame 3:4 tanpa dipotong.
+- **[UI/UX] src/components/portal/TicketQrFrame.tsx:** Mengatur logo, badge kategori, nama acara, jenis tiket, QR code, data peserta, kode tiket, status, dan branding SPS Corner memakai posisi persentase sesuai panduan kanvas.
+- **[SCANNER SAFETY]** QR diberi area putih, padding, dan jarak dari garis biru agar tetap mudah terbaca scanner.
+- **[SAFETY]** Tidak ada perubahan pada logika Kiosk, checkout, PPOB, cart, database, atau backend.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.10.2.
+
+v5.10.1 - Dashboard Mobile Quick Kiosk Nav (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Dashboard mobile belum memiliki bottom quick navigation. Tombol menuju Kiosk memang ada, tetapi tersembunyi di dalam drawer/sidebar sehingga pengguna ponsel harus membuka menu dulu untuk kembali belanja/akses kiosk.
+- Dampaknya UX terasa membingungkan untuk role admin/seller yang sering berpindah antara dashboard operasional dan kiosk.
+
+### Perbaikan:
+- **[MOBILE UX] src/pages/dashboard/DashboardLayout.tsx:** Menambahkan bottom navigation khusus dashboard mobile berisi Dashboard, Menu, Kiosk, dan Portal bila akun memiliki akses portal.
+- **[UX]** Tombol Kiosk dibuat paling menonjol sebagai quick action dan hanya melakukan navigasi aman ke `/kiosk`.
+- **[SAFETY]** Tidak ada perubahan pada file, route internal, store, cart, checkout, PPOB, atau logika Kiosk.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.10.1.
+
+v5.10.0 - Professional Mobile Portal & Dashboard Shell (MINOR)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Portal dan dashboard mobile masih terasa seperti desktop yang diperkecil: header terlalu tinggi, drawer terlalu padat, dropdown notifikasi rawan keluar viewport, dan akses menu utama portal terlalu bergantung pada sidebar.
+- Dashboard admin menampilkan semua grup menu dalam keadaan terbuka sehingga mobile drawer terasa panjang, berat, dan kurang profesional.
+
+### Perbaikan:
+- **[MOBILE UX] src/pages/dashboard/PortalLayout.tsx:** Menambahkan bottom navigation khusus mobile untuk akses cepat Dashboard, Program, Formulir, Aduan, dan Profil; bottom nav disembunyikan saat user sedang mengisi form detail agar tidak mengganggu.
+- **[MOBILE UX] src/pages/dashboard/DashboardLayout.tsx:** Header dashboard mobile dipendekkan, drawer dibuat lebih aman untuk layar kecil, dropdown notifikasi/user menu dibuat viewport-safe, dan grup menu admin hanya terbuka otomatis pada grup aktif atau saat pencarian.
+- **[SAFETY]** Tidak ada perubahan pada route, store, service, atau logika Kiosk/checkout/PPOB/cart.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.10.0.
+
+v5.9.8 - Mobile Portal & RSVP Responsive Polish (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Header portal, padding konten, kartu program, kartu tiket, dan modal QR masih memakai proporsi desktop sehingga di layar ponsel terasa sesak, terlalu tinggi, dan beberapa elemen horizontal saling menekan.
+- Detail program memakai margin ganda (`parent padding` + `mx-4`) yang membuat konten mobile terlalu sempit.
+- Modal tiket dan QRIS tampil seperti dialog desktop, bukan pola bottom-sheet yang lebih nyaman untuk pengguna mobile.
+
+### Perbaikan:
+- **[MOBILE] src/pages/dashboard/PortalLayout.tsx:** Header mobile dipendekkan, spacing dipadatkan, sidebar mobile dibuat lebih aman di layar kecil, dropdown notifikasi dan user menu dibatasi agar tidak keluar viewport.
+- **[MOBILE] src/pages/portal/PortalProgram.tsx:** List/detail Program Serikat, banner, CTA RSVP, kartu tiket/kupon, add-on keluarga, dan QRIS dibuat mobile-first dengan padding, radius, wrapping, dan bottom-sheet yang lebih rapi.
+- **[MOBILE] src/components/portal/TicketQrFrame.tsx:** Frame tiket disesuaikan untuk ponsel, judul dibatasi dua baris, dan QR dinamis diperbesar di dalam frame.
+- **[MOBILE] src/components/forms/experience/FormExperienceShell.tsx, EventCover.tsx, OutcomeScreen.tsx, src/components/forms/PremiumFormExperience.tsx:** Shell formulir, welcome cover, step pertanyaan, dan outcome screen dirapikan untuk layar kecil.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.9.8.
+
 v5.9.7 - Ticket QR Frame Modal & Program Return Fix (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

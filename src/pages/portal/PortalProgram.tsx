@@ -337,11 +337,11 @@ export default function PortalProgram() {
   // LIST VIEW
   if (!selectedProgram) {
     return (
-        <div className="space-y-8 pb-20">
-            <div className="flex items-center gap-4">
-                <button onClick={() => navigate('/portal')} className="p-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700"><ChevronLeft className="w-5 h-5 text-zinc-600" /></button>
-                <div>
-                    <h1 className="text-2xl font-black text-zinc-900 dark:text-white">Program Serikat</h1>
+        <div className="space-y-5 pb-24 sm:space-y-8">
+            <div className="flex items-center gap-3 sm:gap-4">
+                <button onClick={() => navigate('/portal')} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-100 bg-white dark:border-zinc-700 dark:bg-zinc-800"><ChevronLeft className="w-5 h-5 text-zinc-600" /></button>
+                <div className="min-w-0">
+                    <h1 className="truncate text-xl font-black text-zinc-900 sm:text-2xl dark:text-white">Program Serikat</h1>
                     <p className="text-sm text-zinc-500">Pilih program untuk detail</p>
                 </div>
             </div>
@@ -370,15 +370,15 @@ export default function PortalProgram() {
                           key={prog.id}
                           whileHover={{ scale: 1.01 }}
                           onClick={() => handleSelectProgram(prog)}
-                          className="group cursor-pointer overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-xl dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-800"
+                          className="group cursor-pointer overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-xl sm:rounded-3xl dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-800"
                         >
-                          <div className="grid min-h-[13rem] md:grid-cols-[minmax(220px,32%)_1fr]">
-                            <div className="relative min-h-44 overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                          <div className="grid md:min-h-[13rem] md:grid-cols-[minmax(220px,32%)_1fr]">
+                            <div className="relative min-h-40 overflow-hidden bg-zinc-100 sm:min-h-44 dark:bg-zinc-800">
                               {prog.banner_url ? (
                                 <img
                                   src={prog.banner_url}
                                   alt={prog.name}
-                                  className="h-full min-h-44 w-full object-cover transition duration-500 group-hover:scale-105"
+                                  className="h-full min-h-40 w-full object-cover transition duration-500 group-hover:scale-105 sm:min-h-44"
                                 />
                               ) : (
                                 <div className={`absolute inset-0 bg-gradient-to-br ${fallbackBannerClass}`}>
@@ -396,19 +396,19 @@ export default function PortalProgram() {
                               </span>
                             </div>
 
-                            <div className="flex min-w-0 flex-col justify-between gap-5 p-5 sm:p-6">
+                            <div className="flex min-w-0 flex-col justify-between gap-4 p-4 sm:gap-5 sm:p-6">
                               <div>
-                                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-zinc-400">
+                                <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-zinc-400 sm:text-xs">
                                   <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{prog.program_type || 'program'}</span>
                                   <span className="inline-flex items-center gap-1.5">
                                     <Calendar className="h-3.5 w-3.5" />
                                     {new Date(prog.start_date).toLocaleDateString()} - {new Date(prog.end_date).toLocaleDateString()}
                                   </span>
                                 </div>
-                                <h3 className="text-xl font-black leading-tight text-zinc-900 dark:text-white">{prog.name}</h3>
-                                <p className="mt-3 text-sm leading-6 text-zinc-500 line-clamp-3 dark:text-zinc-400">{description}</p>
+                                <h3 className="text-lg font-black leading-tight text-zinc-900 sm:text-xl dark:text-white">{prog.name}</h3>
+                                <p className="mt-2 text-sm leading-6 text-zinc-500 line-clamp-3 sm:mt-3 dark:text-zinc-400">{description}</p>
                               </div>
-                              <div className="flex items-center justify-between border-t border-zinc-100 pt-4 text-xs font-black text-zinc-400 dark:border-zinc-800">
+                              <div className="flex items-center justify-between border-t border-zinc-100 pt-4 text-[11px] font-black text-zinc-400 sm:text-xs dark:border-zinc-800">
                                 <span>Program Serikat</span>
                                 <span className="text-blue-600 dark:text-blue-300">Lihat detail</span>
                               </div>
@@ -438,17 +438,23 @@ export default function PortalProgram() {
   const programDescriptionHtml = sanitizeRichTextHtml(selectedProgram.description);
   
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-5 pb-24 sm:space-y-8 sm:pb-20">
       {/* SECTION 1: PROGRAM INFORMATION - CLAYMORPHISM CARD */}
-      <div className="mx-4">
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-[8px_8px_16px_rgba(0,0,0,0.08),-8px_-8px_16px_rgba(255,255,255,0.05)] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-8px_-8px_16px_rgba(255,255,255,0.02)] overflow-hidden">
+      <div className="mx-0 sm:mx-4">
+        <div className="overflow-hidden rounded-[1.5rem] bg-white shadow-[8px_8px_16px_rgba(0,0,0,0.08),-8px_-8px_16px_rgba(255,255,255,0.05)] sm:rounded-3xl dark:bg-zinc-900 dark:shadow-[8px_8px_16px_rgba(0,0,0,0.3),-8px_-8px_16px_rgba(255,255,255,0.02)]">
           {/* REAL BANNER or PLACEHOLDER */}
           {programBannerUrl ? (
-            <div className="relative w-full h-48 overflow-hidden">
+            <div className="relative h-44 w-full overflow-hidden bg-zinc-950 sm:h-56">
+              <img 
+                src={programBannerUrl} 
+                alt="" 
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
+              />
               <img 
                 src={programBannerUrl} 
                 alt={selectedProgram.name}
-                className="w-full h-full object-cover"
+                className="relative z-10 h-full w-full object-contain"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
             </div>
@@ -459,7 +465,7 @@ export default function PortalProgram() {
             </div>
           )}
           
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {/* Back Button */}
             <button 
               onClick={() => setSelectedProgram(null)} 
@@ -469,7 +475,7 @@ export default function PortalProgram() {
             </button>
             
             {/* Type & Date Badge */}
-            <div className="flex items-center gap-3 mb-4">
+            <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">
               <span className={`text-[10px] font-bold px-3 py-1.5 rounded-full uppercase shadow-inner ${
                 selectedProgram.program_type === 'kurban' ? 'bg-amber-100 text-amber-700' :
                 selectedProgram.program_type === 'bingkisan' ? 'bg-pink-100 text-pink-700' :
@@ -485,12 +491,12 @@ export default function PortalProgram() {
             </div>
             
             {/* Title */}
-            <h1 className="text-3xl font-black text-zinc-900 dark:text-white mb-4 leading-tight">
+            <h1 className="mb-4 text-2xl font-black leading-tight text-zinc-900 sm:text-3xl dark:text-white">
               {selectedProgram.name}
             </h1>
             
             {/* Full Description */}
-            <div className="prose prose-sm max-w-none text-zinc-500 dark:prose-invert dark:text-zinc-400">
+            <div className="prose prose-sm max-w-none overflow-hidden break-words text-zinc-500 dark:prose-invert dark:text-zinc-400">
               {programDescriptionHtml ? (
                 <div
                   className="leading-relaxed [&_blockquote]:border-l-4 [&_blockquote]:border-blue-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
@@ -505,20 +511,20 @@ export default function PortalProgram() {
       </div>
 
       {/* SECTION 2: DYNAMIC INTERACTION - CLAYMORPHISM CARDS */}
-      <div className="px-4 space-y-6">
+      <div className="space-y-4 sm:space-y-6 sm:px-4">
         {selectedProgram.dynamic_form_id && (
-          <section className="overflow-hidden rounded-[2rem] bg-zinc-950 text-white shadow-2xl dark:bg-zinc-900">
-            <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <section className="overflow-hidden rounded-[1.5rem] bg-zinc-950 text-white shadow-2xl sm:rounded-[2rem] dark:bg-zinc-900">
+            <div className="grid gap-5 p-4 sm:p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
               <div>
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-200"><FileText className="h-3.5 w-3.5" /> Konfirmasi digital</span>
-                <h2 className="mt-4 text-2xl font-black tracking-tight">Lengkapi RSVP program</h2>
+                <h2 className="mt-4 text-xl font-black tracking-tight sm:text-2xl">Lengkapi RSVP program</h2>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Jawaban mengikuti alur yang relevan, biaya dihitung otomatis, dan QR diterbitkan hanya setelah status valid.</p>
               </div>
               <button
                 type="button"
                 disabled={isProgramExpired}
                 onClick={() => navigate(`/portal/forms/${selectedProgram.dynamic_form_id}?programId=${selectedProgram.id}`)}
-                className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 text-sm font-black text-white shadow-xl shadow-indigo-950/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 text-sm font-black text-white shadow-xl shadow-indigo-950/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-14 sm:w-auto sm:px-6"
               >
                 <FileText className="h-5 w-5" /> {isProgramExpired ? 'Program sudah selesai' : 'Buka formulir RSVP'}
               </button>
@@ -527,14 +533,14 @@ export default function PortalProgram() {
         )}
 
         {selectedProgram.dynamic_form_id && myCoupons.length > 0 && (
-          <section className="rounded-[2rem] border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-start gap-3 mb-5">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"><QrCodeIcon className="h-5 w-5" /></span>
+          <section className="rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-sm sm:rounded-[2rem] sm:p-7 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="mb-5 flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 sm:h-11 sm:w-11 dark:bg-emerald-950/40 dark:text-emerald-300"><QrCodeIcon className="h-5 w-5" /></span>
               <div><h2 className="font-black text-zinc-900 dark:text-white">Tiket & kupon Anda</h2><p className="mt-1 text-xs leading-5 text-zinc-500">Setiap penerima dan setiap manfaat menggunakan QR terpisah.</p></div>
             </div>
 
             {/* Tabs: Attendance / Meal */}
-            <div className="flex gap-2 mb-5 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+            <div className="mb-5 flex gap-2 rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800">
               <button
                 onClick={() => setActiveTab('attendance')}
                 className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
@@ -572,20 +578,22 @@ export default function PortalProgram() {
                     const beneficiary = getCouponBeneficiary(coupon, user?.name, idx);
                     const isEmployee = coupon.beneficiary_type !== 'family';
                     return (
-                      <button type="button" key={coupon.id} onClick={() => openTicketModal(coupon, 'TIKET MASUK', idx)} className="flex w-full items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/20">
-                        <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl shadow-sm shrink-0">
-                          <QRCode value={getCouponQrValue(coupon)} size={72} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            {isEmployee && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold rounded uppercase">Karyawan</span>}
-                            {!isEmployee && <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
+                      <button type="button" key={coupon.id} onClick={() => openTicketModal(coupon, 'TIKET MASUK', idx)} className="flex w-full flex-col gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:flex-row sm:items-center sm:gap-4 sm:p-4 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/20">
+                        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                          <div className="shrink-0 rounded-xl bg-white p-2 shadow-sm dark:bg-zinc-900">
+                            <QRCode value={getCouponQrValue(coupon)} size={64} />
                           </div>
-                          <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{beneficiary}</p>
-                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{coupon.coupon_code}</p>
-                          <p className="mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">Klik untuk memperbesar QR</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                              {isEmployee && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold rounded uppercase">Karyawan</span>}
+                              {!isEmployee && <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
+                            </div>
+                            <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">{beneficiary}</p>
+                            <p className="mt-0.5 truncate font-mono text-[10px] text-zinc-400">{coupon.coupon_code}</p>
+                          </div>
                         </div>
-                        <div className="shrink-0 text-right">
+                        <div className="flex items-center justify-between gap-2 border-t border-zinc-200/70 pt-3 sm:block sm:border-0 sm:pt-0 sm:text-right">
+                          <p className="text-[10px] font-bold text-emerald-600 sm:hidden dark:text-emerald-300">Tap untuk memperbesar</p>
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
                             coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                             : coupon.status === 'claimed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -614,20 +622,22 @@ export default function PortalProgram() {
                     const beneficiary = getCouponBeneficiary(coupon, user?.name, idx);
                     const isEmployee = coupon.beneficiary_type !== 'family';
                     return (
-                      <button type="button" key={coupon.id} onClick={() => openTicketModal(coupon, 'KUPON MAKAN', idx)} className="flex w-full items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 text-left transition hover:border-amber-300 hover:bg-amber-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-amber-800 dark:hover:bg-amber-950/20">
-                        <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl shadow-sm shrink-0">
-                          <QRCode value={getCouponQrValue(coupon)} size={72} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            {isEmployee && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold rounded uppercase">Karyawan</span>}
-                            {!isEmployee && <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
+                      <button type="button" key={coupon.id} onClick={() => openTicketModal(coupon, 'KUPON MAKAN', idx)} className="flex w-full flex-col gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-3 text-left transition hover:border-amber-300 hover:bg-amber-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 sm:flex-row sm:items-center sm:gap-4 sm:p-4 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-amber-800 dark:hover:bg-amber-950/20">
+                        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                          <div className="shrink-0 rounded-xl bg-white p-2 shadow-sm dark:bg-zinc-900">
+                            <QRCode value={getCouponQrValue(coupon)} size={64} />
                           </div>
-                          <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{beneficiary}</p>
-                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{coupon.coupon_code}</p>
-                          <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-300">Klik untuk memperbesar QR</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                              {isEmployee && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold rounded uppercase">Karyawan</span>}
+                              {!isEmployee && <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
+                            </div>
+                            <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">{beneficiary}</p>
+                            <p className="mt-0.5 truncate font-mono text-[10px] text-zinc-400">{coupon.coupon_code}</p>
+                          </div>
                         </div>
-                        <div className="shrink-0 text-right">
+                        <div className="flex items-center justify-between gap-2 border-t border-zinc-200/70 pt-3 sm:block sm:border-0 sm:pt-0 sm:text-right">
+                          <p className="text-[10px] font-bold text-amber-600 sm:hidden dark:text-amber-300">Tap untuk memperbesar</p>
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
                             coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                             : coupon.status === 'claimed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -647,8 +657,8 @@ export default function PortalProgram() {
         
         {/* === TYPE: KURBAN / BINGKISAN === */}
         {(isKurban || selectedProgram.program_type === 'bingkisan') && (
-          <div className="mx-4">
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)]">
+          <div className="mx-0 sm:mx-4">
+            <div className="rounded-[1.5rem] bg-white p-4 shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)] sm:rounded-3xl sm:p-6 dark:bg-zinc-900">
               <div className="flex items-center gap-2 mb-6">
                 <Gift className="w-5 h-5 text-amber-500" />
                 <h2 className="font-bold text-lg text-zinc-800 dark:text-zinc-200">Kupon {isKurban ? 'Pengambilan Daging' : 'Bingkisan'}</h2>
@@ -658,7 +668,7 @@ export default function PortalProgram() {
               {couponAttendance ? (
                 <div className="text-center">
                   {couponAttendance.status === 'expired' ? (
-                    <div className="p-6">
+                    <div className="p-4 sm:p-6">
                       <div className="bg-zinc-100 dark:bg-zinc-800 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <X className="w-10 h-10 text-zinc-400" />
                       </div>
@@ -689,7 +699,7 @@ export default function PortalProgram() {
                 </div>
               ) : (
                 /* NOT ELIGIBLE */
-                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-8 rounded-2xl text-center border border-zinc-200 dark:border-zinc-700">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 text-center sm:p-8 dark:border-zinc-700 dark:bg-zinc-800/50">
                   <Gift className="w-16 h-16 text-zinc-300 mx-auto mb-4" />
                   <p className="font-bold text-zinc-600 dark:text-zinc-300 mb-2">Belum Ada Kupon</p>
                   <p className="text-sm text-zinc-400">
@@ -704,20 +714,20 @@ export default function PortalProgram() {
 
         {/* === TYPE: GATHERING / TURNAMEN === */}
         {(isGathering || selectedProgram.program_type === 'turnamen') && !selectedProgram.dynamic_form_id && (
-          <div className="mx-4 space-y-6">
+          <div className="mx-0 space-y-4 sm:mx-4 sm:space-y-6">
             {/* Form Config */}
             {selectedProgram.form_config?.fields?.length > 0 && (
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)]">
+                <div className="rounded-[1.5rem] bg-white p-4 shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)] sm:rounded-3xl sm:p-6 dark:bg-zinc-900">
                     <button onClick={handleSubmitForm} disabled={submitting} className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all">Simpan Data</button>
                 </div>
             )}
 
             {/* --- DYNAMIC ADD-ONS SECTION WITH TOGGLE --- */}
             {(!familyCoupon) && isFamilyEnabled() && getPaidAddons().length > 0 && (
-                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)]">
+                <div className="rounded-[1.5rem] bg-white p-4 shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)] sm:rounded-3xl sm:p-6 dark:bg-zinc-900">
                     
                     {/* TOGGLE SWITCH */}
-                    <div className="flex items-center justify-between mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                    <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-indigo-800 dark:bg-indigo-900/20">
                         <div className="flex items-center gap-3">
                             <Users className="w-6 h-6 text-indigo-600" />
                             <div className="text-left">
@@ -741,22 +751,22 @@ export default function PortalProgram() {
                             
                             <div className="space-y-3 mb-6">
                                 {getPaidAddons().map(addon => (
-                                    <div key={addon.id} className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-inner">
-                                        <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                    <div key={addon.id} className="flex flex-col gap-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 shadow-inner sm:flex-row sm:items-center sm:justify-between dark:border-zinc-700 dark:bg-zinc-800">
+                                        <label className="flex flex-1 cursor-pointer items-center gap-3">
                                             <input 
                                                 type="checkbox" 
                                                 checked={(addonSelections[addon.id] || 0) > 0}
                                                 onChange={() => toggleAddon(addon.id)}
                                                 className="w-5 h-5 rounded accent-indigo-600"
                                             />
-                                            <div>
+                                            <div className="min-w-0">
                                                 <span className="block text-sm font-semibold text-zinc-700 dark:text-zinc-200">{addon.name}</span>
                                                 <span className="text-xs text-indigo-600 dark:text-indigo-400">Rp {addon.price.toLocaleString()}</span>
                                             </div>
                                         </label>
                                         
                                         {(addonSelections[addon.id] || 0) > 0 && (
-                                            <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-1.5 rounded-xl shadow-sm">
+                                            <div className="flex items-center justify-between gap-2 rounded-xl bg-white p-1.5 shadow-sm sm:justify-start dark:bg-zinc-900">
                                                 <button 
                                                     type="button" 
                                                     onClick={() => updateAddonQty(addon.id, (addonSelections[addon.id] || 1) - 1)}
@@ -789,7 +799,7 @@ export default function PortalProgram() {
                                         type="button"
                                         onClick={handlePayFamily} 
                                         disabled={paymentLoading}
-                                        className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+                                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 py-4 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:from-indigo-600 hover:to-purple-700 hover:shadow-xl"
                                     >
                                         {paymentLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CreditCard className="w-4 h-4" /> Bayar via QRIS (iPaymu)</>}
                                     </button>
@@ -802,19 +812,19 @@ export default function PortalProgram() {
 
             {/* Ticket View - Only show if user has confirmed */}
             {!couponAttendance ? (
-                <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[8px_8px_16px_rgba(0,0,0,0.08),-8px_-8px_16px_rgba(255,255,255,0.05)] text-center border border-yellow-100 dark:border-yellow-900/30">
+                <div className="rounded-[1.5rem] border border-yellow-100 bg-white p-5 text-center shadow-[8px_8px_16px_rgba(0,0,0,0.08),-8px_-8px_16px_rgba(255,255,255,0.05)] sm:rounded-3xl sm:p-8 dark:border-yellow-900/30 dark:bg-zinc-900">
                     <div className="bg-yellow-100 dark:bg-yellow-900/30 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
                         <Calendar className="w-10 h-10 text-yellow-600" />
                     </div>
                     <p className="text-zinc-600 dark:text-zinc-300 mb-2 text-base font-bold">Anda belum melakukan konfirmasi kehadiran.</p>
                     <p className="text-sm text-zinc-400 mb-8">Klik tombol di bawah untuk mendapatkan QR Code kehadiran.</p>
-                    <button onClick={handleConfirmAttendance} disabled={submitting || isProgramExpired} className="w-full py-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-green-500/30 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={handleConfirmAttendance} disabled={submitting || isProgramExpired} className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-4 text-base font-black text-white shadow-lg shadow-green-500/30 transition-all hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 sm:py-5 sm:text-lg">
                         {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckCircle className="w-6 h-6" /> KONFIRMASI HADIR</>}
                     </button>
                     {isProgramExpired && <p className="text-xs text-red-500 mt-2">Program sudah berakhir, tidak bisa konfirmasi</p>}
                 </div>
             ) : couponAttendance.status === 'active' && !isProgramExpired ? (
-                 <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[8px_8px_16px_rgba(0,0,0,0.08),-8px_-8px_16px_rgba(255,255,255,0.05)] text-center border-2 border-green-500">
+                 <div className="rounded-[1.5rem] border-2 border-green-500 bg-white p-5 text-center shadow-[8px_8px_16px_rgba(0,0,0,0.08),-8px_-8px_16px_rgba(255,255,255,0.05)] sm:rounded-3xl sm:p-8 dark:bg-zinc-900">
                     <button type="button" onClick={() => openTicketModal(couponAttendance, 'TIKET MASUK')} className="inline-flex rounded-2xl bg-white p-4 shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
                       <QRCode value={getCouponQrValue(couponAttendance)} size={180} />
                     </button>
@@ -823,7 +833,7 @@ export default function PortalProgram() {
                  </div>
             ) : couponAttendance.status === 'claimed' ? (
                 // SUDAH CLAIM
-                <div className="bg-zinc-900 dark:bg-black p-8 rounded-3xl shadow-[8px_8px_16px_rgba(0,0,0,0.3),-8px_-8px_16px_rgba(255,255,255,0.05)] border border-zinc-800">
+                <div className="rounded-[1.5rem] border border-zinc-800 bg-zinc-900 p-5 shadow-[8px_8px_16px_rgba(0,0,0,0.3),-8px_-8px_16px_rgba(255,255,255,0.05)] sm:rounded-3xl sm:p-8 dark:bg-black">
                     <h3 className="text-white font-bold text-lg mb-6">Tiket Anda</h3>
                     <div className="flex justify-center mb-8">
                         <button type="button" onClick={() => openTicketModal(couponAttendance, 'TIKET MASUK')} className="bg-white p-4 rounded-2xl shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
@@ -843,7 +853,7 @@ export default function PortalProgram() {
                         </div>
                     )}
                     {/* Benefits */}
-                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-zinc-800">
+                    <div className="grid grid-cols-1 gap-3 border-t border-zinc-800 pt-6 sm:grid-cols-2 sm:gap-4">
                         <div className="bg-orange-900/30 p-4 rounded-2xl text-center border border-orange-800/50">
                              <Salad className="w-6 h-6 mx-auto text-orange-500 mb-2" />
                              <p className="text-xs text-orange-200 font-bold">Makan</p>
@@ -859,7 +869,7 @@ export default function PortalProgram() {
                 </div>
             ) : (
                 // EXPIRED
-                <div className="bg-zinc-100 dark:bg-zinc-800 p-8 rounded-3xl text-center border border-zinc-200 dark:border-zinc-700">
+                <div className="rounded-[1.5rem] border border-zinc-200 bg-zinc-100 p-5 text-center sm:rounded-3xl sm:p-8 dark:border-zinc-700 dark:bg-zinc-800">
                     <div className="bg-zinc-200 dark:bg-zinc-700 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <X className="w-10 h-10 text-zinc-400" />
                     </div>
@@ -876,14 +886,14 @@ export default function PortalProgram() {
           role="dialog"
           aria-modal="true"
           aria-label={`${ticketModal.ticketTitle} ${ticketModal.beneficiary}`}
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950/85 p-3 backdrop-blur-md sm:p-6"
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-zinc-950/85 p-0 backdrop-blur-md sm:items-center sm:p-6"
           onClick={() => setTicketModal(null)}
         >
-          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto" onClick={event => event.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-900/80 px-4 py-3 text-white shadow-2xl">
-              <div>
+          <div className="max-h-[96dvh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] bg-zinc-950/40 p-3 shadow-2xl sm:max-h-[92vh] sm:rounded-none sm:bg-transparent sm:p-0" onClick={event => event.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-900/90 px-4 py-3 text-white shadow-2xl">
+              <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Scan QR tiket</p>
-                <p className="mt-0.5 text-sm font-bold">{ticketModal.beneficiary} - {ticketModal.ticketTitle}</p>
+                <p className="mt-0.5 truncate text-sm font-bold">{ticketModal.beneficiary} - {ticketModal.ticketTitle}</p>
               </div>
               <button type="button" onClick={() => setTicketModal(null)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
                 <X className="h-5 w-5" />
@@ -908,8 +918,8 @@ export default function PortalProgram() {
 
       {/* QRIS MODAL */}
       {showQrisModal && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-t-[2rem] bg-white p-5 text-center shadow-2xl sm:rounded-3xl sm:p-8 dark:bg-zinc-900">
                 <button onClick={() => setShowQrisModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600"><X className="w-6 h-6" /></button>
                 
                 <h2 className="text-xl font-black mb-2 text-zinc-900 dark:text-white">Pembayaran Keluarga</h2>

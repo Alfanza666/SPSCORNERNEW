@@ -45,11 +45,11 @@ export function EventCover({
   return (
     <section
       aria-labelledby="event-cover-title"
-      className={cx('overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-[0_30px_90px_-45px_rgba(24,24,27,0.45)] dark:border-zinc-800 dark:bg-zinc-900', className)}
+      className={cx('overflow-hidden rounded-[1.5rem] border border-white/70 bg-white shadow-[0_30px_90px_-45px_rgba(24,24,27,0.45)] sm:rounded-[2rem] dark:border-zinc-800 dark:bg-zinc-900', className)}
     >
       <div className="grid lg:grid-cols-[minmax(0,0.95fr)_minmax(22rem,1.05fr)]">
-        <div className="order-2 flex flex-col justify-center p-6 sm:p-10 lg:order-1 lg:p-14">
-          <div className="mb-6 flex flex-wrap items-center gap-2">
+        <div className="order-2 flex flex-col justify-center p-5 sm:p-10 lg:order-1 lg:p-14">
+          <div className="mb-5 flex flex-wrap items-center gap-2 sm:mb-6">
             <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
               <Sparkles aria-hidden="true" className="size-3.5" />
               {eyebrow}
@@ -61,7 +61,7 @@ export function EventCover({
             ) : null}
           </div>
 
-          <h2 id="event-cover-title" className="max-w-3xl text-3xl font-black leading-[1.08] tracking-[-0.035em] text-zinc-950 sm:text-5xl dark:text-white">
+          <h2 id="event-cover-title" className="max-w-3xl text-2xl font-black leading-[1.08] tracking-[-0.035em] text-zinc-950 sm:text-5xl dark:text-white">
             {title}
           </h2>
           {description ? <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-600 sm:text-base dark:text-zinc-300">{description}</p> : null}
@@ -108,12 +108,12 @@ export function EventCover({
           ) : null}
         </div>
 
-        <div className="relative order-1 min-h-64 overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 lg:order-2 lg:min-h-[30rem]">
+        <div className="relative order-1 min-h-56 overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 sm:min-h-64 lg:order-2 lg:min-h-[30rem]">
           {imageUrl ? (
             <>
               <img src={imageUrl} alt="" aria-hidden="true" className="absolute inset-0 size-full scale-110 object-cover opacity-45 blur-2xl" />
               <div className="absolute inset-0 bg-gradient-to-br from-zinc-950/75 via-zinc-950/20 to-zinc-950/70" />
-              <div className="relative z-10 flex min-h-64 items-center justify-center p-3 sm:p-5 lg:min-h-[30rem]">
+              <div className="relative z-10 flex min-h-56 items-center justify-center p-3 sm:min-h-64 sm:p-5 lg:min-h-[30rem]">
                 <img src={imageUrl} alt={imageAlt} className="max-h-full max-w-full rounded-2xl object-contain shadow-2xl ring-1 ring-white/15" />
               </div>
             </>
