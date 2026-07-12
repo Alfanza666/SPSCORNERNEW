@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Gift, Users, Trophy, Loader2, Play, Download, Upload, Plus, X, UserPlus, Clock, Image, PartyPopper, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { Gift, Users, Trophy, Loader2, Play, Download, Upload, Plus, X, UserPlus, Clock, Image, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -144,18 +144,49 @@ export default function AdminDoorprize() {
   };
 
   const fetchParticipants = async () => {
-    const { data } = await supabase
-      .from('program_coupons')
-      .select('id, name, nik, profiles!program_coupons_user_id_fkey(name)')
-      .eq('program_id', selectedProgramId)
-      .eq('gate_type', 'doorprize')
-      .eq('status', 'active');
-    if (data) {
-      const mapped: Participant[] = data.map((d: any) => ({
-        id: d.id, name: d.profiles?.name || d.name, nik: d.nik,
-      }));
-      setAllParticipants(mapped);
-      setEligibleCount(mapped.length);
+    try {
+      // V2: Use the doorprize-eligible endpoint
+      const response = await fetch(`/api/admin/programs/${selectedProgramId}/doorprize-eligible`);
+      const result = await response.json();
+      
+      if (result.success && result.participants) {
+        const mapped: Participant[] = result.participants.map((p: any) => ({
+          id: p.id, name: p.attendee_name || p.name || 'Karyawan', nik: p.nik,
+        }));
+        setAllParticipants(mapped);
+        setEligibleCount(mapped.length);
+      } else {
+        // Fallback to legacy query if V2 not available
+        const { data } = await supabase
+          .from('program_coupons')
+          .select('id, name, nik, profiles!program_coupons_user_id_fkey(name)')
+          .eq('program_id', selectedProgramId)
+          .eq('gate_type', 'doorprize')
+          .eq('status', 'active');
+        if (data) {
+          const mapped: Participant[] = data.map((d: any) => ({
+            id: d.id, name: d.profiles?.name || d.name, nik: d.nik,
+          }));
+          setAllParticipants(mapped);
+          setEligibleCount(mapped.length);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch V2 participants, falling back to legacy:", e);
+      // Fallback to legacy query
+      const { data } = await supabase
+        .from('program_coupons')
+        .select('id, name, nik, profiles!program_coupons_user_id_fkey(name)')
+        .eq('program_id', selectedProgramId)
+        .eq('gate_type', 'doorprize')
+        .eq('status', 'active');
+      if (data) {
+        const mapped: Participant[] = data.map((d: any) => ({
+          id: d.id, name: d.profiles?.name || d.name, nik: d.nik,
+        }));
+        setAllParticipants(mapped);
+        setEligibleCount(mapped.length);
+      }
     }
   };
 

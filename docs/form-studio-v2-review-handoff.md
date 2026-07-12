@@ -2,6 +2,15 @@
 
 ## Dokumen Review, Penjelasan Perubahan, dan Handoff Agent
 
+> [!IMPORTANT]
+> Dokumen ini dipertahankan sebagai handoff historis v5.8.x. Keputusan produk dan
+> kontrak engineering target v5.9.0 berada di `implementation-plan.md`; status dan
+> bukti verifikasi berada di `task.md`. Jika terjadi konflik, keputusan terkunci
+> v5.9 yang berlaku—terutama keluarga count-only tanpa nama, QR dasar karyawan
+> aktif segera setelah RSVP hadir, QR keluarga aktif setelah pembayaran, scanner
+> program/gate dengan ledger append-only, dan doorprize dari attendance aktual.
+> Jangan menganggap status deployment atau acceptance lama sebagai bukti v5.9.
+
 > Tanggal audit terakhir: 12 Juli 2026 (Asia/Makassar)<br>
 > Base commit yang diaudit: `5383540` (`main`, sama dengan `origin/main`)<br>
 > Versi fitur utama: `v5.8.0`<br>

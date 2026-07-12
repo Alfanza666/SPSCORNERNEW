@@ -34,6 +34,7 @@ import { registerTransactionRoutes } from "./src/routes/transactions.js";
 import { registerAdminRoutes } from "./src/routes/admin.js";
 import { registerStockTraceRoutes } from "./src/routes/stock-trace.js";
 import { registerProgramRegistrationWorkflowRoutes } from "./src/routes/programRegistrationWorkflow.js";
+import { registerEventWorkflowRoutes } from "./src/routes/eventWorkflow.js";
 import { initNotificationService, sendNotification, sendPushToUser, sendPushToAdmins } from "./src/services/notification.js";
 import { initStockService, restoreTransactionStock, deductTransactionStock, atomicAdjustStock, reconcileStock, checkLowStockAndNotify } from "./src/services/stock.js";
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail } from "./src/services/email.js";
@@ -64,7 +65,7 @@ const supabaseServiceKey =
     : (() => { throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set"); })();
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 import Groq from "groq-sdk";
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "dummy_key_for_tests", dangerouslyAllowBrowser: true });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "", dangerouslyAllowBrowser: true });
 
 const app = express();
 
@@ -231,6 +232,8 @@ const getIpaymuAxiosConfig = __name(() => {
 const IPAYMU_VA = (process.env.IPAYMU_VA || "").replace(/['"]/g, "").trim();
 const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || "")
   .replace(/['"]/g, "").trim();
+const IPAYMU_SIGNATURE_KEY = (process.env.IPAYMU_SIGNATURE_KEY || "")
+  .replace(/['"]/g, "").trim();
 const IPAYMU_PRODUCTION = process.env.IPAYMU_PRODUCTION !== "false";
 if (!IPAYMU_VA || !IPAYMU_API_KEY) {
   console.warn("\u26A0\uFE0F IPAYMU_VA or IPAYMU_API_KEY not configured");
@@ -266,7 +269,7 @@ registerPaymentRoutes(app, {
   sendWANotification, processDigitalItems, updateSellerBalances,
   updateBuyerPoints, triggerSarirotiEmail, checkLowStockAndNotify,
   sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock,
-  IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_PRODUCTION, groq,
+  IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
 });
 
 if (!process.env.VERCEL) {
@@ -287,6 +290,7 @@ registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInt
 registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
 registerPortalRoutes(app, { supabase, sendNotification, ipaymuClient });
 registerProgramRegistrationWorkflowRoutes(app, { supabase, sendNotification });
+registerEventWorkflowRoutes(app, { supabase, sendNotification });
 
 // API 404 catch-all — return JSON instead of HTML for unmatched API routes (must be BEFORE SPA fallback)
 app.use('/api/*', (req, res) => {

@@ -85,19 +85,13 @@ export default function KioskLayout() {
 
   const getBerandaPath = () => {
     if (!user) return '/';
+    if (user.role === 'seller') return '/dashboard/seller';
+    if (user.role === 'admin' || user.role === 'superadmin') return '/dashboard/admin';
     return '/portal';
   };
 
   const handleHomeClick = () => {
-    if (!user) {
-      navigate('/');
-    } else if (user.role === 'seller') {
-      navigate('/dashboard/seller');
-    } else if (user.role === 'admin' || user.role === 'superadmin') {
-      navigate('/dashboard/admin');
-    } else {
-      navigate('/portal');
-    }
+    navigate(getBerandaPath());
   };
 
   const handleBack = async () => {

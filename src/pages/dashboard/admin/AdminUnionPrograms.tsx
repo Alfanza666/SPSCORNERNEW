@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Edit2, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Eye, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, RotateCcw, ExternalLink, Calendar } from 'lucide-react';
+import { Plus, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -283,17 +283,6 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       setShowFormBuilder(true);
     if (program.is_targeted) {
       setShowEligibility(true);
-      fetchProgramEligibility(program.id);
-    }
-  };
-
-  const [programEligibleNiks, setProgramEligibleNiks] = useState<string[]>([]);
-  const fetchProgramEligibility = async (programId: string) => {
-    try {
-      const { data } = await supabase.from('program_eligibility').select('nik').eq('program_id', programId);
-      if (data) setProgramEligibleNiks(data.map(d => d.nik));
-    } catch (error) {
-      console.error('Error fetching eligibility:', error);
     }
   };
 
@@ -584,6 +573,30 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
     }
   };
 
+  const handlePublishV2 = async (program: any) => {
+    if (!confirm(`Publikasikan program "${program.name}"? Ini akan mem冻kan snapshot eligibilitas dan mengaktifkan alur kerja V2.`)) return;
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const response = await fetch(`/api/admin/programs/${program.id}/publish-v2`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ published_by: session?.user?.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Publish failed');
+      toast.success(`Program dipublikasikan (V2). Config version: ${result.config_version}`);
+      fetchPrograms();
+    } catch (error: any) {
+      toast.error('Gagal publish V2: ' + (error.message || ''));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -670,6 +683,16 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                   >
                     <Settings className="w-4 h-4" />
                   </button>
+                  {prog.program_type === 'gathering' && prog.is_active && (
+                    <button
+                      onClick={() => handlePublishV2(prog)}
+                      disabled={saving}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors disabled:opacity-50"
+                      title="Publish Gathering V2 - Freeze eligibility & activate V2 workflow"
+                    >
+                      Publish V2
+                    </button>
+                  )}
                   <button
                     onClick={() => deleteProgram(prog.id)}
                     className="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50"

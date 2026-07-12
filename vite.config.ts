@@ -69,13 +69,12 @@ export default defineConfig(({mode}) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes('node_modules/recharts')) return 'vendor-recharts';
+            if (id.includes('node_modules/recharts') || id.includes('node_modules/d3')) return 'vendor-charts';
             if (id.includes('node_modules/xlsx')) return 'vendor-xlsx';
             if (id.includes('node_modules/html2canvas')) return 'vendor-html2canvas';
             if (id.includes('node_modules/react-qr-code') || id.includes('node_modules/react-webcam') || id.includes('node_modules/@zxing')) return 'vendor-scanner';
             if (id.includes('node_modules/@tiptap') || id.includes('node_modules/prosemirror')) return 'vendor-editor';
             if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) return 'vendor-motion';
-            if (id.includes('node_modules/recharts') || id.includes('node_modules/d3')) return 'vendor-charts';
           },
         },
       },

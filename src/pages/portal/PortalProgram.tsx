@@ -105,6 +105,7 @@ export default function PortalProgram() {
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   const [myCoupons, setMyCoupons] = useState<Coupon[]>([]);
+  const [activeTab, setActiveTab] = useState<'attendance' | 'meal'>('attendance');
 
   // --- EFFECTS ---
   useEffect(() => {
@@ -164,8 +165,38 @@ export default function PortalProgram() {
 
   const handleSelectProgram = async (program: Program) => {
     setSelectedProgram(program);
-    const { data } = await supabase.from('program_coupons').select('*').eq('program_id', program.id).or(`nik.eq.${user?.nik},user_id.eq.${user?.id}`);
-    if (data) setMyCoupons(data);
+    
+    // V2: Try to get registration status from V2 endpoint
+    try {
+      const response = await fetch(`/api/portal/programs/${program.id}/registration-v2`);
+      const result = await response.json();
+      
+      if (result.success && result.registration) {
+        // V2 registration found - map to coupon format for backward compatibility
+        const registration = result.registration;
+        const v2Coupons = (result.entitlements || []).map((e: any) => ({
+          id: e.id,
+          coupon_code: e.coupon_code,
+          gate_type: e.gate_type,
+          status: e.status,
+          beneficiary_type: e.beneficiary_type,
+          beneficiary_index: e.beneficiary_index,
+          entitlement_code: e.entitlement_code,
+          name: e.name,
+          nik: e.nik,
+        }));
+        setMyCoupons(v2Coupons);
+      } else {
+        // Fallback to legacy query
+        const { data } = await supabase.from('program_coupons').select('*').eq('program_id', program.id).or(`nik.eq.${user?.nik},user_id.eq.${user?.id}`);
+        if (data) setMyCoupons(data);
+      }
+    } catch (e) {
+      // Fallback to legacy query
+      const { data } = await supabase.from('program_coupons').select('*').eq('program_id', program.id).or(`nik.eq.${user?.nik},user_id.eq.${user?.id}`);
+      if (data) setMyCoupons(data);
+    }
+    
     setFormData({});
     setAddonSelections({});
   };
@@ -392,17 +423,118 @@ export default function PortalProgram() {
 
         {selectedProgram.dynamic_form_id && myCoupons.length > 0 && (
           <section className="rounded-[2rem] border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3 mb-5">
               <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300"><QrCodeIcon className="h-5 w-5" /></span>
               <div><h2 className="font-black text-zinc-900 dark:text-white">Tiket & kupon Anda</h2><p className="mt-1 text-xs leading-5 text-zinc-500">Setiap penerima dan setiap manfaat menggunakan QR terpisah.</p></div>
             </div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {myCoupons.map((coupon, couponIndex) => {
-                const entitlement = coupon.entitlement_code || coupon.gate_type;
-                const beneficiary = coupon.entitlement_metadata?.beneficiary_name || coupon.metadata?.beneficiary_name || (coupon.beneficiary_type === 'family' ? `Keluarga ${coupon.beneficiary_index || couponIndex + 1}` : user?.name || 'Karyawan');
-                return <article key={coupon.id} className="rounded-3xl border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-950/50"><div className="mx-auto w-fit rounded-2xl bg-white p-3 shadow-sm"><QRCode value={coupon.coupon_code || coupon.qr_code || coupon.id} size={132} /></div><p className="mt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600">{entitlement === 'meal' ? 'Kupon makan' : 'Tiket kehadiran'}</p><h3 className="mt-1 truncate text-sm font-bold text-zinc-900 dark:text-white">{beneficiary}</h3><span className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700' : coupon.status === 'claimed' ? 'bg-blue-100 text-blue-700' : 'bg-zinc-200 text-zinc-600'}`}>{coupon.status === 'active' ? 'Aktif' : coupon.status === 'claimed' ? 'Sudah digunakan' : coupon.status}</span></article>;
-              })}
+
+            {/* Tabs: Attendance / Meal */}
+            <div className="flex gap-2 mb-5 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+              <button
+                onClick={() => setActiveTab('attendance')}
+                className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === 'attendance'
+                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                    : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 inline mr-1.5" />
+                Kehadiran
+              </button>
+              <button
+                onClick={() => setActiveTab('meal')}
+                className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                  activeTab === 'meal'
+                    ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                    : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                }`}
+              >
+                <Salad className="w-3.5 h-3.5 inline mr-1.5" />
+                Makan
+              </button>
             </div>
+
+            {/* Tab Content: Attendance */}
+            {activeTab === 'attendance' && (
+              <div className="space-y-3">
+                {myCoupons.filter(c => c.gate_type === 'attendance').length === 0 ? (
+                  <div className="text-center py-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700">
+                    <Calendar className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+                    <p className="text-xs text-zinc-400">Belum ada tiket kehadiran</p>
+                  </div>
+                ) : (
+                  myCoupons.filter(c => c.gate_type === 'attendance').map((coupon, idx) => {
+                    const beneficiary = coupon.entitlement_metadata?.beneficiary_name || coupon.metadata?.beneficiary_name || (coupon.beneficiary_type === 'family' ? `Keluarga ${coupon.beneficiary_index || idx + 1}` : user?.name || 'Karyawan');
+                    const isEmployee = coupon.beneficiary_type !== 'family';
+                    return (
+                      <div key={coupon.id} className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700">
+                        <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl shadow-sm shrink-0">
+                          <QRCode value={coupon.coupon_code || coupon.qr_code || coupon.id} size={72} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            {isEmployee && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold rounded uppercase">Karyawan</span>}
+                            {!isEmployee && <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
+                          </div>
+                          <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{beneficiary}</p>
+                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{coupon.coupon_code}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : coupon.status === 'claimed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                          }`}>
+                            {coupon.status === 'active' ? 'Aktif' : coupon.status === 'claimed' ? 'Digunakan' : coupon.status}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* Tab Content: Meal */}
+            {activeTab === 'meal' && (
+              <div className="space-y-3">
+                {myCoupons.filter(c => c.gate_type === 'meal').length === 0 ? (
+                  <div className="text-center py-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700">
+                    <Salad className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+                    <p className="text-xs text-zinc-400">Belum ada kupon makan</p>
+                  </div>
+                ) : (
+                  myCoupons.filter(c => c.gate_type === 'meal').map((coupon, idx) => {
+                    const beneficiary = coupon.entitlement_metadata?.beneficiary_name || coupon.metadata?.beneficiary_name || (coupon.beneficiary_type === 'family' ? `Keluarga ${coupon.beneficiary_index || idx + 1}` : user?.name || 'Karyawan');
+                    const isEmployee = coupon.beneficiary_type !== 'family';
+                    return (
+                      <div key={coupon.id} className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700">
+                        <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl shadow-sm shrink-0">
+                          <QRCode value={coupon.coupon_code || coupon.qr_code || coupon.id} size={72} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            {isEmployee && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold rounded uppercase">Karyawan</span>}
+                            {!isEmployee && <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
+                          </div>
+                          <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{beneficiary}</p>
+                          <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{coupon.coupon_code}</p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                            coupon.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : coupon.status === 'claimed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                            : 'bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                          }`}>
+                            {coupon.status === 'active' ? 'Aktif' : coupon.status === 'claimed' ? 'Digunakan' : coupon.status}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </section>
         )}
         

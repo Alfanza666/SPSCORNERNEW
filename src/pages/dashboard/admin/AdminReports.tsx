@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Bug, CheckCircle2, Clock, XCircle, RefreshCw, Trash2, FileSpreadsheet, FileText } from 'lucide-react';
+import { Bug, CheckCircle2, XCircle, Trash2, FileSpreadsheet, FileText, BarChart3, Users, Salad, Gift, TrendingUp, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,7 +20,14 @@ export default function AdminReports() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
 
-  useEffect(() => { fetchReports(); }, []);
+  // Program Reports state
+  const [mainTab, setMainTab] = useState<'bugs' | 'programs'>('bugs');
+  const [programs, setPrograms] = useState<any[]>([]);
+  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [programReport, setProgramReport] = useState<any>(null);
+  const [programReportLoading, setProgramReportLoading] = useState(false);
+
+  useEffect(() => { fetchReports(); fetchPrograms(); }, []);
 
   const fetchReports = async () => {
     try {
@@ -67,6 +74,48 @@ export default function AdminReports() {
   };
 
   const filtered = filterStatus === 'all' ? reports : reports.filter(r => r.status === filterStatus);
+
+  const fetchPrograms = async () => {
+    try {
+      const { data } = await supabase.from('union_programs').select('id, name, program_type, is_active').order('created_at', { ascending: false });
+      if (data) setPrograms(data);
+    } catch {}
+  };
+
+  const fetchProgramReport = async () => {
+    if (!selectedProgramId) return;
+    setProgramReportLoading(true);
+    try {
+      const response = await fetch(`/api/admin/programs/${selectedProgramId}/workflow-report`);
+      const result = await response.json();
+      if (result.success) setProgramReport(result.report);
+      else toast.error('Gagal memuat laporan program');
+    } catch (e: any) {
+      toast.error('Gagal: ' + e.message);
+    } finally {
+      setProgramReportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedProgramId && mainTab === 'programs') fetchProgramReport();
+  }, [selectedProgramId, mainTab]);
+
+  const exportProgramReport = async (format: 'xlsx' | 'pdf') => {
+    if (!selectedProgramId) return;
+    try {
+      const url = `/api/admin/programs/${selectedProgramId}/workflow-report.${format}`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `program-report-${selectedProgramId}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success(`Mengunduh laporan ${format.toUpperCase()}...`);
+    } catch (e: any) {
+      toast.error('Gagal: ' + e.message);
+    }
+  };
 
   const exportToExcel = () => {
     const data = filtered.map(r => ({
@@ -164,22 +213,43 @@ export default function AdminReports() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Laporan & Bug</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Pantau laporan bug dan saran dari pengguna</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Laporan</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Pantau laporan bug dan laporan program</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={exportToMarkdown} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-colors shadow-sm">
-            <FileText className="w-4 h-4" /> Export .md
-          </button>
-          <button onClick={exportToExcel} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
-            <FileSpreadsheet className="w-4 h-4" /> Export .xlsx
-          </button>
-          <button onClick={fetchReports} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-colors shadow-sm">
-            <RefreshCw className="w-4 h-4" /> Refresh
-          </button>
-        </div>
+        {mainTab === 'bugs' && (
+          <div className="flex gap-2">
+            <button onClick={exportToMarkdown} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-colors shadow-sm">
+              <FileText className="w-4 h-4" /> Export .md
+            </button>
+            <button onClick={exportToExcel} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+              <FileSpreadsheet className="w-4 h-4" /> Export .xlsx
+            </button>
+          </div>
+        )}
+        {mainTab === 'programs' && selectedProgramId && (
+          <div className="flex gap-2">
+            <button onClick={() => exportProgramReport('xlsx')} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+              <Download className="w-4 h-4" /> Excel
+            </button>
+            <button onClick={() => exportProgramReport('pdf')} className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+              <Download className="w-4 h-4" /> PDF
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* Main Tab Switcher */}
+      <div className="flex gap-2 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+        <button onClick={() => setMainTab('bugs')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${mainTab === 'bugs' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}>
+          <Bug className="w-3.5 h-3.5 inline mr-1.5" /> Laporan Bug
+        </button>
+        <button onClick={() => setMainTab('programs')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${mainTab === 'programs' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}>
+          <BarChart3 className="w-3.5 h-3.5 inline mr-1.5" /> Laporan Program
+        </button>
+      </div>
+
+      {/* === BUG REPORTS TAB === */}
+      {mainTab === 'bugs' && (<>
       <div className="flex flex-wrap gap-2">
         {[{ value: 'all', label: 'Semua' }, { value: 'pending', label: 'Menunggu' }, { value: 'in_progress', label: 'Diproses' }, { value: 'resolved', label: 'Selesai' }].map(opt => (
           <button key={opt.value} onClick={() => setFilterStatus(opt.value)}
@@ -340,6 +410,106 @@ export default function AdminReports() {
           </motion.div>
         )}
       </AnimatePresence>
+      </>)}
+
+      {/* === PROGRAM REPORTS TAB === */}
+      {mainTab === 'programs' && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={selectedProgramId}
+              onChange={e => setSelectedProgramId(e.target.value)}
+              className="px-4 py-2.5 rounded-xl text-sm font-bold bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Pilih program...</option>
+              {programs.map(p => (
+                <option key={p.id} value={p.id}>{p.name} ({p.program_type})</option>
+              ))}
+            </select>
+          </div>
+
+          {!selectedProgramId ? (
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-12 text-center border border-zinc-100 dark:border-zinc-800">
+              <BarChart3 className="w-12 h-12 text-zinc-200 dark:text-zinc-700 mx-auto mb-3" />
+              <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-1">Pilih Program</h3>
+              <p className="text-sm text-zinc-400">Pilih program untuk melihat laporan workflow</p>
+            </div>
+          ) : programReportLoading ? (
+            <div className="space-y-4">
+              {[1,2,3].map(i => <div key={i} className="bg-white dark:bg-zinc-900 rounded-2xl p-6 h-32 animate-pulse border border-zinc-100 dark:border-zinc-800" />)}
+            </div>
+          ) : programReport ? (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                  <Users className="w-5 h-5 text-blue-500 mb-2" />
+                  <p className="text-2xl font-black text-zinc-900 dark:text-white">{programReport.total_registrations || 0}</p>
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase">Total Registrasi</p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 mb-2" />
+                  <p className="text-2xl font-black text-zinc-900 dark:text-white">{programReport.attending_count || 0}</p>
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase">Hadir</p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                  <Salad className="w-5 h-5 text-orange-500 mb-2" />
+                  <p className="text-2xl font-black text-zinc-900 dark:text-white">{programReport.shirt_count || 0}</p>
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase">Kaos</p>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
+                  <Gift className="w-5 h-5 text-purple-500 mb-2" />
+                  <p className="text-2xl font-black text-zinc-900 dark:text-white">{programReport.total_family_members || 0}</p>
+                  <p className="text-[10px] text-zinc-400 font-bold uppercase">Keluarga</p>
+                </div>
+              </div>
+
+              {/* Payment & RSVP */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
+                  <h3 className="text-xs font-black text-zinc-400 uppercase mb-4">RSVP</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-600 dark:text-zinc-400">Hadir</span><span className="text-sm font-bold text-emerald-600">{programReport.attending_count || 0}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-600 dark:text-zinc-400">Menolak</span><span className="text-sm font-bold text-red-600">{programReport.declined_count || 0}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-600 dark:text-zinc-400">Belum Jawab</span><span className="text-sm font-bold text-zinc-600">{programReport.unanswered_count || 0}</span></div>
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-100 dark:border-zinc-800">
+                  <h3 className="text-xs font-black text-zinc-400 uppercase mb-4">Pembayaran</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-600 dark:text-zinc-400">Lunas</span><span className="text-sm font-bold text-emerald-600">{programReport.paid_count || 0}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-600 dark:text-zinc-400">Pending</span><span className="text-sm font-bold text-amber-600">{programReport.pending_payment_count || 0}</span></div>
+                    <div className="flex justify-between items-center"><span className="text-sm text-zinc-600 dark:text-zinc-400">Gagal</span><span className="text-sm font-bold text-red-600">{programReport.failed_payment_count || 0}</span></div>
+                    <div className="border-t border-zinc-100 dark:border-zinc-700 pt-3 mt-3 flex justify-between items-center">
+                      <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Total Tagihan</span>
+                      <span className="text-sm font-black text-zinc-900 dark:text-white">Rp {(programReport.total_billed || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Total Dibayar</span>
+                      <span className="text-sm font-black text-emerald-600">Rp {(programReport.total_paid || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Config Info */}
+              {programReport.config_version && (
+                <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800 flex items-center gap-4 text-xs text-zinc-400">
+                  <span>Config Version: <strong className="text-zinc-700 dark:text-zinc-300">v{programReport.config_version}</strong></span>
+                  {programReport.published_at && <span>Diterbitkan: <strong className="text-zinc-700 dark:text-zinc-300">{format(new Date(programReport.published_at), 'dd MMM yyyy, HH:mm', { locale: id })}</strong></span>}
+                  {programReport.rsvp_deadline && <span>Deadline RSVP: <strong className="text-zinc-700 dark:text-zinc-300">{format(new Date(programReport.rsvp_deadline), 'dd MMM yyyy', { locale: id })}</strong></span>}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-12 text-center border border-zinc-100 dark:border-zinc-800">
+              <TrendingUp className="w-12 h-12 text-zinc-200 dark:text-zinc-700 mx-auto mb-3" />
+              <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-1">Tidak ada data</h3>
+              <p className="text-sm text-zinc-400">Program ini belum dipublikasikan (V2)</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

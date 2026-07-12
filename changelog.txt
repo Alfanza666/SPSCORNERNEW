@@ -1,3 +1,31 @@
+v5.9.0 — Employee Gathering Workflow V3 (MINOR)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Sistem v5.8.x memiliki formulir dan registrasi kerja, tetapi tidak memiliki alur kerja gathering yang lengkap: publikasi transaksional, eligibilitas frozen, scan gate-aware, doorprize dari kehadiran aktual, dan pelaporan gabungan.
+- Scanner dan doorprize masih menggunakan RPC legacy `claim_program_coupon` yang tidak memiliki audit trail lengkap.
+- Tidak ada migration untuk program_eligibility, scan ledger V2, atau aggregate reporting view.
+
+### Perbaikan:
+- **[SECURITY]** Menghapus hardcoded fallback email Sariroti dari email.js dan misc.ts (menggunakan env var atau settings DB).
+- **[FIX]** Menambahkan `IPAYMU_SIGNATURE_KEY` ke route param payments.ts (sebelumnya hilang dari server.ts).
+- **[FIX]** Menambahkan `.order()` ke analytics.ts top products query (sebelumnya non-deterministic).
+- **[FIX]** Mengkonsolidasi health check di lib/api.ts (menghilangkan duplikasi `isPrimaryHealthy` + `checkPrimary`).
+- **[FIX]** Menyamakan routing home di KioskLayout.tsx (`getBerandaPath` dan `handleHomeClick` sekarang konsisten).
+- **[FIX]** Mengkonsolidasi vendor chunk recharts di vite.config.ts (menghilangkan duplikasi `vendor-recharts` + `vendor-charts`).
+- **[DATABASE]** Menambahkan migration `007_event_workflow_v3.sql`: program_type, rsvp_deadline, family_package_price, shirt_price_map, config_version, program_eligibility, scan ledger V2, doorprize_eligible, reporting aggregate view, helper functions (validate_gathering_publish, publish_gathering, scan_entitlement_v2, attendance_override).
+- **[BACKEND]** Membuat `src/services/eventWorkflow.ts`: modular service untuk eligibilitas, publikasi, registrasi, pricing, entitlement, scanner, doorprize, dan pelaporan.
+- **[BACKEND]** Membuat `src/routes/eventWorkflow.ts`: 15+ endpoint V2 untuk admin dan portal (preview, publish, scan, override, doorprize, report, Excel/PDF export, registration CRUD, payment review).
+- **[BACKEND]** Mendaftarkan route baru di server.ts.
+- **[DEPENDENCY]** Menambahkan `pdfkit` untuk export PDF server-side.
+- **[FRONTEND]** Menghubungkan `AdminScanner.tsx` ke V2 scan endpoint (`POST /api/admin/program-entitlements/scan`) dengan fallback legacy.
+- **[FRONTEND]** Menghubungkan `AdminUnionPrograms.tsx` ke V2 publish endpoint (`POST /api/admin/programs/:id/publish-v2`) dengan tombol "Publish V2" pada gathering programs.
+- **[FRONTEND]** Menghubungkan `PortalProgram.tsx` ke V2 registration status endpoint (`GET /api/portal/programs/:id/registration-v2`) dengan fallback legacy.
+- **[FRONTEND]** PORTAL-002: Tabbed UI (Kehadiran/Makan) pada `PortalProgram.tsx` dengan per-beneficiary lifecycle cards (employee/family badge, QR, status, coupon code).
+- **[FRONTEND]** ADMIN-005: Tab "Laporan Program" pada `AdminReports.tsx` dengan program selector, summary cards, RSVP/payment breakdown, config info, dan Excel/PDF export.
+- **[CLEANUP]** Menghapus 8 unused imports (`PartyPopper`, `Edit2`, `Eye`, `RotateCcw`, `ExternalLink`, `Clock`, `RefreshCw`, `QrCodeIcon`) dan 1 dead state (`programEligibleNiks` + `fetchProgramEligibility`).
+- **[DEPENDENCY]** Menghapus 6 unused runtime dependencies: `better-sqlite3`, `cheerio`, `pdf-parse`, `react-webcam`, `@tabler/icons-react`, `remixicon-react`.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, changelog, dan error history disinkronkan ke v5.9.0.
+
 v5.8.2 — Form Studio V2 Review & Agent Handoff Documentation (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

@@ -63,7 +63,7 @@ export async function triggerSarirotiEmail(tx_id, buyerName, totalAmount) {
     const sarirotiSubtotal = sarirotiItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
     const txShortId = tx_id.slice(0, 8).toUpperCase();
     const appUrl = process.env.APP_URL || "https://spscorner.store";
-    let targetEmail = process.env.SARIROTI_ADMIN_EMAIL || "Sales.Adm.bjm@sariroti.com";
+    let targetEmail = process.env.SARIROTI_ADMIN_EMAIL || "";
     try {
       const { data: settings } = await supabaseInstance.from("settings").select("value").eq("key", "sariroti_email").single();
       if (settings?.value) targetEmail = settings.value;

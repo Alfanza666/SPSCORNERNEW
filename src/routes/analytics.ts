@@ -27,7 +27,7 @@ export function registerAnalyticsRoutes(app, { supabase }) {
         supabase.from("profiles").select("id", { count: "exact" }).eq("role", "seller"),
         supabase.from("products").select("id", { count: "exact" }).eq("is_active", true),
         supabase.from("transactions").select("total_amount, created_at").eq("status", "paid").gte("created_at", startOfWeek),
-        supabase.from("transaction_items").select("products(name), quantity, price").gte("created_at", startOfMonth).limit(10),
+        supabase.from("transaction_items").select("products(name), quantity, price").gte("created_at", startOfMonth).order("created_at", { ascending: false }).limit(10),
         supabase.from("transaction_items").select("products(category), quantity").gte("created_at", startOfYear),
       ]);
 

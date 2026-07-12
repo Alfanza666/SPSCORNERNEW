@@ -4,7 +4,7 @@ let usePrimary = true;
 let lastCheck = 0;
 const CHECK_TTL = 30_000;
 
-async function isPrimaryHealthy(): Promise<boolean> {
+async function checkPrimary(): Promise<boolean> {
   const now = Date.now();
   if (now - lastCheck < CHECK_TTL) return usePrimary;
   lastCheck = now;
@@ -18,7 +18,7 @@ async function isPrimaryHealthy(): Promise<boolean> {
 }
 
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const healthy = await isPrimaryHealthy();
+  const healthy = await checkPrimary();
   if (healthy) {
     try {
       const res = await fetch(`${PRIMARY_API}${path}`, {
@@ -32,23 +32,6 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
     }
   }
   return fetch(path, { ...init, credentials: 'include' });
-}
-
-let primaryAlive = true;
-let primaryCheckAt = 0;
-const PRIMARY_CHECK_TTL = 30_000;
-
-async function checkPrimary(): Promise<boolean> {
-  const now = Date.now();
-  if (now - primaryCheckAt < PRIMARY_CHECK_TTL) return primaryAlive;
-  primaryCheckAt = now;
-  try {
-    await fetch(`${PRIMARY_API}/api/health`, { signal: AbortSignal.timeout(3000) });
-    primaryAlive = true;
-  } catch {
-    primaryAlive = false;
-  }
-  return primaryAlive;
 }
 
 export function patchGlobalFetch() {
@@ -66,7 +49,7 @@ export function patchGlobalFetch() {
           const res = await orig(`${PRIMARY_API}${path}`, init);
           if (res.ok || res.status < 500) return res;
         } catch {
-          primaryAlive = false;
+          usePrimary = false;
         }
       }
       return orig(path, init);

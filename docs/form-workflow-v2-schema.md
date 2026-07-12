@@ -1,5 +1,15 @@
 # Program Form Workflow V2 — Schema and Deployment Notes
 
+> [!IMPORTANT]
+> Dokumen ini adalah catatan schema historis untuk implementasi v5.8.x. Untuk
+> pekerjaan v5.9.0, `implementation-plan.md` adalah sumber keputusan produk dan
+> kontrak engineering, sedangkan `task.md` adalah sumber status/verifikasi.
+> Keputusan v5.9 yang menggantikan aturan di bawah mencakup data keluarga
+> count-only, entitlement dasar karyawan yang aktif segera setelah RSVP hadir,
+> entitlement keluarga yang menunggu pembayaran, dan rollout melalui migration
+> idempotent yang diverifikasi di staging. Jangan menjalankan migration production
+> hanya berdasarkan dokumen historis ini.
+
 Migration: `database/migrations/006_program_registration_workflow_v2.sql`
 
 ## Purpose

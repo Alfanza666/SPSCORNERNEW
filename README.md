@@ -13,7 +13,7 @@ Sistem kasir digital untuk Koperasi Karyawan SPS Corner. Melayani pembelian prod
 | Payment | iPaymu (VA) |
 | PWA | vite-plugin-pwa + Workbox |
 | AI | Google Gemini |
-| Deploy | Vercel (serverless) |
+| Deploy | Vercel (frontend) + VPS/PM2 (backend API) |
 
 ## Development
 
@@ -59,31 +59,44 @@ cp .env.example .env
 | `VAPID_PRIVATE_KEY` | VAPID private key |
 | `GEMINI_API_KEY` | Google Gemini API key |
 
-## Form Studio & Program Workflow V2
+## Form Studio & Event Workflow
 
-Dokumen review dan handoff lintas-agent:
+`implementation-plan.md` adalah sumber keputusan produk dan engineering untuk target
+Employee Gathering v5.9.0. `task.md` menyimpan status implementasi dan bukti
+verifikasi. Dokumen V2 berikut dipertahankan sebagai riwayat implementasi v5.8.x:
 
-```text
-docs/form-studio-v2-review-handoff.md
-```
+- `docs/form-studio-v2-review-handoff.md`
+- `docs/form-workflow-v2-schema.md`
 
-Form Studio v2 menyediakan builder tiga area (palette, canvas, inspector), AI schema execution, conditional branches, terminal outcomes, pricing, repeater anggota keluarga, serta pengalaman Card Form premium yang sama pada preview dan portal.
+Form Studio menyediakan builder tiga area (palette, canvas, inspector), AI schema
+execution, conditional branches, terminal outcomes, pricing, serta renderer yang
+digunakan bersama oleh preview dan portal. Template Employee Gathering v5.9 hanya
+menyimpan **jumlah anggota keluarga**; nama atau identitas anggota keluarga tidak
+dikumpulkan.
 
 Workflow program RSVP menggunakan backend server-authoritative:
 
-- browser hanya mengirim jawaban dan bukti pembayaran;
-- server mengambil identitas/NIK dari sesi, menghitung ulang harga, dan menyimpan snapshot audit;
+- penerima dipreview dari filter admin dan dibekukan sebagai snapshot saat publish;
+- browser hanya mengirim jawaban dan bukti pembayaran, bukan identitas atau total tepercaya;
+- server mengambil identitas/NIK dari sesi, memvalidasi eligibility/deadline, menghitung ulang harga, dan menyimpan snapshot audit;
 - pembayaran manual mendukung transfer bank dan QRIS;
-- QR attendance dan meal diterbitkan terpisah untuk karyawan serta setiap anggota keluarga;
-- seluruh entitlement berbayar ditahan sampai admin menyetujui bukti.
+- RSVP hadir langsung mengaktifkan QR attendance dan meal karyawan, walaupun biaya tambahan masih pending;
+- setiap anggota keluarga mendapat QR attendance dan meal terpisah setelah pembayaran paket keluarga disetujui;
+- scan attendance karyawan, bukan scan meal atau keluarga, menjadi sumber eligibility doorprize.
 
-Sebelum mengaktifkan workflow di production, jalankan migration berikut melalui Supabase SQL Editor:
+Migration `006_program_registration_workflow_v2.sql` adalah fondasi historis v5.8
+dan tidak boleh dianggap cukup untuk mengaktifkan workflow v5.9 di production.
+Urutan aktivasi wajib:
 
-```text
-database/migrations/006_program_registration_workflow_v2.sql
-```
+1. backup dan audit schema production;
+2. jalankan migration v5.9 yang idempotent di staging, termasuk rerun;
+3. verifikasi constraint, RLS, RPC, dan kompatibilitas jalur legacy;
+4. jalankan acceptance test pada satu program pilot;
+5. terapkan migration production hanya dengan approval dan rollback point;
+6. deploy backend, verifikasi health JSON/PM2 log, lalu deploy dan smoke-test frontend.
 
-Rancangan tabel, RLS, compatibility, serta urutan rollout dijelaskan di `docs/form-workflow-v2-schema.md`.
+Jangan menjalankan migration production hanya berdasarkan README. Gunakan kontrak
+dan status terbaru di `implementation-plan.md` serta `task.md`.
 
 ## Project Structure
 
@@ -102,9 +115,27 @@ src/
 ├── lib/             # Utilities & client config
 └── hooks/           # Custom React hooks
 
-server.ts            # Express backend (monolith)
-api/index.ts         # Vercel serverless entry
+server.ts            # Express composition root / server bootstrap
+api/index.ts         # Vercel compatibility entry
 ```
+
+Backend business routes berada di `src/routes/` dan logic domain bertahap
+diisolasi di `src/services/`. `server.ts` memasang middleware, route modules, API
+404 JSON, dan frontend fallback.
+
+## Deployment
+
+- Frontend production di-host di Vercel.
+- Backend API berjalan di VPS melalui PM2 process `sps-backend` dan diakses melalui
+  `https://api.spscorner.store`.
+- Vercel meneruskan request `/api/*` ke backend tersebut.
+- Supabase migration merupakan tahap terpisah dan tidak dijalankan oleh script
+  deploy VPS.
+
+Untuk perubahan backend, jalankan `npm run lint`, `npm test`, dan `npm run build`
+sebelum `scripts/deploy-vps.ps1`. Script tersebut membantu SCP, dependency sync,
+restart PM2, dan health check, tetapi tidak menggantikan backup/migration staging,
+pengujian manual, pemeriksaan response JSON, commit/push, atau verifikasi Vercel.
 
 ## Versioning
 

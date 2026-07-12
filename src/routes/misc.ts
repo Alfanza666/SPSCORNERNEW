@@ -395,7 +395,7 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
       if (profile?.role !== "admin" && profile?.role !== "superadmin")
         return res.status(403).json({ error: "Forbidden: Admin only" });
       let targetEmail =
-        to || process.env.SARIROTI_ADMIN_EMAIL || "Sales.Adm.bjm@sariroti.com";
+        to || process.env.SARIROTI_ADMIN_EMAIL || "";
       if (!to) {
         try {
           const { data: settingsData } = await supabase

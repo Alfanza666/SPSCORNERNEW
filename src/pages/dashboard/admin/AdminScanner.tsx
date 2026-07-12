@@ -91,10 +91,10 @@ export default function AdminScanner() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const { count } = await supabase
-        .from('program_coupons')
+        .from('program_coupon_redemptions')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'claimed')
-        .gte('claimed_at', today.toISOString());
+        .eq('scan_result', 'success')
+        .gte('scanned_at', today.toISOString());
       
       if (count !== null) setSessionSuccessCount(count);
     } catch (e) { console.error(e); }
@@ -204,39 +204,54 @@ export default function AdminScanner() {
 
   const processScan = async (code: string) => {
     try {
-      const { data, error } = await supabase.rpc('claim_program_coupon', {
-        p_coupon_code: code,
-        p_admin_id: user?.id
+      // V2: Use the new scan endpoint with program and gate awareness
+      const response = await fetch('/api/admin/program-entitlements/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scanned_code: code,
+          gate: 'attendance',
+        }),
       });
 
-      if (error) throw error;
-      const result = data as any; 
+      const result = await response.json();
 
-      if (result && result.success) {
-        const gate = result.gate || 'attendance';
+      if (!response.ok) {
+        throw new Error(result.error || 'Scan failed');
+      }
+
+      if (result.scan_result === 'success') {
         addToHistory({
           id: Math.random().toString(36).substr(2, 9),
-          name: result.name,
-          nik: result.nik,
+          name: result.name || 'Karyawan',
+          nik: result.nik || '',
           status: 'success',
-          message: result.message || gate,
+          message: result.message || result.gate || 'attendance',
           timestamp: new Date().toISOString()
         });
-        return { success: true, name: result.name, nik: result.nik, gate: gate, message: result.message };
+        return { success: true, name: result.name || 'Karyawan', nik: result.nik || '', gate: result.gate || 'attendance', message: result.message };
       } else {
         addToHistory({
           id: Math.random().toString(36).substr(2, 9),
           name: 'Unknown',
-          nik: code,
+          nik: '',
           status: 'error',
-          message: result?.error || 'Kupon tidak valid',
+          message: result.failure_reason || 'Scan gagal',
           timestamp: new Date().toISOString()
         });
-        return { success: false, error: result?.error || 'Kupon tidak valid' };
+        return { success: false, error: result.failure_reason || 'Scan gagal' };
       }
     } catch (err: any) {
-      console.error("Scan Error:", err);
-      return { success: false, error: "Terjadi kesalahan sistem." };
+      console.error("Scan error:", err);
+      addToHistory({
+        id: Math.random().toString(36).substr(2, 9),
+        name: 'Unknown',
+        nik: '',
+        status: 'error',
+        message: err.message || 'Terjadi kesalahan',
+        timestamp: new Date().toISOString()
+      });
+      return { success: false, error: err.message || 'Terjadi kesalahan' };
     }
   };
 
