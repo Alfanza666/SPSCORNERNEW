@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { Plus, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
+import RichTextEditor from '../../../components/ui/RichTextEditor';
 
 interface FormField {
   id: number;
@@ -903,11 +904,9 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Deskripsi</label>
-                    <textarea
-                      rows={2}
-                      value={formData.description}
-                      onChange={e => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <RichTextEditor
+                      content={formData.description}
+                      onChange={html => setFormData({ ...formData, description: html })}
                       placeholder="Penjelasan lengkap tentang program ini..."
                     />
                   </div>

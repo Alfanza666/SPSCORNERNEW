@@ -1,3 +1,12 @@
+v5.9.3 — Integrasi RichTextEditor Deskripsi Program & Fitur Upload Banner Form Builder (PATCH)
+------------------------------------------------------------------------
+### Fitur & Perbaikan:
+- **[FITUR] src/pages/dashboard/admin/AdminUnionPrograms.tsx:**
+  Mengganti textarea Deskripsi bawaan dengan component `RichTextEditor` (berbasis TipTap) agar deskripsi program kerja serikat dapat diformat secara kaya (bold, italic, underline, strike, headings, lists, quotes).
+
+- **[FITUR] src/components/form-builder/InspectorPanel.tsx:**
+  Menambahkan area upload file "Banner Formulir" di bagian atas tab Design. Mendukung drag-and-drop & klik file untuk diunggah langsung ke Supabase Storage bucket `program-files` (banners/). Mengupdate `banner_url` form secara asinkron dan realtime.
+
 v5.9.2 — Pembersihan Komponen Accordion Formulir Pendaftaran Legacy & Perbaikan Filter Program (PATCH)
 ------------------------------------------------------------------------
 ### Perbaikan:

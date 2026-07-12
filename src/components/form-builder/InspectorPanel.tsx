@@ -1,4 +1,4 @@
-import { useId, type KeyboardEvent, type ReactNode } from 'react';
+import React, { useId, type KeyboardEvent, type ReactNode } from 'react';
 import {
   Bot,
   Check,
@@ -9,7 +9,10 @@ import {
   SlidersHorizontal,
   Sparkles,
   X,
+  Upload,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
 import type { FormConfig, FormField } from '../../types/form';
 import type { FieldUpdateHandler, FormAppearanceUpdates, InspectorTab } from './types';
 
@@ -251,9 +254,73 @@ function DefaultPanel({ activeTab, form, selectedField, onUpdateField, onUpdateF
     const disabled = !onUpdateForm;
     const update = (updates: FormAppearanceUpdates) => onUpdateForm?.(updates);
 
+    const handleBannerFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Ukuran maksimal 5MB');
+        return;
+      }
+
+      const toastId = toast.loading('Mengunggah banner...');
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `form-banner-${Date.now()}.${fileExt}`;
+        const filePath = `banners/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('program-files')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('program-files')
+          .getPublicUrl(filePath);
+
+        update({ banner_url: publicUrl });
+        toast.success('Banner berhasil diperbarui!', { id: toastId });
+      } catch (error: any) {
+        console.error('Error uploading banner:', error);
+        toast.error('Gagal mengunggah banner', { id: toastId });
+      }
+    };
+
     return (
       <div className="space-y-6 p-4">
         <PanelHeading eyebrow="Brand experience" title="Desain formulir" description="Bangun tampilan konsisten tanpa memengaruhi halaman lain." />
+
+        <InspectorField label="Banner Formulir" optional>
+          {form.banner_url ? (
+            <div className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-800">
+              <img src={form.banner_url} alt="Form Banner Preview" className="h-24 w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => update({ banner_url: '' })}
+                disabled={disabled}
+                className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600 transition"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-slate-300 dark:border-zinc-700 rounded-xl cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-900/50 transition">
+              <div className="flex flex-col items-center justify-center pt-4 pb-4">
+                <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                <p className="text-[10px] text-slate-500">Klik untuk upload banner</p>
+                <p className="text-[8px] text-slate-400">JPG, PNG, WebP (max 5MB)</p>
+              </div>
+              <input
+                type="file"
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={disabled}
+                onChange={handleBannerFileChange}
+              />
+            </label>
+          )}
+        </InspectorField>
+
 
         <InspectorField label="Warna utama" htmlFor="inspector-theme-color">
           <div className="grid grid-cols-9 gap-2">
