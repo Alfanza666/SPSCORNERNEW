@@ -158,6 +158,62 @@ CREATE TABLE IF NOT EXISTS public.program_registrations (
     CHECK (jsonb_typeof(metadata) = 'object')
 );
 
+-- Production installations before Workflow V2 may already have a smaller
+-- `program_registrations` table. CREATE TABLE IF NOT EXISTS does not add the
+-- missing columns, so complete that legacy table additively before creating
+-- V2 indexes, triggers, and policies. Existing legacy columns and rows remain
+-- untouched and available to legacy consumers.
+ALTER TABLE public.program_registrations
+  ADD COLUMN IF NOT EXISTS workflow_config_id uuid REFERENCES public.program_workflow_configs(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS workflow_version integer,
+  ADD COLUMN IF NOT EXISTS dynamic_form_id uuid REFERENCES public.dynamic_forms(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS form_response_id uuid REFERENCES public.dynamic_form_responses(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS nik text,
+  ADD COLUMN IF NOT EXISTS attendee_name text,
+  ADD COLUMN IF NOT EXISTS attendance_status text NOT NULL DEFAULT 'unknown',
+  ADD COLUMN IF NOT EXISTS registration_status text NOT NULL DEFAULT 'draft',
+  ADD COLUMN IF NOT EXISTS shirt_size text,
+  ADD COLUMN IF NOT EXISTS is_camping boolean,
+  ADD COLUMN IF NOT EXISTS family_count integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'IDR',
+  ADD COLUMN IF NOT EXISTS subtotal_amount numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_amount numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS payment_status text NOT NULL DEFAULT 'not_required',
+  ADD COLUMN IF NOT EXISTS answers_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS pricing_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS submitted_at timestamptz,
+  ADD COLUMN IF NOT EXISTS confirmed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS cancelled_at timestamptz,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+-- Backfill only missing workflow identity from existing trusted records.
+-- This never overwrites a legacy value.
+UPDATE public.program_registrations AS registration
+SET nik = profile.nik,
+    attendee_name = COALESCE(registration.attendee_name, profile.name)
+FROM public.profiles AS profile
+WHERE registration.user_id = profile.id
+  AND registration.nik IS NULL;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'program_registrations'
+      AND column_name = 'registered_at'
+  ) THEN
+    EXECUTE $backfill$
+      UPDATE public.program_registrations
+      SET created_at = COALESCE(created_at, registered_at, now()),
+          updated_at = COALESCE(updated_at, registered_at, now())
+    $backfill$;
+  END IF;
+END;
+$$;
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_program_registrations_program_nik
   ON public.program_registrations(program_id, nik);
 

@@ -617,7 +617,7 @@ function throwDatabaseError(error: any, fallbackMessage: string): never {
 async function loadProgramContext(supabase: any, programId: string, profile: any) {
   const { data: program, error: programError } = await supabase
     .from("union_programs")
-    .select("id, name, is_active, is_targeted, start_date, end_date, dynamic_form_id")
+    .select("id, name, program_type, is_active, is_targeted, start_date, end_date, rsvp_deadline, publication_status, config_version, dynamic_form_id")
     .eq("id", programId)
     .single();
   if (programError || !program) {
@@ -627,13 +627,18 @@ async function loadProgramContext(supabase: any, programId: string, profile: any
   if (!program.is_active || isProgramExpired(program.end_date)) {
     throw new WorkflowHttpError(409, "PROGRAM_CLOSED", "Program sudah ditutup atau melewati batas waktu.");
   }
+  if (program.rsvp_deadline && new Date(program.rsvp_deadline).getTime() <= Date.now()) {
+    throw new WorkflowHttpError(409, "RSVP_DEADLINE_PASSED", "Batas waktu RSVP sudah berakhir.");
+  }
 
-  if (program.is_targeted) {
+  const usesFrozenSnapshot = program.program_type === "gathering" && program.publication_status === "published";
+  if (program.is_targeted || usesFrozenSnapshot) {
     const { data: eligible, error: eligibilityError } = await supabase
       .from("program_eligibility")
       .select("nik")
       .eq("program_id", programId)
       .eq("nik", profile.nik)
+      .eq("config_version", program.config_version)
       .maybeSingle();
     if (eligibilityError) throwDatabaseError(eligibilityError, "Gagal memvalidasi peserta program.");
     if (!eligible) throw new WorkflowHttpError(403, "NOT_ELIGIBLE", "Anda tidak terdaftar sebagai peserta program ini.");
@@ -660,7 +665,7 @@ async function loadProgramContext(supabase: any, programId: string, profile: any
 
   const targetNiks = Array.isArray(form.target_niks) ? form.target_niks : [];
   const targetDepartments = Array.isArray(form.target_departments) ? form.target_departments : [];
-  if (targetNiks.length > 0 || targetDepartments.length > 0) {
+  if (!usesFrozenSnapshot && (targetNiks.length > 0 || targetDepartments.length > 0)) {
     let formEligible = targetNiks.includes(profile.nik);
     if (!formEligible && targetDepartments.length > 0) {
       const { data: employee, error: employeeError } = await supabase
@@ -779,22 +784,18 @@ function entitlementCodes(workflow: any, beneficiary: "employee" | "family") {
 }
 
 function familyBeneficiaryName(registration: any, workflow: any, index: number): string {
-  const familyFieldId = bindingFieldId(workflow, "family_count");
-  const rows = familyFieldId && Array.isArray(registration?.answers_snapshot?.[familyFieldId])
-    ? registration.answers_snapshot[familyFieldId]
-    : [];
-  const row = rows[index - 1];
-  const configuredName = isPlainObject(row) ? String(row.name || row.nama || "").trim() : "";
-  return configuredName || `Keluarga ${index} - ${registration.attendee_name || registration.nik}`;
+  return `Keluarga ${index}`;
 }
 
 function couponKey(row: any) {
-  return `${row.entitlement_code}:${row.beneficiary_type}:${row.beneficiary_index || 0}`;
+  return `${legacyEntitlementCode(row)}:${row.beneficiary_type}:${row.beneficiary_index || 0}`;
 }
 
 function legacyEntitlementCode(row: any): string {
   const value = normalizeWorkflowValue(row?.gate_type || row?.coupon_type || row?.entitlement_code);
-  return value === "food" ? "meal" : value;
+  if (value === "food" || value.endsWith("_meal")) return "meal";
+  if (value.endsWith("_attendance")) return "attendance";
+  return value;
 }
 
 function createCouponCode(entitlement: string, beneficiary: string, index: number | null) {
@@ -805,8 +806,7 @@ function createCouponCode(entitlement: string, beneficiary: string, index: numbe
 
 async function issueRegistrationEntitlements(supabase: any, registration: any, workflow: any, attempt = 0) {
   if (registration.attendance_status !== "attending"
-    || registration.registration_status !== "confirmed"
-    || !["not_required", "paid"].includes(registration.payment_status)) {
+    || !["submitted", "pending_payment", "payment_pending", "payment_review", "payment_rejected", "confirmed", "locked"].includes(registration.registration_status)) {
     return [];
   }
 
@@ -821,9 +821,11 @@ async function issueRegistrationEntitlements(supabase: any, registration: any, w
   for (const entitlement of entitlementCodes(workflow, "employee")) {
     definitions.push({ entitlement, beneficiary: "employee", index: null });
   }
-  for (let index = 1; index <= Number(registration.family_count || 0); index += 1) {
-    for (const entitlement of entitlementCodes(workflow, "family")) {
-      definitions.push({ entitlement, beneficiary: "family", index });
+  if (registration.payment_status === "paid") {
+    for (let index = 1; index <= Number(registration.family_count || 0); index += 1) {
+      for (const entitlement of entitlementCodes(workflow, "family")) {
+        definitions.push({ entitlement, beneficiary: "family", index });
+      }
     }
   }
 
@@ -917,7 +919,7 @@ async function issueRegistrationEntitlements(supabase: any, registration: any, w
       program_registration_id: registration.id,
       beneficiary_type: definition.beneficiary,
       beneficiary_index: definition.index,
-      entitlement_code: definition.entitlement,
+      entitlement_code: `${definition.beneficiary}_${definition.entitlement === "meal" ? "meal" : "attendance"}`,
       entitlement_metadata: entitlementMetadata,
       issued_at: issuedAt,
     };
@@ -1070,23 +1072,18 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       if (existingRegistration && !answersUnchanged && existingRegistration.payment_status === "under_review") {
         throw new WorkflowHttpError(409, "PROOF_SUBMITTED_LOCKED", "Jawaban dikunci setelah bukti pembayaran diunggah. Hubungi admin untuk membuka registrasi.");
       }
-      if (existingRegistration && !answersUnchanged
-        && existingRegistration.attendance_status === "declined"
-        && existingRegistration.registration_status === "confirmed") {
-        throw new WorkflowHttpError(409, "DECLINED_REGISTRATION_LOCKED", "Konfirmasi tidak hadir sudah final. Hubungi admin untuk membuka registrasi.");
-      }
       if (existingRegistration?.payment_status === "paid" && !answersUnchanged) {
         throw new WorkflowHttpError(409, "PAID_REGISTRATION_LOCKED", "Registrasi yang sudah dibayar tidak dapat diubah.");
       }
       if (existingRegistration && !answersUnchanged) {
-        const { count, error: couponCountError } = await supabase
+        const { data: issuedCoupons, error: couponCountError } = await supabase
           .from("program_coupons")
-          .select("id", { count: "exact", head: true })
+          .select("id, status")
           .eq("program_registration_id", existingRegistration.id)
           .in("status", ["active", "claimed"]);
         if (couponCountError) throwDatabaseError(couponCountError, "Gagal memeriksa kupon registrasi.");
-        if ((count || 0) > 0) {
-          throw new WorkflowHttpError(409, "ENTITLEMENTS_ALREADY_ISSUED", "Registrasi tidak dapat diubah setelah kupon diterbitkan.");
+        if ((issuedCoupons || []).some(coupon => coupon.status === "claimed")) {
+          throw new WorkflowHttpError(409, "ENTITLEMENT_REDEEMED_LOCKED", "Registrasi tidak dapat diubah setelah tiket digunakan.");
         }
       }
 
@@ -1111,8 +1108,8 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
 
       const now = new Date().toISOString();
       const registrationStatus = quote.attendance_status === "declined"
-        ? "confirmed"
-        : quote.requires_payment ? "pending_payment" : "confirmed";
+        ? "declined"
+        : quote.requires_payment ? "payment_pending" : "confirmed";
       const paymentStatus = quote.requires_payment ? "pending" : "not_required";
       const registrationPayload = {
         ...(existingRegistration?.id ? { id: existingRegistration.id } : {}),
@@ -1152,6 +1149,15 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
         .single();
       if (registrationError) throwDatabaseError(registrationError, "Gagal menyimpan registrasi program.");
 
+      if (quote.attendance_status === "declined" && existingRegistration?.id) {
+        const { error: revokeError } = await supabase
+          .from("program_coupons")
+          .update({ status: "expired" })
+          .eq("program_registration_id", existingRegistration.id)
+          .eq("status", "active");
+        if (revokeError) throwDatabaseError(revokeError, "Gagal menonaktifkan tiket registrasi lama.");
+      }
+
       if (quote.attendance_status === "declined" || quote.requires_payment) {
         await expireUnlinkedLegacyEntitlements(
           supabase,
@@ -1177,6 +1183,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       let payment = null;
       if (quote.requires_payment) {
         payment = await createOrReusePendingPayment(supabase, registration, workflow, answerHash, submittedAnswers._payment_method);
+        await issueRegistrationEntitlements(supabase, registration, workflow);
       } else {
         const { error: cancelPaymentError } = await supabase
           .from("program_registration_payments")
@@ -1290,7 +1297,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       if (updateError) throwDatabaseError(updateError, "Gagal menyimpan bukti pembayaran.");
       const { error: registrationUpdateError } = await supabase
         .from("program_registrations")
-        .update({ payment_status: "under_review", registration_status: "pending_payment" })
+        .update({ payment_status: "under_review", registration_status: "payment_review" })
         .eq("id", registration.id);
       if (registrationUpdateError) throwDatabaseError(registrationUpdateError, "Gagal memperbarui status registrasi.");
 
@@ -1560,7 +1567,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       if (rejectError) throwDatabaseError(rejectError, "Gagal menolak pembayaran.");
       const { data: registration, error: registrationError } = await supabase
         .from("program_registrations")
-        .update({ payment_status: "failed", registration_status: "pending_payment", confirmed_at: null })
+        .update({ payment_status: "failed", registration_status: "payment_rejected", confirmed_at: null })
         .eq("id", registrationId)
         .select()
         .single();

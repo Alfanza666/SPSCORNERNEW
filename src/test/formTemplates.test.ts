@@ -10,12 +10,15 @@ describe('event RSVP template', () => {
       familyUnitPrice: 30_000,
       maxFamilyMembers: 3,
     });
-    const family = form.fields.find(field => field.id === 'family_members');
+    const family = form.fields.find(field => field.id === 'family_count');
     const size = form.fields.find(field => field.id === 'shirt_size');
 
     expect(form.experience_version).toBe(2);
-    expect(family?.item_unit_price).toBe(30_000);
-    expect(family?.max_items).toBe(3);
+    expect(family?.type).toBe('number');
+    expect(family?.unit_price).toBe(30_000);
+    expect(family?.max).toBe(3);
+    expect(family?.subfields).toBeUndefined();
+    expect(form.welcome_screen?.adaptive_note_enabled).toBe(false);
     expect(size?.options?.find(option => option.value === 'xxxl')?.price).toBe(35_000);
   });
 
@@ -26,7 +29,7 @@ describe('event RSVP template', () => {
       shirt_size: 'xxl',
       camping: 'yes',
       bring_family: 'yes',
-      family_members: [{ name: 'A' }, { name: 'B' }],
+      family_count: 2,
       payment: '',
     });
     expect(evaluation.total_amount).toBe(80_000);

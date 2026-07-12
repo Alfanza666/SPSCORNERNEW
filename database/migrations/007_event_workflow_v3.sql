@@ -39,7 +39,7 @@ COMMENT ON FUNCTION public.set_event_workflow_updated_at() IS
 -- Add structured columns to union_programs for event workflow
 ALTER TABLE public.union_programs
   ADD COLUMN IF NOT EXISTS program_type text NOT NULL DEFAULT 'generic'
-    CHECK (program_type IN ('generic', 'gathering')),
+    CHECK (program_type IN ('generic', 'gathering', 'kurban', 'bingkisan', 'turnamen')),
   ADD COLUMN IF NOT EXISTS rsvp_deadline timestamptz,
   ADD COLUMN IF NOT EXISTS registration_enabled boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS benefit_enabled boolean NOT NULL DEFAULT false,
@@ -53,11 +53,16 @@ ALTER TABLE public.union_programs
   ADD COLUMN IF NOT EXISTS config_version integer NOT NULL DEFAULT 1 CHECK (config_version > 0),
   ADD COLUMN IF NOT EXISTS published_at timestamptz,
   ADD COLUMN IF NOT EXISTS published_by uuid,
+  ADD COLUMN IF NOT EXISTS publication_status text NOT NULL DEFAULT 'draft',
   ADD COLUMN IF NOT EXISTS eligibility_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS eligibility_source_filter jsonb NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS metadata_v3 jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 -- Constraints
+ALTER TABLE public.union_programs
+  DROP CONSTRAINT IF EXISTS union_programs_payment_methods_object_check,
+  DROP CONSTRAINT IF EXISTS union_programs_payment_accounts_object_check;
+
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -67,7 +72,7 @@ BEGIN
   ) THEN
     ALTER TABLE public.union_programs
       ADD CONSTRAINT union_programs_program_type_check
-      CHECK (program_type IN ('generic', 'gathering'));
+      CHECK (program_type IN ('generic', 'gathering', 'kurban', 'bingkisan', 'turnamen'));
   END IF;
 
   IF NOT EXISTS (
@@ -82,22 +87,22 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
-    WHERE conname = 'union_programs_payment_methods_object_check'
+    WHERE conname = 'union_programs_payment_methods_array_check'
       AND conrelid = 'public.union_programs'::regclass
   ) THEN
     ALTER TABLE public.union_programs
-      ADD CONSTRAINT union_programs_payment_methods_object_check
-      CHECK (jsonb_typeof(payment_methods) = 'object');
+      ADD CONSTRAINT union_programs_payment_methods_array_check
+      CHECK (jsonb_typeof(payment_methods) = 'array');
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
-    WHERE conname = 'union_programs_payment_accounts_object_check'
+    WHERE conname = 'union_programs_payment_accounts_array_check'
       AND conrelid = 'public.union_programs'::regclass
   ) THEN
     ALTER TABLE public.union_programs
-      ADD CONSTRAINT union_programs_payment_accounts_object_check
-      CHECK (jsonb_typeof(payment_accounts) = 'object');
+      ADD CONSTRAINT union_programs_payment_accounts_array_check
+      CHECK (jsonb_typeof(payment_accounts) = 'array');
   END IF;
 
   IF NOT EXISTS (
@@ -128,6 +133,16 @@ BEGIN
     ALTER TABLE public.union_programs
       ADD CONSTRAINT union_programs_metadata_v3_object_check
       CHECK (jsonb_typeof(metadata_v3) = 'object');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'union_programs_publication_status_check'
+      AND conrelid = 'public.union_programs'::regclass
+  ) THEN
+    ALTER TABLE public.union_programs
+      ADD CONSTRAINT union_programs_publication_status_check
+      CHECK (publication_status IN ('draft', 'published', 'closed'));
   END IF;
 END;
 $$;
@@ -170,6 +185,20 @@ CREATE TABLE IF NOT EXISTS public.program_eligibility (
     CHECK (jsonb_typeof(source_filter) = 'object')
 );
 
+-- Complete the smaller legacy eligibility table without replacing or deleting
+-- any recipient row. Historical rows become snapshot version 1.
+ALTER TABLE public.program_eligibility
+  ADD COLUMN IF NOT EXISTS config_version integer NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS employee_name text,
+  ADD COLUMN IF NOT EXISTS department text,
+  ADD COLUMN IF NOT EXISTS join_date date,
+  ADD COLUMN IF NOT EXISTS source_filter jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS snapshot_version integer NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS published_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS published_by uuid,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_program_eligibility_program_nik_version
   ON public.program_eligibility(program_id, nik, config_version);
 
@@ -197,7 +226,33 @@ COMMENT ON COLUMN public.program_eligibility.source_filter IS
 ALTER TABLE public.program_coupon_redemptions
   ADD COLUMN IF NOT EXISTS program_id uuid REFERENCES public.union_programs(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS gate text,
-  ADD COLUMN IF NOT EXISTS entitlement_id uuid REFERENCES public.program_coupons(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS entitlement_id uuid;
+
+-- Legacy coupon installations do not all use the same primary-key type. Add
+-- the FK only when the checked schema confirms a UUID key.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'program_coupons'
+      AND column_name = 'id'
+      AND udt_name = 'uuid'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'program_coupon_redemptions_entitlement_v3_fkey'
+      AND conrelid = 'public.program_coupon_redemptions'::regclass
+  ) THEN
+    ALTER TABLE public.program_coupon_redemptions
+      ADD CONSTRAINT program_coupon_redemptions_entitlement_v3_fkey
+      FOREIGN KEY (entitlement_id) REFERENCES public.program_coupons(id) ON DELETE SET NULL;
+  END IF;
+END;
+$$;
+
+ALTER TABLE public.program_coupons
+  ADD COLUMN IF NOT EXISTS scanned_at timestamptz,
+  ADD COLUMN IF NOT EXISTS scanned_by uuid;
 
 -- Indexes for the new fields
 CREATE INDEX IF NOT EXISTS idx_program_coupon_redemptions_program_gate
@@ -316,7 +371,7 @@ SELECT
 FROM public.program_registrations pr
 JOIN public.union_programs up ON up.id = pr.program_id
 WHERE up.program_type = 'gathering'
-GROUP BY pr.program_id, up.name, up.program_type, up.config_version,
+GROUP BY pr.program_id, pr.id, up.name, up.program_type, up.config_version,
          up.rsvp_deadline, up.published_at;
 
 COMMENT ON VIEW public.program_workflow_report IS
@@ -484,19 +539,97 @@ SECURITY DEFINER
 SET search_path = public, auth
 AS $$
 DECLARE
+  v_program record;
+  v_active_config record;
   v_new_version integer;
   v_published_at timestamptz;
+  v_recipient_count integer;
 BEGIN
-  -- Validate the program can be published
-  IF NOT public.is_program_workflow_admin() THEN
+  -- The backend uses a service-role client, so auth.uid() is not the admin's
+  -- identity. Verify the authenticated actor ID passed by the protected route.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = p_admin_id AND role IN ('admin', 'superadmin')
+  ) THEN
     RAISE EXCEPTION 'Unauthorized: admin role required';
   END IF;
 
-  -- Increment config version atomically
+  SELECT * INTO v_program
+  FROM public.union_programs
+  WHERE id = p_program_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Program not found: %', p_program_id;
+  END IF;
+  IF v_program.config_version <> p_config_version THEN
+    RAISE EXCEPTION 'Program configuration changed. Reload before publishing.';
+  END IF;
+  IF v_program.program_type <> 'gathering' THEN
+    RAISE EXCEPTION 'Only gathering programs use this publication workflow.';
+  END IF;
+  IF v_program.rsvp_deadline IS NULL OR v_program.rsvp_deadline <= now() THEN
+    RAISE EXCEPTION 'A future RSVP deadline is required.';
+  END IF;
+  IF v_program.start_date IS NOT NULL AND v_program.rsvp_deadline > v_program.start_date THEN
+    RAISE EXCEPTION 'RSVP deadline cannot be after the event starts.';
+  END IF;
+  IF jsonb_typeof(p_eligibility_snapshot->'recipients') <> 'array' THEN
+    RAISE EXCEPTION 'Eligibility snapshot recipients must be an array.';
+  END IF;
+  v_recipient_count := jsonb_array_length(p_eligibility_snapshot->'recipients');
+  IF v_recipient_count = 0 THEN
+    RAISE EXCEPTION 'At least one eligible recipient is required.';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.program_registrations WHERE program_id = p_program_id
+  ) THEN
+    RAISE EXCEPTION 'A program with registrations requires audited reconciliation, not republish.';
+  END IF;
+
+  SELECT * INTO v_active_config
+  FROM public.program_workflow_configs
+  WHERE program_id = p_program_id AND is_active = true
+  ORDER BY version DESC
+  LIMIT 1
+  FOR UPDATE;
+  IF NOT FOUND OR v_active_config.dynamic_form_id IS NULL THEN
+    RAISE EXCEPTION 'An active RSVP form configuration is required.';
+  END IF;
+
+  SELECT GREATEST(
+    v_program.config_version + 1,
+    COALESCE(MAX(version), 0) + 1
+  ) INTO v_new_version
+  FROM public.program_workflow_configs
+  WHERE program_id = p_program_id;
+
+  -- Preserve the old immutable config and publish a new version snapshot.
+  UPDATE public.program_workflow_configs
+  SET is_active = false, updated_by = p_admin_id
+  WHERE program_id = p_program_id AND is_active = true;
+
+  INSERT INTO public.program_workflow_configs (
+    program_id, dynamic_form_id, version, is_active, field_bindings,
+    pricing_rules, entitlement_rules, payment_rules, metadata,
+    created_by, updated_by
+  ) VALUES (
+    p_program_id, v_active_config.dynamic_form_id, v_new_version, true,
+    v_active_config.field_bindings, v_active_config.pricing_rules,
+    v_active_config.entitlement_rules, v_active_config.payment_rules,
+    COALESCE(v_active_config.metadata, '{}'::jsonb) || jsonb_build_object(
+      'published_from_config_id', v_active_config.id,
+      'published_at', now()
+    ),
+    p_admin_id, p_admin_id
+  );
+
   UPDATE public.union_programs
-  SET config_version = config_version + 1,
+  SET config_version = v_new_version,
       published_at = now(),
       published_by = p_admin_id,
+      publication_status = 'published',
+      registration_enabled = true,
       eligibility_snapshot = p_eligibility_snapshot,
       eligibility_source_filter = p_eligibility_source_filter,
       updated_at = now()
@@ -504,22 +637,37 @@ BEGIN
   RETURNING config_version, published_at
   INTO v_new_version, v_published_at;
 
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Program not found: %', p_program_id;
-  END IF;
-
-  -- Deactivate old workflow configs
-  UPDATE public.program_workflow_configs
-  SET is_active = false
-  WHERE program_id = p_program_id
-    AND is_active = true;
+  -- Append the frozen snapshot. Older versions are intentionally retained.
+  INSERT INTO public.program_eligibility (
+    program_id, config_version, nik, employee_name, department, join_date,
+    source_filter, snapshot_version, published_at, published_by
+  )
+  SELECT
+    p_program_id,
+    v_new_version,
+    btrim(recipient->>'nik'),
+    NULLIF(btrim(recipient->>'name'), ''),
+    NULLIF(btrim(recipient->>'department'), ''),
+    CASE
+      WHEN COALESCE(recipient->>'join_date', '') ~ '^\d{4}-\d{2}-\d{2}$'
+        THEN (recipient->>'join_date')::date
+      ELSE NULL
+    END,
+    p_eligibility_source_filter,
+    v_new_version,
+    v_published_at,
+    p_admin_id
+  FROM jsonb_array_elements(p_eligibility_snapshot->'recipients') AS recipient
+  WHERE length(btrim(recipient->>'nik')) > 0
+  ON CONFLICT (program_id, nik, config_version) DO NOTHING;
 
   -- Return success
   RETURN jsonb_build_object(
     'success', true,
     'program_id', p_program_id,
     'config_version', v_new_version,
-    'published_at', v_published_at
+    'published_at', v_published_at,
+    'recipient_count', v_recipient_count
   );
 END;
 $$;
@@ -547,65 +695,70 @@ DECLARE
   v_scan_result text;
   v_failure_reason text;
   v_redemption_id uuid;
-  v_program record;
+  v_expected_gate text;
 BEGIN
-  -- Verify scanner is admin
-  IF NOT public.is_program_workflow_admin() THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = p_scanner_user_id AND role IN ('admin', 'superadmin')
+  ) THEN
     RAISE EXCEPTION 'Unauthorized: admin role required';
   END IF;
-
-  -- Fetch program
-  SELECT * INTO v_program
-  FROM public.union_programs
-  WHERE id = p_program_id;
-
-  IF NOT FOUND THEN
-    RETURN jsonb_build_object(
-      'scan_result', 'rejected',
-      'failure_reason', 'Program not found'
-    );
+  IF p_gate NOT IN ('attendance', 'meal') THEN
+    RAISE EXCEPTION 'Gate must be attendance or meal';
   END IF;
 
-  -- Find the coupon/entitlement
   SELECT * INTO v_coupon
   FROM public.program_coupons
   WHERE coupon_code = p_scanned_code
     AND program_id = p_program_id
-  LIMIT 1;
+  LIMIT 1
+  FOR UPDATE;
 
   IF NOT FOUND THEN
     v_scan_result := 'rejected';
     v_failure_reason := 'Code not found for this program';
-  ELSIF v_coupon.status <> 'active' THEN
-    v_scan_result := 'rejected';
-    v_failure_reason := 'Code is not active (status: ' || v_coupon.status || ')';
   ELSE
-    -- Check for duplicate scan
-    IF EXISTS (
+    v_expected_gate := CASE
+      WHEN v_coupon.entitlement_code IN ('employee_attendance', 'family_attendance', 'attendance')
+        OR v_coupon.gate_type IN ('attendance', 'attendance_family') THEN 'attendance'
+      WHEN v_coupon.entitlement_code IN ('employee_meal', 'family_meal', 'meal')
+        OR v_coupon.gate_type IN ('meal', 'meal_family', 'food') THEN 'meal'
+      ELSE NULL
+    END;
+  END IF;
+
+  IF v_scan_result IS NULL AND v_expected_gate IS NULL THEN
+    v_scan_result := 'rejected';
+    v_failure_reason := 'Entitlement type is not supported';
+  ELSIF v_scan_result IS NULL AND v_expected_gate <> p_gate THEN
+    v_scan_result := 'rejected';
+    v_failure_reason := 'Wrong gate: use ' || v_expected_gate;
+  ELSIF v_scan_result IS NULL AND (
+    v_coupon.status = 'claimed' OR EXISTS (
       SELECT 1 FROM public.program_coupon_redemptions
       WHERE coupon_id = v_coupon.id
         AND scan_result = 'success'
-    ) THEN
-      v_scan_result := 'duplicate';
-      v_failure_reason := 'Code already scanned successfully';
-    ELSE
-      v_scan_result := 'success';
-      v_failure_reason := NULL;
-
-      -- Update coupon status
-      UPDATE public.program_coupons
-      SET status = 'used',
-          scanned_at = now(),
-          scanned_by = p_scanner_user_id
-      WHERE id = v_coupon.id;
-    END IF;
+    )
+  ) THEN
+    v_scan_result := 'duplicate';
+    v_failure_reason := 'Code already scanned successfully';
+  ELSIF v_scan_result IS NULL AND v_coupon.status <> 'active' THEN
+    v_scan_result := 'rejected';
+    v_failure_reason := 'Code is not active (status: ' || v_coupon.status || ')';
+  ELSIF v_scan_result IS NULL THEN
+    v_scan_result := 'success';
+    UPDATE public.program_coupons
+    SET status = 'claimed', scanned_at = now(), scanned_by = p_scanner_user_id
+    WHERE id = v_coupon.id;
   END IF;
 
-  -- Append audit record
   INSERT INTO public.program_coupon_redemptions (
     coupon_id,
+    entitlement_id,
+    program_registration_id,
     program_id,
     scanned_code,
+    entitlement_code,
     gate,
     scan_result,
     failure_reason,
@@ -614,8 +767,11 @@ BEGIN
     metadata
   ) VALUES (
     v_coupon.id,
+    v_coupon.id,
+    v_coupon.program_registration_id,
     p_program_id,
-    p_scanned_code,
+    'token-hash:' || md5(p_scanned_code),
+    v_coupon.entitlement_code,
     p_gate,
     v_scan_result,
     v_failure_reason,
@@ -635,7 +791,8 @@ BEGIN
      AND v_coupon.beneficiary_type = 'employee' THEN
     UPDATE public.program_registrations
     SET doorprize_eligible = true,
-        doorprize_eligible_at = now()
+        doorprize_eligible_at = now(),
+        registration_status = 'locked'
     WHERE id = v_coupon.program_registration_id;
   END IF;
 
@@ -645,6 +802,9 @@ BEGIN
     'redemption_id', v_redemption_id,
     'entitlement_code', v_coupon.entitlement_code,
     'beneficiary_type', v_coupon.beneficiary_type,
+    'beneficiary_index', v_coupon.beneficiary_index,
+    'name', v_coupon.name,
+    'nik', v_coupon.nik,
     'gate', p_gate,
     'program_id', p_program_id
   );
@@ -673,11 +833,14 @@ DECLARE
   v_registration record;
   v_redemption_id uuid;
 BEGIN
-  IF NOT public.is_program_workflow_admin() THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = p_admin_id AND role IN ('admin', 'superadmin')
+  ) THEN
     RAISE EXCEPTION 'Unauthorized: admin role required';
   END IF;
 
-  IF p_reason IS NULL OR length(trim(p_reason)) = 0 THEN
+  IF p_reason IS NULL OR length(trim(p_reason)) < 3 THEN
     RAISE EXCEPTION 'Override reason is required';
   END IF;
 
@@ -698,6 +861,7 @@ BEGIN
   UPDATE public.program_registrations
   SET doorprize_eligible = true,
       doorprize_eligible_at = now(),
+      registration_status = 'locked',
       metadata = metadata || jsonb_build_object(
         'override_reason', p_reason,
         'override_by', p_admin_id,
@@ -707,8 +871,10 @@ BEGIN
 
   -- Create audit record
   INSERT INTO public.program_coupon_redemptions (
+    program_registration_id,
     program_id,
     scanned_code,
+    entitlement_code,
     gate,
     scan_result,
     failure_reason,
@@ -716,9 +882,11 @@ BEGIN
     scanned_at,
     metadata
   ) VALUES (
+    v_registration.id,
     p_program_id,
-    'OVERRIDE:' || p_nik,
-    'manual',
+    'override-registration:' || v_registration.id,
+    'employee_attendance',
+    'attendance',
     'success',
     'Manual attendance override: ' || p_reason,
     p_admin_id,
@@ -726,7 +894,6 @@ BEGIN
     jsonb_build_object(
       'override', true,
       'reason', p_reason,
-      'nik', p_nik,
       'registration_id', v_registration.id
     )
   )
@@ -743,5 +910,100 @@ $$;
 
 COMMENT ON FUNCTION public.attendance_override(uuid, text, text, uuid) IS
   'Admin manual attendance override with required reason and permanent audit trail.';
+
+-- --------------------------------------------------------------------------
+-- 11. Atomic form/program binding and workflow config versioning
+-- --------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.link_program_form_v2(
+  p_program_id uuid,
+  p_form_id uuid,
+  p_config jsonb,
+  p_form_fields jsonb,
+  p_actor_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_version integer;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = p_actor_id AND role IN ('admin', 'superadmin')
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized: admin role required';
+  END IF;
+
+  PERFORM 1 FROM public.union_programs WHERE id = p_program_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Program not found'; END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.program_registrations WHERE program_id = p_program_id
+  ) THEN
+    RAISE EXCEPTION 'Cannot relink a form after registrations exist';
+  END IF;
+
+  UPDATE public.program_workflow_configs
+  SET is_active = false, updated_by = p_actor_id
+  WHERE program_id = p_program_id AND is_active = true;
+
+  IF p_form_id IS NULL THEN
+    UPDATE public.union_programs
+    SET dynamic_form_id = NULL, publication_status = 'draft', updated_at = now()
+    WHERE id = p_program_id;
+    RETURN jsonb_build_object('success', true, 'unlinked', true);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM public.dynamic_forms WHERE id = p_form_id) THEN
+    RAISE EXCEPTION 'Form not found';
+  END IF;
+  IF jsonb_typeof(p_form_fields) <> 'array' THEN
+    RAISE EXCEPTION 'Form fields must be a JSON array';
+  END IF;
+
+  UPDATE public.dynamic_forms
+  SET fields = p_form_fields
+  WHERE id = p_form_id;
+
+  SELECT COALESCE(MAX(version), 0) + 1 INTO v_version
+  FROM public.program_workflow_configs
+  WHERE program_id = p_program_id;
+
+  INSERT INTO public.program_workflow_configs (
+    program_id, dynamic_form_id, version, is_active, field_bindings,
+    pricing_rules, entitlement_rules, payment_rules, metadata,
+    created_by, updated_by
+  ) VALUES (
+    p_program_id,
+    p_form_id,
+    v_version,
+    true,
+    COALESCE(p_config->'field_bindings', '{}'::jsonb),
+    COALESCE(p_config->'pricing_rules', '{}'::jsonb),
+    COALESCE(p_config->'entitlement_rules', '{}'::jsonb),
+    COALESCE(p_config->'payment_rules', '{}'::jsonb),
+    COALESCE(p_config->'metadata', '{}'::jsonb) || jsonb_build_object('linked_at', now()),
+    p_actor_id,
+    p_actor_id
+  );
+
+  UPDATE public.union_programs
+  SET dynamic_form_id = p_form_id, publication_status = 'draft', updated_at = now()
+  WHERE id = p_program_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'program_id', p_program_id,
+    'form_id', p_form_id,
+    'workflow_version', v_version
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.link_program_form_v2(uuid, uuid, jsonb, jsonb, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.link_program_form_v2(uuid, uuid, jsonb, jsonb, uuid) TO service_role;
 
 COMMIT;

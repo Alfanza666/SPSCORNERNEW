@@ -46,6 +46,9 @@ export function createProgramWorkflowConfig(
     || findField(form, 'family_count', automation.family_count_field_id);
   const payment = findField(form, 'payment');
   const bank = payment?.bank_accounts?.[0];
+  const bankAccounts = (payment?.bank_accounts || []).filter(account =>
+    account.bank_name.trim() && account.account_number.trim() && account.account_name.trim(),
+  );
 
   const employeeEntitlements: string[] = [];
   if (automation.issue_employee_attendance !== false) employeeEntitlements.push('attendance');
@@ -73,6 +76,7 @@ export function createProgramWorkflowConfig(
       currency: 'IDR',
       shirt_surcharge: Object.fromEntries((shirtSize?.options || []).map(option => [option.value, Math.max(0, Number(option.price || 0))])),
       family: {
+        package_unit_price: Math.max(0, Number(family?.type === 'repeater' ? family.item_unit_price || 0 : family?.unit_price || 0)),
         entry_unit_price: Math.max(0, Number(family?.type === 'repeater' ? family.item_unit_price || 0 : family?.unit_price || 0)),
         meal_unit_price: 0,
         max_members: family?.type === 'repeater' ? family.max_items || 5 : family?.max || 5,
@@ -92,9 +96,12 @@ export function createProgramWorkflowConfig(
       account_name: bank?.account_name || payment?.account_name || null,
       account_number: bank?.account_number || null,
       bank_name: bank?.bank_name || null,
+      bank_accounts: bankAccounts,
       instructions: payment?.payment_description || null,
       proof_required: payment?.proof_required !== false,
-      hold_entitlements_until_paid: automation.hold_entitlements_until_paid !== false,
+      hold_entitlements_until_paid: false,
+      hold_employee_entitlements_until_paid: false,
+      hold_family_entitlements_until_paid: automation.hold_family_entitlements_until_paid !== false,
     },
     metadata: {
       experience_version: form.experience_version || 1,

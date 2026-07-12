@@ -319,6 +319,62 @@ function DefaultPanel({ activeTab, form, selectedField, onUpdateField, onUpdateF
           </div>
         </InspectorField>
 
+        <div className="space-y-3 rounded-2xl border border-slate-200 p-3.5 dark:border-zinc-800">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200">Welcome screen</p>
+              <p className="mt-0.5 text-[10px] text-slate-400">Atur kartu pembuka sebelum pertanyaan.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.welcome_screen?.enabled !== false}
+              onClick={() => update({ welcome_screen: { ...form.welcome_screen, enabled: form.welcome_screen?.enabled === false } })}
+              disabled={disabled}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 ${form.welcome_screen?.enabled !== false ? 'bg-blue-600' : 'bg-slate-300 dark:bg-zinc-700'}`}
+            >
+              <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${form.welcome_screen?.enabled !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+
+          {form.welcome_screen?.enabled !== false && (
+            <div className="grid gap-3">
+              <InspectorField label="Eyebrow" htmlFor="welcome-eyebrow">
+                <input id="welcome-eyebrow" value={form.welcome_screen?.eyebrow || ''} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, eyebrow: event.target.value } })} className={CONTROL_CLASS} placeholder="Konfirmasi digital" />
+              </InspectorField>
+              <InspectorField label="Badge" htmlFor="welcome-badge">
+                <input id="welcome-badge" value={form.welcome_screen?.badge || ''} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, badge: event.target.value } })} className={CONTROL_CLASS} placeholder="Form resmi SPS" />
+              </InspectorField>
+              <InspectorField label="Judul khusus" htmlFor="welcome-title" optional>
+                <input id="welcome-title" value={form.welcome_screen?.title || ''} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, title: event.target.value } })} className={CONTROL_CLASS} placeholder="Gunakan judul formulir" />
+              </InspectorField>
+              <InspectorField label="Deskripsi khusus" htmlFor="welcome-description" optional>
+                <textarea id="welcome-description" rows={3} value={form.welcome_screen?.description || ''} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, description: event.target.value } })} className={CONTROL_CLASS} placeholder="Gunakan deskripsi formulir" />
+              </InspectorField>
+              <InspectorField label="Label tombol" htmlFor="welcome-start-label">
+                <input id="welcome-start-label" value={form.welcome_screen?.start_label || ''} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, start_label: event.target.value } })} className={CONTROL_CLASS} placeholder="Mulai konfirmasi" />
+              </InspectorField>
+              <InspectorField label="Highlight" htmlFor="welcome-highlights" optional>
+                <textarea id="welcome-highlights" rows={3} value={(form.welcome_screen?.highlights || []).join('\n')} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, highlights: event.target.value.split('\n').map(value => value.trim()).filter(Boolean).slice(0, 6) } })} className={CONTROL_CLASS} placeholder="Satu highlight per baris" />
+              </InspectorField>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                <input type="checkbox" checked={form.welcome_screen?.adaptive_note_enabled === true} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, adaptive_note_enabled: event.target.checked } })} className="h-4 w-4 rounded border-slate-300" />
+                Tampilkan catatan adaptif di banner
+              </label>
+              {form.welcome_screen?.adaptive_note_enabled && (
+                <>
+                  <InspectorField label="Judul catatan" htmlFor="welcome-note-title">
+                    <input id="welcome-note-title" value={form.welcome_screen?.adaptive_note_title || ''} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, adaptive_note_title: event.target.value } })} className={CONTROL_CLASS} placeholder="Formulir mengikuti jawaban Anda" />
+                  </InspectorField>
+                  <InspectorField label="Isi catatan" htmlFor="welcome-note-description">
+                    <textarea id="welcome-note-description" rows={3} value={form.welcome_screen?.adaptive_note_description || ''} onChange={(event) => update({ welcome_screen: { ...form.welcome_screen, adaptive_note_description: event.target.value } })} className={CONTROL_CLASS} />
+                  </InspectorField>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         <InspectorField label="Typography" htmlFor="inspector-font-family">
           <select
             id="inspector-font-family"

@@ -62,6 +62,20 @@ export interface ProgramAutomationConfig {
   issue_family_attendance?: boolean;
   issue_family_meal?: boolean;
   hold_entitlements_until_paid?: boolean;
+  hold_family_entitlements_until_paid?: boolean;
+}
+
+export interface FormWelcomeScreenConfig {
+  enabled?: boolean;
+  eyebrow?: string;
+  badge?: string;
+  title?: string;
+  description?: string;
+  start_label?: string;
+  highlights?: string[];
+  adaptive_note_enabled?: boolean;
+  adaptive_note_title?: string;
+  adaptive_note_description?: string;
 }
 
 export interface Condition {
@@ -159,4 +173,5 @@ export interface FormConfig {
   review_enabled?: boolean;
   autosave_draft?: boolean;
   program_automation?: ProgramAutomationConfig;
+  welcome_screen?: FormWelcomeScreenConfig;
 }

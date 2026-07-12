@@ -168,13 +168,16 @@ export default function PortalProgram() {
     
     // V2: Try to get registration status from V2 endpoint
     try {
-      const response = await fetch(`/api/portal/programs/${program.id}/registration-v2`);
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const response = await fetch(`/api/portal/programs/${program.id}/registration-v2`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const result = await response.json();
       
-      if (result.success && result.registration) {
+      const registration = result.data || result.registration;
+      if (response.ok && result.success && registration) {
         // V2 registration found - map to coupon format for backward compatibility
-        const registration = result.registration;
-        const v2Coupons = (result.entitlements || []).map((e: any) => ({
+        const v2Coupons = (registration.coupons || result.entitlements || []).map((e: any) => ({
           id: e.id,
           coupon_code: e.coupon_code,
           gate_type: e.gate_type,

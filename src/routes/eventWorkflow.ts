@@ -8,6 +8,7 @@
  */
 
 import { EventWorkflowService } from "../services/eventWorkflow.js";
+import { createProgramWorkflowConfig } from "../utils/programWorkflowConfig.js";
 
 export function registerEventWorkflowRoutes(app: any, { supabase, sendNotification }: any) {
   const workflowService = new EventWorkflowService(supabase);
@@ -53,6 +54,79 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
   // ADMIN ENDPOINTS
   // ═══════════════════════════════════════════════════════════════════════════
 
+  app.post("/api/admin/programs/:programId/link-form-v2", async (req: any, res: any) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+
+      const { programId } = req.params;
+      const formId = req.body?.form_id || null;
+      let workflowConfig: any = {};
+      let synchronizedFields: any[] = [];
+
+      if (formId) {
+        const { data: program, error: programError } = await supabase
+          .from('union_programs')
+          .select('program_type, family_package_price, shirt_price_map')
+          .eq('id', programId)
+          .single();
+        if (programError || !program) return res.status(404).json({ error: 'Program not found' });
+
+        const { data: form, error: formError } = await supabase
+          .from('dynamic_forms')
+          .select('id, title, description, fields, is_active')
+          .eq('id', formId)
+          .single();
+        if (formError || !form) return res.status(404).json({ error: 'Form not found' });
+        if (!form.is_active) return res.status(409).json({ error: 'Publish the form before linking it to a program' });
+
+        let metadata: any = {};
+        try { metadata = JSON.parse(form.description || '{}'); } catch { metadata = { text: form.description || '' }; }
+        synchronizedFields = (form.fields || []).map((field: any) => {
+          if (program.program_type === 'gathering' && (field.system_key === 'family_count' || field.id === 'family_count')) {
+            return { ...field, unit_price: Math.max(0, Number(program.family_package_price || 0)) };
+          }
+          if (program.program_type === 'gathering' && (field.system_key === 'shirt_size' || field.id === 'shirt_size')) {
+            return {
+              ...field,
+              options: (field.options || []).map((option: any) => ({
+                ...option,
+                price: Math.max(0, Number(program.shirt_price_map?.[String(option.value).toUpperCase()] || 0)),
+              })),
+            };
+          }
+          return field;
+        });
+
+        const formConfig = {
+          id: form.id,
+          title: form.title,
+          description: metadata.text ?? form.description ?? '',
+          fields: synchronizedFields,
+          experience_version: metadata.experience_version === 2 ? 2 : 1,
+          outcomes: metadata.outcomes || [],
+          program_automation: metadata.program_automation || undefined,
+          welcome_screen: metadata.welcome_screen || undefined,
+        };
+        workflowConfig = createProgramWorkflowConfig(formConfig as any, programId, formId, admin.userId);
+        if (!workflowConfig) return res.status(422).json({ error: 'Form must contain a valid attendance field binding' });
+      }
+
+      const { data, error } = await supabase.rpc('link_program_form_v2', {
+        p_program_id: programId,
+        p_form_id: formId,
+        p_config: workflowConfig,
+        p_form_fields: synchronizedFields,
+        p_actor_id: admin.userId,
+      });
+      if (error) throw error;
+      return res.json(data);
+    } catch (error: any) {
+      console.error('Link program form error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   /**
    * POST /api/admin/programs/:programId/eligibility/preview
    * Preview recipients without writing a snapshot.
@@ -63,7 +137,7 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
       if (!admin) return;
 
       const { programId } = req.params;
-      const filters = req.body;
+      const filters = req.body || {};
 
       const result = await workflowService.previewEligibility(programId, filters);
       res.json({ success: true, ...result });
@@ -524,6 +598,12 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
       res.status(500).json({ error: error.message });
     }
   });
+
+  // Registration/payment endpoints below are retained temporarily as source
+  // compatibility only. The hardened ProgramRegistrationWorkflow routes are
+  // the single active contract, preventing duplicate Express handlers from
+  // shadowing one another during the migration rollout.
+  return;
 
   /**
    * GET /api/portal/programs/:programId/registration-v2

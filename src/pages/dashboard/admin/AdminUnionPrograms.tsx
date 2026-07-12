@@ -58,12 +58,15 @@ export default function AdminUnionPrograms() {
     is_active: true,
     is_targeted: false,
     dynamic_form_id: '',
+    rsvp_deadline: '',
     // Gathering options
     enable_meal: true,
     enable_doorprize: false,
     enable_family: false,
     enable_form: true,
-    paid_addons: [] as { id: string; name: string; price: number }[],
+    family_package_price: 30_000,
+    xxl_surcharge: 0,
+    xxxl_surcharge: 0,
     max_participants: 0,
     // Kurban/Bingkisan options
     kurban_type: 'sapi',
@@ -128,30 +131,6 @@ export default function AdminUnionPrograms() {
       setUploadingBanner(false);
       return null;
     }
-  };
-
-  // Helper for paid add-ons
-  const addPaidAddon = () => {
-    setFormData({
-      ...formData,
-      paid_addons: [...formData.paid_addons, { id: crypto.randomUUID(), name: '', price: 0 }]
-    });
-  };
-
-  const updatePaidAddon = (id: string, field: 'name' | 'price', value: string | number) => {
-    setFormData({
-      ...formData,
-      paid_addons: formData.paid_addons.map(addon => 
-        addon.id === id ? { ...addon, [field]: field === 'price' ? Number(value) : value } : addon
-      )
-    });
-  };
-
-  const removePaidAddon = (id: string) => {
-    setFormData({
-      ...formData,
-      paid_addons: formData.paid_addons.filter(addon => addon.id !== id)
-    });
   };
 
   const [formConfig, setFormConfig] = useState<FormField[]>([]);
@@ -224,9 +203,9 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
     setFormData({
       name: '', description: '', program_type: '',
       start_date: '', end_date: '', is_active: true, is_targeted: false,
-      dynamic_form_id: '', banner_url: '',
+      dynamic_form_id: '', banner_url: '', rsvp_deadline: '',
       enable_meal: true, enable_doorprize: false, enable_family: false, enable_form: true,
-      paid_addons: [], max_participants: 0,
+      family_package_price: 30_000, xxl_surcharge: 0, xxxl_surcharge: 0, max_participants: 0,
       kurban_type: 'sapi', distribution_date: '', target_level: 'all',
       tournament_mode: 'individual', team_size: 0, allow_register_team: false
     });
@@ -259,13 +238,16 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       is_active: program.is_active,
       is_targeted: program.is_targeted,
       dynamic_form_id: program.dynamic_form_id || '',
+      rsvp_deadline: program.rsvp_deadline ? String(program.rsvp_deadline).slice(0, 16) : '',
       banner_url: program.banner_url || '',
       // Gathering
       enable_meal: meta.enable_meal ?? true,
       enable_doorprize: meta.enable_doorprize ?? false,
       enable_family: meta.enable_family ?? false,
       enable_form: meta.enable_form ?? true,
-      paid_addons: meta.paid_addons || [],
+      family_package_price: Number(program.family_package_price ?? meta.family_package_price ?? 30_000),
+      xxl_surcharge: Number(program.shirt_price_map?.XXL ?? meta.xxl_surcharge ?? 0),
+      xxxl_surcharge: Number(program.shirt_price_map?.XXXL ?? meta.xxxl_surcharge ?? 0),
       max_participants: meta.max_participants ?? 0,
       // Kurban
       kurban_type: meta.kurban_type ?? 'sapi',
@@ -283,6 +265,8 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       setShowFormBuilder(true);
     if (program.is_targeted) {
       setShowEligibility(true);
+      void supabase.from('program_eligibility').select('nik').eq('program_id', program.id)
+        .then(({ data }) => setTargetNiks((data || []).map(row => row.nik).filter(Boolean).join('\n')));
     }
   };
 
@@ -383,6 +367,25 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
     e.preventDefault();
     setSaving(true);
     try {
+      if (editingProgram?.id && formData.program_type === 'gathering') {
+        const { count, error: countError } = await supabase
+          .from('program_registrations')
+          .select('id', { count: 'exact', head: true })
+          .eq('program_id', editingProgram.id);
+        if (countError) throw countError;
+        if ((count || 0) > 0) {
+          throw new Error('Program sudah memiliki RSVP dan tidak dapat diubah langsung. Gunakan koreksi teraudit.');
+        }
+      }
+      const manualNiks = targetNiks.trim()
+        ? targetNiks.split(/[,\n;]/).map(nik => nik.trim()).filter(nik => nik.length >= 3)
+        : [];
+      const eligibilityDraft = {
+        niks: [...new Set(manualNiks)],
+        departments: targetDepartments,
+        join_date_cutoff: targetCutoffDate || null,
+        include_all_employees: !formData.is_targeted,
+      };
       const programData: any = {
         name: formData.name,
         description: formData.description,
@@ -396,12 +399,28 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
         form_config: formConfig,
         target_departments: targetDepartments.length > 0 ? targetDepartments : null,
         target_cutoff_date: targetCutoffDate || null,
+        rsvp_deadline: formData.program_type === 'gathering' ? formData.rsvp_deadline || null : null,
+        registration_enabled: formData.program_type === 'gathering',
+        benefit_enabled: formData.program_type === 'gathering',
+        family_package_price: formData.program_type === 'gathering' && formData.enable_family ? Math.max(0, Number(formData.family_package_price || 0)) : 0,
+        shirt_price_map: formData.program_type === 'gathering' ? {
+          S: 0, M: 0, L: 0, XL: 0,
+          XXL: Math.max(0, Number(formData.xxl_surcharge || 0)),
+          XXXL: Math.max(0, Number(formData.xxxl_surcharge || 0)),
+        } : {},
+        camping_enabled: formData.program_type === 'gathering',
+        doorprize_enabled: formData.program_type === 'gathering' && formData.enable_doorprize,
+        eligibility_source_filter: eligibilityDraft,
         metadata: {
+          ...(editingProgram?.metadata || {}),
           enable_meal: formData.enable_meal,
           enable_doorprize: formData.enable_doorprize,
           enable_family: formData.enable_family,
           enable_form: formData.enable_form,
-          paid_addons: formData.paid_addons,
+          family_package_price: Math.max(0, Number(formData.family_package_price || 0)),
+          xxl_surcharge: Math.max(0, Number(formData.xxl_surcharge || 0)),
+          xxxl_surcharge: Math.max(0, Number(formData.xxxl_surcharge || 0)),
+          eligibility_draft: eligibilityDraft,
           max_participants: formData.max_participants,
           kurban_type: formData.kurban_type,
           distribution_date: formData.distribution_date,
@@ -455,7 +474,19 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
         }
       }
 
-      if (formData.is_targeted && (targetNiks.trim() || targetDepartments.length > 0)) {
+      if (formData.program_type === 'gathering' && (formData.dynamic_form_id || editingProgram?.dynamic_form_id)) {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (!token) throw new Error('Sesi admin berakhir. Silakan login kembali.');
+        const linkResponse = await fetch(`/api/admin/programs/${programId}/link-form-v2`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ form_id: formData.dynamic_form_id || null }),
+        });
+        const linkResult = await linkResponse.json();
+        if (!linkResponse.ok) throw new Error(linkResult.error || 'Gagal menyinkronkan program dengan formulir.');
+      }
+
+      if (formData.program_type !== 'gathering' && formData.is_targeted && (targetNiks.trim() || targetDepartments.length > 0)) {
         await supabase.from('program_eligibility').delete().eq('program_id', programId);
         await supabase.from('program_coupons').delete().eq('program_id', programId).eq('status', 'active');
         
@@ -574,6 +605,11 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
   };
 
   const handlePublishV2 = async (program: any) => {
+    if (!program.dynamic_form_id) return toast.error('Hubungkan formulir RSVP terlebih dahulu.');
+    if (!program.rsvp_deadline) return toast.error('Deadline RSVP wajib diisi.');
+    if (program.start_date && new Date(program.rsvp_deadline) > new Date(program.start_date)) {
+      return toast.error('Deadline RSVP tidak boleh melewati waktu mulai acara.');
+    }
     if (!confirm(`Publikasikan program "${program.name}"? Ini akan mem冻kan snapshot eligibilitas dan mengaktifkan alur kerja V2.`)) return;
     setSaving(true);
     try {
@@ -1087,47 +1123,44 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                             </label>
                           </div>
                           {formData.enable_family && (
-                            <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-800 space-y-3">
-                              <div className="flex justify-between items-center">
-                                <label className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">Daftar Item Berbayar (Add-ons)</label>
-                                <button type="button" onClick={addPaidAddon} className="text-xs flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-bold">
-                                  <Plus className="w-3 h-3" /> Tambah Item
-                                </button>
-                              </div>
-                              
-                              {formData.paid_addons.length === 0 && (
-                                <p className="text-xs text-zinc-400 italic">Belum ada item. Klik "+ Tambah Item" untuk menambahkan.</p>
-                              )}
-                              
-                              {formData.paid_addons.map((addon, idx) => (
-                                <div key={addon.id} className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                                  <span className="text-xs text-zinc-400 w-6">{idx + 1}.</span>
-                                  <input 
-                                    type="text" 
-                                    value={addon.name}
-                                    onChange={e => updatePaidAddon(addon.id, 'name', e.target.value)}
-                                    className="flex-1 border-none bg-transparent text-sm text-zinc-700 dark:text-zinc-200 focus:outline-none"
-                                    placeholder="Nama item (contoh: Sewa Tenda)"
+                            <div className="mt-3 space-y-3 border-t border-indigo-200 pt-3 dark:border-indigo-800">
+                              <label className="block text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                                Harga paket per anggota keluarga
+                                <div className="mt-1 flex items-center rounded-lg border border-indigo-200 bg-white px-3 dark:border-indigo-800 dark:bg-zinc-900">
+                                  <span className="text-sm font-bold text-zinc-500">Rp</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1000"
+                                    value={formData.family_package_price}
+                                    onChange={e => setFormData({ ...formData, family_package_price: Math.max(0, Number(e.target.value || 0)) })}
+                                    className="w-full border-none bg-transparent px-2 py-2 text-sm font-bold text-zinc-800 outline-none dark:text-zinc-100"
                                   />
-                                  <input 
-                                    type="number" 
-                                    value={addon.price}
-                                    onChange={e => updatePaidAddon(addon.id, 'price', e.target.value)}
-                                    className="w-24 border border-zinc-200 dark:border-zinc-700 rounded px-2 py-1 text-xs text-right"
-                                    placeholder="Harga"
-                                  />
-                                  <button type="button" onClick={() => removePaidAddon(addon.id)} className="text-red-500 hover:text-red-700">
-                                    <X className="w-4 h-4" />
-                                  </button>
                                 </div>
-                              ))}
+                              </label>
+                              <p className="rounded-lg bg-white/70 p-3 text-xs leading-5 text-indigo-700 dark:bg-zinc-900/60 dark:text-indigo-300">
+                                Peserta hanya mengisi jumlah keluarga. Total dihitung otomatis: jumlah × harga paket. Nama dan identitas keluarga tidak dikumpulkan.
+                              </p>
                             </div>
                           )}
                         </div>
 
                         {/* Kuota & Form */}
                         <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700">
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="sm:col-span-2">
+                              <label className="block text-xs font-semibold text-zinc-500 mb-1">Deadline RSVP</label>
+                              <input type="datetime-local" value={formData.rsvp_deadline} onChange={e => setFormData({ ...formData, rsvp_deadline: e.target.value })} className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />
+                              <p className="mt-1 text-[10px] text-zinc-400">Wajib sebelum waktu mulai acara.</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-zinc-500 mb-1">Tambahan XXL</label>
+                              <input type="number" min="0" step="1000" value={formData.xxl_surcharge} onChange={e => setFormData({ ...formData, xxl_surcharge: Math.max(0, Number(e.target.value || 0)) })} className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-zinc-500 mb-1">Tambahan XXXL</label>
+                              <input type="number" min="0" step="1000" value={formData.xxxl_surcharge} onChange={e => setFormData({ ...formData, xxxl_surcharge: Math.max(0, Number(e.target.value || 0)) })} className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />
+                            </div>
                             <div>
                               <label className="block text-xs font-semibold text-zinc-500 mb-1">Kuota Maks (0 = unlimited)</label>
                               <input type="number" value={formData.max_participants} onChange={e => setFormData({ ...formData, max_participants: parseInt(e.target.value) || 0 })} className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm" />

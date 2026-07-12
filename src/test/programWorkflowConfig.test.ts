@@ -9,7 +9,7 @@ describe('program workflow config builder', () => {
 
     expect(config?.field_bindings).toMatchObject({
       attendance: { field_id: 'attendance' },
-      family_count: { field_id: 'family_members', source_type: 'repeater' },
+      family_count: { field_id: 'family_count', source_type: 'number' },
     });
     expect(config?.pricing_rules).toMatchObject({
       shirt_surcharge: { xxl: 25_000 },

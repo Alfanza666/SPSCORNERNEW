@@ -39,6 +39,7 @@ export type FormAppearanceUpdates = Partial<
     | 'input_style'
     | 'bg_image_url'
     | 'card_glassmorphism'
+    | 'welcome_screen'
   >
 >;
 

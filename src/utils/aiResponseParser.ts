@@ -221,6 +221,7 @@ export function parseAIResponse(response: { message: string; updatedForm?: any }
       review_enabled: formUpdates.review_enabled ?? currentForm?.review_enabled ?? true,
       autosave_draft: formUpdates.autosave_draft ?? currentForm?.autosave_draft ?? true,
       program_automation: formUpdates.program_automation || currentForm?.program_automation,
+      welcome_screen: formUpdates.welcome_screen || currentForm?.welcome_screen,
       fields: Array.isArray(formUpdates.fields) ? sanitizeFields(formUpdates) : (currentForm?.fields || []),
     };
   }

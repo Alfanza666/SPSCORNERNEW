@@ -14,7 +14,6 @@ import FormCanvas from '../../../components/forms/FormCanvas';
 import PremiumFormExperience from '../../../components/forms/PremiumFormExperience';
 import { parseAIResponse } from '../../../utils/aiResponseParser';
 import { createEventRsvpTemplate } from '../../../utils/formTemplates';
-import { createProgramWorkflowConfig } from '../../../utils/programWorkflowConfig';
 import BuilderTopbar from '../../../components/form-builder/BuilderTopbar';
 import FieldPalette from '../../../components/form-builder/FieldPalette';
 import BuilderCanvas from '../../../components/form-builder/BuilderCanvas';
@@ -91,6 +90,14 @@ function createBlankPremiumForm(): FormConfig {
     default_outcome_id: 'submitted',
     review_enabled: true,
     autosave_draft: true,
+    welcome_screen: {
+      enabled: true,
+      eyebrow: 'Formulir digital',
+      badge: 'Form resmi SPS',
+      start_label: 'Mulai',
+      highlights: [],
+      adaptive_note_enabled: false,
+    },
   };
 }
 
@@ -317,7 +324,7 @@ export default function AdminFormBuilder() {
   };
 
   // ─── Save ─────────────────────────────────────────────────────────────────
-  const handleSave = async () => {
+  const handleSave = async (publish = false) => {
     if (!editingForm.title) { toast.error('Judul formulir wajib diisi'); return; }
     if (!editingForm.fields?.length) { toast.error('Tambahkan minimal satu pertanyaan'); return; }
     const hasConfiguredCharge = editingForm.fields.some(field =>
@@ -327,12 +334,12 @@ export default function AdminFormBuilder() {
       || Number(field.item_unit_price || 0) > 0,
     );
     const paymentField = editingForm.fields.find(field => field.type === 'payment_section');
-    if (editingForm.experience_version === 2 && hasConfiguredCharge && !linkedProgramId) {
+    if (publish && editingForm.experience_version === 2 && hasConfiguredCharge && !linkedProgramId) {
       toast.error('Formulir berbayar wajib dihubungkan ke Program Kerja agar harga dan QR diproses aman.');
       setInspectorTab('settings');
       return;
     }
-    if (hasConfiguredCharge && paymentField) {
+    if (publish && hasConfiguredCharge && paymentField) {
       const methods = paymentField.payment_methods || [];
       const bankConfigured = paymentField.bank_accounts?.some(account => account.account_number.trim() && account.account_name.trim());
       const qrisConfigured = Boolean(paymentField.qris_image_url?.trim());
@@ -386,9 +393,10 @@ export default function AdminFormBuilder() {
           review_enabled: editingForm.review_enabled ?? true,
           autosave_draft: editingForm.autosave_draft ?? false,
           program_automation: editingForm.program_automation || null,
+          welcome_screen: editingForm.welcome_screen || null,
         }),
         fields: cleanFields,
-        is_active: true,
+        is_active: publish ? true : Boolean((editingForm as any).is_active),
         target_niks: [...new Set([...nikArray, ...resolvedDeptNiks])].length > 0 ? [...new Set([...nikArray, ...resolvedDeptNiks])] : null,
         target_departments: targetDepartments.length > 0 ? targetDepartments : null,
         target_cutoff_date: targetCutoffDate || null
@@ -404,42 +412,18 @@ export default function AdminFormBuilder() {
         currentFormId = data.id;
       }
 
-      if (linkedProgramId && currentFormId) {
-        const { error: linkError } = await supabase.from('union_programs').update({ dynamic_form_id: currentFormId }).eq('id', linkedProgramId);
-        if (linkError) throw linkError;
-
-        if (editingForm.experience_version === 2) {
-          const workflowPayload = createProgramWorkflowConfig(editingForm, linkedProgramId, currentFormId, user?.id);
-          if (workflowPayload) {
-            const { data: activeWorkflow, error: activeWorkflowError } = await supabase
-              .from('program_workflow_configs')
-              .select('id, version')
-              .eq('program_id', linkedProgramId)
-              .eq('is_active', true)
-              .maybeSingle();
-            if (activeWorkflowError) throw new Error(`Workflow V2 belum siap: ${activeWorkflowError.message}`);
-            if (activeWorkflow) {
-              const { created_by: _createdBy, ...updates } = workflowPayload;
-              const { error: workflowError } = await supabase.from('program_workflow_configs').update(updates).eq('id', activeWorkflow.id);
-              if (workflowError) throw workflowError;
-            } else {
-              const { data: latestWorkflow, error: versionError } = await supabase
-                .from('program_workflow_configs')
-                .select('version')
-                .eq('program_id', linkedProgramId)
-                .order('version', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              if (versionError) throw versionError;
-              const { error: workflowError } = await supabase.from('program_workflow_configs').insert({
-                ...workflowPayload,
-                version: Number(latestWorkflow?.version || 0) + 1,
-              });
-              if (workflowError) throw workflowError;
-            }
-          }
-        }
+      if (publish && linkedProgramId && currentFormId) {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (!token) throw new Error('Sesi admin berakhir. Silakan login kembali.');
+        const linkResponse = await fetch(`/api/admin/programs/${linkedProgramId}/link-form-v2`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ form_id: currentFormId }),
+        });
+        const linkResult = await linkResponse.json();
+        if (!linkResponse.ok) throw new Error(linkResult.error || 'Gagal menyinkronkan formulir dengan program.');
       }
+
       toast.success('✅ Formulir berhasil disimpan!');
       setShowEditor(false);
       fetchForms();
@@ -547,7 +531,7 @@ export default function AdminFormBuilder() {
                       font_family = 'Inter', input_style = 'rounded', bg_image_url = '', card_glassmorphism = false,
                       experience_version: 1 | 2 = 1, theme_config = undefined, outcomes = undefined,
                       default_outcome_id = undefined, review_enabled = true, autosave_draft = false,
-                      program_automation = undefined;
+                      program_automation = undefined, welcome_screen = undefined;
                     try {
                       const p = JSON.parse(form.description);
                       if (p.text !== undefined) {
@@ -562,13 +546,14 @@ export default function AdminFormBuilder() {
                         review_enabled = p.review_enabled ?? true;
                         autosave_draft = p.autosave_draft ?? false;
                         program_automation = p.program_automation;
+                        welcome_screen = p.welcome_screen;
                       }
                     } catch { }
                     setEditingForm({
                       ...form, description: desc, theme_color: theme, banner_url: banner,
                       layout_type, font_family, input_style, bg_image_url, card_glassmorphism,
                       experience_version, theme: theme_config, outcomes, default_outcome_id,
-                      review_enabled, autosave_draft, program_automation,
+                      review_enabled, autosave_draft, program_automation, welcome_screen,
                     });
                     setTargetNiks(form.target_niks?.join('\n') || '');
                     setTargetDepartments(form.target_departments || []);
@@ -674,9 +659,9 @@ export default function AdminFormBuilder() {
         previewActive={isPreviewMode}
         publishing={saving}
         onBack={() => { setShowEditor(false); fetchForms(); }}
-        onSave={handleSave}
+        onSave={() => void handleSave(false)}
         onTogglePreview={() => setIsPreviewMode(previous => !previous)}
-        onPublish={handleSave}
+        onPublish={() => void handleSave(true)}
       />
 
       <div className="flex min-h-0 flex-1">

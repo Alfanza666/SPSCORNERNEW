@@ -197,6 +197,7 @@ export default function PortalFormView() {
       let review_enabled = true;
       let autosave_draft = false;
       let program_automation: FormConfig['program_automation'];
+      let welcome_screen: FormConfig['welcome_screen'];
       try {
         const parsed = JSON.parse(data.description);
         if (parsed.text !== undefined) {
@@ -215,6 +216,7 @@ export default function PortalFormView() {
           review_enabled = parsed.review_enabled ?? true;
           autosave_draft = parsed.autosave_draft ?? false;
           program_automation = parsed.program_automation;
+          welcome_screen = parsed.welcome_screen;
         }
       } catch(e) {}
       
@@ -233,6 +235,7 @@ export default function PortalFormView() {
       (data as any).review_enabled = review_enabled;
       (data as any).autosave_draft = autosave_draft;
       (data as any).program_automation = program_automation;
+      (data as any).welcome_screen = welcome_screen;
 
       setForm(data);
       

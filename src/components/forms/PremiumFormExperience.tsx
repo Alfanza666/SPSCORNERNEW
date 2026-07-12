@@ -134,7 +134,11 @@ export default function PremiumFormExperience({
   onUploadFile,
   onSubmit,
 }: PremiumFormExperienceProps) {
-  const [stage, setStage] = useState<ExperienceStage>(initialResult ? 'outcome' : 'cover');
+  const [stage, setStage] = useState<ExperienceStage>(() => initialResult
+    ? 'outcome'
+    : form.welcome_screen?.enabled === false
+      ? (form.fields.some(field => field.type !== 'payment_section') ? 'questions' : 'review')
+      : 'cover');
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<FormAnswers>(() => {
     if (!draftKey || typeof window === 'undefined') return initialAnswers;
@@ -221,7 +225,8 @@ export default function PremiumFormExperience({
       setError(Object.values(evaluation.validation.errors)[0] || 'Periksa kembali jawaban Anda.');
       return;
     }
-    if (evaluation.requires_payment && (!paymentMethod || !paymentProof)) {
+    const proofRequired = paymentField?.proof_required !== false;
+    if (evaluation.requires_payment && (!paymentMethod || (proofRequired && !paymentProof))) {
       setStage('payment');
       setError(!paymentMethod ? 'Pilih metode pembayaran.' : 'Unggah bukti pembayaran terlebih dahulu.');
       return;
@@ -234,7 +239,7 @@ export default function PremiumFormExperience({
       const fallback: PremiumFormSubmitResult = terminalOutcomeId
         ? { status: 'declined', title: selectedOutcome?.title, message: selectedOutcome?.message }
         : evaluation.requires_payment
-          ? { status: 'pending', title: 'Bukti pembayaran sedang diperiksa', message: 'Tiket dan kupon akan diterbitkan setelah pembayaran disetujui admin.' }
+          ? { status: 'pending', title: 'Bukti pembayaran sedang diperiksa', message: 'Tiket dan kupon karyawan tetap aktif. QR keluarga tersedia setelah pembayaran disetujui admin.' }
           : { status: 'success', title: selectedOutcome?.title || 'Konfirmasi berhasil', message: selectedOutcome?.message };
       const submissionResult = onSubmit
         ? await onSubmit({
@@ -268,7 +273,7 @@ export default function PremiumFormExperience({
       items={pricingLines.map(line => ({ id: `${line.field_id}-${line.option_value || 'line'}`, label: line.label, quantity: line.quantity, unitPrice: line.unit_price, amount: line.line_total }))}
       total={evaluation.total}
       emptyMessage="Tidak ada biaya tambahan."
-      note={evaluation.requires_payment ? 'Semua tiket dan kupon ditahan sampai pembayaran disetujui admin.' : 'Tidak ada pembayaran yang perlu diselesaikan.'}
+      note={evaluation.requires_payment ? 'Hak dasar karyawan tetap aktif. Hanya QR keluarga yang menunggu pembayaran.' : 'Tidak ada pembayaran yang perlu diselesaikan.'}
     />
   );
 
@@ -288,21 +293,21 @@ export default function PremiumFormExperience({
     >
       {stage === 'cover' && (
         <EventCover
-          title={form.title}
-          description={form.description}
-          eyebrow="Konfirmasi digital"
-          badge={respondentName ? `Untuk ${respondentName}` : 'Form resmi SPS'}
+          title={form.welcome_screen?.title || form.title}
+          description={form.welcome_screen?.description || form.description}
+          eyebrow={form.welcome_screen?.eyebrow || 'Konfirmasi digital'}
+          badge={respondentName ? `Untuk ${respondentName}` : form.welcome_screen?.badge}
           imageUrl={form.banner_url}
-          highlights={['Alur adaptif', 'Ringkasan biaya otomatis', 'QR terpisah per penerima']}
-          startLabel="Mulai konfirmasi"
+          highlights={form.welcome_screen?.highlights || []}
+          startLabel={form.welcome_screen?.start_label || 'Mulai konfirmasi'}
           onStart={() => setStage(questions.length ? 'questions' : 'review')}
-          aside={(
+          aside={form.welcome_screen?.adaptive_note_enabled ? (
             <div className="rounded-3xl border border-white/15 bg-zinc-950/85 p-6 text-white backdrop-blur">
               <Sparkles className="h-6 w-6 text-indigo-300" />
-              <p className="mt-4 text-sm font-bold">Formulir mengikuti jawaban Anda.</p>
-              <p className="mt-2 text-xs leading-6 text-zinc-400">Pertanyaan yang tidak relevan otomatis dilewati. Biaya hanya dihitung dari pilihan aktif.</p>
+              <p className="mt-4 text-sm font-bold">{form.welcome_screen.adaptive_note_title || 'Formulir mengikuti jawaban Anda.'}</p>
+              <p className="mt-2 text-xs leading-6 text-zinc-400">{form.welcome_screen.adaptive_note_description || 'Pertanyaan yang tidak relevan otomatis dilewati. Biaya hanya dihitung dari pilihan aktif.'}</p>
             </div>
-          )}
+          ) : undefined}
         />
       )}
 
@@ -370,7 +375,7 @@ export default function PremiumFormExperience({
             accountNumber={paymentMethod === 'bank_transfer' ? paymentField.bank_accounts?.[0]?.account_number : undefined}
             accountName={paymentMethod === 'bank_transfer' ? paymentField.bank_accounts?.[0]?.account_name || paymentField.account_name : undefined}
             status={paymentProof ? 'pending' : 'idle'}
-            statusMessage="Bukti akan diperiksa admin. Tiket dan kupon tetap ditahan sampai disetujui."
+            statusMessage="Bukti akan diperiksa admin. Hak dasar karyawan tetap aktif; QR keluarga menunggu persetujuan."
             proofFileName={paymentProof?.name}
             proofPreviewUrl={paymentProofPreview}
             disabled={isSubmitting}
@@ -397,7 +402,7 @@ export default function PremiumFormExperience({
           primaryAction={mode === 'preview' ? { label: 'Ulangi preview', onClick: () => { setAnswers({}); setQuestionIndex(0); setResult(null); setStage('cover'); } } : undefined}
           secondaryAction={onBack ? { label: 'Kembali ke portal', onClick: onBack } : undefined}
         >
-          {result.status === 'pending' && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">QR tiket kehadiran dan kupon makan belum diterbitkan. Keduanya otomatis tersedia setelah admin menyetujui pembayaran.</div>}
+          {result.status === 'pending' && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">Tiket masuk dan kupon makan karyawan sudah dapat digunakan. QR keluarga otomatis tersedia setelah admin menyetujui pembayaran.</div>}
         </OutcomeScreen>
       )}
     </FormExperienceShell>

@@ -133,36 +133,67 @@ export class EventWorkflowService {
     join_date_cutoff?: string;
     include_all_employees?: boolean;
   }): Promise<{ recipients: any[]; count: number; filter_snapshot: any }> {
-    let query = this.supabase
-      .from('profiles')
-      .select('id, nik, name, department, join_date')
+    const { data: program, error: programError } = await this.supabase
+      .from('union_programs')
+      .select('is_targeted, target_departments, target_cutoff_date, metadata')
+      .eq('id', programId)
+      .single();
+    if (programError || !program) throw new Error('Program not found');
+
+    const draftFilter = program.metadata?.eligibility_draft || {};
+    let manualNiks = (filters.nik_list?.length ? filters.nik_list : draftFilter.niks || [])
+      .map((value: unknown) => String(value).trim())
+      .filter(Boolean);
+    if (manualNiks.length === 0 && program.is_targeted) {
+      const { data: existingRows } = await this.supabase
+        .from('program_eligibility')
+        .select('nik')
+        .eq('program_id', programId);
+      manualNiks = (existingRows || []).map((row: any) => row.nik).filter(Boolean);
+    }
+    const departments = (filters.departments?.length
+      ? filters.departments
+      : draftFilter.departments || program.target_departments || [])
+      .map((value: unknown) => String(value).trim())
+      .filter(Boolean);
+    const cutoff = filters.join_date_cutoff || draftFilter.join_date_cutoff || program.target_cutoff_date || undefined;
+    const includeAll = filters.include_all_employees === true
+      || draftFilter.include_all_employees === true
+      || !program.is_targeted;
+
+    const { data: employees, error } = await this.supabase
+      .from('employees')
+      .select('id, nik, name, department, tanggal_masuk')
       .not('nik', 'is', null);
 
-    // Apply filters
-    if (filters.nik_list && filters.nik_list.length > 0) {
-      query = query.in('nik', filters.nik_list);
-    }
-    if (filters.departments && filters.departments.length > 0) {
-      query = query.in('department', filters.departments);
-    }
-    if (filters.join_date_cutoff) {
-      query = query.lte('join_date', filters.join_date_cutoff);
-    }
-
-    const { data: recipients, error } = await query;
-
     if (error) throw error;
+
+    const nikSet = new Set(manualNiks);
+    const departmentSet = new Set(departments);
+    const recipients = (employees || []).filter((employee: any) => {
+      if (cutoff && (!employee.tanggal_masuk || String(employee.tanggal_masuk) > cutoff)) return false;
+      if (includeAll) return true;
+      if (nikSet.size === 0 && departmentSet.size === 0) return false;
+      return nikSet.has(employee.nik) || departmentSet.has(employee.department);
+    });
+
+    const filterSnapshot = {
+      nik_list: [...nikSet],
+      departments: [...departmentSet],
+      join_date_cutoff: cutoff || null,
+      include_all_employees: includeAll,
+    };
 
     return {
       recipients: (recipients || []).map(r => ({
         nik: r.nik,
         name: r.name,
         department: r.department,
-        join_date: r.join_date,
+        join_date: r.tanggal_masuk,
         user_id: r.id,
       })),
       count: (recipients || []).length,
-      filter_snapshot: filters,
+      filter_snapshot: filterSnapshot,
     };
   }
 
@@ -187,6 +218,9 @@ export class EventWorkflowService {
     // 2. Validate RSVP deadline
     if (!program.rsvp_deadline) throw new Error('RSVP deadline is required');
     if (new Date(program.rsvp_deadline) <= new Date()) throw new Error('RSVP deadline must be in the future');
+    if (program.start_date && new Date(program.rsvp_deadline) > new Date(program.start_date)) {
+      throw new Error('RSVP deadline cannot be after the event starts');
+    }
 
     // 3. Validate form config
     if (!formConfigId) {
@@ -201,21 +235,24 @@ export class EventWorkflowService {
       formConfigId = activeConfig.id;
     }
 
-    // 4. Validate eligibility snapshot
-    if (!program.eligibility_snapshot || Object.keys(program.eligibility_snapshot).length === 0) {
-      throw new Error('No eligibility snapshot found. Run preview first.');
-    }
-
-    const recipients = program.eligibility_snapshot?.recipients || [];
+    // 4. Resolve the current draft target server-side, then freeze it in the
+    // same database transaction as the config-version publication.
+    const preview = await this.previewEligibility(programId, {});
+    const recipients = preview.recipients;
     if (recipients.length === 0) throw new Error('Eligibility snapshot contains no recipients');
+    const eligibilitySnapshot = {
+      recipients,
+      count: recipients.length,
+      generated_at: new Date().toISOString(),
+    };
 
     // 5. Publish atomically using RPC
     const { data: result, error: publishError } = await this.supabase
       .rpc('publish_gathering', {
         p_program_id: programId,
         p_config_version: program.config_version,
-        p_eligibility_snapshot: program.eligibility_snapshot,
-        p_eligibility_source_filter: program.eligibility_source_filter || {},
+        p_eligibility_snapshot: eligibilitySnapshot,
+        p_eligibility_source_filter: preview.filter_snapshot,
         p_admin_id: adminId,
       });
 

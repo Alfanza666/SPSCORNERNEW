@@ -7,6 +7,7 @@ export interface EventRsvpTemplateOptions {
   xxxlSurcharge?: number;
   familyUnitPrice?: number;
   maxFamilyMembers?: number;
+  /** @deprecated Family identity is intentionally not collected. */
   requireFamilyNames?: boolean;
 }
 
@@ -16,9 +17,8 @@ export function createEventRsvpTemplate(options: EventRsvpTemplateOptions = {}):
     description = 'Konfirmasikan kehadiran dan kebutuhan acara Anda.',
     xxlSurcharge = 0,
     xxxlSurcharge = 0,
-    familyUnitPrice = 0,
+    familyUnitPrice = 30_000,
     maxFamilyMembers = 5,
-    requireFamilyNames = true,
   } = options;
 
   return {
@@ -31,6 +31,18 @@ export function createEventRsvpTemplate(options: EventRsvpTemplateOptions = {}):
     input_style: 'rounded',
     review_enabled: true,
     autosave_draft: true,
+    welcome_screen: {
+      enabled: true,
+      eyebrow: 'Konfirmasi digital',
+      badge: 'Form resmi SPS',
+      title,
+      description,
+      start_label: 'Mulai konfirmasi',
+      highlights: [],
+      adaptive_note_enabled: false,
+      adaptive_note_title: 'Formulir mengikuti jawaban Anda.',
+      adaptive_note_description: 'Pertanyaan yang tidak relevan otomatis dilewati. Biaya hanya dihitung dari pilihan aktif.',
+    },
     theme: {
       preset: 'sps_event_premium',
       primary_color: '#4F46E5',
@@ -91,6 +103,7 @@ export function createEventRsvpTemplate(options: EventRsvpTemplateOptions = {}):
       },
       {
         id: 'bring_family',
+        system_key: 'bringing_family',
         type: 'radio',
         label: 'Apakah Anda membawa keluarga?',
         required: true,
@@ -101,26 +114,18 @@ export function createEventRsvpTemplate(options: EventRsvpTemplateOptions = {}):
         ],
       },
       {
-        id: 'family_members',
-        system_key: 'family_members',
-        type: 'repeater',
-        label: 'Data anggota keluarga',
-        description: 'Tambahkan satu baris untuk setiap anggota keluarga.',
+        id: 'family_count',
+        system_key: 'family_count',
+        type: 'number',
+        label: 'Berapa anggota keluarga yang dibawa?',
+        description: `Biaya paket keluarga ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Math.max(0, familyUnitPrice))} per orang, termasuk tiket masuk dan makan. Kami tidak meminta nama atau identitas keluarga.`,
         required: true,
         condition: { fieldId: 'bring_family', operator: 'eq', value: 'yes' },
-        item_label: 'Anggota keluarga',
-        min_items: 1,
-        max_items: Math.max(1, maxFamilyMembers),
-        item_unit_price: Math.max(0, familyUnitPrice),
-        subfields: [
-          {
-            id: 'name',
-            type: 'text',
-            label: 'Nama anggota keluarga',
-            required: requireFamilyNames,
-            placeholder: 'Masukkan nama lengkap',
-          },
-        ],
+        placeholder: 'Contoh: 2',
+        min: 1,
+        max: Math.max(1, maxFamilyMembers),
+        step: 1,
+        unit_price: Math.max(0, familyUnitPrice),
       },
       {
         id: 'payment',
@@ -156,7 +161,7 @@ export function createEventRsvpTemplate(options: EventRsvpTemplateOptions = {}):
         id: 'pending_payment',
         kind: 'pending_payment',
         title: 'Bukti pembayaran sedang diperiksa',
-        message: 'Seluruh tiket dan kupon akan diterbitkan setelah pembayaran disetujui admin.',
+        message: 'Tiket dan kupon karyawan tetap aktif. QR keluarga diterbitkan setelah pembayaran disetujui admin.',
         issue_entitlements: false,
       },
     ],
@@ -165,13 +170,13 @@ export function createEventRsvpTemplate(options: EventRsvpTemplateOptions = {}):
       attendance_field_id: 'attendance',
       attending_value: 'yes',
       declined_value: 'no',
-      family_repeater_field_id: 'family_members',
+      family_count_field_id: 'family_count',
       issue_employee_attendance: true,
       issue_employee_meal: true,
       issue_family_attendance: true,
       issue_family_meal: true,
-      hold_entitlements_until_paid: true,
+      hold_entitlements_until_paid: false,
+      hold_family_entitlements_until_paid: true,
     },
   };
 }
-
