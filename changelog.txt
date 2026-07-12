@@ -1,4 +1,35 @@
+v5.9.1 — Perbaikan Alur Form Builder & Cleanup Form Program Kerja (PATCH)
+------------------------------------------------------------------------
+### Perbaikan:
+- **[FIX] src/pages/dashboard/admin/AdminFormBuilder.tsx:**
+  Validasi "Formulir berbayar wajib dihubungkan ke Program Kerja" diubah dari
+  hard block (return) menjadi soft warning toast kuning 5 detik. Form tetap
+  berhasil tersimpan/diterbitkan meskipun belum tertaut ke program. Tab
+  Pengaturan dibuka otomatis agar user bisa menghubungkan kapan saja.
+  Validasi rekening/QRIS juga dikecualikan untuk form non-experience_version 2.
+  Root cause: template RSVP mengandung harga field sehingga selalu ditolak.
+
+- **[FIX/CLEANUP] src/pages/dashboard/admin/AdminUnionPrograms.tsx:**
+  Membersihkan form pembuatan/edit Program Kerja dari field yang sudah tidak
+  relevan karena fungsinya telah diambil alih oleh Form Builder RSVP.
+  DIHAPUS: Toggle "Formulir Tambahan Acara" + dropdown dynamic_form_id,
+  section "Gate & Tiket" (enable_meal, enable_doorprize), section "Keluarga
+  Berbayar" (enable_family, family_package_price), field Tambahan XXL/XXXL
+  surcharge, checkbox "Aktifkan Form/Poll".
+  DITAMBAH: Card "Formulir RSVP" yang menampilkan nama form terhubung (hijau)
+  atau tombol "Buat Form RSVP di Form Builder" (dashed) sebagai navigasi
+  langsung ke Form Builder. Konfigurasi Gathering disederhanakan menjadi
+  hanya RSVP Deadline + Kuota Maks + info box tentang Form Builder.
+  Juga menambahkan import useNavigate dari react-router-dom.
+
+### Bug JSX:
+- **[FIX] AdminUnionPrograms.tsx:**
+  Memperbaiki 4 error TypeScript (TS17008, TS1381, TS17002, TS1005) akibat
+  tag JSX yang tidak balance: </div> penutup header Langkah 3 yang hilang
+  dan satu </div> orphan yang terselip dari proses multi-replace.
+
 v5.9.0 — Employee Gathering Workflow V3 (MINOR)
+
 ------------------------------------------------------------------------
 ### Root Cause Analysis:
 - Sistem v5.8.x memiliki formulir dan registrasi kerja, tetapi tidak memiliki alur kerja gathering yang lengkap: publikasi transaksional, eligibilitas frozen, scan gate-aware, doorprize dari kehadiran aktual, dan pelaporan gabungan.

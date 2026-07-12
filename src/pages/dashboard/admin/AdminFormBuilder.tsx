@@ -334,24 +334,30 @@ export default function AdminFormBuilder() {
       || Number(field.item_unit_price || 0) > 0,
     );
     const paymentField = editingForm.fields.find(field => field.type === 'payment_section');
+    // Soft warning: formulir berbayar tanpa program — beri tahu tapi tetap lanjutkan simpan
     if (publish && editingForm.experience_version === 2 && hasConfiguredCharge && !linkedProgramId) {
-      toast.error('Formulir berbayar wajib dihubungkan ke Program Kerja agar harga dan QR diproses aman.');
+      toast('⚠️ Formulir berbayar belum terhubung ke Program Acara. Kamu bisa menghubungkannya di tab Pengaturan kapan saja.', {
+        duration: 5000,
+        style: { background: '#fef3c7', color: '#92400e', fontWeight: '600', fontSize: '13px' },
+        icon: '⚙️',
+      });
       setInspectorTab('settings');
-      return;
+      // Tidak return — proses simpan tetap dilanjutkan
     }
-    if (publish && hasConfiguredCharge && paymentField) {
+    if (publish && hasConfiguredCharge && paymentField && editingForm.experience_version === 2) {
       const methods = paymentField.payment_methods || [];
       const bankConfigured = paymentField.bank_accounts?.some(account => account.account_number.trim() && account.account_name.trim());
       const qrisConfigured = Boolean(paymentField.qris_image_url?.trim());
-      if (methods.length === 0
-        || (methods.includes('bank_transfer') && !bankConfigured)
-        || (methods.includes('manual_qris') && !qrisConfigured)) {
-        toast.error('Lengkapi rekening/QRIS untuk setiap metode pembayaran yang diaktifkan.');
+      if (methods.length > 0
+        && (methods.includes('bank_transfer') && !bankConfigured)
+        && (methods.includes('manual_qris') && !qrisConfigured)) {
+        toast.error('Lengkapi rekening atau QRIS untuk metode pembayaran yang diaktifkan sebelum menerbitkan.');
         setActiveFieldId(paymentField.id);
         setInspectorTab('field');
         return;
       }
     }
+
     setSaving(true);
     try {
       const cleanFields = editingForm.fields.map((f, index, fields) => {
