@@ -47,7 +47,7 @@ export function EventCover({
       aria-labelledby="event-cover-title"
       className={cx('overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-[0_30px_90px_-45px_rgba(24,24,27,0.45)] dark:border-zinc-800 dark:bg-zinc-900', className)}
     >
-      <div className="grid lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)]">
+      <div className="grid lg:grid-cols-[minmax(0,0.95fr)_minmax(22rem,1.05fr)]">
         <div className="order-2 flex flex-col justify-center p-6 sm:p-10 lg:order-1 lg:p-14">
           <div className="mb-6 flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
@@ -108,9 +108,15 @@ export function EventCover({
           ) : null}
         </div>
 
-        <div className="relative order-1 min-h-64 overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 lg:order-2 lg:min-h-[38rem]">
+        <div className="relative order-1 min-h-64 overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 lg:order-2 lg:min-h-[30rem]">
           {imageUrl ? (
-            <img src={imageUrl} alt={imageAlt} className="absolute inset-0 size-full object-cover" />
+            <>
+              <img src={imageUrl} alt="" aria-hidden="true" className="absolute inset-0 size-full scale-110 object-cover opacity-45 blur-2xl" />
+              <div className="absolute inset-0 bg-gradient-to-br from-zinc-950/75 via-zinc-950/20 to-zinc-950/70" />
+              <div className="relative z-10 flex min-h-64 items-center justify-center p-3 sm:p-5 lg:min-h-[30rem]">
+                <img src={imageUrl} alt={imageAlt} className="max-h-full max-w-full rounded-2xl object-contain shadow-2xl ring-1 ring-white/15" />
+              </div>
+            </>
           ) : (
             <div aria-hidden="true" className="absolute inset-0">
               <div className="absolute -right-16 -top-16 size-64 rounded-full border border-white/25 bg-white/10" />
@@ -118,7 +124,7 @@ export function EventCover({
               <div className="absolute left-1/2 top-1/2 size-40 -translate-x-1/2 -translate-y-1/2 rotate-12 rounded-[2.5rem] border border-white/30 bg-white/10 shadow-2xl backdrop-blur" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/70 via-zinc-950/5 to-transparent" />
+          {!imageUrl ? <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/70 via-zinc-950/5 to-transparent" /> : null}
           {aside ? <div className="absolute inset-x-5 bottom-5 rounded-3xl border border-white/20 bg-zinc-950/35 p-5 text-white shadow-2xl backdrop-blur-xl sm:inset-x-8 sm:bottom-8 sm:p-6">{aside}</div> : null}
         </div>
       </div>
@@ -127,4 +133,3 @@ export function EventCover({
 }
 
 export default EventCover;
-

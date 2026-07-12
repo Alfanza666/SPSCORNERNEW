@@ -1,3 +1,21 @@
+v5.9.6 - Safe Fit Banner Form Welcome Screen (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Banner formulir RSVP memakai `object-cover` pada panel kanan welcome screen. Untuk banner landscape yang berisi logo dan teks, mode cover memotong sisi gambar sehingga judul/banner terlihat tidak profesional.
+
+### Perbaikan:
+- **[UI/UX] src/components/forms/experience/EventCover.tsx:** Banner welcome screen sekarang memakai safe-fit: background blur tetap memenuhi panel, sementara gambar asli tampil utuh dengan `object-contain`. Panel kanan juga dibuat lebih lebar dan tidak terlalu tinggi agar banner landscape lebih nyaman dibaca.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.9.6.
+
+v5.9.5 - Program Serikat Banner Card List (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Kartu list Program Serikat hanya menampilkan teks dan tanggal, sehingga program gathering yang sudah punya banner tetap terlihat kosong dan kurang profesional.
+
+### Perbaikan:
+- **[UI/UX] src/pages/portal/PortalProgram.tsx:** List Program Serikat sekarang menampilkan banner program pada setiap card, status aktif/selesai di atas visual, layout responsif desktop/mobile, dan fallback gradient profesional bila banner belum tersedia.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.9.5.
+
 v5.9.4 - Fix Submit Form RSVP & Rich Text Portal Program (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

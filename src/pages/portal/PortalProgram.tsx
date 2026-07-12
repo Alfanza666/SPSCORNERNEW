@@ -292,7 +292,7 @@ export default function PortalProgram() {
                 <button onClick={() => navigate('/portal')} className="p-2 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700"><ChevronLeft className="w-5 h-5 text-zinc-600" /></button>
                 <div>
                     <h1 className="text-2xl font-black text-zinc-900 dark:text-white">Program Serikat</h1>
-                    <p className="text-sm text-zinc-500">Pilih program untuk details</p>
+                    <p className="text-sm text-zinc-500">Pilih program untuk detail</p>
                 </div>
             </div>
 
@@ -306,20 +306,65 @@ export default function PortalProgram() {
                 <div className="grid gap-4">
                     {programs.map(prog => {
                         const isExpired = !prog.is_active || (prog.end_date && new Date(prog.end_date) < new Date());
+                        const programType = (prog.program_type || 'program').toLowerCase();
+                        const fallbackBannerClass = programType.includes('kurban')
+                          ? 'from-amber-500 via-orange-500 to-rose-600'
+                          : programType.includes('turnamen')
+                            ? 'from-orange-500 via-red-500 to-rose-700'
+                            : programType.includes('bingkisan')
+                              ? 'from-pink-500 via-fuchsia-500 to-violet-700'
+                              : 'from-sky-500 via-indigo-500 to-violet-700';
+                        const description = richTextToPlainText(prog.description) || 'Tidak ada deskripsi tambahan.';
                         return (
-                        <motion.div key={prog.id} whileHover={{ scale: 1.01 }} onClick={() => handleSelectProgram(prog)} className="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm cursor-pointer">
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-bold text-lg text-zinc-900 dark:text-white">{prog.name}</h3>
-                                <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${isExpired ? 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400' : 'bg-green-100 text-green-700'}`}>
-                                    {isExpired ? 'Selesai' : 'Aktif'}
-                                </span>
+                        <motion.article
+                          key={prog.id}
+                          whileHover={{ scale: 1.01 }}
+                          onClick={() => handleSelectProgram(prog)}
+                          className="group cursor-pointer overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-xl dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-800"
+                        >
+                          <div className="grid min-h-[13rem] md:grid-cols-[minmax(220px,32%)_1fr]">
+                            <div className="relative min-h-44 overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                              {prog.banner_url ? (
+                                <img
+                                  src={prog.banner_url}
+                                  alt={prog.name}
+                                  className="h-full min-h-44 w-full object-cover transition duration-500 group-hover:scale-105"
+                                />
+                              ) : (
+                                <div className={`absolute inset-0 bg-gradient-to-br ${fallbackBannerClass}`}>
+                                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,255,255,0.35),transparent_28%),radial-gradient(circle_at_80%_25%,rgba(255,255,255,0.18),transparent_30%)]" />
+                                  <div className="relative flex h-full min-h-44 flex-col justify-end p-5 text-white">
+                                    <Gift className="mb-4 h-10 w-10 opacity-80" />
+                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/75">Program SPS</p>
+                                    <p className="mt-1 text-sm font-black capitalize">{prog.program_type || 'Program Serikat'}</p>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/65 to-transparent" />
+                              <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] font-black uppercase shadow-lg backdrop-blur ${isExpired ? 'bg-zinc-950/70 text-zinc-200' : 'bg-emerald-100 text-emerald-700'}`}>
+                                {isExpired ? 'Selesai' : 'Aktif'}
+                              </span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
-                                <Calendar className="w-3 h-3" />
-                                <span>{new Date(prog.start_date).toLocaleDateString()} - {new Date(prog.end_date).toLocaleDateString()}</span>
+
+                            <div className="flex min-w-0 flex-col justify-between gap-5 p-5 sm:p-6">
+                              <div>
+                                <div className="mb-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-zinc-400">
+                                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{prog.program_type || 'program'}</span>
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    {new Date(prog.start_date).toLocaleDateString()} - {new Date(prog.end_date).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <h3 className="text-xl font-black leading-tight text-zinc-900 dark:text-white">{prog.name}</h3>
+                                <p className="mt-3 text-sm leading-6 text-zinc-500 line-clamp-3 dark:text-zinc-400">{description}</p>
+                              </div>
+                              <div className="flex items-center justify-between border-t border-zinc-100 pt-4 text-xs font-black text-zinc-400 dark:border-zinc-800">
+                                <span>Program Serikat</span>
+                                <span className="text-blue-600 dark:text-blue-300">Lihat detail</span>
+                              </div>
                             </div>
-                            <p className="text-sm text-zinc-500 line-clamp-2">{richTextToPlainText(prog.description) || 'Tidak ada deskripsi tambahan.'}</p>
-                        </motion.div>
+                          </div>
+                        </motion.article>
                         );
                     })}
                 </div>
