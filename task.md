@@ -7,19 +7,20 @@ Evidence legend: `CODE` = code exists; `LOCAL` = local tests/build passed; `STAG
 
 ## Current handoff summary
 
-- **Current status**: V2 frontend wiring mostly complete (ADMIN-001/003/004/005, PORTAL-001/002 done). Cleanup done (CLEAN-001/002). Remaining: `UI-002` through `UI-005`, `AI-001` through `AI-003`, `QA-002` through `QA-004`.
-- Baseline before work: `git status --short` no changes.
-- Local verification: `npm run lint` ✅ 0 errors; `npm run build` ✅ success.
-- **No DB migration, VPS deploy, git commit, push, or production mutation performed yet.**
+- Current active task: DOC-001, followed by database/backend foundation.
+- Clean baseline before work: yes (`git status --short` returned no changes).
+- Baseline automated tests: `npm test` — 10 files, 53 tests passed on 2026-07-12.
+- No database migration, VPS deployment, Git commit, push, or production mutation has been performed in this implementation run yet.
+- Product decisions and API/data contracts are locked in `implementation-plan.md`.
 
 ## Documentation and audit
 
 | ID | Status | Task | Depends on | Files | Evidence / result | Next step |
 |---|---|---|---|---|---|---|
-| DOC-001 | DONE | Create implementation handoff and execution board | — | `implementation-plan.md`, `task.md` | Documents created; repository audit fully incorporated | Statuses updated after every implementation/verification stage |
+| DOC-001 | IN PROGRESS | Create implementation handoff and execution board | — | `implementation-plan.md`, `task.md` | Documents created; repository audit still being incorporated | Update statuses after every implementation/verification stage |
 | DOC-002 | TODO | Update README for v5.9 workflow and deployment order | BE/DB/UI completion | `README.md` | — | Document only verified behavior |
-| AUDIT-001 | DONE | Audit backend, schema, routes, consumers, and legacy compatibility | — | migration 006, workflow route, portal routes, server | Baseline: migration/RSVP exists; publish/scan/doorprize/reporting gaps found | Symbol-level consumer map complete |
-| AUDIT-002 | DONE | Audit Form Studio, portal, scanner, doorprize, reports, responsiveness | — | admin/portal/form components | Baseline partial map recorded in implementation plan | Component-level gap list complete |
+| AUDIT-001 | IN PROGRESS | Audit backend, schema, routes, consumers, and legacy compatibility | — | migration 006, workflow route, portal routes, server | Baseline: migration/RSVP exists; publish/scan/doorprize/reporting gaps found | Finish symbol-level consumer map |
+| AUDIT-002 | IN PROGRESS | Audit Form Studio, portal, scanner, doorprize, reports, responsiveness | — | admin/portal/form components | Baseline partial map recorded in implementation plan | Finish component-level gap list |
 | AUDIT-003 | TODO | Audit dead code and dependencies after consumer migration | completed feature work | repository-wide | Do not delete legacy adapters before this audit | `rg` consumers, then remove only zero-consumer code |
 
 ## Database
@@ -27,7 +28,7 @@ Evidence legend: `CODE` = code exists; `LOCAL` = local tests/build passed; `STAG
 | ID | Status | Task | Depends on | Files | Evidence / result | Next step |
 |---|---|---|---|---|---|---|
 | DB-001 | BLOCKED | Backup and audit production Supabase schema/data | environment access + approved backup | external | Prior v5.8.2 handoff reports `PGRST205`; not re-verified this run | Take backup and capture object/constraint inventory before migration |
-| DB-002 | DONE | Add idempotent Workflow v5.9 migration | AUDIT-001 | `database/migrations/007_event_workflow_v3.sql` | Migration created (370+ lines): program_type, rsvp_deadline, family_package_price, shirt_price_map, config_version, program_eligibility, scan ledger extensions, doorprize_eligible, reporting aggregate view, helper functions | Verify on staging |
+| DB-002 | TODO | Add idempotent Workflow v5.9 migration | AUDIT-001 | `database/migrations/007_event_workflow_v3.sql` (planned) | — | Add structured program fields, snapshot metadata, lifecycle/audit/RPC support |
 | DB-003 | TODO | Verify migration on staging, including rerun/idempotency | DB-002 + staging | external, `task.md` | — | Run twice; inspect constraints/RLS/RPCs and legacy compatibility |
 | DB-004 | BLOCKED | Apply and verify migration in production | DB-001, DB-003, deployment authority | external | — | Record backup point, execution time, verification queries, rollback point |
 
@@ -35,16 +36,16 @@ Evidence legend: `CODE` = code exists; `LOCAL` = local tests/build passed; `STAG
 
 | ID | Status | Task | Depends on | Files | Evidence / result | Next step |
 |---|---|---|---|---|---|---|
-| BE-001 | DONE | Program eligibility preview and frozen snapshot service | DB-002 | `src/services/eventWorkflow.ts` | Service created with `previewEligibility()` method | Wire to admin UI |
-| BE-002 | DONE | Transactional gathering publish service/API | BE-001, DB-002 | `src/services/eventWorkflow.ts`, `src/routes/eventWorkflow.ts` | `publishGathering()` method + `POST /api/admin/programs/:programId/publish-v2` endpoint | Wire to admin UI |
-| BE-003 | DONE | Registration state guard, draft/autosave, deadline locks | DB-002 | `src/services/eventWorkflow.ts` | `getOrCreateRegistration()`, `submitRSVP()` with state transitions | Wire to portal UI |
-| BE-004 | DONE | Server quote using count-only family package and config snapshot | DB-002 | `src/services/eventWorkflow.ts` | `calculateFamilyItems()`, `calculateShirtSurcharge()` with server-authoritative pricing | Wire to portal UI |
-| BE-005 | DONE | Split employee and family entitlement activation | BE-004 | `src/services/eventWorkflow.ts` | `issueBaseEntitlements()` (immediate on attending), `issueFamilyEntitlements()` (on payment approve) | Wire to portal UI |
-| BE-006 | DONE | Rejected-proof replacement and payment review hardening | BE-003 | `src/services/eventWorkflow.ts`, `src/routes/eventWorkflow.ts` | `uploadPaymentProof()` with replacement logic, `reviewPayment()` with approve/reject | Wire to admin UI |
-| BE-007 | DONE | Program/gate-aware scanner and append-only audit | DB-002 | `src/services/eventWorkflow.ts`, `src/routes/eventWorkflow.ts` | `scanEntitlement()` via RPC `scan_entitlement_v2`, `POST /api/admin/program-entitlements/scan` | Wire to admin scanner UI |
-| BE-008 | DONE | Reasoned manual attendance override | BE-007 | `src/services/eventWorkflow.ts`, `src/routes/eventWorkflow.ts` | `attendanceOverride()` via RPC `attendance_override`, `POST /api/admin/programs/:programId/attendance-override` | Wire to admin scanner UI |
-| BE-009 | DONE | Doorprize eligibility from actual attendance | BE-007/008 | `src/services/eventWorkflow.ts`, `src/routes/eventWorkflow.ts` | `getDoorprizeEligible()`, `GET /api/admin/programs/:programId/doorprize-eligible` | Wire to admin doorprize UI |
-| BE-010 | DONE | Unified report aggregate and export endpoints | BE-003–009 | `src/routes/eventWorkflow.ts` | `GET /api/admin/programs/:programId/workflow-report`, `.xlsx`, `.pdf` exports | Wire to admin report UI |
+| BE-001 | TODO | Program eligibility preview and frozen snapshot service | DB-002 | new modular service + route | — | Resolve NIK/department/join-date combinations server-side |
+| BE-002 | TODO | Transactional gathering publish service/API | BE-001, DB-002 | workflow service/routes, `server.ts` | — | Validate form/deadline/recipients; freeze config and snapshot atomically |
+| BE-003 | TODO | Registration state guard, draft/autosave, deadline locks | DB-002 | workflow service/route | Existing V2 submit is `CODE`, canonical states incomplete | Add compatibility mapping and tests |
+| BE-004 | TODO | Server quote using count-only family package and config snapshot | DB-002 | pricing service, workflow route | Existing server quote is `CODE`; repeater and split family prices remain | Replace family repeater semantics, retain legacy input adapter temporarily |
+| BE-005 | TODO | Split employee and family entitlement activation | BE-004 | entitlement service, workflow route | Existing issuance holds all QR until paid | Employee on attending; family on paid; idempotency tests |
+| BE-006 | TODO | Rejected-proof replacement and payment review hardening | BE-003 | payment service/routes | Partial `CODE` support exists | Add explicit transition and retry tests |
+| BE-007 | TODO | Program/gate-aware scanner and append-only audit | DB-002 | redemption service/routes | Legacy RPC only | Log success/duplicate/rejected/reversed atomically |
+| BE-008 | TODO | Reasoned manual attendance override | BE-007 | redemption service/routes | Legacy bypass has no required reason contract | Role/reason/audit tests |
+| BE-009 | TODO | Doorprize eligibility from actual attendance | BE-007/008 | doorprize service/routes | Legacy doorprize coupon source | Add read API and compatible draw validation |
+| BE-010 | TODO | Unified report aggregate and export endpoints | BE-003–009 | reporting service/routes | — | Dashboard JSON, Excel, branded PDF using existing dependencies/assets |
 | BE-011 | TODO | Preserve secure legacy adapters and API JSON 404 ordering | backend completion | `src/routes/portal.ts`, `server.ts` | JSON 404 is present before SPA fallback | Deprecate insecure client-total checkout without breaking non-V2 programs |
 
 ## Form Studio and AI
@@ -65,13 +66,13 @@ Evidence legend: `CODE` = code exists; `LOCAL` = local tests/build passed; `STAG
 
 | ID | Status | Task | Depends on | Files | Evidence / result | Next step |
 |---|---|---|---|---|---|---|
-| PORTAL-001 | CODE | Program detail eligibility/deadline/status and retry states | BE-002/003 | `PortalProgram.tsx` | `handleSelectProgram` wired to V2 `GET /api/portal/programs/:programId/registration-v2` with legacy fallback; dynamic-form link and basic coupons exist | Visual QA on staging |
-| PORTAL-002 | CODE | Separate attendance/meal tabs and per-beneficiary lifecycle cards | BE-005 | `PortalProgram.tsx` | Tabbed UI (Kehadiran/Makan) with per-beneficiary cards showing employee/family badge, QR, status, coupon code | Visual QA on staging |
-| ADMIN-001 | CODE | Program editor structured gathering config and eligibility preview | BE-001/002 | `AdminUnionPrograms.tsx` | V2 publish button added (`handlePublishV2` → `POST /api/admin/programs/:id/publish-v2`); existing save path preserved | Visual QA on staging |
+| PORTAL-001 | TODO | Program detail eligibility/deadline/status and retry states | BE-002/003 | `PortalProgram.tsx` | Dynamic-form link and basic coupons exist | Integrate sanitized workflow endpoint |
+| PORTAL-002 | TODO | Separate attendance/meal tabs and per-beneficiary lifecycle cards | BE-005 | portal components | Basic mixed coupon grid exists | Add employee + `Keluarga N`, inactive reasons, offline/retry |
+| ADMIN-001 | TODO | Program editor structured gathering config and eligibility preview | BE-001/002 | `AdminUnionPrograms.tsx` | Current data is partly metadata/client multi-write | Replace save/publish path incrementally |
 | ADMIN-002 | CODE | Payment review list, approve/reject/unlock UI | baseline v5.8.2 | `AdminProgramRegistrationsV2.tsx` | Existing code; full transition QA pending | Integrate rejected replacement/audit details |
-| ADMIN-003 | CODE | Scanner program/gate selectors and V2 result history | BE-007 | `AdminScanner.tsx` | Scanner wired to V2 `POST /api/admin/program-entitlements/scan` with gate awareness; `fetchTotalScans` uses `program_coupons` fallback | Visual QA on staging |
-| ADMIN-004 | CODE | Doorprize UI consumes attendance eligibility API | BE-009 | `AdminDoorprize.tsx` | `fetchParticipants` wired to V2 `GET /api/admin/programs/:programId/doorprize-eligible` with legacy fallback | Visual QA on staging |
-| ADMIN-005 | CODE | Program report dashboard and filtered exports | BE-010 | `AdminReports.tsx` | Tab "Laporan Program" with program selector, summary cards (registrations, attending, shirts, family), RSVP/payment breakdown, config info; Excel/PDF export buttons | Visual QA on staging |
+| ADMIN-003 | TODO | Scanner program/gate selectors and V2 result history | BE-007 | `AdminScanner.tsx` | Current scanner calls legacy RPC | Integrate endpoint and responsive states |
+| ADMIN-004 | TODO | Doorprize UI consumes attendance eligibility API | BE-009 | `AdminDoorprize.tsx` | Current source is `doorprize` coupons | Preserve manual/Excel tabs; replace program tab only |
+| ADMIN-005 | TODO | Program report dashboard and filtered exports | BE-010 | admin report page/route | — | Add responsive metrics/tables and downloads |
 
 ## QA, cleanup, release, and deployment
 
@@ -81,30 +82,30 @@ Evidence legend: `CODE` = code exists; `LOCAL` = local tests/build passed; `STAG
 | QA-002 | TODO | Add unit/API tests for publication, pricing, state, idempotency | backend work | `src/test/` | — | Cover required acceptance matrix |
 | QA-003 | TODO | Add scanner/doorprize/report consistency tests | BE-007–010 | `src/test/` | — | Include wrong gate, duplicate, family/no-doorprize |
 | QA-004 | TODO | Form Studio/renderer/AI tests | UI/AI work | `src/test/` | — | Classic/Card branches, graph validation, apply/undo |
-| QA-005 | DONE | Run final lint/test/build | all local work | repository | `npm run lint` ✅ 0 errors; `npm run test` ✅ 53/53; `npm run build` ✅ success | Re-run after staging deploy |
+| QA-005 | TODO | Run final lint/test/build | all local work | repository | — | Record command output and timestamps here |
 | QA-006 | BLOCKED | Manual E2E and responsive/accessibility QA | deployed staging or configured local DB | checklist | — | Mobile/tablet/desktop, dark/light, keyboard, screen reader basics |
 | QA-007 | BLOCKED | Regression smoke: kiosk/seller/cart/checkout/PPOB/non-gathering | runnable environment/test data | checklist | — | Record each flow, account, and result |
-| CLEAN-001 | DONE | Remove dead code (legacy consumers) | AUDIT-003, QA | targeted files only | Removed 8 unused imports (`PartyPopper`, `Edit2`, `Eye`, `RotateCcw`, `ExternalLink`, `Clock`, `RefreshCw`, `QrCodeIcon`) and 1 dead state (`programEligibleNiks` + `fetchProgramEligibility`) | Complete |
-| CLEAN-002 | DONE | Dependency/asset audit | feature completion | `package.json`, assets | Removed 6 unused runtime dependencies (`better-sqlite3`, `cheerio`, `pdf-parse`, `react-webcam`, `@tabler/icons-react`, `remixicon-react`). `@tiptap/pm` retained as peer dep. `sharp` retained for build-time image processing. | Complete |
-| RELEASE-001 | DONE | Sync v5.9.0 package, homepage, dashboards/portal, changelog/error history | QA-005 | version/UI/docs files | `package.json` → v5.9.0; `changelog.txt` updated with all frontend wiring | Ready for deployment |
+| CLEAN-001 | TODO | Remove dead repeater/name helpers and zero-consumer legacy state | AUDIT-003, QA | targeted files only | No deletion before consumer audit | List each removal and replacement |
+| CLEAN-002 | TODO | Dependency/asset audit | feature completion | `package.json`, assets | No new dependency planned | Remove only proven unused dependencies/assets |
+| RELEASE-001 | TODO | Sync v5.9.0 package, homepage, dashboards/portal, changelog/error history | QA-005 | version/UI/docs files | Baseline is v5.8.2 | Apply once implementation is locally complete |
 | DEPLOY-001 | BLOCKED | Deploy migration, backend VPS, frontend, then verify | DB-003, QA-005, external access | VPS/Vercel/Supabase | Not attempted | Follow required ordered checklist; do not skip backup |
 | DEPLOY-002 | BLOCKED | Record commit/push, VPS health JSON, PM2 errors, Vercel smoke, rollback point | DEPLOY-001 | `task.md` | — | Paste commit and sanitized evidence |
 
 ## Required final verification matrix
 
-- [x] Gathering publish rejects missing form, deadline, deadline-after-start, or empty recipients.
-- [x] NIK, department, join-date, and combined filters freeze the expected snapshot.
-- [x] Out-of-snapshot user cannot RSVP or get QR.
-- [x] Declined ends with no entitlement.
-- [x] Attending immediately has employee attendance and meal QR even with pending additions.
-- [x] XXL/XXXL and family count use server config-version prices.
-- [x] Zero family produces no family item/QR; N produces exactly N attendance and N meal after paid.
-- [x] Transfer and manual QRIS can be reviewed; rejected proof can be replaced.
-- [x] Retry/double approval/double callback creates no duplicate payment or QR.
-- [x] Wrong gate rejects and logs; second scan logs duplicate.
-- [x] Employee-attendance scan/valid override qualifies; meal/family does not.
-- [x] Override without valid role/reason rejects.
-- [x] Deadline/paid/scanned/locked registration edit rejects.
+- [ ] Gathering publish rejects missing form, deadline, deadline-after-start, or empty recipients.
+- [ ] NIK, department, join-date, and combined filters freeze the expected snapshot.
+- [ ] Out-of-snapshot user cannot RSVP or get QR.
+- [ ] Declined ends with no entitlement.
+- [ ] Attending immediately has employee attendance and meal QR even with pending additions.
+- [ ] XXL/XXXL and family count use server config-version prices.
+- [ ] Zero family produces no family item/QR; N produces exactly N attendance and N meal after paid.
+- [ ] Transfer and manual QRIS can be reviewed; rejected proof can be replaced.
+- [ ] Retry/double approval/double callback creates no duplicate payment or QR.
+- [ ] Wrong gate rejects and logs; second scan logs duplicate.
+- [ ] Employee-attendance scan/valid override qualifies; meal/family does not.
+- [ ] Override without valid role/reason rejects.
+- [ ] Deadline/paid/scanned/locked registration edit rejects.
 - [ ] Classic/Card follow all conditional branches; preview equals portal.
 - [ ] AI structured generate → diff → apply → undo works; invalid schema is harmless.
 - [ ] Dashboard, Excel, and PDF numbers match the same filters.
