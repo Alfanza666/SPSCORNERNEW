@@ -1,3 +1,18 @@
+v5.9.4 - Fix Submit Form RSVP & Rich Text Portal Program (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Tombol "Kirim konfirmasi" pada Premium Form Experience crash karena UI membaca `evaluation.validation.valid`, sementara evaluator workflow V2 mengembalikan `valid` dan `errors` langsung di root object.
+- Deskripsi Program Kerja dari RichTextEditor disimpan sebagai HTML, tetapi Portal Program menampilkannya sebagai teks biasa sehingga tag `<p>`, `<strong>`, dan `<blockquote>` terlihat mentah.
+- Query departemen di Portal Pengumuman memakai `.single()` terhadap `employees.id = auth user id`; jika row employee tidak ada, Supabase mengembalikan 406 di console.
+
+### Perbaikan:
+- **[FIX] src/components/forms/PremiumFormExperience.tsx:** Submit review sekarang membaca `evaluation.valid` dan `evaluation.errors`, sehingga konfirmasi RSVP dapat dikirim.
+- **[FIX/SECURITY] src/utils/richText.ts:** Menambahkan helper sanitasi rich text agar deskripsi program dapat dirender sebagai HTML aman tanpa script/event handler.
+- **[FIX] src/pages/portal/PortalProgram.tsx:** List program memakai plain text dari rich text; detail program merender rich text tersanitasi agar tampil profesional.
+- **[FIX] src/pages/portal/PortalPengumuman.tsx:** Lookup departemen memakai NIK bila tersedia dan `.maybeSingle()` agar tidak menghasilkan 406 saat data employee belum cocok.
+- **[TEST] src/test/richText.test.ts:** Menambahkan regresi untuk sanitasi rich text dan konversi plain text.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.9.4.
+
 v5.9.3 — Integrasi RichTextEditor Deskripsi Program & Fitur Upload Banner Form Builder (PATCH)
 ------------------------------------------------------------------------
 ### Fitur & Perbaikan:

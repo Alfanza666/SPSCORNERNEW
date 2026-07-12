@@ -59,13 +59,15 @@ export default function PortalPengumuman() {
   }, [user]);
 
   const fetchUserDepartment = async () => {
-    if (!user?.id) return;
+    if (!user?.id && !user?.nik) return;
     try {
-      const { data } = await supabase
+      let query = supabase
         .from('employees')
         .select('department')
-        .eq('id', user.id)
-        .single();
+        .limit(1);
+
+      query = user?.nik ? query.eq('nik', user.nik) : query.eq('id', user.id);
+      const { data } = await query.maybeSingle();
       if (data?.department) setUserDepartment(data.department);
     } catch {}
   };

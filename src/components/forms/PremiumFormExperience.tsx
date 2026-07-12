@@ -216,13 +216,13 @@ export default function PremiumFormExperience({
   };
 
   const submitForm = async () => {
-    if (!evaluation.validation.valid) {
-      const firstInvalidIndex = questions.findIndex(field => evaluation.validation.errors[field.id]);
+    if (!evaluation.valid) {
+      const firstInvalidIndex = questions.findIndex(field => evaluation.errors[field.id]);
       if (firstInvalidIndex >= 0) {
         setQuestionIndex(firstInvalidIndex);
         setStage('questions');
       }
-      setError(Object.values(evaluation.validation.errors)[0] || 'Periksa kembali jawaban Anda.');
+      setError(Object.values(evaluation.errors)[0] || 'Periksa kembali jawaban Anda.');
       return;
     }
     const proofRequired = paymentField?.proof_required !== false;

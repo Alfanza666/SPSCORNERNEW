@@ -9,6 +9,7 @@ import {
 import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import QRCode from 'react-qr-code';
+import { richTextToPlainText, sanitizeRichTextHtml } from '../../utils/richText';
 
 interface ProgramMetadata {
   enable_meal?: boolean;
@@ -317,7 +318,7 @@ export default function PortalProgram() {
                                 <Calendar className="w-3 h-3" />
                                 <span>{new Date(prog.start_date).toLocaleDateString()} - {new Date(prog.end_date).toLocaleDateString()}</span>
                             </div>
-                            <p className="text-sm text-zinc-500 line-clamp-2">{prog.description}</p>
+                            <p className="text-sm text-zinc-500 line-clamp-2">{richTextToPlainText(prog.description) || 'Tidak ada deskripsi tambahan.'}</p>
                         </motion.div>
                         );
                     })}
@@ -339,6 +340,7 @@ export default function PortalProgram() {
 
   // === DETAIL VIEW ===
   const programBannerUrl = selectedProgram.banner_url;
+  const programDescriptionHtml = sanitizeRichTextHtml(selectedProgram.description);
   
   return (
     <div className="space-y-8 pb-20">
@@ -393,10 +395,15 @@ export default function PortalProgram() {
             </h1>
             
             {/* Full Description */}
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                {selectedProgram.description || 'Tidak ada deskripsi tambahan.'}
-              </p>
+            <div className="prose prose-sm max-w-none text-zinc-500 dark:prose-invert dark:text-zinc-400">
+              {programDescriptionHtml ? (
+                <div
+                  className="leading-relaxed [&_blockquote]:border-l-4 [&_blockquote]:border-blue-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                  dangerouslySetInnerHTML={{ __html: programDescriptionHtml }}
+                />
+              ) : (
+                <p className="leading-relaxed">Tidak ada deskripsi tambahan.</p>
+              )}
             </div>
           </div>
         </div>
