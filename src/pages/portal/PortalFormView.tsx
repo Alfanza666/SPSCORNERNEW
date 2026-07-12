@@ -906,7 +906,7 @@ export default function PortalFormView() {
         draftKey={`sps-form-draft:${form.id}:${user.id}`}
         respondentName={user.name}
         programName={programId ? 'Program Kerja SPS' : undefined}
-        onBack={() => navigate(programId ? `/portal/program/${programId}` : '/portal/forms')}
+        onBack={() => navigate(programId ? '/portal/program' : '/portal/forms', programId ? { state: { programId } } : undefined)}
         onUploadFile={uploadPremiumFile}
         onSubmit={handlePremiumSubmit}
       />

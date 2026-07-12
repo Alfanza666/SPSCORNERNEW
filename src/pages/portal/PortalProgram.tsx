@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { 
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { motion } from 'motion/react';
 import QRCode from 'react-qr-code';
 import { richTextToPlainText, sanitizeRichTextHtml } from '../../utils/richText';
+import TicketQrFrame from '../../components/portal/TicketQrFrame';
 
 interface ProgramMetadata {
   enable_meal?: boolean;
@@ -43,6 +44,8 @@ interface Coupon {
   status: string;
   coupon_code: string;
   qr_code?: string;
+  name?: string;
+  nik?: string;
   claimed_at: string;
   entitlement_code?: string;
   beneficiary_type?: 'employee' | 'family';
@@ -51,12 +54,41 @@ interface Coupon {
   metadata?: { family_count?: number; beneficiary_label?: string; beneficiary_name?: string };
 }
 
+interface TicketModalData {
+  coupon: Coupon;
+  beneficiary: string;
+  ticketTitle: string;
+  beneficiaryLabel: string;
+}
+
+function getCouponQrValue(coupon: Coupon): string {
+  return coupon.coupon_code || coupon.qr_code || coupon.id;
+}
+
+function getCouponBeneficiary(coupon: Coupon, fallbackName?: string, index = 0): string {
+  return coupon.entitlement_metadata?.beneficiary_name
+    || coupon.metadata?.beneficiary_name
+    || coupon.name
+    || (coupon.beneficiary_type === 'family' ? `Keluarga ${coupon.beneficiary_index || index + 1}` : fallbackName || 'Karyawan');
+}
+
+function getCouponStatusLabel(status?: string): string {
+  if (status === 'active') return 'Aktif';
+  if (status === 'claimed' || status === 'redeemed') return 'Sudah digunakan';
+  if (status === 'expired') return 'Kedaluwarsa';
+  if (status === 'revoked') return 'Dibatalkan';
+  return status || '-';
+}
+
 export default function PortalProgram() {
   const { user, isLoading: isAuthLoading } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const requestedProgramId = (location.state as { programId?: string } | null)?.programId;
   
   const [programs, setPrograms] = useState<Program[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [restoredProgramId, setRestoredProgramId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -107,6 +139,7 @@ export default function PortalProgram() {
 
   const [myCoupons, setMyCoupons] = useState<Coupon[]>([]);
   const [activeTab, setActiveTab] = useState<'attendance' | 'meal'>('attendance');
+  const [ticketModal, setTicketModal] = useState<TicketModalData | null>(null);
 
   // --- EFFECTS ---
   useEffect(() => {
@@ -117,6 +150,14 @@ export default function PortalProgram() {
         setLoading(false);
     }
   }, [user, isAuthLoading]);
+
+  useEffect(() => {
+    if (!requestedProgramId || restoredProgramId === requestedProgramId || programs.length === 0) return;
+    const program = programs.find(candidate => candidate.id === requestedProgramId);
+    if (!program) return;
+    setRestoredProgramId(requestedProgramId);
+    void handleSelectProgram(program);
+  }, [programs, requestedProgramId, restoredProgramId]);
 
   // --- HANDLERS ---
   const fetchPrograms = async () => {
@@ -263,6 +304,15 @@ export default function PortalProgram() {
     setShowQrisModal(false);
     toast.success("Pembayaran dikonfirmasi!");
     if (selectedProgram) handleSelectProgram(selectedProgram);
+  };
+
+  const openTicketModal = (coupon: Coupon, ticketTitle: string, index = 0) => {
+    setTicketModal({
+      coupon,
+      ticketTitle,
+      beneficiary: getCouponBeneficiary(coupon, user?.name, index),
+      beneficiaryLabel: coupon.beneficiary_type === 'family' ? `Keluarga ${coupon.beneficiary_index || index + 1}` : 'Karyawan',
+    });
   };
 
   // --- RENDER ---
@@ -519,12 +569,12 @@ export default function PortalProgram() {
                   </div>
                 ) : (
                   myCoupons.filter(c => c.gate_type === 'attendance').map((coupon, idx) => {
-                    const beneficiary = coupon.entitlement_metadata?.beneficiary_name || coupon.metadata?.beneficiary_name || (coupon.beneficiary_type === 'family' ? `Keluarga ${coupon.beneficiary_index || idx + 1}` : user?.name || 'Karyawan');
+                    const beneficiary = getCouponBeneficiary(coupon, user?.name, idx);
                     const isEmployee = coupon.beneficiary_type !== 'family';
                     return (
-                      <div key={coupon.id} className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700">
+                      <button type="button" key={coupon.id} onClick={() => openTicketModal(coupon, 'TIKET MASUK', idx)} className="flex w-full items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-emerald-800 dark:hover:bg-emerald-950/20">
                         <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl shadow-sm shrink-0">
-                          <QRCode value={coupon.coupon_code || coupon.qr_code || coupon.id} size={72} />
+                          <QRCode value={getCouponQrValue(coupon)} size={72} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -533,6 +583,7 @@ export default function PortalProgram() {
                           </div>
                           <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{beneficiary}</p>
                           <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{coupon.coupon_code}</p>
+                          <p className="mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">Klik untuk memperbesar QR</p>
                         </div>
                         <div className="shrink-0 text-right">
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
@@ -543,7 +594,7 @@ export default function PortalProgram() {
                             {coupon.status === 'active' ? 'Aktif' : coupon.status === 'claimed' ? 'Digunakan' : coupon.status}
                           </span>
                         </div>
-                      </div>
+                      </button>
                     );
                   })
                 )}
@@ -560,12 +611,12 @@ export default function PortalProgram() {
                   </div>
                 ) : (
                   myCoupons.filter(c => c.gate_type === 'meal').map((coupon, idx) => {
-                    const beneficiary = coupon.entitlement_metadata?.beneficiary_name || coupon.metadata?.beneficiary_name || (coupon.beneficiary_type === 'family' ? `Keluarga ${coupon.beneficiary_index || idx + 1}` : user?.name || 'Karyawan');
+                    const beneficiary = getCouponBeneficiary(coupon, user?.name, idx);
                     const isEmployee = coupon.beneficiary_type !== 'family';
                     return (
-                      <div key={coupon.id} className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700">
+                      <button type="button" key={coupon.id} onClick={() => openTicketModal(coupon, 'KUPON MAKAN', idx)} className="flex w-full items-center gap-4 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 text-left transition hover:border-amber-300 hover:bg-amber-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-zinc-700 dark:bg-zinc-800/50 dark:hover:border-amber-800 dark:hover:bg-amber-950/20">
                         <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl shadow-sm shrink-0">
-                          <QRCode value={coupon.coupon_code || coupon.qr_code || coupon.id} size={72} />
+                          <QRCode value={getCouponQrValue(coupon)} size={72} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -574,6 +625,7 @@ export default function PortalProgram() {
                           </div>
                           <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{beneficiary}</p>
                           <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{coupon.coupon_code}</p>
+                          <p className="mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-300">Klik untuk memperbesar QR</p>
                         </div>
                         <div className="shrink-0 text-right">
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${
@@ -584,7 +636,7 @@ export default function PortalProgram() {
                             {coupon.status === 'active' ? 'Aktif' : coupon.status === 'claimed' ? 'Digunakan' : coupon.status}
                           </span>
                         </div>
-                      </div>
+                      </button>
                     );
                   })
                 )}
@@ -763,27 +815,30 @@ export default function PortalProgram() {
                 </div>
             ) : couponAttendance.status === 'active' && !isProgramExpired ? (
                  <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-[8px_8px_16px_rgba(0,0,0,0.08),-8px_-8px_16px_rgba(255,255,255,0.05)] text-center border-2 border-green-500">
-                    <QRCode value={couponAttendance.coupon_code} size={180} />
+                    <button type="button" onClick={() => openTicketModal(couponAttendance, 'TIKET MASUK')} className="inline-flex rounded-2xl bg-white p-4 shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                      <QRCode value={getCouponQrValue(couponAttendance)} size={180} />
+                    </button>
                     <p className="mt-6 text-sm font-medium text-zinc-500">Tunjukkan ke Panitia</p>
+                    <p className="mt-2 text-xs font-bold text-emerald-600">Klik QR untuk memperbesar tiket</p>
                  </div>
             ) : couponAttendance.status === 'claimed' ? (
                 // SUDAH CLAIM
                 <div className="bg-zinc-900 dark:bg-black p-8 rounded-3xl shadow-[8px_8px_16px_rgba(0,0,0,0.3),-8px_-8px_16px_rgba(255,255,255,0.05)] border border-zinc-800">
                     <h3 className="text-white font-bold text-lg mb-6">Tiket Anda</h3>
                     <div className="flex justify-center mb-8">
-                        <div className="bg-white p-4 rounded-2xl shadow-lg">
-                            <QRCode value={couponAttendance.coupon_code} size={140} />
-                        </div>
+                        <button type="button" onClick={() => openTicketModal(couponAttendance, 'TIKET MASUK')} className="bg-white p-4 rounded-2xl shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                            <QRCode value={getCouponQrValue(couponAttendance)} size={140} />
+                        </button>
                     </div>
                     {/* Family Ticket Display */}
                     {familyCoupon && (
                         <div className="mt-6 pt-6 border-t border-zinc-800">
                             <h4 className="text-zinc-400 text-xs font-bold uppercase mb-4">Tiket Keluarga</h4>
                             <div className="flex gap-3 overflow-x-auto pb-2 px-2">
-                                <div className="bg-white p-3 rounded-xl shrink-0 shadow-lg">
-                                    <QRCode value={familyCoupon.coupon_code} size={80} />
+                                <button type="button" onClick={() => openTicketModal(familyCoupon, 'TIKET MASUK')} className="bg-white p-3 rounded-xl shrink-0 shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
+                                    <QRCode value={getCouponQrValue(familyCoupon)} size={80} />
                                     <p className="text-[10px] mt-2 text-center font-bold">Keluarga ({familyCoupon.metadata?.family_count})</p>
-                                </div>
+                                </button>
                             </div>
                         </div>
                     )}
@@ -792,7 +847,7 @@ export default function PortalProgram() {
                         <div className="bg-orange-900/30 p-4 rounded-2xl text-center border border-orange-800/50">
                              <Salad className="w-6 h-6 mx-auto text-orange-500 mb-2" />
                              <p className="text-xs text-orange-200 font-bold">Makan</p>
-                             {couponMeal && <QRCode value={couponMeal.coupon_code} size={50} className="mx-auto mt-3" />}
+                             {couponMeal && <button type="button" onClick={() => openTicketModal(couponMeal, 'KUPON MAKAN')} className="mx-auto mt-3 block rounded-lg bg-white p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"><QRCode value={getCouponQrValue(couponMeal)} size={50} /></button>}
                              {familyMealCoupon && <p className="text-xs mt-2 text-orange-300 font-medium">+ {familyMealCoupon.metadata?.qty} Keluarga</p>}
                         </div>
                         <div className="bg-purple-900/30 p-4 rounded-2xl text-center border border-purple-800/50">
@@ -815,6 +870,41 @@ export default function PortalProgram() {
           </div>
         )}
       </div>
+
+      {ticketModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${ticketModal.ticketTitle} ${ticketModal.beneficiary}`}
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950/85 p-3 backdrop-blur-md sm:p-6"
+          onClick={() => setTicketModal(null)}
+        >
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto" onClick={event => event.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-900/80 px-4 py-3 text-white shadow-2xl">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Scan QR tiket</p>
+                <p className="mt-0.5 text-sm font-bold">{ticketModal.beneficiary} - {ticketModal.ticketTitle}</p>
+              </div>
+              <button type="button" onClick={() => setTicketModal(null)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <TicketQrFrame
+              programName={selectedProgram.name}
+              ticketTitle={ticketModal.ticketTitle}
+              qrValue={getCouponQrValue(ticketModal.coupon)}
+              name={ticketModal.beneficiary}
+              nik={ticketModal.coupon.nik || user?.nik}
+              beneficiaryLabel={ticketModal.beneficiaryLabel}
+              code={ticketModal.coupon.coupon_code}
+              status={getCouponStatusLabel(ticketModal.coupon.status)}
+            />
+            <p className="mt-3 rounded-2xl bg-white/10 px-4 py-3 text-center text-xs font-semibold leading-5 text-white/80">
+              Tunjukkan layar ini ke panitia. QR sengaja dibuat besar agar scanner lebih mudah membaca.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* QRIS MODAL */}
       {showQrisModal && (

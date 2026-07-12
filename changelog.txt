@@ -1,3 +1,18 @@
+v5.9.7 - Ticket QR Frame Modal & Program Return Fix (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Tombol "Kembali ke portal" dari formulir RSVP mengarah ke `/portal/program/:programId`, sementara router hanya mendaftarkan `/portal/program`; akibatnya user jatuh ke halaman utama/fallback.
+- QR tiket/kupon hanya tampil kecil di list, sehingga panitia sulit melakukan scan dari layar peserta.
+- Tampilan QR belum punya frame tiket yang konsisten untuk acara, nama, NIK, status, dan branding.
+
+### Perbaikan:
+- **[FIX] src/pages/portal/PortalFormView.tsx:** Tombol kembali dari formulir program sekarang menuju `/portal/program` sambil membawa `programId` lewat route state.
+- **[FIX] src/pages/portal/PortalProgram.tsx:** Halaman Program Serikat otomatis membuka kembali program terkait setelah user kembali dari formulir RSVP.
+- **[UI/UX] src/components/portal/TicketQrFrame.tsx:** Menambahkan frame tiket reusable berbasis aset `Frame QR.png` dengan slot judul program, jenis tiket, QR dinamis, nama, NIK, status, logo Sari Roti, logo Federasi, dan branding SPS Corner.
+- **[ASSET] src/components/ui/Frame QR.png & logo_sariroti_group.png:** Menambahkan template frame tanpa QR dinamis dan logo Sari Roti agar desain tiket bisa dipakai ulang lintas acara.
+- **[UI/UX] src/pages/portal/PortalProgram.tsx:** Kartu tiket/kupon dan QR legacy dapat diklik untuk membuka modal QR besar agar lebih mudah dipindai panitia.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.9.7.
+
 v5.9.6 - Safe Fit Banner Form Welcome Screen (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:
