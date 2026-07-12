@@ -19,6 +19,9 @@ interface Response {
     name: string;
     nik: string;
   };
+  employeeName?: string;
+  employeeNik?: string;
+  employeeDept?: string;
 }
 
 interface FormField {
@@ -86,7 +89,35 @@ export default function AdminFormResponses() {
         .order('created_at', { ascending: false });
 
       if (resError) throw resError;
-      setResponses(resData || []);
+
+      // Ambil NIK dari respon untuk mencocokkan dengan master data karyawan (employees)
+      const niks = (resData || []).map(r => r.profiles?.nik).filter(Boolean);
+      let employeesMap: Record<string, { name: string; department: string }> = {};
+
+      if (niks.length > 0) {
+        const { data: empData } = await supabase
+          .from('employees')
+          .select('nik, name, department')
+          .in('nik', niks);
+        
+        (empData || []).forEach(e => {
+          employeesMap[e.nik] = { name: e.name, department: e.department };
+        });
+      }
+
+      // Gabungkan data respon dengan data karyawan resmi
+      const enrichedResponses = (resData || []).map(r => {
+        const userNik = r.profiles?.nik;
+        const emp = userNik ? employeesMap[userNik] : null;
+        return {
+          ...r,
+          employeeName: emp ? emp.name : r.profiles?.name || 'Anonim',
+          employeeNik: userNik || '-',
+          employeeDept: emp ? emp.department : 'Luar Serikat / Non-Staff'
+        };
+      });
+
+      setResponses(enrichedResponses);
     } catch (error: any) {
       toast.error('Gagal memuat data: ' + error.message);
     } finally {
@@ -100,8 +131,9 @@ export default function AdminFormResponses() {
     try {
       const data = responses.map(r => {
         const row: Record<string, any> = {
-          'Nama': r.profiles?.name || 'Anonim',
-          'NIK': r.profiles?.nik || '-',
+          'Nama Karyawan': r.employeeName,
+          'NIK': r.employeeNik,
+          'Departemen': r.employeeDept,
           'Waktu Submit': new Date(r.created_at).toLocaleString('id-ID'),
         };
 
@@ -175,8 +207,9 @@ export default function AdminFormResponses() {
 
       const tableData = responses.map(r => {
         const row: string[] = [
-          r.profiles?.name || 'Anonim',
-          r.profiles?.nik || '-',
+          r.employeeName || 'Anonim',
+          r.employeeNik || '-',
+          r.employeeDept || '-',
           new Date(r.created_at).toLocaleString('id-ID'),
         ];
         form.fields.forEach(f => {
@@ -187,7 +220,7 @@ export default function AdminFormResponses() {
         return row;
       });
 
-      const headers = ['Nama', 'NIK', 'Waktu', ...form.fields.map(f => f.label)];
+      const headers = ['Nama', 'NIK', 'Departemen', 'Waktu', ...form.fields.map(f => f.label)];
 
       autoTable(doc, {
         head: [headers],
@@ -205,12 +238,12 @@ export default function AdminFormResponses() {
   };
 
   const filteredResponses = responses.filter(r => {
-    if (filterDepartment && r.profiles?.nik) {
-      // We can't directly check department from responses, so we filter by search instead
+    if (filterDepartment && r.employeeDept !== filterDepartment) {
+      return false;
     }
-    const matchesSearch = r.profiles?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.profiles?.nik?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const nameMatch = (r.employeeName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const nikMatch = (r.employeeNik || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return nameMatch || nikMatch;
   });
 
   // Render answer based on type
@@ -372,8 +405,9 @@ export default function AdminFormResponses() {
             <thead>
               <tr className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
                 <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Waktu</th>
-                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Pengisi</th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Pengisi (Resmi)</th>
                 <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">NIK</th>
+                <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Departemen</th>
                 <th className="px-6 py-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right">Aksi</th>
               </tr>
             </thead>
@@ -394,16 +428,21 @@ export default function AdminFormResponses() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 font-black text-[10px]">
-                        {res.profiles?.name.charAt(0).toUpperCase()}
+                        {(res.employeeName || 'A').charAt(0).toUpperCase()}
                       </div>
                       <span className="text-sm font-black text-zinc-900 dark:text-white">
-                        {res.profiles?.name}
+                        {res.employeeName}
                       </span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-xs font-mono font-bold text-zinc-500">
-                      {res.profiles?.nik || '-'}
+                      {res.employeeNik || '-'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
+                      {res.employeeDept || '-'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -444,8 +483,10 @@ export default function AdminFormResponses() {
                     <User className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-black text-zinc-900 dark:text-white">{selectedResponse.profiles?.name}</h3>
-                    <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">NIK: {selectedResponse.profiles?.nik}</p>
+                    <h3 className="text-xl font-black text-zinc-900 dark:text-white">{selectedResponse.employeeName}</h3>
+                    <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">
+                      NIK: {selectedResponse.employeeNik} | Dept: {selectedResponse.employeeDept}
+                    </p>
                   </div>
                 </div>
                 <button 

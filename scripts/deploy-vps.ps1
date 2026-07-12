@@ -47,10 +47,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "server.ts copied" -ForegroundColor Green
 
-Write-Host ">>> Copying service & route modules..." -ForegroundColor Yellow
 scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\routes\*" "${VPS}:${REMOTE_DIR}/src/routes/" 2>&1
 scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\services\*" "${VPS}:${REMOTE_DIR}/src/services/" 2>&1
 scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\middleware\*" "${VPS}:${REMOTE_DIR}/src/middleware/" 2>&1
+scp -r -o StrictHostKeyChecking=no "$LOCAL_DIR\src\utils\*" "${VPS}:${REMOTE_DIR}/src/utils/" 2>&1
 Write-Host "Modules copied" -ForegroundColor Green
 
 Write-Host ">>> Checking dependency changes..." -ForegroundColor Yellow

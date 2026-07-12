@@ -1213,16 +1213,27 @@ export default function PortalFormView() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 mt-8 relative z-20">
-        <div className={cardClassName}>
-          {/* Top Accent Strip if no banner */}
-          {!(form as any)?.banner_url && (
-            <div className="absolute top-0 left-0 right-0 h-2.5" style={{ backgroundColor: themeColor }} />
-          )}
+        {form?.experience_version === 2 ? (
+          <div className="bg-transparent">
+            <PremiumFormExperience
+              form={form}
+              mode="respondent"
+              initialAnswers={premiumInitialAnswers}
+              initialResult={premiumInitialResult}
+              onSubmit={handlePremiumSubmit}
+            />
+          </div>
+        ) : (
+          <div className={cardClassName}>
+            {/* Top Accent Strip if no banner */}
+            {!(form as any)?.banner_url && (
+              <div className="absolute top-0 left-0 right-0 h-2.5" style={{ backgroundColor: themeColor }} />
+            )}
 
-           <form onSubmit={handleSubmit} className="space-y-0">
-             {(form as any)?.layout_type === 'card' ? (
-               <div>
-                 <AnimatePresence mode="wait">
+            <form onSubmit={handleSubmit} className="space-y-0">
+              {(form as any)?.layout_type === 'card' ? (
+                <div>
+                  <AnimatePresence mode="wait">
                    {currentCardIndex === 0 ? (
                      <motion.div
                        key="welcome"
@@ -1393,8 +1404,9 @@ export default function PortalFormView() {
                  </div>
                </div>
              )}
-           </form>
-        </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );
