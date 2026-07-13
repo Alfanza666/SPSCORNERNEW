@@ -58,7 +58,7 @@ export const DEFAULT_FIELD_PALETTE: FieldPaletteGroup[] = [
     id: 'commerce',
     label: 'Pesanan & pembayaran',
     items: [
-      { type: 'addon_group', label: 'Daftar pesanan', description: 'Produk, ukuran, jumlah, dan harga', icon: ShoppingBag, accent: '#C2410C', surface: '#FFF7ED' },
+      { type: 'addon_group', label: 'Add-on checkout', description: 'Tenda, matras, fasilitas, jumlah, dan harga', icon: ShoppingBag, accent: '#C2410C', surface: '#FFF7ED' },
       { type: 'payment_section', label: 'Pembayaran', description: 'Ringkasan total dan bukti bayar', icon: CreditCard, accent: '#047857', surface: '#ECFDF5' },
     ],
   },

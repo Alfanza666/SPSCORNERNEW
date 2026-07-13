@@ -25,4 +25,32 @@ describe('program workflow config builder', () => {
   it('does not activate event workflow without an attendance binding', () => {
     expect(createProgramWorkflowConfig({ title: 'Survey', fields: [] }, 'program-1', 'form-1')).toBeNull();
   });
+
+  it('snapshots add-on checkout prices for server-side calculation', () => {
+    const form = createEventRsvpTemplate();
+    form.fields.splice(-1, 0, {
+      id: 'extras',
+      type: 'addon_group',
+      label: 'Fasilitas tambahan',
+      required: false,
+      items: [
+        { id: 'tent', name: 'Sewa tenda', sizes: [], price: 75_000, max_quantity: 2 },
+        { id: 'mat', name: 'Matras', sizes: [], price: 20_000, max_quantity: 4 },
+      ],
+      condition: { fieldId: 'attendance', operator: 'eq', value: 'yes' },
+    });
+
+    const config = createProgramWorkflowConfig(form, 'program-1', 'form-1');
+
+    expect(config?.pricing_rules).toMatchObject({
+      additional_fields: [{
+        field_id: 'extras',
+        field_type: 'addon_group',
+        items: [
+          { id: 'tent', price: 75_000, max_quantity: 2 },
+          { id: 'mat', price: 20_000, max_quantity: 4 },
+        ],
+      }],
+    });
+  });
 });

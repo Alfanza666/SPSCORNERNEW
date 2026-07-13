@@ -84,14 +84,20 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
         try { metadata = JSON.parse(form.description || '{}'); } catch { metadata = { text: form.description || '' }; }
         synchronizedFields = (form.fields || []).map((field: any) => {
           if (program.program_type === 'gathering' && (field.system_key === 'family_count' || field.id === 'family_count')) {
-            return { ...field, unit_price: Math.max(0, Number(program.family_package_price || 0)) };
+            // Form Studio is the source of truth. The program column is only a
+            // compatibility fallback for forms created before per-field pricing.
+            return field.unit_price === undefined
+              ? { ...field, unit_price: Math.max(0, Number(program.family_package_price || 0)) }
+              : field;
           }
           if (program.program_type === 'gathering' && (field.system_key === 'shirt_size' || field.id === 'shirt_size')) {
             return {
               ...field,
               options: (field.options || []).map((option: any) => ({
                 ...option,
-                price: Math.max(0, Number(program.shirt_price_map?.[String(option.value).toUpperCase()] || 0)),
+                price: option.price === undefined
+                  ? Math.max(0, Number(program.shirt_price_map?.[String(option.value).toUpperCase()] || 0))
+                  : option.price,
               })),
             };
           }

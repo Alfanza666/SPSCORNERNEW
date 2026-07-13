@@ -41,7 +41,7 @@ function getFieldTypeDefaults(type: FieldType): Partial<FormField> {
       : undefined,
     max: type === 'rating' ? 5 : undefined,
     max_scale: type === 'scale' ? 10 : undefined,
-    items: type === 'addon_group' ? [{ id: 'item1', name: 'Item', sizes: ['M'], price: 0 }] : undefined,
+    items: type === 'addon_group' ? [{ id: 'item1', name: 'Item', sizes: [], price: 0, max_quantity: 10 }] : undefined,
     allow_multiple: type === 'addon_group' ? true : undefined,
     subfields: type === 'repeater' ? [
       { id: 'name', type: 'text', label: 'Nama lengkap', required: true },
@@ -238,7 +238,7 @@ export default function AdminFormBuilder() {
     id: Math.random().toString(36).substr(2, 9),
     type,
     label: type === 'addon_group'
-      ? 'Pesanan Ekstra'
+      ? 'Tambahan fasilitas (opsional)'
       : type === 'payment_section'
         ? 'Pembayaran'
         : type === 'repeater'
@@ -409,8 +409,14 @@ export default function AdminFormBuilder() {
 
       let currentFormId = editingForm.id;
       if (editingForm.id) {
-        const { error } = await supabase.from('dynamic_forms').update(payload).eq('id', editingForm.id);
+        const { data, error } = await supabase
+          .from('dynamic_forms')
+          .update(payload)
+          .eq('id', editingForm.id)
+          .select('id')
+          .single();
         if (error) throw error;
+        if (!data?.id) throw new Error('Formulir tidak diperbarui. Periksa hak akses admin dan coba lagi.');
       } else {
         const { data, error } = await supabase.from('dynamic_forms').insert({ ...payload, created_by: user?.id }).select().single();
         if (error) throw error;
@@ -429,7 +435,11 @@ export default function AdminFormBuilder() {
         if (!linkResponse.ok) throw new Error(linkResult.error || 'Gagal menyinkronkan formulir dengan program.');
       }
 
-      toast.success('✅ Formulir berhasil disimpan!');
+      toast.success(publish
+        ? '✅ Formulir berhasil diterbitkan dan harga program disinkronkan!'
+        : linkedProgramId
+          ? '✅ Perubahan tersimpan sebagai draft. Klik Terbitkan untuk menerapkannya ke program.'
+          : '✅ Formulir berhasil disimpan!');
       setShowEditor(false);
       fetchForms();
     } catch (error: any) {

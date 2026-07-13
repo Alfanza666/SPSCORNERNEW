@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createEventRsvpTemplate } from '../utils/formTemplates';
 import { evaluateFormWorkflow } from '../utils/formWorkflow';
+import { getVisibleFields } from '../utils/formLogic';
 
 describe('event RSVP template', () => {
   it('membuat form V2 dengan harga dan batas yang configurable', () => {
@@ -34,5 +35,18 @@ describe('event RSVP template', () => {
     });
     expect(evaluation.total_amount).toBe(80_000);
     expect(evaluation.requires_payment).toBe(true);
+  });
+
+  it('tetap menanyakan keluarga baik peserta camping maupun tidak', () => {
+    const form = createEventRsvpTemplate();
+
+    expect(getVisibleFields(form.fields, {
+      attendance: 'yes',
+      camping: 'yes',
+    }).map(field => field.id)).toContain('bring_family');
+    expect(getVisibleFields(form.fields, {
+      attendance: 'yes',
+      camping: 'no',
+    }).map(field => field.id)).toContain('bring_family');
   });
 });

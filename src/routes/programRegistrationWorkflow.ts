@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 const MAX_ANSWER_FIELDS = 150;
 const MAX_ANSWER_BYTES = 150_000;
 const MAX_FAMILY_MEMBERS_HARD_LIMIT = 20;
+const MAX_ADDON_QUANTITY_HARD_LIMIT = 50;
 const MAX_TOTAL_AMOUNT = 100_000_000;
 const DEFAULT_CURRENCY = "IDR";
 
@@ -175,6 +176,122 @@ function lookupCaseInsensitive(record: Record<string, any>, key: string): { foun
   return matchedKey === undefined ? { found: false, value: undefined } : { found: true, value: record[matchedKey] };
 }
 
+function pricingItemCode(...parts: unknown[]): string {
+  const code = parts
+    .map(part => String(part ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_"))
+    .filter(Boolean)
+    .join("_")
+    .slice(0, 120);
+  return code || "form_addon";
+}
+
+function buildAdditionalQuoteItems(pricingRules: any, answers: Record<string, any>): any[] {
+  const configuredFields = Array.isArray(pricingRules?.additional_fields)
+    ? pricingRules.additional_fields
+    : [];
+  const items: any[] = [];
+
+  for (const field of configuredFields) {
+    if (!isPlainObject(field) || typeof field.field_id !== "string") continue;
+    const answer = answers[field.field_id];
+    if (!hasAnswer(answer)) continue;
+    const fieldType = String(field.field_type || "");
+    const fieldLabel = String(field.label || "Biaya tambahan");
+
+    if (["radio", "select", "image_choice", "checkbox"].includes(fieldType)) {
+      const selectedValues = fieldType === "checkbox" ? answer : [answer];
+      if (!Array.isArray(selectedValues)) continue;
+      const usedOptions = new Set<string>();
+      for (const selectedValue of selectedValues) {
+        const normalized = normalizeWorkflowValue(selectedValue);
+        const option = (Array.isArray(field.options) ? field.options : []).find((candidate: any) =>
+          normalizeWorkflowValue(candidate?.value) === normalized
+          || normalizeWorkflowValue(candidate?.label) === normalized
+        );
+        if (!option || usedOptions.has(String(option.value))) continue;
+        usedOptions.add(String(option.value));
+        const unitPrice = safeMoney(option.price ?? 0, `${fieldLabel}: ${option.label || option.value}`);
+        if (unitPrice <= 0) continue;
+        items.push({
+          item_code: pricingItemCode("form", field.field_id, option.value),
+          item_name: `${fieldLabel}: ${option.label || option.value}`,
+          item_type: "other",
+          beneficiary_type: "employee",
+          beneficiary_index: null,
+          quantity: 1,
+          unit_price: unitPrice,
+          metadata: { field_id: field.field_id, option_value: option.value },
+        });
+      }
+      continue;
+    }
+
+    if (fieldType === "number" || fieldType === "repeater") {
+      const quantity = fieldType === "repeater"
+        ? (Array.isArray(answer) ? answer.length : 0)
+        : safeInteger(answer, fieldLabel);
+      if (quantity <= 0) continue;
+      const maximum = Math.min(
+        MAX_ADDON_QUANTITY_HARD_LIMIT,
+        Math.max(1, Number(field.max_quantity || MAX_ADDON_QUANTITY_HARD_LIMIT)),
+      );
+      if (!Number.isInteger(maximum) || quantity > maximum) {
+        throw new WorkflowHttpError(422, "ADDON_QUANTITY_OUT_OF_RANGE", `${fieldLabel} maksimal ${maximum}.`);
+      }
+      const unitPrice = safeMoney(field.unit_price ?? 0, fieldLabel);
+      if (unitPrice <= 0) continue;
+      items.push({
+        item_code: pricingItemCode("form", field.field_id),
+        item_name: fieldLabel,
+        item_type: "other",
+        beneficiary_type: "employee",
+        beneficiary_index: null,
+        quantity,
+        unit_price: unitPrice,
+        metadata: { field_id: field.field_id },
+      });
+      continue;
+    }
+
+    if (fieldType === "addon_group") {
+      if (!Array.isArray(answer)) {
+        throw new WorkflowHttpError(422, "INVALID_ADDON_ORDER", `${fieldLabel} harus berupa daftar pesanan.`);
+      }
+      const usedItemIds = new Set<string>();
+      for (const order of answer) {
+        if (!isPlainObject(order)) throw new WorkflowHttpError(422, "INVALID_ADDON_ORDER", `${fieldLabel} tidak valid.`);
+        const itemId = String(order.item_id || "");
+        if (usedItemIds.has(itemId)) throw new WorkflowHttpError(422, "DUPLICATE_ADDON_ITEM", `${fieldLabel} berisi item ganda.`);
+        usedItemIds.add(itemId);
+        const configuredItem = (Array.isArray(field.items) ? field.items : []).find((candidate: any) => candidate?.id === itemId);
+        if (!configuredItem) continue; // Item valid tanpa harga tidak menghasilkan tagihan.
+        const quantity = safeInteger(order.quantity, `Jumlah ${configuredItem.name || fieldLabel}`);
+        const maximum = Math.min(
+          MAX_ADDON_QUANTITY_HARD_LIMIT,
+          Math.max(1, Number(configuredItem.max_quantity || 10)),
+        );
+        if (!Number.isInteger(maximum) || quantity < 1 || quantity > maximum) {
+          throw new WorkflowHttpError(422, "ADDON_QUANTITY_OUT_OF_RANGE", `Jumlah ${configuredItem.name || fieldLabel} harus antara 1 dan ${maximum}.`);
+        }
+        const unitPrice = safeMoney(configuredItem.price ?? 0, configuredItem.name || fieldLabel);
+        if (unitPrice <= 0) continue;
+        items.push({
+          item_code: pricingItemCode("form", field.field_id, configuredItem.id),
+          item_name: `${fieldLabel}: ${configuredItem.name}`,
+          item_type: "other",
+          beneficiary_type: "employee",
+          beneficiary_index: null,
+          quantity,
+          unit_price: unitPrice,
+          metadata: { field_id: field.field_id, addon_item_id: configuredItem.id },
+        });
+      }
+    }
+  }
+
+  return items;
+}
+
 export function buildRegistrationQuote(workflow: any, answers: Record<string, any>) {
   const attendanceFieldId = bindingFieldId(workflow, "attendance");
   if (!attendanceFieldId) {
@@ -246,7 +363,7 @@ export function buildRegistrationQuote(workflow: any, answers: Record<string, an
 
   let bringingFamily = false;
   const bringingFamilyFieldId = bindingFieldId(workflow, "bringing_family");
-  if (isCamping && bringingFamilyFieldId) {
+  if (bringingFamilyFieldId) {
     const familyDecision = parseDecision(workflow, "bringing_family", answers[bringingFamilyFieldId]);
     if (familyDecision === null) {
       throw new WorkflowHttpError(422, "MISSING_FAMILY_DECISION", "Pilihan membawa keluarga wajib dijawab.");
@@ -256,7 +373,7 @@ export function buildRegistrationQuote(workflow: any, answers: Record<string, an
 
   let familyCount = 0;
   const familyCountFieldId = bindingFieldId(workflow, "family_count");
-  if (isCamping && (bringingFamily || (!bringingFamilyFieldId && hasAnswer(boundAnswer(workflow, answers, "family_count"))))) {
+  if (bringingFamily || (!bringingFamilyFieldId && hasAnswer(boundAnswer(workflow, answers, "family_count")))) {
     if (!familyCountFieldId) {
       throw new WorkflowHttpError(422, "MISSING_FAMILY_COUNT_BINDING", "Workflow belum memiliki binding jumlah anggota keluarga.");
     }
@@ -303,6 +420,8 @@ export function buildRegistrationQuote(workflow: any, answers: Record<string, an
       });
     }
   }
+
+  items.push(...buildAdditionalQuoteItems(pricingRules, answers));
 
   const subtotal = items.reduce((total, item) => total + item.quantity * item.unit_price, 0);
   if (!Number.isSafeInteger(subtotal) || subtotal > MAX_TOTAL_AMOUNT) {
@@ -400,6 +519,34 @@ function validateFieldValue(field: any, value: unknown, label: string) {
       throw new WorkflowHttpError(422, "NUMBER_OUT_OF_RANGE", `${label} maksimal ${field.max}.`, {
         field_id: field.id,
       });
+    }
+  }
+
+  if (field.type === "addon_group") {
+    if (!Array.isArray(value)) {
+      throw new WorkflowHttpError(422, "INVALID_ADDON_ORDER", `${label} harus berupa daftar pesanan.`, {
+        field_id: field.id,
+      });
+    }
+    const usedItemIds = new Set<string>();
+    for (const order of value) {
+      if (!isPlainObject(order)) {
+        throw new WorkflowHttpError(422, "INVALID_ADDON_ORDER", `${label} berisi pesanan tidak valid.`, { field_id: field.id });
+      }
+      const itemId = String(order.item_id || "");
+      const configuredItem = (Array.isArray(field.items) ? field.items : []).find((item: any) => item?.id === itemId);
+      if (!configuredItem) {
+        throw new WorkflowHttpError(422, "INVALID_ADDON_ITEM", `${label} berisi item yang tidak tersedia.`, { field_id: field.id });
+      }
+      if (usedItemIds.has(itemId)) {
+        throw new WorkflowHttpError(422, "DUPLICATE_ADDON_ITEM", `${label} berisi item ganda.`, { field_id: field.id });
+      }
+      usedItemIds.add(itemId);
+      const quantity = Number(order.quantity);
+      const maximum = Math.min(MAX_ADDON_QUANTITY_HARD_LIMIT, Math.max(1, Number(configuredItem.max_quantity || 10)));
+      if (!Number.isInteger(quantity) || quantity < 1 || !Number.isInteger(maximum) || quantity > maximum) {
+        throw new WorkflowHttpError(422, "ADDON_QUANTITY_OUT_OF_RANGE", `Jumlah ${configuredItem.name || label} harus antara 1 dan ${maximum}.`, { field_id: field.id });
+      }
     }
   }
 }

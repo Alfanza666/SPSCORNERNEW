@@ -77,7 +77,7 @@ function typeDefaults(type: FieldType): Partial<FormField> {
     };
   }
   if (type === 'addon_group') {
-    return { allow_multiple: true, items: [{ id: 'item_1', name: 'Item', sizes: ['M'], price: 0 }] };
+    return { allow_multiple: true, items: [{ id: 'item_1', name: 'Item', sizes: [], price: 0, max_quantity: 10 }] };
   }
   if (type === 'payment_section') {
     return {
@@ -239,16 +239,21 @@ export function FieldSettingsPanel({
       )}
 
       {field.type === 'addon_group' && (
-        <Section title="Item pesanan" description="Semua harga dihitung ulang di server.">
+        <Section title="Add-on checkout" description="Tambahkan fasilitas panitia seperti tenda atau matras. Semua harga dihitung ulang di server.">
           <div className="space-y-2">
             {(field.items || []).map((item, itemIndex) => (
-              <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_90px_28px] gap-1.5">
-                <input value={item.name} onChange={event => { const items = [...(field.items || [])]; items[itemIndex] = { ...items[itemIndex], name: event.target.value }; onUpdate({ items }); }} className={SMALL_CONTROL} aria-label={`Nama item ${itemIndex + 1}`} />
-                <input type="number" min="0" value={item.price} onChange={event => { const items = [...(field.items || [])]; items[itemIndex] = { ...items[itemIndex], price: moneyValue(event.target.value) }; onUpdate({ items }); }} className={SMALL_CONTROL} aria-label={`Harga item ${itemIndex + 1}`} />
-                <button type="button" onClick={() => onUpdate({ items: (field.items || []).filter((_, currentIndex) => currentIndex !== itemIndex) })} className="flex items-center justify-center rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-500" aria-label={`Hapus item ${itemIndex + 1}`}><X className="h-3.5 w-3.5" /></button>
+              <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900">
+                <div className="grid grid-cols-[minmax(0,1fr)_28px] gap-1.5">
+                  <input value={item.name} onChange={event => { const items = [...(field.items || [])]; items[itemIndex] = { ...items[itemIndex], name: event.target.value }; onUpdate({ items }); }} className={SMALL_CONTROL} aria-label={`Nama item ${itemIndex + 1}`} placeholder="Contoh: Sewa tenda" />
+                  <button type="button" onClick={() => onUpdate({ items: (field.items || []).filter((_, currentIndex) => currentIndex !== itemIndex) })} className="flex items-center justify-center rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-500" aria-label={`Hapus item ${itemIndex + 1}`}><X className="h-3.5 w-3.5" /></button>
+                </div>
+                <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                  <label><Label>Harga / unit</Label><input type="number" min="0" value={item.price} onChange={event => { const items = [...(field.items || [])]; items[itemIndex] = { ...items[itemIndex], price: moneyValue(event.target.value) }; onUpdate({ items }); }} className={SMALL_CONTROL} aria-label={`Harga item ${itemIndex + 1}`} /></label>
+                  <label><Label>Maks. jumlah</Label><input type="number" min="1" max="50" value={item.max_quantity ?? 10} onChange={event => { const items = [...(field.items || [])]; items[itemIndex] = { ...items[itemIndex], max_quantity: Math.min(50, Math.max(1, Number(event.target.value) || 1)) }; onUpdate({ items }); }} className={SMALL_CONTROL} aria-label={`Maksimum item ${itemIndex + 1}`} /></label>
+                </div>
               </div>
             ))}
-            <button type="button" onClick={() => onUpdate({ items: [...(field.items || []), { id: `item_${Date.now()}`, name: 'Item baru', sizes: ['M'], price: 0 }] })} className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-orange-300 px-3 py-2.5 text-xs font-bold text-orange-700"><Plus className="h-3.5 w-3.5" /> Tambah item</button>
+            <button type="button" onClick={() => onUpdate({ items: [...(field.items || []), { id: `item_${Date.now()}`, name: 'Item baru', sizes: [], price: 0, max_quantity: 10 }] })} className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-orange-300 px-3 py-2.5 text-xs font-bold text-orange-700"><Plus className="h-3.5 w-3.5" /> Tambah item</button>
           </div>
         </Section>
       )}

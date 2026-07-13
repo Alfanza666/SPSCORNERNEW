@@ -30,6 +30,59 @@ function decisionValues(field: FormField | undefined, positive: boolean): string
   return matches.length > 0 ? matches : [field.options[positive ? 0 : Math.min(1, field.options.length - 1)].value];
 }
 
+function additionalPricingFields(form: FormConfig, excludedFieldIds: Set<string>): Array<Record<string, unknown>> {
+  return form.fields.flatMap<Record<string, unknown>>(field => {
+    if (excludedFieldIds.has(field.id) || field.type === 'payment_section') return [];
+
+    if (['radio', 'checkbox', 'select', 'image_choice'].includes(field.type)) {
+      const options = (field.options || [])
+        .filter(option => Number(option.price || 0) > 0)
+        .map(option => ({
+          value: option.value,
+          label: option.label,
+          price: Math.max(0, Number(option.price || 0)),
+        }));
+      return options.length > 0 ? [{ field_id: field.id, field_type: field.type, label: field.label, options }] : [];
+    }
+
+    if (field.type === 'number' && Number(field.unit_price || 0) > 0) {
+      return [{
+        field_id: field.id,
+        field_type: field.type,
+        label: field.label,
+        unit_price: Math.max(0, Number(field.unit_price || 0)),
+        min_quantity: field.min,
+        max_quantity: field.max,
+      }];
+    }
+
+    if (field.type === 'repeater' && Number(field.item_unit_price || 0) > 0) {
+      return [{
+        field_id: field.id,
+        field_type: field.type,
+        label: field.label,
+        unit_price: Math.max(0, Number(field.item_unit_price || 0)),
+        min_quantity: field.min_items,
+        max_quantity: field.max_items,
+      }];
+    }
+
+    if (field.type === 'addon_group') {
+      const items = (field.items || [])
+        .filter(item => item.name.trim() && Number(item.price || 0) > 0)
+        .map(item => ({
+          id: item.id,
+          name: item.name,
+          price: Math.max(0, Number(item.price || 0)),
+          max_quantity: Math.min(50, Math.max(1, Number(item.max_quantity || 10))),
+        }));
+      return items.length > 0 ? [{ field_id: field.id, field_type: field.type, label: field.label, items }] : [];
+    }
+
+    return [];
+  });
+}
+
 export function createProgramWorkflowConfig(
   form: FormConfig,
   programId: string,
@@ -56,6 +109,10 @@ export function createProgramWorkflowConfig(
   const familyEntitlements: string[] = [];
   if (automation.issue_family_attendance !== false) familyEntitlements.push('attendance');
   if (automation.issue_family_meal !== false) familyEntitlements.push('meal');
+  const excludedPricingFieldIds = new Set([
+    shirtSize?.id,
+    family?.id,
+  ].filter((fieldId): fieldId is string => Boolean(fieldId)));
 
   return {
     program_id: programId,
@@ -81,6 +138,7 @@ export function createProgramWorkflowConfig(
         meal_unit_price: 0,
         max_members: family?.type === 'repeater' ? family.max_items || 5 : family?.max || 5,
       },
+      additional_fields: additionalPricingFields(form, excludedPricingFieldIds),
     },
     entitlement_rules: {
       employee: employeeEntitlements,

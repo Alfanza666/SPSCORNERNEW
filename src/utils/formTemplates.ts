@@ -107,7 +107,7 @@ export function createEventRsvpTemplate(options: EventRsvpTemplateOptions = {}):
         type: 'radio',
         label: 'Apakah Anda membawa keluarga?',
         required: true,
-        condition: { fieldId: 'camping', operator: 'eq', value: 'yes' },
+        condition: { fieldId: 'attendance', operator: 'eq', value: 'yes' },
         options: [
           { value: 'yes', label: 'Ya, membawa keluarga' },
           { value: 'no', label: 'Tidak membawa keluarga' },

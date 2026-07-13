@@ -1,3 +1,21 @@
+v5.11.0 - Server-Authoritative Form Pricing & Event Add-on Checkout (MINOR)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Endpoint link-form menimpa harga yang diatur di Form Studio dengan kolom harga legacy program. Pada program aktif nilainya nol, sehingga surcharge baju dan paket keluarga hilang dari ringkasan serta quote server.
+- Pertanyaan membawa keluarga dan kalkulasi server bergantung pada jawaban camping=yes, sehingga peserta yang tidak camping tidak pernah ditanya atau ditagih untuk keluarga.
+- Add-on checkout sudah dapat dibuat di Form Studio dan dihitung di browser, tetapi belum disnapshot ke workflow pricing dan belum dihitung ulang oleh server.
+- Update form tidak meminta row hasil update, sehingga kegagalan policy/filter dapat terlihat seperti penyimpanan berhasil walaupun tidak ada baris berubah.
+
+### Perbaikan:
+- Form Studio menjadi sumber harga utama untuk opsi baju, jumlah keluarga, dan add-on; kolom harga program hanya menjadi fallback untuk form legacy tanpa properti harga.
+- Pertanyaan membawa keluarga selalu muncul untuk peserta yang hadir, baik camping maupun tidak, dan quote server mengikuti keputusan tersebut.
+- Konfigurasi add-on checkout (contoh tenda/matras) disnapshot ke workflow; server memvalidasi item, jumlah maksimum, harga, dan menghasilkan line item audit tanpa mempercayai total browser.
+- Editor add-on menyediakan harga per unit dan batas pembelian per responden; kontrol quantity pada portal menghormati batas tersebut.
+- Penyimpanan form memverifikasi row update dan membedakan status draft dengan publikasi/sinkronisasi program.
+- Test ditambah untuk cabang camping/keluarga, harga keluarga/oversize, add-on checkout, batas quantity, dan workflow pricing snapshot.
+- `qr.js` serta modul Workbox yang diimpor langsung dideklarasikan eksplisit; build tidak lagi bergantung pada hoisting dependency transitif npm.
+- Versi UI, package.json, package-lock.json, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.11.0.
+
 v5.10.4 - Portal Kantin Shortcut & Layout Scroll Reset (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

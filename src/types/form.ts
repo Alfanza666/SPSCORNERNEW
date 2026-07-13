@@ -98,6 +98,7 @@ export interface AddonItem {
   name: string;
   sizes: string[];
   price: number; // Harga per unit
+  max_quantity?: number; // Batas pembelian per responden
 }
 
 export interface FormField {

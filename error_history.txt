@@ -1,4 +1,10 @@
 Riwayat Error & Fix:
+- [FIXED] Harga oversize dan keluarga tampil nol karena link-form menimpa harga Form Studio dengan kolom program legacy bernilai nol; Form Studio kini menjadi sumber harga utama (v5.11.0).
+- [FIXED] Peserta yang tidak camping tidak ditanya membawa keluarga dan keluarga tidak masuk quote; cabang keluarga kini bergantung pada kehadiran, bukan camping (v5.11.0).
+- [FIXED] Add-on checkout hanya dihitung di browser; konfigurasi sekarang disnapshot dan dihitung ulang server dengan validasi item serta quantity (v5.11.0).
+- [FIXED] Update form dapat terlihat sukses tanpa row yang berubah; editor sekarang memverifikasi hasil update dan menjelaskan draft versus publikasi (v5.11.0).
+- [FIXED] Build pnpm gagal resolve `qr.js` karena source mengimpor dependency transitif secara langsung; dependency dan tipe sekarang dideklarasikan eksplisit (v5.11.0).
+- [FIXED] Build service worker pnpm gagal resolve `workbox-core`/`workbox-precaching`; modul yang diimpor `src/sw.ts` sekarang menjadi devDependency langsung (v5.11.0).
 - [FIXED] Dokumentasi workflow tersebar dan write boundary admin/config versus respondent/transaction belum dijelaskan akurat; ditambahkan review handoff terpusat (v5.8.2).
 - [FIXED] Endpoint registrasi V2 belum menolak opsi palsu, angka di luar batas, detail repeater tidak lengkap, dan jawaban sesudah terminal outcome; validasi authoritative server ditambahkan (v5.8.1).
 - [FIXED] UI Form Builder masih terasa seperti form editor biasa karena field editor memenuhi canvas; diganti Premium Form Studio dengan palette/canvas/inspector/logic map terpisah (v5.8.0).

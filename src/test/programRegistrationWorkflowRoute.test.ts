@@ -53,16 +53,17 @@ describe('Program Registration Workflow V2 pricing', () => {
     expect(quote.items).toHaveLength(3);
   });
 
-  it('ignores malicious hidden family answers when camping is declined', () => {
+  it('calculates family charges even when the employee does not camp', () => {
     const quote = buildRegistrationQuote(workflow, {
       attendance: 'Ya',
       shirt: 'S',
       camping: 'Tidak',
       family: 'Ya',
-      family_count: 20,
+      family_count: 2,
     });
-    expect(quote.family_count).toBe(0);
-    expect(quote.total_amount).toBe(0);
+    expect(quote.is_camping).toBe(false);
+    expect(quote.family_count).toBe(2);
+    expect(quote.total_amount).toBe(90_000);
   });
 
   it('rejects a family count above the configured maximum', () => {
@@ -85,6 +86,57 @@ describe('Program Registration Workflow V2 pricing', () => {
     });
     expect(quote.family_count).toBe(3);
     expect(quote.total_amount).toBe(135_000);
+  });
+
+  it('adds configured checkout items without trusting client prices', () => {
+    const quote = buildRegistrationQuote({
+      ...workflow,
+      pricing_rules: {
+        ...workflow.pricing_rules,
+        additional_fields: [{
+          field_id: 'extras',
+          field_type: 'addon_group',
+          label: 'Fasilitas tambahan',
+          items: [
+            { id: 'tent', name: 'Sewa tenda', price: 75_000, max_quantity: 2 },
+            { id: 'mat', name: 'Matras', price: 20_000, max_quantity: 4 },
+          ],
+        }],
+      },
+    }, {
+      attendance: 'Ya',
+      shirt: 'S',
+      camping: 'Tidak',
+      family: 'Tidak',
+      extras: [
+        { item_id: 'tent', quantity: 1, price: 1 },
+        { item_id: 'mat', quantity: 2, price: 1 },
+      ],
+    });
+
+    expect(quote.total_amount).toBe(115_000);
+    expect(quote.items.map((item: any) => item.item_name)).toEqual([
+      'Fasilitas tambahan: Sewa tenda',
+      'Fasilitas tambahan: Matras',
+    ]);
+  });
+
+  it('rejects an add-on quantity above the configured maximum', () => {
+    expect(() => buildRegistrationQuote({
+      ...workflow,
+      pricing_rules: {
+        ...workflow.pricing_rules,
+        additional_fields: [{
+          field_id: 'extras',
+          field_type: 'addon_group',
+          label: 'Fasilitas tambahan',
+          items: [{ id: 'tent', name: 'Sewa tenda', price: 75_000, max_quantity: 2 }],
+        }],
+      },
+    }, {
+      attendance: 'Ya', shirt: 'S', camping: 'Tidak', family: 'Tidak',
+      extras: [{ item_id: 'tent', quantity: 3 }],
+    })).toThrow(/antara 1 dan 2/);
   });
 });
 
