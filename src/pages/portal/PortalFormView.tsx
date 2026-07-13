@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
   ClipboardList, ChevronLeft, Loader2, Send,
-  CheckCircle2, AlertCircle, Calendar, Info, UploadCloud, X, Plus, Trash2, Star, Image, Link2, Lock, Users
+  CheckCircle2, AlertCircle, Calendar, Info, UploadCloud, X, Plus, Trash2, Star, Image, Lock, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
@@ -80,8 +80,6 @@ export default function PortalFormView() {
   const [fileUploads, setFileUploads] = useState<Record<string, string>>({});
   // State untuk image uploads
   const [imageUploads, setImageUploads] = useState<Record<string, string>>({});
-  const [imageUrlInputs, setImageUrlInputs] = useState<Record<string, string>>({});
-
   // State untuk payment
   const [paymentProofs, setPaymentProofs] = useState<Record<string, string>>({});
   const [paymentVerified, setPaymentVerified] = useState<Record<string, boolean>>({});
@@ -168,7 +166,6 @@ export default function PortalFormView() {
     setAddonOrders({});
     setFileUploads({});
     setImageUploads({});
-    setImageUrlInputs({});
     setPaymentProofs({});
     setPaymentVerified({});
     setAiVerifying({});
@@ -308,11 +305,6 @@ export default function PortalFormView() {
       console.error(error);
       toast.error('Gagal mengunggah gambar');
     }
-  };
-
-  const handleImageUrl = (fieldId: string, url: string) => {
-    setImageUploads(prev => ({ ...prev, [fieldId]: url }));
-    setAnswers(prev => ({ ...prev, [fieldId]: url }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1058,34 +1050,8 @@ export default function PortalFormView() {
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleImageUpload(field.id, e.target.files[0])} />
                   <UploadCloud className="w-8 h-8 text-zinc-300" />
                   <span className="text-sm font-bold text-zinc-500">Klik untuk upload gambar</span>
+                  <span className="text-xs text-zinc-400">JPG, PNG, atau WebP dari perangkat Anda</span>
                 </label>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                  <span className="text-xs text-zinc-400 font-bold">ATAU</span>
-                  <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="Atau masukkan URL gambar..."
-                    value={imageUrlInputs[field.id] || ''}
-                    onChange={(e) => {
-                      setImageUrlInputs(prev => ({...prev, [field.id]: e.target.value}));
-                      handleImageUrl(field.id, e.target.value);
-                    }}
-                    className={getInputClass("flex-1 py-4 px-5 transition-all outline-none focus:ring-2 focus:ring-[var(--theme-color)]/30 text-sm")}
-                  />
-                  {imageUrlInputs[field.id] && (
-                    <button
-                      type="button"
-                      onClick={() => handleImageUrl(field.id, imageUrlInputs[field.id])}
-                      className="px-4 py-2 text-white rounded-2xl font-bold text-sm hover:opacity-90 transition-colors"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      <Link2 className="w-5 h-5" />
-                    </button>
-                  )}
-                </div>
               </div>
             )}
           </div>

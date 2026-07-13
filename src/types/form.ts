@@ -93,6 +93,13 @@ export interface FormOption {
   helper_text?: string;
 }
 
+export interface FormReferenceImage {
+  id: string;
+  label: string;
+  url: string;
+  alt?: string;
+}
+
 export interface AddonItem {
   id: string;
   name: string;
@@ -109,6 +116,7 @@ export interface FormField {
   required: boolean;
   placeholder?: string;
   system_key?: 'attendance' | 'shirt_size' | 'camping' | 'family_count' | 'family_members' | 'payment' | string;
+  reference_images?: FormReferenceImage[];
   
   // Untuk select, radio, image_choice
   options?: FormOption[];

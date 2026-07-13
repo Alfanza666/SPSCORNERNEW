@@ -11,6 +11,7 @@ import { motion } from 'motion/react';
 import QRCode from 'react-qr-code';
 import { richTextToPlainText, sanitizeRichTextHtml } from '../../utils/richText';
 import TicketQrFrame from '../../components/portal/TicketQrFrame';
+import WhatsAppShare from '../../components/ui/WhatsAppShare';
 
 interface ProgramMetadata {
   enable_meal?: boolean;
@@ -84,7 +85,8 @@ export default function PortalProgram() {
   const { user, isLoading: isAuthLoading } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const requestedProgramId = (location.state as { programId?: string } | null)?.programId;
+  const requestedProgramId = new URLSearchParams(location.search).get('programId')
+    || (location.state as { programId?: string } | null)?.programId;
   
   const [programs, setPrograms] = useState<Program[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
@@ -408,9 +410,19 @@ export default function PortalProgram() {
                                 <h3 className="text-lg font-black leading-tight text-zinc-900 sm:text-xl dark:text-white">{prog.name}</h3>
                                 <p className="mt-2 text-sm leading-6 text-zinc-500 line-clamp-3 sm:mt-3 dark:text-zinc-400">{description}</p>
                               </div>
-                              <div className="flex items-center justify-between border-t border-zinc-100 pt-4 text-[11px] font-black text-zinc-400 sm:text-xs dark:border-zinc-800">
+                              <div className="flex items-center justify-between gap-3 border-t border-zinc-100 pt-4 text-[11px] font-black text-zinc-400 sm:text-xs dark:border-zinc-800">
                                 <span>Program Serikat</span>
-                                <span className="text-blue-600 dark:text-blue-300">Lihat detail</span>
+                                <div className="flex items-center gap-2">
+                                  <WhatsAppShare
+                                    title={prog.name}
+                                    compact
+                                    path={`/portal/program?programId=${prog.id}`}
+                                    category="Program Serikat SPS Corner"
+                                    description={description}
+                                    className="h-9 w-9 p-2"
+                                  />
+                                  <span className="text-blue-600 dark:text-blue-300">Lihat detail</span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -466,13 +478,22 @@ export default function PortalProgram() {
           )}
           
           <div className="p-4 sm:p-6">
-            {/* Back Button */}
-            <button 
-              onClick={() => setSelectedProgram(null)} 
-              className="flex items-center gap-2 text-zinc-500 mb-4 font-bold text-sm hover:text-zinc-700 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" /> KEMBALI
-            </button>
+            {/* Back & Share */}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <button
+                onClick={() => setSelectedProgram(null)}
+                className="flex items-center gap-2 text-sm font-bold text-zinc-500 transition-colors hover:text-zinc-700"
+              >
+                <ChevronLeft className="w-4 h-4" /> KEMBALI
+              </button>
+              <WhatsAppShare
+                title={selectedProgram.name}
+                compact
+                path={`/portal/program?programId=${selectedProgram.id}`}
+                category="Program Serikat SPS Corner"
+                description={richTextToPlainText(selectedProgram.description)}
+              />
+            </div>
             
             {/* Type & Date Badge */}
             <div className="mb-4 flex flex-wrap items-center gap-2 sm:gap-3">

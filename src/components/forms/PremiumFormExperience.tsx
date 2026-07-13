@@ -317,20 +317,23 @@ export default function PremiumFormExperience({
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-300"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/50">{questionIndex + 1}</span> Informasi peserta</div>
             <h2 className="mt-5 text-xl font-black leading-tight tracking-tight text-zinc-950 sm:text-3xl dark:text-white">{currentField.label}{currentField.required && <span className="ml-1 text-rose-500">*</span>}</h2>
             {currentField.description && <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">{currentField.description}</p>}
-            <div className="mt-7"><PremiumField
-              field={currentField}
-              value={answers[currentField.id]}
-              addonOrders={addonOrders[currentField.id] || []}
-              uploading={uploadingFieldId === currentField.id}
-              onChange={value => updateAnswer(currentField.id, value)}
-              onAddonChange={orders => { setAddonOrders(previous => ({ ...previous, [currentField.id]: orders })); setError(null); }}
-              onFileSelect={async file => {
-                if (!onUploadFile) return updateAnswer(currentField.id, file.name);
-                setUploadingFieldId(currentField.id);
-                try { updateAnswer(currentField.id, await onUploadFile(currentField.id, file)); }
-                finally { setUploadingFieldId(null); }
-              }}
-            /></div>
+            <div className="mt-7">
+              <FieldReferenceImages field={currentField} />
+              <PremiumField
+                field={currentField}
+                value={answers[currentField.id]}
+                addonOrders={addonOrders[currentField.id] || []}
+                uploading={uploadingFieldId === currentField.id}
+                onChange={value => updateAnswer(currentField.id, value)}
+                onAddonChange={orders => { setAddonOrders(previous => ({ ...previous, [currentField.id]: orders })); setError(null); }}
+                onFileSelect={async file => {
+                  if (!onUploadFile) return updateAnswer(currentField.id, file.name);
+                  setUploadingFieldId(currentField.id);
+                  try { updateAnswer(currentField.id, await onUploadFile(currentField.id, file)); }
+                  finally { setUploadingFieldId(null); }
+                }}
+              />
+            </div>
             {error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{error}</p>}
             <div className="mt-8 flex flex-col-reverse gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
               <button type="button" onClick={handlePrevious} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-bold text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"><ArrowLeft className="h-4 w-4" /> Kembali</button>
@@ -418,6 +421,26 @@ interface PremiumFieldProps {
   onChange: (value: unknown) => void;
   onAddonChange: (orders: Array<{ item_id: string; quantity: number }>) => void;
   onFileSelect: (file: File) => void;
+}
+
+function FieldReferenceImages({ field }: { field: FormField }) {
+  const references = (field.reference_images || []).filter(reference => reference.url?.trim());
+  if (references.length === 0) return null;
+
+  return (
+    <div className="mb-5 grid gap-3 sm:grid-cols-2">
+      {references.map(reference => (
+        <figure key={reference.id} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-950/50">
+          <div className="flex min-h-40 items-center justify-center bg-zinc-50 p-3 dark:bg-zinc-900">
+            <img src={reference.url} alt={reference.alt || reference.label} className="max-h-56 w-full object-contain" loading="lazy" />
+          </div>
+          <figcaption className="border-t border-zinc-100 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+            {reference.label}
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  );
 }
 
 function PremiumField({ field, value, addonOrders, uploading, onChange, onAddonChange, onFileSelect }: PremiumFieldProps) {

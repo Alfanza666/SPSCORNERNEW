@@ -424,6 +424,27 @@ export default function AdminFormBuilder() {
       }
 
       if (publish && linkedProgramId && currentFormId) {
+        const { data: linkedProgram, error: linkedProgramError } = await supabase
+          .from('union_programs')
+          .select('id, dynamic_form_id')
+          .eq('id', linkedProgramId)
+          .maybeSingle();
+        if (linkedProgramError) throw linkedProgramError;
+        if (!linkedProgram) throw new Error('Program terkait tidak ditemukan.');
+
+        const currentLinkedFormId = linkedProgram.dynamic_form_id || null;
+        if (currentLinkedFormId === currentFormId) {
+          toast.success('Formulir disimpan. Relasi program sudah sesuai, sinkronisasi ulang dilewati.');
+        } else {
+          const { count, error: registrationCountError } = await supabase
+            .from('program_registrations')
+            .select('id', { count: 'exact', head: true })
+            .eq('program_id', linkedProgramId);
+          if (registrationCountError) throw registrationCountError;
+          if ((count || 0) > 0) {
+            throw new Error('Program sudah memiliki RSVP. Form tidak boleh diganti/relink tanpa rekonsiliasi audit.');
+          }
+
         const token = (await supabase.auth.getSession()).data.session?.access_token;
         if (!token) throw new Error('Sesi admin berakhir. Silakan login kembali.');
         const linkResponse = await fetch(`/api/admin/programs/${linkedProgramId}/link-form-v2`, {
@@ -433,6 +454,7 @@ export default function AdminFormBuilder() {
         });
         const linkResult = await linkResponse.json();
         if (!linkResponse.ok) throw new Error(linkResult.error || 'Gagal menyinkronkan formulir dengan program.');
+        }
       }
 
       toast.success(publish
@@ -575,7 +597,7 @@ export default function AdminFormBuilder() {
                     setTargetCutoffDate(form.target_cutoff_date || '');
                     setInspectorTab('design');
                     setShowEditor(true);
-                    supabase.from('union_programs').select('id').eq('dynamic_form_id', form.id).single()
+                    supabase.from('union_programs').select('id').eq('dynamic_form_id', form.id).maybeSingle()
                       .then(({ data }) => setLinkedProgramId(data?.id || ''));
                   }}
                   onDelete={() => handleDelete(form.id)}

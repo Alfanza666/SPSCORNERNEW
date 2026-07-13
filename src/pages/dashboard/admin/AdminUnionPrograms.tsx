@@ -5,6 +5,7 @@ import { Plus, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertic
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
 import RichTextEditor from '../../../components/ui/RichTextEditor';
+import { richTextToPlainText } from '../../../utils/richText';
 
 interface FormField {
   id: number;
@@ -370,14 +371,18 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
     e.preventDefault();
     setSaving(true);
     try {
+      let existingRegistrationCount = 0;
       if (editingProgram?.id && formData.program_type === 'gathering') {
         const { count, error: countError } = await supabase
           .from('program_registrations')
           .select('id', { count: 'exact', head: true })
           .eq('program_id', editingProgram.id);
         if (countError) throw countError;
-        if ((count || 0) > 0) {
-          throw new Error('Program sudah memiliki RSVP dan tidak dapat diubah langsung. Gunakan koreksi teraudit.');
+        existingRegistrationCount = count || 0;
+        const previousFormId = editingProgram.dynamic_form_id || '';
+        const nextFormId = formData.dynamic_form_id || '';
+        if (existingRegistrationCount > 0 && previousFormId !== nextFormId) {
+          throw new Error('Program sudah memiliki RSVP. Formulir tidak boleh diganti tanpa rekonsiliasi audit.');
         }
       }
       const manualNiks = targetNiks.trim()
@@ -433,6 +438,27 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
           allow_register_team: formData.allow_register_team
         }
       };
+      if (editingProgram?.id && existingRegistrationCount > 0 && formData.program_type === 'gathering') {
+        programData.program_type = editingProgram.program_type || programData.program_type;
+        programData.dynamic_form_id = editingProgram.dynamic_form_id || null;
+        programData.is_targeted = editingProgram.is_targeted ?? programData.is_targeted;
+        programData.target_departments = editingProgram.target_departments ?? programData.target_departments;
+        programData.target_cutoff_date = editingProgram.target_cutoff_date ?? programData.target_cutoff_date;
+        programData.rsvp_deadline = editingProgram.rsvp_deadline ?? programData.rsvp_deadline;
+        programData.family_package_price = editingProgram.family_package_price ?? programData.family_package_price;
+        programData.shirt_price_map = editingProgram.shirt_price_map ?? programData.shirt_price_map;
+        programData.eligibility_source_filter = editingProgram.eligibility_source_filter ?? programData.eligibility_source_filter;
+        programData.metadata = {
+          ...programData.metadata,
+          enable_meal: editingProgram.metadata?.enable_meal ?? programData.metadata.enable_meal,
+          enable_doorprize: editingProgram.metadata?.enable_doorprize ?? programData.metadata.enable_doorprize,
+          enable_family: editingProgram.metadata?.enable_family ?? programData.metadata.enable_family,
+          family_package_price: editingProgram.metadata?.family_package_price ?? programData.metadata.family_package_price,
+          xxl_surcharge: editingProgram.metadata?.xxl_surcharge ?? programData.metadata.xxl_surcharge,
+          xxxl_surcharge: editingProgram.metadata?.xxxl_surcharge ?? programData.metadata.xxxl_surcharge,
+          eligibility_draft: editingProgram.metadata?.eligibility_draft ?? programData.metadata.eligibility_draft,
+        };
+      }
 
       let programId;
 
@@ -477,13 +503,15 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
         }
       }
 
-      if (formData.program_type === 'gathering' && (formData.dynamic_form_id || editingProgram?.dynamic_form_id)) {
+      const previousFormId = editingProgram?.dynamic_form_id || null;
+      const nextFormId = programData.dynamic_form_id || null;
+      if (formData.program_type === 'gathering' && nextFormId && nextFormId !== previousFormId) {
         const token = (await supabase.auth.getSession()).data.session?.access_token;
         if (!token) throw new Error('Sesi admin berakhir. Silakan login kembali.');
         const linkResponse = await fetch(`/api/admin/programs/${programId}/link-form-v2`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ form_id: formData.dynamic_form_id || null }),
+          body: JSON.stringify({ form_id: nextFormId }),
         });
         const linkResult = await linkResponse.json();
         if (!linkResponse.ok) throw new Error(linkResult.error || 'Gagal menyinkronkan program dengan formulir.');
@@ -608,6 +636,17 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
   };
 
   const handlePublishV2 = async (program: any) => {
+    if (program.publication_status === 'published' || program.published_at) {
+      return toast.success('Program sudah aktif di Workflow V2. Tidak perlu publish ulang.');
+    }
+    const { count: registrationCount, error: registrationCountError } = await supabase
+      .from('program_registrations')
+      .select('id', { count: 'exact', head: true })
+      .eq('program_id', program.id);
+    if (registrationCountError) return toast.error('Gagal memeriksa data RSVP: ' + registrationCountError.message);
+    if ((registrationCount || 0) > 0) {
+      return toast.error('Program sudah memiliki RSVP. Publish ulang diblokir; gunakan rekonsiliasi audit bila perlu mengubah snapshot.');
+    }
     if (!program.dynamic_form_id) return toast.error('Hubungkan formulir RSVP terlebih dahulu.');
     if (!program.rsvp_deadline) return toast.error('Deadline RSVP wajib diisi.');
     if (program.start_date && new Date(program.rsvp_deadline) > new Date(program.start_date)) {
@@ -675,7 +714,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                   </div>
                   <div>
                     <h3 className="font-bold text-zinc-900 dark:text-white">{prog.name}</h3>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-1">{prog.description}</p>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-1">{richTextToPlainText(prog.description) || 'Tidak ada deskripsi tambahan.'}</p>
                     <div className="flex flex-wrap gap-2 mt-2">
                       <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-medium rounded-full capitalize">{prog.program_type}</span>
                       {prog.is_targeted && (
@@ -723,6 +762,14 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                     <Settings className="w-4 h-4" />
                   </button>
                   {prog.program_type === 'gathering' && prog.is_active && (
+                    prog.publication_status === 'published' || prog.published_at ? (
+                      <span
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        title="Workflow V2 sudah aktif"
+                      >
+                        V2 Aktif
+                      </span>
+                    ) : (
                     <button
                       onClick={() => handlePublishV2(prog)}
                       disabled={saving}
@@ -731,6 +778,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                     >
                       Publish V2
                     </button>
+                    )
                   )}
                   <button
                     onClick={() => deleteProgram(prog.id)}

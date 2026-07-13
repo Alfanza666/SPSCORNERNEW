@@ -5,6 +5,12 @@ v5.11.0 - Server-Authoritative Form Pricing & Event Add-on Checkout (MINOR)
 - Pertanyaan membawa keluarga dan kalkulasi server bergantung pada jawaban camping=yes, sehingga peserta yang tidak camping tidak pernah ditanya atau ditagih untuk keluarga.
 - Add-on checkout sudah dapat dibuat di Form Studio dan dihitung di browser, tetapi belum disnapshot ke workflow pricing dan belum dihitung ulang oleh server.
 - Update form tidak meminta row hasil update, sehingga kegagalan policy/filter dapat terlihat seperti penyimpanan berhasil walaupun tidak ada baris berubah.
+- Admin masih dapat menekan publish/relink pada program gathering yang sudah memiliki RSVP, sehingga guard backend yang benar tampil sebagai error membingungkan di UI.
+- Kartu program dan kartu formulir menampilkan HTML/metadata JSON mentah karena deskripsi rich text dan metadata form belum selalu diparsing menjadi plain text.
+- Program dan formulir belum memiliki share WhatsApp khusus, sementara komponen share lama masih hardcode untuk pengumuman.
+- Field ukuran baju membutuhkan gambar desain baju dan size chart, tetapi input URL manual terlalu ribet untuk admin dan rawan salah tempel.
+- QRIS manual, gambar opsi pilihan, dan field upload gambar masih membuka jalur URL manual sehingga admin/pengguna perlu copy-paste link gambar.
+- Menyimpan gambar langsung sebagai base64 di JSON form akan membuat payload form berat, memperlambat portal mobile, dan meningkatkan risiko lag saat preview/render.
 
 ### Perbaikan:
 - Form Studio menjadi sumber harga utama untuk opsi baju, jumlah keluarga, dan add-on; kolom harga program hanya menjadi fallback untuk form legacy tanpa properti harga.
@@ -14,6 +20,19 @@ v5.11.0 - Server-Authoritative Form Pricing & Event Add-on Checkout (MINOR)
 - Penyimpanan form memverifikasi row update dan membedakan status draft dengan publikasi/sinkronisasi program.
 - Test ditambah untuk cabang camping/keluarga, harga keluarga/oversize, add-on checkout, batas quantity, dan workflow pricing snapshot.
 - `qr.js` serta modul Workbox yang diimpor langsung dideklarasikan eksplisit; build tidak lagi bergantung pada hoisting dependency transitif npm.
+- **[ADMIN PROGRAM] src/pages/dashboard/admin/AdminUnionPrograms.tsx:** Publish V2 ulang sekarang dilewati/diblokir dengan pesan jelas bila program sudah published atau sudah memiliki RSVP; kartu program menampilkan deskripsi plain text, bukan HTML mentah.
+- **[ADMIN FORM BUILDER] src/pages/dashboard/admin/AdminFormBuilder.tsx:** Publish form tidak lagi memanggil relink bila form sudah terhubung ke program yang sama; relink ke form berbeda tetap diblokir bila program sudah memiliki RSVP.
+- **[WHATSAPP SHARE] src/components/ui/WhatsAppShare.tsx:** Komponen share dibuat generik untuk pengumuman, program, dan formulir dengan pesan/link khusus.
+- **[PORTAL PROGRAM] src/pages/portal/PortalProgram.tsx:** Program dapat dibagikan ke WhatsApp dan deep-link `?programId=` akan membuka detail program terkait.
+- **[PORTAL FORM] src/pages/portal/PortalFormList.tsx:** Formulir dapat dibagikan ke WhatsApp dan deskripsi JSON metadata ditampilkan sebagai teks bersih.
+- **[FORM BUILDER] src/components/form-builder/FieldSettingsPanel.tsx:** Gambar referensi pada field ukuran baju sekarang memakai upload langsung, bukan input URL manual.
+- **[FORM BUILDER] src/components/form-builder/FieldSettingsPanel.tsx:** QRIS manual dan gambar pada field `Pilihan gambar` sekarang memakai upload langsung dengan preview, hapus, dan ganti gambar.
+- **[PORTAL FORM] src/pages/portal/PortalFormView.tsx:** Field upload gambar legacy tidak lagi menampilkan input URL; pengguna hanya diarahkan upload file dari perangkat.
+- **[PERFORMANCE]** Gambar dikompres di browser sebelum upload ke Supabase Storage (`program-files/form-references`) dengan target ringan untuk mobile.
+- **[FORM JSON] src/types/form.ts:** Menambahkan metadata `reference_images` agar gambar tersimpan sebagai metadata kecil tanpa migration database.
+- **[PREVIEW] src/components/form-builder/BuilderCanvas.tsx:** Canvas builder menampilkan preview desain baju dan size chart langsung pada pertanyaan terkait.
+- **[PORTAL] src/components/forms/PremiumFormExperience.tsx:** Renderer premium menampilkan gambar referensi responsif di atas opsi pilihan ukuran; dua kolom di tablet/desktop dan stacked di mobile.
+- **[SAFETY]** Tidak ada perubahan pada logika Kiosk, cart, checkout, atau PPOB.
 - Versi UI, package.json, package-lock.json, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.11.0.
 
 v5.10.4 - Portal Kantin Shortcut & Layout Scroll Reset (PATCH)

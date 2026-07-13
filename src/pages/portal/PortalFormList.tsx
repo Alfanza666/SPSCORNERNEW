@@ -7,6 +7,7 @@ import {
   Filter, FileText, Calendar, ArrowRight, Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import WhatsAppShare from '../../components/ui/WhatsAppShare';
 
 interface DynamicForm {
   id: string;
@@ -16,6 +17,17 @@ interface DynamicForm {
   created_at: string;
   program_name?: string;
   program_id?: string;
+}
+
+function getFormDescription(description?: string) {
+  if (!description) return '';
+  try {
+    const parsed = JSON.parse(description);
+    if (parsed && typeof parsed === 'object' && 'text' in parsed) return String(parsed.text || '');
+  } catch {
+    // Plain-text legacy description.
+  }
+  return description;
 }
 
 export default function PortalFormList() {
@@ -66,7 +78,7 @@ export default function PortalFormList() {
 
   const filteredForms = forms.filter(f => 
     f.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    getFormDescription(f.description).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (!user) return <Navigate to="/login" />;
@@ -110,12 +122,16 @@ export default function PortalFormList() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <AnimatePresence>
             {filteredForms.map((form, index) => (
+              (() => {
+                const formDescription = getFormDescription(form.description) || 'Isi formulir ini untuk memberikan informasi yang dibutuhkan.';
+                const formPath = `/portal/forms/${form.id}${form.program_id ? `?programId=${form.program_id}` : ''}`;
+                return (
               <motion.div
                 key={form.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => navigate(`/portal/forms/${form.id}${form.program_id ? `?programId=${form.program_id}` : ''}`)}
+                onClick={() => navigate(formPath)}
                 className="group bg-white dark:bg-zinc-900 rounded-[2rem] p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all cursor-pointer overflow-hidden relative"
               >
                 {/* Background Decoration */}
@@ -126,18 +142,28 @@ export default function PortalFormList() {
                     <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
                       <FileText className="w-7 h-7" />
                     </div>
-                    {form.program_name && (
-                      <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
-                        Program Terkait
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {form.program_name && (
+                        <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest rounded-full">
+                          Program Terkait
+                        </span>
+                      )}
+                      <WhatsAppShare
+                        title={form.title}
+                        compact
+                        path={formPath}
+                        category="Formulir SPS Corner"
+                        description={formDescription}
+                        className="h-10 w-10"
+                      />
+                    </div>
                   </div>
 
                   <h3 className="text-xl font-black text-zinc-900 dark:text-white mb-2 group-hover:text-blue-600 transition-colors">
                     {form.title}
                   </h3>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-6 h-10">
-                    {form.description || 'Isi formulir ini untuk memberikan informasi yang dibutuhkan.'}
+                    {formDescription}
                   </p>
 
                   <div className="flex items-center justify-between pt-6 border-t border-zinc-50 dark:border-zinc-800">
@@ -159,6 +185,8 @@ export default function PortalFormList() {
                   </div>
                 </div>
               </motion.div>
+                );
+              })()
             ))}
           </AnimatePresence>
         </div>

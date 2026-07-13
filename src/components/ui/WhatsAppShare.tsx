@@ -1,16 +1,46 @@
 import { Share2 } from 'lucide-react';
+import type { MouseEvent } from 'react';
 
 interface WhatsAppShareProps {
   title: string;
   className?: string;
   compact?: boolean;
+  path?: string;
+  url?: string;
+  category?: string;
+  description?: string;
+  loginHint?: string;
+  message?: string;
 }
 
-export default function WhatsAppShare({ title, className = '', compact = false }: WhatsAppShareProps) {
-  const handleShare = () => {
+export default function WhatsAppShare({
+  title,
+  className = '',
+  compact = false,
+  path = '/portal/pengumuman',
+  url,
+  category = 'Pengumuman Baru dari Serikat Pekerja',
+  description,
+  loginHint = 'Login untuk melihat detail lengkap.',
+  message,
+}: WhatsAppShareProps) {
+  const handleShare = (event?: MouseEvent<HTMLButtonElement>) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://spscorner.store';
-    const message = `📢 *Pengumuman Baru dari Serikat Pekerja*\n\n${title}\n\n🔗 Buka di Portal: ${baseUrl}/portal/pengumuman\n\n_Login untuk melihat detail lengkap._`;
-    const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    const targetUrl = url || `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+    const shareMessage = message || [
+      `📢 *${category}*`,
+      '',
+      title,
+      description ? `\n${description}` : '',
+      '',
+      `🔗 Buka di SPS Corner: ${targetUrl}`,
+      '',
+      `_${loginHint}_`,
+    ].filter(Boolean).join('\n');
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
     window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
@@ -20,6 +50,7 @@ export default function WhatsAppShare({ title, className = '', compact = false }
         onClick={handleShare}
         className={`p-2.5 rounded-xl bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-all active:scale-95 ${className}`}
         title="Bagikan ke WhatsApp"
+        aria-label="Bagikan ke WhatsApp"
       >
         <Share2 className="w-5 h-5" />
       </button>

@@ -5,17 +5,23 @@ import {
   Copy,
   CreditCard,
   GitBranch,
+  Image as ImageIcon,
   Plus,
   Settings2,
   Trash2,
+  Upload,
   Users,
   X,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import toast from 'react-hot-toast';
+import imageCompression from 'browser-image-compression';
+import { supabase } from '../../lib/supabase';
 import type {
   BankAccountConfig,
   FieldType,
   FormField,
+  FormReferenceImage,
   FormOption,
   ManualPaymentMethod,
 } from '../../types/form';
@@ -54,6 +60,11 @@ const CONTROL =
 
 const SMALL_CONTROL =
   'min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200';
+
+const REFERENCE_IMAGE_SLOTS: Array<{ id: string; label: string; helper: string }> = [
+  { id: 'shirt_design', label: 'Desain baju', helper: 'Contoh visual baju yang akan dipilih peserta.' },
+  { id: 'size_chart', label: 'Size chart', helper: 'Panduan ukuran agar peserta tidak salah memilih.' },
+];
 
 function typeDefaults(type: FieldType): Partial<FormField> {
   if (['radio', 'checkbox', 'select', 'image_choice'].includes(type)) {
@@ -130,16 +141,118 @@ export function FieldSettingsPanel({
   onMove,
 }: FieldSettingsPanelProps) {
   const supportsOptions = ['radio', 'checkbox', 'select', 'image_choice'].includes(field.type);
+  const [uploadingReferenceId, setUploadingReferenceId] = useState<string | null>(null);
+  const [uploadingOptionImageIndex, setUploadingOptionImageIndex] = useState<number | null>(null);
+  const [uploadingQrisImage, setUploadingQrisImage] = useState(false);
   const conditionalParents = allFields
     .slice(0, index)
     .filter(candidate => ['radio', 'checkbox', 'select', 'image_choice'].includes(candidate.type) && candidate.options?.length);
   const selectedParent = conditionalParents.find(candidate => candidate.id === field.condition?.fieldId);
+  const shouldShowReferenceImageTools = field.type !== 'payment_section' && (
+    Boolean(field.reference_images?.length)
+    || field.system_key === 'shirt_size'
+    || /baju|kaos|shirt|size|ukuran|chart/i.test(field.label || '')
+  );
 
   const updateOptions = (options: FormOption[]) => onUpdate({ options });
   const updateOption = (optionIndex: number, changes: Partial<FormOption>) => {
     const options = [...(field.options || [])];
     options[optionIndex] = { ...options[optionIndex], ...changes };
     updateOptions(options);
+  };
+
+  const uploadFieldImageAsset = async (file: File | undefined, label: string, folder: string, filePrefix: string) => {
+    if (!file) return null;
+    if (!file.type.startsWith('image/')) {
+      toast.error('File harus berupa gambar.');
+      return null;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('Ukuran gambar maksimal 8MB. Kompres atau pilih gambar yang lebih ringan.');
+      return null;
+    }
+
+    const toastId = toast.loading(`Mengoptimalkan ${label.toLowerCase()}...`);
+    try {
+      const optimizedImage = await imageCompression(file, {
+        maxSizeMB: 0.9,
+        maxWidthOrHeight: 1600,
+        useWebWorker: true,
+        initialQuality: 0.82,
+      });
+      const uploadFile = optimizedImage as File;
+      const fileExt = uploadFile.type.split('/')[1]?.replace('jpeg', 'jpg') || file.name.split('.').pop() || 'jpg';
+      const safePrefix = filePrefix.replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const filePath = `${folder}/${safePrefix}-${Date.now()}.${fileExt}`;
+      toast.loading(`Mengunggah ${label.toLowerCase()}...`, { id: toastId });
+      const { error: uploadError } = await supabase.storage
+        .from('program-files')
+        .upload(filePath, uploadFile, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('program-files').getPublicUrl(filePath);
+      toast.success(`${label} berhasil diunggah`, { id: toastId });
+      return publicUrl;
+    } catch (error: any) {
+      toast.error(error?.message || `Gagal mengunggah ${label.toLowerCase()}`, { id: toastId });
+      return null;
+    }
+  };
+
+  const updateReferenceImage = (slot: { id: string; label: string }, updates: Partial<FormReferenceImage>) => {
+    const current = field.reference_images || [];
+    const existing = current.find(reference => reference.id === slot.id);
+    const nextReference: FormReferenceImage = {
+      id: slot.id,
+      label: existing?.label || slot.label,
+      url: existing?.url || '',
+      alt: existing?.alt || slot.label,
+      ...updates,
+    };
+    const next = [
+      ...current.filter(reference => reference.id !== slot.id),
+      nextReference,
+    ].filter(reference => reference.url.trim());
+    onUpdate({ reference_images: next.length ? next : undefined });
+  };
+
+  const uploadReferenceImage = async (slot: { id: string; label: string }, file?: File) => {
+    setUploadingReferenceId(slot.id);
+    try {
+      const safeSlot = slot.id.replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const safeField = field.id.replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const publicUrl = await uploadFieldImageAsset(file, slot.label, 'form-references', `${safeField}-${safeSlot}`);
+      if (publicUrl) updateReferenceImage(slot, { url: publicUrl, alt: slot.label });
+    } finally {
+      setUploadingReferenceId(null);
+    }
+  };
+
+  const uploadOptionImage = async (optionIndex: number, file?: File) => {
+    setUploadingOptionImageIndex(optionIndex);
+    try {
+      const option = field.options?.[optionIndex];
+      const safeField = field.id.replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const publicUrl = await uploadFieldImageAsset(
+        file,
+        `Gambar opsi ${option?.label || optionIndex + 1}`,
+        'form-option-images',
+        `${safeField}-option-${optionIndex + 1}`,
+      );
+      if (publicUrl) updateOption(optionIndex, { image: publicUrl });
+    } finally {
+      setUploadingOptionImageIndex(null);
+    }
+  };
+
+  const uploadQrisImage = async (file?: File) => {
+    setUploadingQrisImage(true);
+    try {
+      const safeField = field.id.replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+      const publicUrl = await uploadFieldImageAsset(file, 'Gambar QRIS', 'payment-qris', `${safeField}-qris`);
+      if (publicUrl) onUpdate({ qris_image_url: publicUrl });
+    } finally {
+      setUploadingQrisImage(false);
+    }
   };
 
   const togglePaymentMethod = (method: ManualPaymentMethod) => {
@@ -191,6 +304,49 @@ export function FieldSettingsPanel({
         </div>
       </Section>
 
+      {shouldShowReferenceImageTools && (
+        <Section title="Gambar referensi" description="Upload langsung dari perangkat. Sistem otomatis mengompres gambar agar tetap cepat di mobile.">
+          <div className="space-y-3">
+            {REFERENCE_IMAGE_SLOTS.map(slot => {
+              const reference = field.reference_images?.find(item => item.id === slot.id);
+              return (
+                <div key={slot.id} className="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-zinc-400">
+                      <ImageIcon className="h-3.5 w-3.5" /> {slot.label}
+                    </span>
+                    {reference?.url && (
+                      <button type="button" onClick={() => updateReferenceImage(slot, { url: '' })} className="text-[10px] font-bold text-red-500 hover:text-red-600">
+                        Hapus
+                      </button>
+                    )}
+                  </div>
+                  {reference?.url && (
+                    <div className="mb-2 overflow-hidden rounded-lg border border-slate-100 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-950">
+                      <img src={reference.url} alt={reference.alt || slot.label} className="h-24 w-full object-contain" />
+                    </div>
+                  )}
+                  <p className="mb-2 text-[10px] leading-4 text-slate-400 dark:text-zinc-500">{slot.helper}</p>
+                  <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-blue-300 bg-blue-50/70 px-3 py-2 text-[11px] font-bold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-300">
+                    {uploadingReferenceId === slot.id ? <Settings2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                    {uploadingReferenceId === slot.id ? 'Mengunggah...' : reference?.url ? 'Ganti gambar' : 'Upload gambar'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={event => {
+                        void uploadReferenceImage(slot, event.target.files?.[0]);
+                        event.currentTarget.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+      )}
+
       {supportsOptions && (
         <Section title="Opsi, harga & tujuan" description="Harga dan akhir alur dapat berbeda untuk setiap jawaban.">
           <div className="space-y-2.5">
@@ -208,6 +364,36 @@ export function FieldSettingsPanel({
                     {outcomes.map(outcome => <option key={outcome.id} value={outcome.id}>Selesai: {outcome.title}</option>)}
                   </select>
                 </div>
+                {field.type === 'image_choice' && (
+                  <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 p-2 dark:border-zinc-800 dark:bg-zinc-950/40">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-zinc-500">Gambar opsi</span>
+                      {option.image && (
+                        <button type="button" onClick={() => updateOption(optionIndex, { image: '' })} className="text-[10px] font-bold text-red-500 hover:text-red-600">
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+                    {option.image && (
+                      <div className="mb-2 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+                        <img src={option.image} alt={option.label || `Opsi ${optionIndex + 1}`} className="h-24 w-full object-contain" />
+                      </div>
+                    )}
+                    <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/70 px-3 py-2 text-[11px] font-bold text-fuchsia-700 hover:bg-fuchsia-100 dark:border-fuchsia-900 dark:bg-fuchsia-950/20 dark:text-fuchsia-300">
+                      {uploadingOptionImageIndex === optionIndex ? <Settings2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                      {uploadingOptionImageIndex === optionIndex ? 'Mengunggah...' : option.image ? 'Ganti gambar opsi' : 'Upload gambar opsi'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={event => {
+                          void uploadOptionImage(optionIndex, event.target.files?.[0]);
+                          event.currentTarget.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
               </div>
             ))}
             <button type="button" onClick={() => updateOptions([...(field.options || []), makeOption((field.options?.length || 0) + 1)])} className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-300 bg-blue-50/60 px-3 py-2.5 text-xs font-bold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-300"><Plus className="h-3.5 w-3.5" /> Tambah opsi</button>
@@ -270,7 +456,36 @@ export function FieldSettingsPanel({
                 return <button key={method} type="button" onClick={() => togglePaymentMethod(method)} aria-pressed={selected} className={`flex items-center gap-2 rounded-xl border p-3 text-left text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${selected ? 'border-emerald-400 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300' : 'border-slate-200 bg-white text-slate-500 dark:border-zinc-700 dark:bg-zinc-900'}`}><span aria-hidden="true" className={`flex h-5 w-5 items-center justify-center rounded-md ${selected ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-zinc-800'}`}>{selected && <Check className="h-3 w-3" />}</span>{label}</button>;
               })}
             </div>
-            {field.payment_methods?.includes('manual_qris') && <label><Label>URL gambar QRIS</Label><input value={field.qris_image_url || ''} onChange={event => onUpdate({ qris_image_url: event.target.value })} className={CONTROL} placeholder="https://..." /></label>}
+            {field.payment_methods?.includes('manual_qris') && (
+              <div className="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <Label>Gambar QRIS</Label>
+                  {field.qris_image_url && (
+                    <button type="button" onClick={() => onUpdate({ qris_image_url: '' })} className="text-[10px] font-bold text-red-500 hover:text-red-600">
+                      Hapus
+                    </button>
+                  )}
+                </div>
+                {field.qris_image_url && (
+                  <div className="mb-2 overflow-hidden rounded-lg border border-slate-100 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-950">
+                    <img src={field.qris_image_url} alt="QRIS pembayaran" className="h-28 w-full object-contain" />
+                  </div>
+                )}
+                <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/70 px-3 py-2 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300">
+                  {uploadingQrisImage ? <Settings2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  {uploadingQrisImage ? 'Mengunggah...' : field.qris_image_url ? 'Ganti QRIS' : 'Upload QRIS'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={event => {
+                      void uploadQrisImage(event.target.files?.[0]);
+                      event.currentTarget.value = '';
+                    }}
+                  />
+                </label>
+              </div>
+            )}
             {field.payment_methods?.includes('bank_transfer') && (
               <div className="space-y-2">
                 {(field.bank_accounts || []).map((account, accountIndex) => (
