@@ -687,6 +687,145 @@ function sanitizeProofReference(value: unknown): string {
   throw new WorkflowHttpError(400, "INVALID_PROOF_REFERENCE", "Bukti pembayaran harus berupa URL HTTPS atau storage path yang valid.");
 }
 
+function inferProofMimeType(reference: unknown, fallback = "image/jpeg"): string {
+  const cleanReference = String(reference || "").split("?")[0].toLowerCase();
+  if (cleanReference.endsWith(".png")) return "image/png";
+  if (cleanReference.endsWith(".webp")) return "image/webp";
+  if (cleanReference.endsWith(".jpg") || cleanReference.endsWith(".jpeg")) return "image/jpeg";
+  return fallback;
+}
+
+async function loadPaymentProofForKioskValidator(supabase: any, proofReference: string) {
+  if (proofReference.startsWith("https://")) {
+    const response = await fetch(proofReference);
+    if (!response.ok) throw new Error(`Proof image fetch failed: ${response.status}`);
+    const mimeType = response.headers.get("content-type")?.split(";")[0] || inferProofMimeType(proofReference);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return { buffer, mimeType };
+  }
+
+  const { data, error } = await supabase.storage.from("program-files").download(proofReference);
+  if (error || !data) throw new Error(error?.message || "Proof image download failed");
+  const mimeType = data.type || inferProofMimeType(proofReference);
+  const buffer = Buffer.from(await data.arrayBuffer());
+  return { buffer, mimeType };
+}
+
+async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: any, proofReference: string, expectedAmount: number) {
+  const attemptedAt = new Date().toISOString();
+  if (!groq || !process.env.GROQ_API_KEY) {
+    return {
+      attempted_at: attemptedAt,
+      provider: "groq",
+      source: "kiosk_receipt_validator",
+      valid: false,
+      fallback_to_manual: true,
+      reason: "GROQ_API_KEY belum dikonfigurasi di backend. Bukti disimpan untuk review admin.",
+    };
+  }
+
+  try {
+    const { buffer, mimeType } = await loadPaymentProofForKioskValidator(supabase, proofReference);
+    if (buffer.length > 10 * 1024 * 1024) {
+      return {
+        attempted_at: attemptedAt,
+        provider: "groq",
+        source: "kiosk_receipt_validator",
+        valid: false,
+        fallback_to_manual: true,
+        reason: "Ukuran bukti terlalu besar untuk verifikasi AI. Bukti disimpan untuk review admin.",
+      };
+    }
+
+    const imageBase64 = buffer.toString("base64");
+    const amountNum = Number(expectedAmount || 0);
+    const amountFormatted = Number.isNaN(amountNum) ? String(expectedAmount) : amountNum.toLocaleString("id-ID");
+    const prompt = `
+      Kamu adalah sistem verifikasi bukti pembayaran untuk toko kantin digital.
+      Analisis gambar berikut dan tentukan apakah ini adalah bukti transfer/pembayaran yang valid.
+
+      Nominal transaksi yang harus dibayar: Rp ${amountFormatted}
+
+      INSTRUKSI PENTING:
+      - Gambar bisa berupa screenshot panjang dari aplikasi mobile banking, QRIS, GoPay, OVO, DANA, ShopeePay, atau aplikasi transfer lainnya.
+      - JANGAN tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.
+      - Fokus mencari bukti pembayaran di MANA PUN lokasinya dalam gambar.
+      - Cari teks nominal seperti: "${expectedAmount}", "Rp ${amountFormatted}", atau angka yang mendekati ± 5%.
+      - Cari indikator keberhasilan seperti: "Berhasil", "Sukses", "Success", "Selesai", tanda centang hijau, atau teks serupa.
+      - Cari nama pengirim, nama penerima, atau nama bank/dompet digital sebagai konteks tambahan.
+      - JANGAN tolak berdasarkan tanggal transaksi — customer mungkin upload bukti dari hari sebelumnya, itu TETAP VALID.
+      - Jika nominal TERLIHAT dan status BERHASIL terdeteksi, anggap valid meskipun gambar tidak sempurna.
+
+      TOLAK hanya jika:
+      - Gambar bukan bukti pembayaran sama sekali (foto biasa, meme, dll)
+      - Nominal yang terlihat JELAS berbeda jauh dari Rp ${amountFormatted}
+      - Status transaksi JELAS menunjukkan gagal/pending/dibatalkan
+
+      Balas HANYA dengan JSON tanpa markdown:
+      {
+        "valid": boolean,
+        "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominalnya. Jika tidak valid jelaskan alasannya."
+      }
+    `;
+
+    const result = await groq.chat.completions.create({
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+          ],
+        },
+      ],
+      max_tokens: 300,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+    });
+
+    const responseText = result.choices?.[0]?.message?.content || "";
+    let parsed: any;
+    try {
+      parsed = JSON.parse(responseText.trim());
+    } catch {
+      return {
+        attempted_at: attemptedAt,
+        provider: "groq",
+        source: "kiosk_receipt_validator",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        valid: false,
+        fallback_to_manual: true,
+        reason: "AI belum mengembalikan hasil yang dapat dibaca. Bukti disimpan untuk review admin.",
+        raw_response_preview: responseText.slice(0, 200),
+      };
+    }
+
+    return {
+      attempted_at: attemptedAt,
+      provider: "groq",
+      source: "kiosk_receipt_validator",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      valid: Boolean(parsed.valid),
+      fallback_to_manual: Boolean(parsed.fallbackToPending || parsed.fallback_to_pending),
+      reason: String(parsed.reason || (parsed.valid ? "Bukti pembayaran valid." : "Bukti pembayaran belum valid.")).slice(0, 500),
+      raw: parsed,
+    };
+  } catch (error: any) {
+    console.error("[ProgramWorkflowV2] Kiosk receipt validator failed:", error);
+    return {
+      attempted_at: attemptedAt,
+      provider: "groq",
+      source: "kiosk_receipt_validator",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      valid: false,
+      fallback_to_manual: true,
+      reason: "Layanan verifikasi otomatis sedang sibuk. Bukti pembayaran disimpan untuk review admin.",
+      error: String(error?.message || error).slice(0, 300),
+    };
+  }
+}
+
 export function paymentInstructions(workflow: any) {
   const rules = isPlainObject(workflow?.payment_rules) ? workflow.payment_rules : {};
   const configuredMethods = Array.isArray(rules.methods)
@@ -710,6 +849,7 @@ export function paymentInstructions(workflow: any) {
     account_number: typeof rules.account_number === "string" ? rules.account_number : null,
     instructions: typeof rules.instructions === "string" ? rules.instructions : null,
     proof_required: rules.proof_required !== false,
+    verify_with_ai: rules.verify_with_ai !== false,
   };
 }
 
@@ -1178,7 +1318,7 @@ function sendWorkflowError(res: any, error: any) {
   return res.status(500).json({ success: false, error: "Terjadi kesalahan sistem.", code: "INTERNAL_ERROR" });
 }
 
-export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, sendNotification }: any) {
+export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, sendNotification, groq }: any) {
   app.post("/api/portal/programs/:programId/registration-v2/submit", async (req: any, res: any) => {
     try {
       const { programId } = req.params;
@@ -1448,7 +1588,111 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
         .eq("id", registration.id);
       if (registrationUpdateError) throwDatabaseError(registrationUpdateError, "Gagal memperbarui status registrasi.");
 
-      return res.json({ success: true, data: updatedPayment, message: "Bukti pembayaran menunggu verifikasi admin." });
+      const { data: workflow, error: workflowError } = await supabase
+        .from("program_workflow_configs")
+        .select("*")
+        .eq("id", registration.workflow_config_id)
+        .maybeSingle();
+      if (workflowError) throwDatabaseError(workflowError, "Gagal memuat workflow pembayaran.");
+      if (!workflow) throw new WorkflowHttpError(409, "WORKFLOW_NOT_FOUND", "Workflow pembayaran tidak ditemukan.");
+      const verifyWithAi = paymentInstructions(workflow).verify_with_ai !== false;
+
+      if (!verifyWithAi) {
+        return res.json({ success: true, data: updatedPayment, message: "Bukti pembayaran menunggu verifikasi admin." });
+      }
+
+      const expectedAmount = Number(payment.expected_amount || registration.total_amount || 0);
+      const aiVerification = await validateProgramPaymentProofWithKioskRules(groq, supabase, proofUrl, expectedAmount);
+      const aiMetadata = {
+        ...(isPlainObject(updatedPayment.proof_metadata) ? updatedPayment.proof_metadata : proofMetadata),
+        ai_verification: aiVerification,
+      };
+
+      if (aiVerification.valid) {
+        const now = new Date().toISOString();
+        const { data: paidPayment, error: paidPaymentError } = await supabase
+          .from("program_registration_payments")
+          .update({
+            status: "paid",
+            paid_amount: expectedAmount,
+            paid_at: now,
+            verified_at: now,
+            verified_by: null,
+            proof_metadata: reviewHistory(aiMetadata, {
+              action: "approved_by_ai",
+              at: now,
+              by: "groq",
+              note: aiVerification.reason,
+            }),
+          })
+          .eq("id", payment.id)
+          .eq("registration_id", registration.id)
+          .select("id, registration_id, payment_method, provider, reference_id, expected_amount, paid_amount, currency, status, proof_url, proof_metadata, verified_at, paid_at, created_at, updated_at")
+          .single();
+        if (paidPaymentError) throwDatabaseError(paidPaymentError, "Gagal menyetujui pembayaran otomatis.");
+
+        const { data: confirmedRegistration, error: confirmError } = await supabase
+          .from("program_registrations")
+          .update({ payment_status: "paid", registration_status: "confirmed", confirmed_at: now })
+          .eq("id", registration.id)
+          .select()
+          .single();
+        if (confirmError) throwDatabaseError(confirmError, "Gagal mengonfirmasi registrasi.");
+        await issueRegistrationEntitlements(supabase, confirmedRegistration, workflow);
+
+        if (sendNotification && confirmedRegistration.user_id) {
+          await sendNotification(confirmedRegistration.user_id, {
+            type: "program",
+            title: "Pembayaran Program Terverifikasi AI",
+            message: "Bukti pembayaran Anda berhasil diverifikasi otomatis. Tiket dan kupon sudah aktif.",
+            path: "/portal/program",
+          }).catch((error: any) => console.error("[ProgramWorkflowV2] Notification failed:", error));
+        }
+
+        return res.json({
+          success: true,
+          data: paidPayment,
+          registration: await loadRegistrationDetails(supabase, confirmedRegistration),
+          ai_verified: true,
+          message: "Bukti pembayaran berhasil diverifikasi AI Groq. Tiket dan kupon sudah aktif.",
+        });
+      }
+
+      if (aiVerification.fallback_to_manual) {
+        const { data: manualReviewPayment, error: manualReviewError } = await supabase
+          .from("program_registration_payments")
+          .update({ proof_metadata: aiMetadata, status: "under_review" })
+          .eq("id", payment.id)
+          .select("id, registration_id, payment_method, provider, reference_id, expected_amount, paid_amount, currency, status, proof_url, proof_metadata, created_at, updated_at")
+          .single();
+        if (manualReviewError) throwDatabaseError(manualReviewError, "Gagal menyimpan hasil verifikasi AI.");
+        return res.json({
+          success: true,
+          data: manualReviewPayment,
+          ai_verified: false,
+          fallback_to_manual: true,
+          message: aiVerification.reason || "AI belum dapat memastikan bukti pembayaran. Bukti menunggu verifikasi admin.",
+        });
+      }
+
+      const rejectedMetadata = reviewHistory(aiMetadata, {
+        action: "rejected_by_ai",
+        at: new Date().toISOString(),
+        by: "groq",
+        note: aiVerification.reason,
+      });
+      const { error: rejectPaymentError } = await supabase
+        .from("program_registration_payments")
+        .update({ status: "rejected", proof_metadata: rejectedMetadata })
+        .eq("id", payment.id);
+      if (rejectPaymentError) throwDatabaseError(rejectPaymentError, "Gagal menyimpan hasil penolakan AI.");
+      const { error: rejectRegistrationError } = await supabase
+        .from("program_registrations")
+        .update({ payment_status: "failed", registration_status: "payment_rejected", confirmed_at: null })
+        .eq("id", registration.id);
+      if (rejectRegistrationError) throwDatabaseError(rejectRegistrationError, "Gagal memperbarui status registrasi.");
+
+      throw new WorkflowHttpError(422, "AI_PAYMENT_PROOF_REJECTED", `Bukti pembayaran tidak valid: ${aiVerification.reason}`);
     } catch (error) {
       return sendWorkflowError(res, error);
     }

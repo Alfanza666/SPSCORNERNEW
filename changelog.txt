@@ -11,6 +11,7 @@ v5.11.0 - Server-Authoritative Form Pricing & Event Add-on Checkout (MINOR)
 - Field ukuran baju membutuhkan gambar desain baju dan size chart, tetapi input URL manual terlalu ribet untuk admin dan rawan salah tempel.
 - QRIS manual, gambar opsi pilihan, dan field upload gambar masih membuka jalur URL manual sehingga admin/pengguna perlu copy-paste link gambar.
 - Menyimpan gambar langsung sebagai base64 di JSON form akan membuat payload form berat, memperlambat portal mobile, dan meningkatkan risiko lag saat preview/render.
+- Bukti pembayaran formulir Program Workflow V2 hanya masuk status `under_review`, sementara kiosk sudah memiliki verifikasi Groq; dampaknya peserta tetap menunggu admin walaupun bukti valid dan nominal cocok.
 
 ### Perbaikan:
 - Form Studio menjadi sumber harga utama untuk opsi baju, jumlah keluarga, dan add-on; kolom harga program hanya menjadi fallback untuk form legacy tanpa properti harga.
@@ -32,6 +33,10 @@ v5.11.0 - Server-Authoritative Form Pricing & Event Add-on Checkout (MINOR)
 - **[FORM JSON] src/types/form.ts:** Menambahkan metadata `reference_images` agar gambar tersimpan sebagai metadata kecil tanpa migration database.
 - **[PREVIEW] src/components/form-builder/BuilderCanvas.tsx:** Canvas builder menampilkan preview desain baju dan size chart langsung pada pertanyaan terkait.
 - **[PORTAL] src/components/forms/PremiumFormExperience.tsx:** Renderer premium menampilkan gambar referensi responsif di atas opsi pilihan ukuran; dua kolom di tablet/desktop dan stacked di mobile.
+- **[PROGRAM PAYMENT] src/routes/programRegistrationWorkflow.ts:** Bukti bayar form V2 sekarang memakai aturan validator receipt yang sama dengan kiosk; bukti valid langsung menjadi `paid`, registrasi `confirmed`, dan entitlement/QR diterbitkan.
+- **[PROGRAM PAYMENT] src/routes/programRegistrationWorkflow.ts:** Jika Groq offline/ragu, bukti tetap aman masuk review admin; jika jelas bukan bukti/nominal tidak valid, status ditolak agar peserta dapat upload ulang.
+- **[FORM BUILDER] src/components/form-builder/FieldSettingsPanel.tsx:** Payment section memiliki toggle “Verifikasi AI Groq otomatis” dan default aktif untuk field/template baru.
+- **[PORTAL FORM] src/pages/portal/PortalFormView.tsx:** Hasil submit premium membedakan pembayaran yang sudah terverifikasi AI dari bukti yang masih menunggu admin.
 - **[SAFETY]** Tidak ada perubahan pada logika Kiosk, cart, checkout, atau PPOB.
 - Versi UI, package.json, package-lock.json, DashboardLayout, PortalLayout, dan changelog disinkronkan ke v5.11.0.
 

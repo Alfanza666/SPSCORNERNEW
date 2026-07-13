@@ -1,4 +1,5 @@
 Riwayat Error & Fix:
+- [FIXED] Bukti pembayaran formulir Program Workflow V2 hanya menunggu review admin walaupun kiosk sudah memakai Groq; route payment-proof form kini dapat verifikasi Groq otomatis, auto-approve bila valid, fallback manual bila AI ragu/offline, dan reject agar user upload ulang bila jelas tidak valid (v5.11.0).
 - [FIXED] Harga oversize dan keluarga tampil nol karena link-form menimpa harga Form Studio dengan kolom program legacy bernilai nol; Form Studio kini menjadi sumber harga utama (v5.11.0).
 - [FIXED] Peserta yang tidak camping tidak ditanya membawa keluarga dan keluarga tidak masuk quote; cabang keluarga kini bergantung pada kehadiran, bukan camping (v5.11.0).
 - [FIXED] Add-on checkout hanya dihitung di browser; konfigurasi sekarang disnapshot dan dihitung ulang server dengan validasi item serta quantity (v5.11.0).

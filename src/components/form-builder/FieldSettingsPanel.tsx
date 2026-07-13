@@ -96,7 +96,7 @@ function typeDefaults(type: FieldType): Partial<FormField> {
       payment_methods: ['bank_transfer', 'manual_qris'],
       payment_required_when: 'total_positive',
       proof_required: true,
-      verify_with_ai: false,
+      verify_with_ai: true,
       bank_accounts: [],
     };
   }
@@ -447,6 +447,20 @@ export function FieldSettingsPanel({
       {field.type === 'payment_section' && (
         <Section title="Pembayaran manual" description="Tiket ditahan sampai admin menyetujui bukti pembayaran.">
           <div className="space-y-3">
+            <label className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-left dark:border-emerald-900/60 dark:bg-emerald-950/20">
+              <input
+                type="checkbox"
+                checked={field.verify_with_ai !== false}
+                onChange={event => onUpdate({ verify_with_ai: event.target.checked })}
+                className="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span>
+                <span className="block text-xs font-black text-emerald-800 dark:text-emerald-300">Verifikasi AI Groq otomatis</span>
+                <span className="mt-1 block text-[11px] leading-5 text-emerald-700/80 dark:text-emerald-200/80">
+                  Jika bukti dan nominal cocok, pembayaran langsung disetujui. Jika AI ragu/offline, bukti tetap masuk review admin.
+                </span>
+              </span>
+            </label>
             <div className="grid grid-cols-2 gap-2">
               {([
                 ['bank_transfer', 'Transfer bank'],

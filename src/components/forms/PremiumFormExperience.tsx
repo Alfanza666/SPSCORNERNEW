@@ -161,6 +161,7 @@ export default function PremiumFormExperience({
   const activeFields = useMemo(() => getActiveFormFields(form.fields, answers), [form.fields, answers]);
   const questions = useMemo(() => activeFields.filter(field => field.type !== 'payment_section'), [activeFields]);
   const paymentField = activeFields.find(field => field.type === 'payment_section');
+  const aiPaymentVerification = paymentField?.verify_with_ai !== false;
   const terminalOutcomeId = getTerminalOutcomeId(form.fields, answers);
   const evaluation = useMemo(() => evaluateFormWorkflow(form, answers, addonOrders), [form, answers, addonOrders]);
   const pricingLines = useMemo(() => getFormPricingBreakdown(form.fields, answers, addonOrders), [form.fields, answers, addonOrders]);
@@ -372,20 +373,20 @@ export default function PremiumFormExperience({
           <ManualPaymentStep
             amount={evaluation.total_amount}
             title="Selesaikan biaya tambahan"
-            description={paymentField.payment_description || 'Bayar sesuai total, lalu unggah bukti untuk ditinjau admin.'}
+            description={paymentField.payment_description || (aiPaymentVerification ? 'Bayar sesuai total, lalu unggah bukti untuk diverifikasi otomatis.' : 'Bayar sesuai total, lalu unggah bukti untuk ditinjau admin.')}
             qrImageUrl={paymentMethod === 'manual_qris' ? paymentField.qris_image_url : undefined}
             bankName={paymentMethod === 'bank_transfer' ? paymentField.bank_accounts?.[0]?.bank_name : undefined}
             accountNumber={paymentMethod === 'bank_transfer' ? paymentField.bank_accounts?.[0]?.account_number : undefined}
             accountName={paymentMethod === 'bank_transfer' ? paymentField.bank_accounts?.[0]?.account_name || paymentField.account_name : undefined}
             status={paymentProof ? 'pending' : 'idle'}
-            statusMessage="Bukti akan diperiksa admin. Hak dasar karyawan tetap aktif; QR keluarga menunggu persetujuan."
+            statusMessage={aiPaymentVerification ? 'AI Groq akan memeriksa bukti. Jika ragu/offline, bukti otomatis masuk review admin.' : 'Bukti akan diperiksa admin. Hak dasar karyawan tetap aktif; QR keluarga menunggu persetujuan.'}
             proofFileName={paymentProof?.name}
             proofPreviewUrl={paymentProofPreview}
             disabled={isSubmitting}
             onProofSelect={file => { setPaymentProof(file); setError(null); }}
             onRemoveProof={() => setPaymentProof(undefined)}
             onVerify={() => void submitForm()}
-            verifyLabel={isSubmitting ? 'Mengirim bukti…' : 'Kirim bukti & akhiri formulir'}
+            verifyLabel={isSubmitting ? 'Mengirim bukti…' : aiPaymentVerification ? 'Kirim & verifikasi AI' : 'Kirim bukti & akhiri formulir'}
             footer={error ? <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{error}</p> : undefined}
           />
           <button type="button" onClick={() => setStage('review')} disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-zinc-500 hover:bg-white dark:text-zinc-400 dark:hover:bg-zinc-900"><ArrowLeft className="h-4 w-4" /> Kembali ke ringkasan</button>

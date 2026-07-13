@@ -157,6 +157,7 @@ export function createProgramWorkflowConfig(
       bank_accounts: bankAccounts,
       instructions: payment?.payment_description || null,
       proof_required: payment?.proof_required !== false,
+      verify_with_ai: payment?.verify_with_ai !== false,
       hold_entitlements_until_paid: false,
       hold_employee_entitlements_until_paid: false,
       hold_family_entitlements_until_paid: automation.hold_family_entitlements_until_paid !== false,

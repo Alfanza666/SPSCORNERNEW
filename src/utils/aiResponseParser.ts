@@ -73,7 +73,7 @@ function sanitizeFields(updatedForm: any): FormField[] {
       qris_image_url: type === 'payment_section' ? String(field.qris_image_url || '') : undefined,
       account_name: type === 'payment_section' ? String(field.account_name || '') : undefined,
       payment_description: type === 'payment_section' ? String(field.payment_description || '') : undefined,
-      verify_with_ai: type === 'payment_section' ? false : undefined,
+      verify_with_ai: type === 'payment_section' ? field.verify_with_ai !== false : undefined,
       payment_methods: type === 'payment_section' && Array.isArray(field.payment_methods)
         ? field.payment_methods.filter((method: unknown) => method === 'bank_transfer' || method === 'manual_qris')
         : undefined,

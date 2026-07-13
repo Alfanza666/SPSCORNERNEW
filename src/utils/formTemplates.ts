@@ -138,7 +138,7 @@ export function createEventRsvpTemplate(options: EventRsvpTemplateOptions = {}):
         payment_methods: ['bank_transfer', 'manual_qris'],
         payment_required_when: 'total_positive',
         proof_required: true,
-        verify_with_ai: false,
+        verify_with_ai: true,
       },
     ],
     outcomes: [

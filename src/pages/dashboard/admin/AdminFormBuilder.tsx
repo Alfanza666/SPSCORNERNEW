@@ -54,7 +54,7 @@ function getFieldTypeDefaults(type: FieldType): Partial<FormField> {
     qris_image_url: type === 'payment_section' ? '' : undefined,
     account_name: type === 'payment_section' ? '' : undefined,
     payment_description: type === 'payment_section' ? '' : undefined,
-    verify_with_ai: type === 'payment_section' ? false : undefined,
+    verify_with_ai: type === 'payment_section' ? true : undefined,
     payment_methods: type === 'payment_section' ? ['bank_transfer', 'manual_qris'] : undefined,
     proof_required: type === 'payment_section' ? true : undefined,
   };

@@ -289,7 +289,7 @@ registerAnalyticsRoutes(app, { supabase });
 registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal });
 registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
 registerPortalRoutes(app, { supabase, sendNotification, ipaymuClient });
-registerProgramRegistrationWorkflowRoutes(app, { supabase, sendNotification });
+registerProgramRegistrationWorkflowRoutes(app, { supabase, sendNotification, groq });
 registerEventWorkflowRoutes(app, { supabase, sendNotification });
 
 // API 404 catch-all — return JSON instead of HTML for unmatched API routes (must be BEFORE SPA fallback)

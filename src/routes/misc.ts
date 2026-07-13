@@ -178,7 +178,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
             qris_image_url: type === 'payment_section' ? String(f.qris_image_url || '') : undefined,
             account_name: type === 'payment_section' ? String(f.account_name || '') : undefined,
             payment_description: type === 'payment_section' ? String(f.payment_description || '') : undefined,
-            verify_with_ai: type === 'payment_section' ? false : undefined,
+            verify_with_ai: type === 'payment_section' ? f.verify_with_ai !== false : undefined,
             payment_methods: type === 'payment_section'
               ? (Array.isArray(f.payment_methods) ? f.payment_methods : ['bank_transfer', 'manual_qris'])
                   .filter(method => ['bank_transfer', 'manual_qris'].includes(method))
@@ -263,7 +263,7 @@ ATURAN WAJIB:
 9. Gunakan experience_version 2, layout_type card, review_enabled true, dan theme premium untuk formulir baru.
 10. Jika satu jawaban harus langsung mengakhiri formulir, beri outcome_id pada opsi tersebut dan definisikan outcomes.
 11. Harga selalu configurable: gunakan option.price, number.unit_price, repeater.item_unit_price, atau addon_group.items.price. Jangan menulis harga di label.
-12. Untuk data anggota berulang gunakan repeater + subfields. Untuk pembayaran gunakan payment_section manual (bank_transfer/manual_qris), proof_required true, verify_with_ai false.
+12. Untuk data anggota keluarga acara gunakan field number untuk jumlah orang, bukan repeater detail nama. Untuk pembayaran gunakan payment_section manual (bank_transfer/manual_qris), proof_required true, verify_with_ai true.
 
 FORMAT OUTPUT WAJIB (tidak boleh ada yang berbeda):
 {"message":"Teks respons singkat","updatedForm":{"title":"...","description":"...","experience_version":2,"theme_color":"#4F46E5","layout_type":"card","review_enabled":true,"autosave_draft":true,"theme":{"preset":"sps_event_premium","choice_style":"cards","show_progress":true},"outcomes":[],"fields":[{"id":"field_1","type":"text","label":"...","required":true,"placeholder":"...","condition":{"fieldId":"field_induk","operator":"eq","value":"nilai_opsi"}}]}}

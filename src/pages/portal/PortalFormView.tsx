@@ -31,6 +31,7 @@ interface PremiumPaymentInstructions {
   account_number?: string;
   instructions?: string;
   proof_required?: boolean;
+  verify_with_ai?: boolean;
 }
 
 function mapPremiumRegistrationResult(registration: any): PremiumFormSubmitResult {
@@ -604,6 +605,15 @@ export default function PortalFormView() {
       });
       const proofPayload = await proofResponse.json().catch(() => ({}));
       if (!proofResponse.ok) throw new Error(proofPayload.error || proofPayload.message || 'Bukti pembayaran belum berhasil dicatat.');
+      if (proofPayload.ai_verified && proofPayload.registration) {
+        const mapped = mapPremiumRegistrationResult(proofPayload.registration);
+        return {
+          ...mapped,
+          title: 'Pembayaran terverifikasi otomatis',
+          message: proofPayload.message || mapped.message,
+          total: authoritativeTotal,
+        };
+      }
       return {
         status: 'pending',
         title: 'Bukti pembayaran sedang diperiksa',
@@ -888,6 +898,7 @@ export default function PortalFormView() {
               : field.bank_accounts,
             payment_description: premiumPaymentInstructions.instructions || field.payment_description,
             proof_required: premiumPaymentInstructions.proof_required ?? field.proof_required,
+            verify_with_ai: premiumPaymentInstructions.verify_with_ai ?? field.verify_with_ai,
           }),
     };
     return (
