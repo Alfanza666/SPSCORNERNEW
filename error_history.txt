@@ -1,4 +1,5 @@
 Riwayat Error & Fix:
+- [FIXED] Gambar desain baju/size chart pada Form Experience V2 tampil setengah lebar dan tidak dapat diperbesar; galeri kini responsif dengan lightbox fullscreen, zoom 100-300%, Escape, dan focus return (v5.11.1).
 - [FIXED] Bukti pembayaran formulir Program Workflow V2 hanya menunggu review admin walaupun kiosk sudah memakai Groq; route payment-proof form kini dapat verifikasi Groq otomatis, auto-approve bila valid, fallback manual bila AI ragu/offline, dan reject agar user upload ulang bila jelas tidak valid (v5.11.0).
 - [FIXED] Harga oversize dan keluarga tampil nol karena link-form menimpa harga Form Studio dengan kolom program legacy bernilai nol; Form Studio kini menjadi sumber harga utama (v5.11.0).
 - [FIXED] Peserta yang tidak camping tidak ditanya membawa keluarga dan keluarga tidak masuk quote; cabang keluarga kini bergantung pada kehadiran, bukan camping (v5.11.0).

@@ -354,10 +354,10 @@ function FieldReferencePreview({ field }: { field: FormField }) {
   if (references.length === 0) return null;
 
   return (
-    <div className="mb-4 grid gap-3 sm:grid-cols-2">
+    <div className={`mb-4 grid gap-3 ${references.length > 1 ? 'lg:grid-cols-2' : ''}`}>
       {references.map(reference => (
         <figure key={reference.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-zinc-800 dark:bg-zinc-950/60">
-          <div className="flex h-32 items-center justify-center p-2">
+          <div className={`flex items-center justify-center p-2 ${references.length === 1 ? 'h-52 sm:h-64' : 'h-44'}`}>
             <img src={reference.url} alt={reference.alt || reference.label} className="max-h-full w-full object-contain" loading="lazy" />
           </div>
           <figcaption className="border-t border-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 dark:border-zinc-800 dark:text-zinc-500">

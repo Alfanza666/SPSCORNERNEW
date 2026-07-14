@@ -21,3 +21,6 @@ export type { OutcomeAction, OutcomeDetail, OutcomeScreenProps, OutcomeStatus } 
 
 export { FamilyRepeater } from './FamilyRepeater';
 export type { FamilyMember, FamilyRepeaterProps } from './FamilyRepeater';
+
+export { ReferenceImageGallery } from './ReferenceImageGallery';
+export type { ReferenceImageGalleryProps } from './ReferenceImageGallery';

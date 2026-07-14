@@ -1,3 +1,19 @@
+v5.11.1 - Form Reference Image Readability & Zoom (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Gambar referensi tunggal pada Form Experience V2 tetap dipaksa memakai grid dua kolom mulai breakpoint `sm`, sehingga desain baju dan size chart hanya mendapat setengah lebar kartu.
+- Tinggi preview dibatasi dan gambar hanya dirender sebagai elemen statis tanpa affordance klik, lightbox, atau kontrol zoom; detail teks menjadi sulit dibaca di tablet dan desktop yang dipetakan ke breakpoint tersebut.
+
+### Perbaikan:
+- **[PORTAL FORM] src/components/forms/experience/ReferenceImageGallery.tsx:** Menambahkan galeri responsif; satu gambar selalu memakai lebar penuh, sedangkan dua gambar baru berdampingan pada layar besar.
+- **[IMAGE LIGHTBOX] src/components/forms/experience/ReferenceImageGallery.tsx:** Klik gambar membuka preview layar penuh yang otomatis menyesuaikan viewport, dapat di-zoom 100-300%, di-reset, ditutup dengan tombol, klik luar, atau tombol Escape.
+- **[ACCESSIBILITY]** Thumbnail dan seluruh kontrol memakai elemen tombol, label aksesibel, focus ring, focus trap, serta focus return melalui Headless UI Dialog.
+- **[FORM EXPERIENCE] src/components/forms/PremiumFormExperience.tsx:** Renderer gambar statis diganti komponen galeri modular tanpa mengubah state jawaban, harga, atau alur registrasi.
+- **[BUILDER PREVIEW] src/components/form-builder/BuilderCanvas.tsx:** Preview gambar tunggal diperlebar dan tidak lagi menyisakan kolom kosong agar sesuai dengan pengalaman responden.
+- **[QA] src/test/referenceImageGallery.test.tsx:** Menambahkan test buka/tutup lightbox, Escape, pengembalian fokus, filter URL kosong, zoom bertahap, dan reset zoom tanpa dependency baru.
+- **[SAFETY]** Tidak ada perubahan pada backend, database, autentikasi, kalkulasi harga, pembayaran, kiosk, cart, atau PPOB.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, changelog, dan riwayat error disinkronkan ke v5.11.1.
+
 v5.11.0 - Server-Authoritative Form Pricing & Event Add-on Checkout (MINOR)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

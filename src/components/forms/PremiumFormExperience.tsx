@@ -29,6 +29,7 @@ import {
   ManualPaymentStep,
   OrderSummary,
   OutcomeScreen,
+  ReferenceImageGallery,
   ReviewStep,
   type FamilyMember,
   type OutcomeStatus,
@@ -319,7 +320,7 @@ export default function PremiumFormExperience({
             <h2 className="mt-5 text-xl font-black leading-tight tracking-tight text-zinc-950 sm:text-3xl dark:text-white">{currentField.label}{currentField.required && <span className="ml-1 text-rose-500">*</span>}</h2>
             {currentField.description && <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">{currentField.description}</p>}
             <div className="mt-7">
-              <FieldReferenceImages field={currentField} />
+              <ReferenceImageGallery references={currentField.reference_images} />
               <PremiumField
                 field={currentField}
                 value={answers[currentField.id]}
@@ -422,26 +423,6 @@ interface PremiumFieldProps {
   onChange: (value: unknown) => void;
   onAddonChange: (orders: Array<{ item_id: string; quantity: number }>) => void;
   onFileSelect: (file: File) => void;
-}
-
-function FieldReferenceImages({ field }: { field: FormField }) {
-  const references = (field.reference_images || []).filter(reference => reference.url?.trim());
-  if (references.length === 0) return null;
-
-  return (
-    <div className="mb-5 grid gap-3 sm:grid-cols-2">
-      {references.map(reference => (
-        <figure key={reference.id} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-950/50">
-          <div className="flex min-h-40 items-center justify-center bg-zinc-50 p-3 dark:bg-zinc-900">
-            <img src={reference.url} alt={reference.alt || reference.label} className="max-h-56 w-full object-contain" loading="lazy" />
-          </div>
-          <figcaption className="border-t border-zinc-100 px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-            {reference.label}
-          </figcaption>
-        </figure>
-      ))}
-    </div>
-  );
 }
 
 function PremiumField({ field, value, addonOrders, uploading, onChange, onAddonChange, onFileSelect }: PremiumFieldProps) {
