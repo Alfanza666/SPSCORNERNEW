@@ -64,10 +64,11 @@ export default function AdminUnionPrograms() {
   const [deadlineChangeReason, setDeadlineChangeReason] = useState('');
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [showEligibility, setShowEligibility] = useState(false);
+  const [programChoices, setProgramChoices] = useState<any[] | null>(null);
   const visiblePrograms = Object.values((programs || []).reduce((groups: Record<string, any>, program: any) => {
     const group = programGroupLabel(program) || program.id;
-    if (!groups[group]) groups[group] = { ...program, _groupCount: 1 };
-    else groups[group]._groupCount += 1;
+    if (!groups[group]) groups[group] = { ...program, _groupCount: 1, _candidates: [program] };
+    else { groups[group]._groupCount += 1; groups[group]._candidates.push(program); }
     return groups;
   }, {}));
 
@@ -858,7 +859,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                     <Users className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => openEditModal(prog)}
+                    onClick={() => prog._candidates?.length > 1 ? setProgramChoices(prog._candidates) : openEditModal(prog)}
                     className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50"
                   >
                     <Settings className="w-4 h-4" />
@@ -1011,6 +1012,8 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
           )}
         </div>
       )}
+
+      {programChoices && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-black">Pilih jalur yang akan diatur</h2><button onClick={() => setProgramChoices(null)}><X className="h-5 w-5" /></button></div><p className="mb-4 text-sm text-zinc-500">Pengaturan cutoff, target, form, deadline, dan harga tetap terpisah per jalur.</p><div className="space-y-3">{programChoices.map(choice => <button key={choice.id} onClick={() => { setProgramChoices(null); openEditModal(choice); }} className="w-full rounded-xl border border-zinc-200 p-4 text-left hover:border-blue-500 dark:border-zinc-700"><p className="font-bold">{choice.name}</p><p className="mt-1 text-xs text-zinc-500">Cutoff: {choice.target_cutoff_date || choice.metadata?.target_cutoff_date || 'Tidak ditentukan'}</p></button>)}</div></div></div>}
 
       {/* Modal */}
       <AnimatePresence>
