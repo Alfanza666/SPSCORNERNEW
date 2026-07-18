@@ -901,3 +901,5 @@ v5.14.0 - Portal Notification Popup (MINOR)
 - Tidak mengubah transaksi, stok, saldo seller, atau pendapatan aplikasi.
 - Transaksi pending tidak lagi melakukan pengurangan stok permanen; stok dikomit saat pembayaran terverifikasi melalui handler idempotent.
 - Callback pembayaran menggunakan commit stok terpusat untuk mencegah pengurangan ganda.
+- Memperbaiki Loyalty Point agar status aktif tersimpan dan terbaca kembali saat menu dibuka.
+- Memisahkan Pengaturan Umum dari Metode Pembayaran dan menambahkan upload QRIS Statis.

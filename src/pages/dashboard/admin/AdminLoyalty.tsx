@@ -21,7 +21,7 @@ export default function AdminLoyalty() {
     try {
       const { data, error } = await supabase
         .from('settings')
-        .select('value')
+        .select('key,value')
         .in('key', ['loyalty_enabled']);
 
       if (error) throw error;
@@ -44,7 +44,7 @@ export default function AdminLoyalty() {
       const newValue = !loyaltyEnabled;
       const { error } = await supabase
         .from('settings')
-        .upsert({ key: 'loyalty_enabled', value: newValue.toString() });
+        .upsert({ key: 'loyalty_enabled', value: newValue.toString(), updated_at: new Date().toISOString() });
 
       if (error) throw error;
       setLoyaltyEnabled(newValue);

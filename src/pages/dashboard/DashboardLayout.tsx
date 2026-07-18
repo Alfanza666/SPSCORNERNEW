@@ -349,8 +349,7 @@ export default function DashboardLayout() {
         icon: Settings,
         items: [
           { to: "/dashboard/admin/settings", icon: Settings, label: "Pengaturan Umum" },
-          { to: "/dashboard/admin/payments", icon: CreditCard, label: "Metode Pembayaran" },
-          { to: "/dashboard/admin/loyalty", icon: Tag, label: "Loyalty Point" },
+          { to: "/dashboard/admin/payments", icon: CreditCard, label: "Metode Pembayaran & Loyalty" },
           { to: "/dashboard/admin/standby-schedule", icon: Clock, label: "Jadwal Standby" }
         ]
       },

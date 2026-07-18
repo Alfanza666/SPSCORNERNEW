@@ -6,6 +6,7 @@ import { Save, Plus, Trash2, Edit2, Check, X, ShieldAlert, Info } from 'lucide-r
 import { useAuthStore } from '../../../store/useAuthStore';
 
 export default function AdminSettings() {
+  const isPaymentRoute = window.location.pathname.includes('/admin/payments');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -349,7 +350,7 @@ export default function AdminSettings() {
         </div>
       </div>
       {/* Superadmin Only: Loyalty Points Toggle */}
-      {isSuperadmin && (
+      {isSuperadmin && isPaymentRoute && (
         <>
           <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10">
