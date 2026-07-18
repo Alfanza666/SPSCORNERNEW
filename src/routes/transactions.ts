@@ -545,7 +545,7 @@ app.post("/api/transactions/create", async (req, res) => {
     // ─── Server-side stock deduction (atomic via RPC → optimistic locking) ───
     const physicalItems = (insertedItems || []).filter(item => !item.metadata?.is_digital && item.product_id);
     const deductedProducts = {};
-    for (const item of physicalItems) {
+    for (const item of (tx.status === 'paid' || tx.status === 'success') ? physicalItems : []) {
       const result = await atomicAdjustStock(
         item.product_id, -item.quantity,
         item.seller_id || txDataToInsert.buyer_id, 'sale',

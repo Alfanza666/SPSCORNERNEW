@@ -2,6 +2,7 @@ import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
+import NotificationPopup from '../../components/notifications/NotificationPopup';
 import { supabase } from '../../lib/supabase';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Dialog, Transition, Menu } from '@headlessui/react';
@@ -359,7 +360,7 @@ export default function PortalLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v5.13.0
+                      v5.14.0
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
@@ -645,6 +646,8 @@ export default function PortalLayout() {
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}
       />
+
+      <NotificationPopup notifications={notifications} markOneAsRead={markOneAsRead} />
 
       <ErrorReporter />
     </div>

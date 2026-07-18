@@ -195,6 +195,28 @@ export async function deductTransactionStock(transactionId) {
   }
 }
 
+export async function commitTransactionStock(transactionId) {
+  try {
+    const { data: tx } = await supabaseInstance.from('transactions').select('id, metadata').eq('id', transactionId).single();
+    if (!tx || tx.metadata?.stock_deducted === true) return { success: true, alreadyCommitted: true };
+    const metadata = { ...(tx.metadata || {}), stock_commit_claimed: true };
+    const { data: claimed } = await supabaseInstance.from('transactions').update({ metadata })
+      .eq('id', transactionId).filter('metadata->>stock_deducted', 'neq', 'true')
+      .filter('metadata->>stock_commit_claimed', 'neq', 'true').select('id');
+    if (!claimed?.length) return { success: true, alreadyCommitted: true };
+    const { data: items } = await supabaseInstance.from('transaction_items').select('product_id, quantity, seller_id, metadata').eq('transaction_id', transactionId);
+    const physical = (items || []).filter(i => i.product_id && !i.metadata?.is_digital);
+    const deducted = {};
+    for (const item of physical) {
+      const result = await atomicAdjustStock(item.product_id, -item.quantity, item.seller_id || null, 'sale', `Stock committed for paid transaction ${transactionId}`, 0, transactionId);
+      if (!result?.success) throw new Error(result?.error_message || 'Stock commit failed');
+      deducted[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
+    }
+    await supabaseInstance.from('transactions').update({ metadata: { ...metadata, stock_deducted: physical.length > 0, stock_commit_claimed: false, stock_restored: false, deducted_products: deducted } }).eq('id', transactionId);
+    return { success: true, alreadyCommitted: false };
+  } catch (error) { console.error(`[commitTransactionStock] ${transactionId}:`, error); return { success: false, error: error?.message || 'Stock commit failed' }; }
+}
+
 // ── Export atomicAdjustStock untuk digunakan routes lain ──────
 export { atomicAdjustStock };
 

@@ -6,7 +6,7 @@ export function registerPaymentRoutes(app, {
   supabase, sendNotification, ipaymuClient, sendSarirotiEmailInternal,
   sendWANotification, processDigitalItems, updateSellerBalances,
   updateBuyerPoints, triggerSarirotiEmail, checkLowStockAndNotify,
-  sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock,
+  sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock, commitTransactionStock,
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
 }) {
   if (process.env.NODE_ENV !== "production") {
@@ -264,6 +264,8 @@ export function registerPaymentRoutes(app, {
           previousStatus !== "paid" &&
           previousStatus !== "success"
         ) {
+          const stockCommit = await commitTransactionStock(transaction_id);
+          if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
           await updateSellerBalances(txData.transaction_items, transaction_id);
           await checkLowStockAndNotify(txData.transaction_items);
           await updateBuyerPoints(transaction_id, txData.buyer_id, txData.total_amount);
@@ -400,6 +402,8 @@ export function registerPaymentRoutes(app, {
       if (updateTx) throw updateTx;
 
       // Run post processes
+      const stockCommit = await commitTransactionStock(transaction_id);
+      if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
       await updateSellerBalances(tx.transaction_items, transaction_id);
       await checkLowStockAndNotify(tx.transaction_items);
       await processDigitalItems(transaction_id, tx.transaction_items);
@@ -718,8 +722,12 @@ export function registerPaymentRoutes(app, {
       if (updateError) throw updateError;
 
       // ─── Stock re-deduction: jika auto-cleanup sudah restore stock, deduct kembali ───
-      if (txStatus === "paid" && transaction.metadata?.stock_restored && deductTransactionStock) {
-        await deductTransactionStock(refId);
+      if (txStatus === "paid") {
+        if (transaction.metadata?.stock_restored && deductTransactionStock) await deductTransactionStock(refId);
+        else {
+          const stockCommit = await commitTransactionStock(refId);
+          if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
+        }
       }
 
       if (

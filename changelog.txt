@@ -893,3 +893,11 @@ v5.6.1 — Conditional card form rendering and live branching fix (PATCH)
 - [FIX] Portal card forms now use the same condition engine as builder preview, including option value/label normalization and array answers.
 - [FIX] Card navigation is clamped when conditional answers change the visible question count, preventing blank cards.
 - [QA] `npm run lint` passes.
+v5.14.0 - Portal Notification Popup (MINOR)
+--------------------------------------------
+- Menambahkan popup notifikasi otomatis saat Portal dibuka.
+- Popup memakai sumber data notifikasi yang sama dengan lonceng.
+- Notifikasi yang ditutup hanya disembunyikan selama sesi browser dan tetap tersedia di lonceng.
+- Tidak mengubah transaksi, stok, saldo seller, atau pendapatan aplikasi.
+- Transaksi pending tidak lagi melakukan pengurangan stok permanen; stok dikomit saat pembayaran terverifikasi melalui handler idempotent.
+- Callback pembayaran menggunakan commit stok terpusat untuk mencegah pengurangan ganda.
