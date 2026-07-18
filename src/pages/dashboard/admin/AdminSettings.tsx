@@ -17,7 +17,7 @@ export default function AdminSettings() {
     },
     {
       question: "Bagaimana cara melakukan pembayaran?",
-      answer: "Kami menyediakan berbagai metode pembayaran, termasuk QRIS (Otomatis & Manual), Virtual Account (BCA & Mandiri), dan pemotongan saldo bagi karyawan yang telah mendaftar."
+      answer: "Metode pembayaran mengikuti metode yang diaktifkan admin: QRIS dinamis, QRIS statis, VA, iPaymu, dan Loyalty Point jika tersedia."
     },
     {
       question: "Apakah saya perlu login untuk berbelanja?",
@@ -25,7 +25,7 @@ export default function AdminSettings() {
     },
     {
       question: "Bagaimana cara kerja QRIS Manual?",
-      answer: "Pilih metode QRIS Manual saat checkout, scan kode QR yang ditampilkan menggunakan aplikasi pembayaran Anda, masukkan nominal yang sesuai, lalu unggah bukti transfer. Sistem AI kami akan memverifikasi bukti transfer Anda secara otomatis."
+      answer: "Pilih QRIS Statis saat checkout, scan kode QR, bayar sesuai nominal, lalu unggah bukti pembayaran. Pesanan menunggu verifikasi sebelum dianggap berhasil."
     },
     {
       question: "Berapa lama proses verifikasi pembayaran?",

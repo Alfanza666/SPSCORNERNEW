@@ -26,15 +26,15 @@ const faqs = [
   },
   {
     question: "Metode pembayaran apa saja yang didukung?",
-    answer: "Kami mendukung pembayaran melalui QRIS (langsung diproses otomatis) dan Transfer Bank manual. Untuk produk digital, pembayaran menggunakan saldo atau metode yang tersedia."
+    answer: "Metode pembayaran mengikuti metode yang diaktifkan admin: QRIS dinamis, QRIS statis dengan unggah bukti, VA, iPaymu, dan Loyalty Point jika tersedia."
   },
   {
     question: "Bagaimana jika transaksi produk digital (pulsa/token) gagal?",
-    answer: "Jika transaksi gagal dari pihak provider (Digiflazz), dana akan dikembalikan atau Anda dapat menghubungi Admin dengan menyertakan ID Transaksi untuk pengecekan lebih lanjut."
+    answer: "Periksa status di Riwayat Pesanan. Jika transaksi gagal, jangan membayar ulang sebelum status dan pengembalian saldo dikonfirmasi admin. Sertakan ID transaksi saat melapor."
   },
   {
     question: "Apakah saya bisa membatalkan pesanan?",
-    answer: "Pesanan yang sudah dibayar dan diproses tidak dapat dibatalkan. Pastikan Anda memeriksa kembali keranjang belanja sebelum melakukan pembayaran."
+    answer: "Pesanan pending dapat dibatalkan sebelum pembayaran diverifikasi. Pesanan paid/success yang sudah diproses mengikuti kebijakan retur/refund."
   }
 ];
 
@@ -112,7 +112,7 @@ export default function HelpCenter() {
   
   // Determine which roles the current user can view
   const canViewRole = (role: string) => {
-    if (userRole === 'admin') return true;
+    if (userRole === 'admin' || userRole === 'superadmin') return true;
     if (userRole === 'seller' && (role === 'buyer' || role === 'seller')) return true;
     if (userRole === 'buyer' && role === 'buyer') return true;
     return false;

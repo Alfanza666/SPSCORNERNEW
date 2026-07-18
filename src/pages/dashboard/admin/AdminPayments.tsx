@@ -11,14 +11,16 @@ export default function AdminPayments() {
   const [uploading, setUploading] = useState(false);
   const [qrisUrl, setQrisUrl] = useState('');
   const [methods, setMethods] = useState({ qrisDynamic: true, qrisManual: true, vaBca: false, vaMandiri: false, redirect: true });
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false);
   const isSuperadmin = user?.role === 'superadmin';
 
   useEffect(() => { void load(); }, []);
   const load = async () => {
-    const { data } = await supabase.from('settings').select('key,value').in('key', ['qris_image_url','payment_method_qris_dynamic','payment_method_qris_manual','payment_method_va_bca','payment_method_va_mandiri','payment_method_redirect']);
-    const get = (key: string, fallback: boolean) => data?.find(x => x.key === key)?.value === 'true' || fallback;
+    const { data } = await supabase.from('settings').select('key,value').in('key', ['qris_image_url','loyalty_enabled','payment_method_qris_dynamic','payment_method_qris_manual','payment_method_va_bca','payment_method_va_mandiri','payment_method_redirect']);
+    const get = (key: string, fallback: boolean) => { const found = data?.find(x => x.key === key); return found ? found.value === 'true' : fallback; };
     setQrisUrl(data?.find(x => x.key === 'qris_image_url')?.value || '');
     setMethods({ qrisDynamic: get('payment_method_qris_dynamic', true), qrisManual: get('payment_method_qris_manual', true), vaBca: get('payment_method_va_bca', false), vaMandiri: get('payment_method_va_mandiri', false), redirect: get('payment_method_redirect', true) });
+    setLoyaltyEnabled(get('loyalty_enabled', false));
     setLoading(false);
   };
   const save = async (key: string, value: string) => { setSaving(true); const { error } = await supabase.from('settings').upsert({ key, value, updated_at: new Date().toISOString() }); setSaving(false); if (error) toast.error('Gagal menyimpan'); else toast.success('Pengaturan disimpan'); };
