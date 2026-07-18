@@ -344,6 +344,25 @@ export default function PortalProgram() {
       )
   }
 
+  const visiblePrograms = Object.values((programs || []).reduce((groups: Record<string, any>, program: any) => {
+    const group = String(program?.metadata?.parent_event_code || program?.metadata?.parent_event_name || program?.name || program.id).replace(/\s*[—-]\s*(Utama|Susulan|Pendaftaran.*)$/i, '').trim();
+    if (!groups[group]) groups[group] = { ...program, _candidates: [program] };
+    else { groups[group]._candidates.push(program); if (!groups[group].is_active && program.is_active) Object.assign(groups[group], program); }
+    return groups;
+  }, {}));
+
+  const handleSelectGroupedProgram = async (group: any) => {
+    const candidates = [...(group._candidates || [group])].sort((a, b) => Number(b.is_active) - Number(a.is_active));
+    for (const candidate of candidates) {
+      try {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        const response = await fetch(`/api/portal/programs/${candidate.id}/registration-v2`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (response.ok) { await handleSelectProgram(candidate); return; }
+      } catch { /* try the next cohort */ }
+    }
+    await handleSelectProgram(candidates[0]);
+  };
+
   // LIST VIEW
   if (!selectedProgram) {
     return (
@@ -364,7 +383,7 @@ export default function PortalProgram() {
                 </div>
             ) : (
                 <div className="grid gap-4">
-                    {programs.map(prog => {
+                    {visiblePrograms.map((prog: any) => {
                         const isExpired = !prog.is_active || (prog.end_date && new Date(prog.end_date) < new Date());
                         const programType = (prog.program_type || 'program').toLowerCase();
                         const fallbackBannerClass = programType.includes('kurban')
@@ -379,7 +398,7 @@ export default function PortalProgram() {
                         <motion.article
                           key={prog.id}
                           whileHover={{ scale: 1.01 }}
-                          onClick={() => handleSelectProgram(prog)}
+                          onClick={() => void handleSelectGroupedProgram(prog)}
                           className="group cursor-pointer overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-xl sm:rounded-3xl dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-800"
                         >
                           <div className="grid md:min-h-[13rem] md:grid-cols-[minmax(220px,32%)_1fr]">

@@ -64,6 +64,12 @@ export default function AdminUnionPrograms() {
   const [deadlineChangeReason, setDeadlineChangeReason] = useState('');
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [showEligibility, setShowEligibility] = useState(false);
+  const visiblePrograms = Object.values((programs || []).reduce((groups: Record<string, any>, program: any) => {
+    const group = programGroupLabel(program) || program.id;
+    if (!groups[group]) groups[group] = { ...program, _groupCount: 1 };
+    else groups[group]._groupCount += 1;
+    return groups;
+  }, {}));
 
   // Registrant viewer
   const [showRegistrants, setShowRegistrants] = useState(false);
@@ -790,7 +796,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
         </div>
       ) : (
         <div className="grid gap-4">
-          {programs.map((prog) => (
+          {visiblePrograms.map((prog: any) => (
             <motion.div
               key={prog.id}
               initial={{ opacity: 0, y: 10 }}
@@ -811,6 +817,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                       {programGroupLabel(prog) && (
                         <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">Grup: {programGroupLabel(prog)}</span>
                       )}
+                      {prog._groupCount > 1 && <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium rounded-full">{prog._groupCount} jalur</span>}
                       <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-medium rounded-full capitalize">{prog.program_type}</span>
                       {prog.is_targeted && (
                         <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-medium rounded-full flex items-center gap-1">
