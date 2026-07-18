@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -10,6 +10,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { FormConfig, FormField, AddonItem } from '../../types/form';
 import { calculateVisibleFormTotal, getVisibleFields } from '../../utils/formLogic';
+import {
+  applyProgramWorkflowPricing,
+  type ProgramWorkflowPricingPayload,
+} from '../../utils/programWorkflowPricing';
 import PremiumFormExperience, {
   type PremiumFormSubmitPayload,
   type PremiumFormSubmitResult,
@@ -65,6 +69,7 @@ export default function PortalFormView() {
   const { formId } = useParams<{ formId: string }>();
   const [searchParams] = useSearchParams();
   const programId = searchParams.get('programId');
+  const searchParamsKey = searchParams.toString();
   
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -92,6 +97,10 @@ export default function PortalFormView() {
   const [premiumInitialAnswers, setPremiumInitialAnswers] = useState<Record<string, unknown>>({});
   const [premiumInitialResult, setPremiumInitialResult] = useState<PremiumFormSubmitResult | null>(null);
   const [premiumPaymentInstructions, setPremiumPaymentInstructions] = useState<PremiumPaymentInstructions | null>(null);
+  const [premiumWorkflowPricing, setPremiumWorkflowPricing] = useState<ProgramWorkflowPricingPayload | null>(null);
+  const [premiumWorkflowPricingProgramId, setPremiumWorkflowPricingProgramId] = useState<string | null>(null);
+  const [premiumProgramResolutionLoading, setPremiumProgramResolutionLoading] = useState(true);
+  const [premiumSetupError, setPremiumSetupError] = useState<string | null>(null);
 
   // Card layout navigation state
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -100,6 +109,20 @@ export default function PortalFormView() {
   // Without this, changing a parent answer can leave the renderer pointing at
   // an index that no longer exists (an apparently blank form).
   const visibleFields = form ? getVisibleFields(form.fields || [], answers) : [];
+  const activePremiumWorkflowPricing = premiumWorkflowPricingProgramId === programId
+    ? premiumWorkflowPricing
+    : null;
+  const premiumPricedFields = useMemo(
+    () => form && activePremiumWorkflowPricing
+      ? applyProgramWorkflowPricing(
+          Array.isArray(activePremiumWorkflowPricing.form_snapshot?.fields)
+            ? activePremiumWorkflowPricing.form_snapshot.fields
+            : form.fields || [],
+          activePremiumWorkflowPricing,
+        )
+      : form?.fields || [],
+    [form?.fields, activePremiumWorkflowPricing],
+  );
 
   useEffect(() => {
     if (!form || (form as any).layout_type !== 'card') return;
@@ -114,19 +137,95 @@ export default function PortalFormView() {
   }, [formId]);
 
   useEffect(() => {
-    if (form?.experience_version !== 2 || !programId || !user) return;
+    if (!formId) {
+      setPremiumProgramResolutionLoading(false);
+      return;
+    }
+    if (programId) {
+      setPremiumProgramResolutionLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let redirecting = false;
+    const resolveLinkedProgram = async () => {
+      setPremiumProgramResolutionLoading(true);
+      setPremiumWorkflowPricing(null);
+      setPremiumWorkflowPricingProgramId(null);
+      setPremiumPaymentInstructions(null);
+      setPremiumSetupError(null);
+      try {
+        const { data, error } = await supabase
+          .from('union_programs')
+          .select('id')
+          .eq('dynamic_form_id', formId)
+          .eq('program_type', 'gathering')
+          .eq('is_active', true)
+          .eq('publication_status', 'published')
+          .limit(2);
+        if (error) throw error;
+        if (cancelled) return;
+
+        const linkedPrograms = data || [];
+        if (linkedPrograms.length > 1) {
+          setPremiumSetupError('Formulir ini terhubung ke lebih dari satu program aktif. Hubungi admin agar tautan program diperbaiki.');
+          return;
+        }
+        if (linkedPrograms.length === 1) {
+          const nextParams = new URLSearchParams(searchParamsKey);
+          nextParams.set('programId', linkedPrograms[0].id);
+          redirecting = true;
+          navigate({
+            pathname: `/portal/forms/${encodeURIComponent(formId)}`,
+            search: `?${nextParams.toString()}`,
+          }, { replace: true });
+        }
+      } catch (resolutionError) {
+        console.warn('[Form V2] Program resolution:', resolutionError);
+        if (!cancelled) {
+          setPremiumSetupError('Program untuk formulir ini belum dapat dipastikan. Muat ulang halaman atau hubungi admin.');
+        }
+      } finally {
+        if (!cancelled && !redirecting) setPremiumProgramResolutionLoading(false);
+      }
+    };
+
+    void resolveLinkedProgram();
+    return () => { cancelled = true; };
+  }, [formId, navigate, programId, searchParamsKey]);
+
+  useEffect(() => {
+    if (!formId || !programId || !user) return;
     let cancelled = false;
     const fetchRegistrationStatus = async () => {
       setPremiumStatusLoading(true);
+      setPremiumWorkflowPricing(null);
+      setPremiumWorkflowPricingProgramId(null);
+      setPremiumPaymentInstructions(null);
+      setPremiumInitialAnswers({});
+      setPremiumInitialResult(null);
+      setPremiumSetupError(null);
       try {
         const token = (await supabase.auth.getSession()).data.session?.access_token;
-        if (!token) return;
+        if (!token) throw new Error('Sesi login tidak tersedia.');
         const response = await fetch(`/api/portal/programs/${encodeURIComponent(programId)}/registration-v2`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'Status registrasi belum dapat dimuat.');
         if (cancelled) return;
+        if (!payload.workflow_pricing || typeof payload.workflow_pricing !== 'object') {
+          throw new Error('Konfigurasi harga workflow tidak tersedia.');
+        }
+        const authoritativeFormId = String(payload.workflow_pricing.dynamic_form_id || '');
+        if (!authoritativeFormId || authoritativeFormId !== formId) {
+          throw new Error('Tautan formulir tidak sesuai dengan program yang dipilih.');
+        }
+        if (!Array.isArray(payload.workflow_pricing.form_snapshot?.fields)) {
+          throw new Error('Snapshot formulir program belum tersedia.');
+        }
+        setPremiumWorkflowPricing(payload.workflow_pricing as ProgramWorkflowPricingPayload);
+        setPremiumWorkflowPricingProgramId(programId);
         setPremiumPaymentInstructions(payload.payment_instructions || null);
         const registration = payload.data;
         if (!registration) return;
@@ -140,13 +239,16 @@ export default function PortalFormView() {
         setPremiumInitialResult(mapPremiumRegistrationResult(registration));
       } catch (statusError) {
         console.warn('[Form V2] Registration status:', statusError);
+        if (!cancelled) {
+          setPremiumSetupError('Konfigurasi program belum dapat dimuat dengan aman. Muat ulang halaman atau hubungi admin.');
+        }
       } finally {
         if (!cancelled) setPremiumStatusLoading(false);
       }
     };
     void fetchRegistrationStatus();
     return () => { cancelled = true; };
-  }, [form?.experience_version, programId, user?.id]);
+  }, [form?.experience_version, formId, programId, user?.id]);
 
   const fetchUserDepartment = async () => {
     if (!user?.nik) return;
@@ -162,6 +264,11 @@ export default function PortalFormView() {
 
   const fetchForm = async () => {
     setLoading(true);
+    setPremiumProgramResolutionLoading(true);
+    setPremiumSetupError(null);
+    setPremiumWorkflowPricing(null);
+    setPremiumWorkflowPricingProgramId(null);
+    setPremiumPaymentInstructions(null);
     setSubmitted(false);
     setCurrentCardIndex(0);
     setAddonOrders({});
@@ -560,6 +667,11 @@ export default function PortalFormView() {
 
   const handlePremiumSubmit = async (submission: PremiumFormSubmitPayload): Promise<PremiumFormSubmitResult> => {
     if (!user || !formId) throw new Error('Sesi Anda tidak valid. Silakan masuk kembali.');
+    if (premiumProgramResolutionLoading) throw new Error('Program masih sedang diverifikasi. Silakan tunggu sebentar.');
+    if (premiumSetupError) throw new Error(premiumSetupError);
+    if (programId && !activePremiumWorkflowPricing) {
+      throw new Error('Konfigurasi harga program belum tersedia. Muat ulang halaman sebelum mengirim formulir.');
+    }
 
     const serverAnswers: Record<string, unknown> = { ...submission.answers };
     Object.entries(submission.addonOrders).forEach(([fieldId, orders]) => { serverAnswers[fieldId] = orders; });
@@ -586,7 +698,7 @@ export default function PortalFormView() {
     const submitResponse = await fetch(`/api/portal/programs/${encodeURIComponent(programId)}/registration-v2/submit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ answers: serverAnswers }),
+      body: JSON.stringify({ answers: serverAnswers, clientTotal: submission.total, expectedFormId: formId }),
     });
     const submitPayload = await submitResponse.json().catch(() => ({}));
     if (!submitResponse.ok) throw new Error(submitPayload.error || submitPayload.message || 'Registrasi belum berhasil disimpan.');
@@ -853,7 +965,7 @@ export default function PortalFormView() {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>;
 
   // Check targeting
-  const isTargeted = !form?.target_niks && !form?.target_departments || (
+  const isTargeted = Boolean(programId) || !form?.target_niks && !form?.target_departments || (
     form?.target_niks?.includes(user?.nik || '') ||
     (form?.target_departments?.length > 0 && userDepartment && form.target_departments.includes(userDepartment))
   );
@@ -873,13 +985,34 @@ export default function PortalFormView() {
     );
   }
 
-  if (form?.experience_version === 2) {
-    if (premiumStatusLoading) {
+  if (form?.experience_version === 2 || Boolean(programId)) {
+    const waitingForWorkflowPricing = Boolean(programId && !activePremiumWorkflowPricing && !premiumSetupError);
+    if (premiumStatusLoading || premiumProgramResolutionLoading || waitingForWorkflowPricing) {
       return <div className="min-h-screen bg-zinc-50 flex items-center justify-center dark:bg-zinc-950"><div className="text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-indigo-600" /><p className="mt-3 text-sm font-semibold text-zinc-500">Menyiapkan pengalaman formulir…</p></div></div>;
+    }
+    if (premiumSetupError || (programId && !activePremiumWorkflowPricing)) {
+      return (
+        <div className="min-h-screen bg-zinc-50 px-4 py-10 dark:bg-zinc-950 sm:flex sm:items-center sm:justify-center">
+          <div className="mx-auto w-full max-w-md rounded-3xl border border-amber-200 bg-white p-6 text-center shadow-xl dark:border-amber-900/70 dark:bg-zinc-900 sm:p-8">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+              <AlertCircle className="h-8 w-8" />
+            </div>
+            <h2 className="mt-5 text-xl font-black text-zinc-900 dark:text-white">Formulir belum siap</h2>
+            <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+              {premiumSetupError || 'Konfigurasi harga program belum tersedia. Muat ulang halaman atau hubungi admin.'}
+            </p>
+            <button type="button" onClick={() => navigate('/portal/program')} className="mt-6 min-h-12 w-full rounded-2xl bg-zinc-900 px-4 text-sm font-black text-white dark:bg-white dark:text-zinc-900">
+              Kembali ke program
+            </button>
+          </div>
+        </div>
+      );
     }
     const premiumForm: FormConfig = {
       ...form,
-      fields: form.fields.map(field => field.type !== 'payment_section' || !premiumPaymentInstructions
+      ...(activePremiumWorkflowPricing?.form_snapshot || {}),
+      id: form.id,
+      fields: premiumPricedFields.map(field => field.type !== 'payment_section' || !premiumPaymentInstructions
         ? field
         : {
             ...field,

@@ -166,6 +166,11 @@ export function createProgramWorkflowConfig(
       experience_version: form.experience_version || 1,
       family_source_type: family?.type || null,
       generated_from_builder: true,
+      form_snapshot: JSON.parse(JSON.stringify({
+        ...form,
+        id: dynamicFormId,
+        dynamic_form_id: dynamicFormId,
+      })),
     },
     created_by: actorId,
     updated_by: actorId,

@@ -165,6 +165,34 @@ Jalankan checklist ini setiap ada rilis baru untuk memastikan zero regression.
 - [ ] PDF memakai logo/kop serikat, identitas program, filter, waktu ekspor, metrik, dan tabel
 - [ ] Angka dashboard, Excel, dan PDF identik untuk filter yang sama
 
+## Employee Gathering v5.12 — Deadline, Pricing & Ticket Recovery
+
+- [ ] Admin dapat memperpanjang deadline program published yang sudah memiliki RSVP
+- [ ] Perubahan deadline memerlukan alasan, tampil kembali dalam waktu lokal, dan tidak mengubah `config_version`
+- [ ] Edit deadline bersamaan dari dua admin menghasilkan konflik; perubahan admin pertama tidak tertimpa
+- [ ] Update langsung `union_programs.rsvp_deadline` dari Data API ditolak; RPC deadline tetap berhasil dan membuat audit
+- [ ] Retry RPC dengan target yang sudah tersimpan bersifat idempoten dan tidak membuat audit ganda
+- [ ] Deadline kosong, invalid, lampau, setelah tanggal acara, atau program closed ditolak
+- [ ] Deadline kedaluwarsa yang diperpanjang kembali langsung membuka submit RSVP tanpa republish
+- [ ] Link form selalu menyertakan `programId`; link lama tanpa parameter me-resolve tepat satu gathering
+- [ ] Relasi form ambigu diblok dan tidak masuk jalur response standalone
+- [ ] Harga portal sama dengan workflow snapshot server untuk baju, keluarga, opsi, repeater, dan add-on
+- [ ] Total browser yang stale ditolak sebelum registrasi/pembayaran ditulis
+- [ ] Publish form linked tanpa RSVP membuat snapshot baru; dengan RSVP membuat versi future-only beralasan
+- [ ] Save Draft form linked tidak mengubah pertanyaan yang sedang live sebelum publish/reconcile
+- [ ] Perubahan target department/NIK dalam draft tidak memblok peserta pada frozen eligibility live
+- [ ] Retry/edit RSVP lama tetap memakai schema, pricing, dan workflow version historis
+- [ ] URL dengan `formId` dan `programId` yang tidak cocok gagal tertutup tanpa menulis response/registrasi
+- [ ] Verifikasi RSVP membuka tab Semua, menyediakan status Tanpa pembayaran, filter program, dan pagination >100 data
+- [ ] RSVP `not_required` dengan keluarga menerbitkan attendance + meal untuk setiap keluarga
+- [ ] RSVP paid/not_required dengan QR kurang menampilkan warning dan tombol repair
+- [ ] Retry repair dan reload portal tidak membuat QR ganda
+- [ ] RSVP declined→attending memutar QR expired; membuka program closed tidak mengaktifkan QR kembali
+- [ ] Upload atau approval payment setelah program closed ditolak tanpa mengubah payment/registration menjadi paid/confirmed
+- [ ] Ganti filter/program dengan cepat tidak membiarkan respons lama menimpa tabel atau pagination terbaru
+- [ ] Coupon schema current, legacy, dan dual tetap menampilkan QR attendance/meal di portal
+- [ ] Riwayat registrasi lama tetap menunjuk workflow version lama setelah pricing direkonsiliasi
+
 ## Push Notification
 
 - [ ] Subscribe: browser minta izin, subscription tersimpan

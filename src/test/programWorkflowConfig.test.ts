@@ -20,6 +20,11 @@ describe('program workflow config builder', () => {
       provider: 'manual',
       methods: ['bank_transfer', 'manual_qris'],
     });
+    expect(config?.metadata.form_snapshot).toMatchObject({
+      id: 'form-1',
+      dynamic_form_id: 'form-1',
+      fields: expect.arrayContaining([expect.objectContaining({ id: 'attendance' })]),
+    });
   });
 
   it('does not activate event workflow without an attendance binding', () => {

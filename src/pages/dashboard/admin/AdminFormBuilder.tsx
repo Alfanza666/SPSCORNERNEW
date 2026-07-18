@@ -359,6 +359,56 @@ export default function AdminFormBuilder() {
 
     setSaving(true);
     try {
+      let workflowSyncMode: 'none' | 'link' | 'reconcile' = 'none';
+      let workflowReconcileReason = '';
+      let workflowPreservesHistoricalRsvps = false;
+      if (publish && linkedProgramId) {
+        const [{ data: linkedProgram, error: linkedProgramError }, { count, error: registrationCountError }] = await Promise.all([
+          supabase
+            .from('union_programs')
+            .select('id, dynamic_form_id')
+            .eq('id', linkedProgramId)
+            .maybeSingle(),
+          supabase
+            .from('program_registrations')
+            .select('id', { count: 'exact', head: true })
+            .eq('program_id', linkedProgramId),
+        ]);
+        if (linkedProgramError) throw linkedProgramError;
+        if (registrationCountError) throw registrationCountError;
+        if (!linkedProgram) throw new Error('Program terkait tidak ditemukan.');
+
+        const registrationCount = count || 0;
+        const formAlreadyLinked = Boolean(editingForm.id && linkedProgram.dynamic_form_id === editingForm.id);
+        if (registrationCount > 0 && !formAlreadyLinked) {
+          throw new Error('Program sudah memiliki RSVP. Form tidak boleh diganti tanpa rekonsiliasi audit.');
+        }
+        if (formAlreadyLinked && registrationCount > 0) {
+          const promptedReason = window.prompt(
+            'Program sudah memiliki RSVP. Jelaskan alasan perubahan workflow (minimal 5 karakter). RSVP lama tetap memakai snapshot sebelumnya.',
+          );
+          if (promptedReason === null) {
+            toast('Publikasi dibatalkan. Tidak ada perubahan yang disimpan.');
+            return;
+          }
+          workflowReconcileReason = promptedReason.trim();
+          if (workflowReconcileReason.length < 5) {
+            toast.error('Alasan rekonsiliasi wajib diisi minimal 5 karakter.');
+            return;
+          }
+          workflowSyncMode = 'reconcile';
+          workflowPreservesHistoricalRsvps = true;
+        } else if (formAlreadyLinked) {
+          // Relink RPC menurunkan publication_status program menjadi draft.
+          // Untuk form yang memang sudah terhubung, buat snapshot workflow baru
+          // tanpa mengubah status publikasi program.
+          workflowSyncMode = 'reconcile';
+          workflowReconcileReason = 'Sinkronisasi formulir sebelum RSVP pertama';
+        } else {
+          workflowSyncMode = 'link';
+        }
+      }
+
       const cleanFields = editingForm.fields.map((f, index, fields) => {
         const hasValidParent = !f.condition || fields.slice(0, index).some(parent => parent.id === f.condition?.fieldId);
         const normalizedField = hasValidParent ? f : { ...f, condition: undefined };
@@ -423,45 +473,34 @@ export default function AdminFormBuilder() {
         currentFormId = data.id;
       }
 
-      if (publish && linkedProgramId && currentFormId) {
-        const { data: linkedProgram, error: linkedProgramError } = await supabase
-          .from('union_programs')
-          .select('id, dynamic_form_id')
-          .eq('id', linkedProgramId)
-          .maybeSingle();
-        if (linkedProgramError) throw linkedProgramError;
-        if (!linkedProgram) throw new Error('Program terkait tidak ditemukan.');
-
-        const currentLinkedFormId = linkedProgram.dynamic_form_id || null;
-        if (currentLinkedFormId === currentFormId) {
-          toast.success('Formulir disimpan. Relasi program sudah sesuai, sinkronisasi ulang dilewati.');
-        } else {
-          const { count, error: registrationCountError } = await supabase
-            .from('program_registrations')
-            .select('id', { count: 'exact', head: true })
-            .eq('program_id', linkedProgramId);
-          if (registrationCountError) throw registrationCountError;
-          if ((count || 0) > 0) {
-            throw new Error('Program sudah memiliki RSVP. Form tidak boleh diganti/relink tanpa rekonsiliasi audit.');
-          }
-
+      if (workflowSyncMode !== 'none' && linkedProgramId && currentFormId) {
         const token = (await supabase.auth.getSession()).data.session?.access_token;
         if (!token) throw new Error('Sesi admin berakhir. Silakan login kembali.');
-        const linkResponse = await fetch(`/api/admin/programs/${linkedProgramId}/link-form-v2`, {
+        const syncEndpoint = workflowSyncMode === 'reconcile'
+          ? `/api/admin/programs/${linkedProgramId}/workflow/reconcile`
+          : `/api/admin/programs/${linkedProgramId}/link-form-v2`;
+        const syncResponse = await fetch(syncEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ form_id: currentFormId }),
+          body: JSON.stringify(workflowSyncMode === 'reconcile'
+            ? { reason: workflowReconcileReason }
+            : { form_id: currentFormId }),
         });
-        const linkResult = await linkResponse.json();
-        if (!linkResponse.ok) throw new Error(linkResult.error || 'Gagal menyinkronkan formulir dengan program.');
-        }
+        const syncResult = await syncResponse.json().catch(() => ({}));
+        if (!syncResponse.ok) throw new Error(syncResult.error || 'Gagal menyinkronkan formulir dengan program.');
       }
 
-      toast.success(publish
-        ? '✅ Formulir berhasil diterbitkan dan harga program disinkronkan!'
-        : linkedProgramId
-          ? '✅ Perubahan tersimpan sebagai draft. Klik Terbitkan untuk menerapkannya ke program.'
-          : '✅ Formulir berhasil disimpan!');
+      toast.success(workflowSyncMode === 'reconcile' && workflowPreservesHistoricalRsvps
+        ? 'Formulir diterbitkan dengan workflow versi baru. RSVP lama tetap memakai snapshot sebelumnya.'
+        : workflowSyncMode === 'reconcile'
+          ? 'Formulir diterbitkan dan workflow program berhasil disinkronkan.'
+        : publish && workflowSyncMode === 'link'
+          ? 'Formulir berhasil diterbitkan dan harga program disinkronkan.'
+          : publish
+            ? 'Formulir berhasil diterbitkan.'
+            : linkedProgramId
+              ? '✅ Perubahan tersimpan sebagai draft. Klik Terbitkan untuk menerapkannya ke program.'
+              : '✅ Formulir berhasil disimpan!');
       setShowEditor(false);
       fetchForms();
     } catch (error: any) {
@@ -476,9 +515,33 @@ export default function AdminFormBuilder() {
     fetchForms();
   };
 
-  const copyFormLink = (id: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/portal/forms/${id}`);
-    toast.success('Link formulir disalin!');
+  const copyFormLink = async (id: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('union_programs')
+        .select('id')
+        .eq('dynamic_form_id', id)
+        .eq('program_type', 'gathering')
+        .eq('is_active', true)
+        .eq('publication_status', 'published')
+        .limit(2);
+      if (error) throw error;
+      if (!data?.length) {
+        toast.error('Formulir belum terhubung ke gathering aktif yang sudah diterbitkan.');
+        return;
+      }
+      if (data.length > 1) {
+        toast.error('Formulir terhubung ke lebih dari satu gathering aktif. Perbaiki relasi program terlebih dahulu.');
+        return;
+      }
+
+      const link = `${window.location.origin}/portal/forms/${encodeURIComponent(id)}?programId=${encodeURIComponent(data[0].id)}`;
+      await navigator.clipboard.writeText(link);
+      toast.success('Link formulir program disalin!');
+    } catch (error) {
+      console.error('[FormBuilder] Copy form link:', error);
+      toast.error('Link formulir belum dapat disalin. Coba lagi.');
+    }
   };
 
   function resetForm() {

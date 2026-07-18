@@ -1,4 +1,21 @@
 Riwayat Error & Fix:
+- [FIXED] Peserta keluarga sudah mengisi RSVP tetapi tidak tampil di Verifikasi RSVP karena default filter hanya `under_review`; halaman kini membuka Semua, mendukung `not_required`, filter program, dan pagination (v5.12.0).
+- [FIXED] Deadline RSVP program aktif tampak berhasil diubah tetapi kembali ke nilai lama akibat silent payload override; perubahan sekarang lewat endpoint/RPC terautentikasi dengan audit dan concurrency guard (v5.12.0).
+- [FIXED] Harga keluarga live Rp35.000 berbeda dari snapshot server Rp0 sehingga bukti pembayaran tidak pernah tercatat; portal kini memakai pricing authoritative dan server menolak client total stale (v5.12.0).
+- [FIXED] Registrasi keluarga `not_required` tidak mendapat QR karena entitlement hanya dilepas pada `paid`; settled-state diperluas, integritas QR dapat direpair idempoten, dan 2 QR produksi yang hilang sudah dipulihkan (v5.12.0).
+- [FIXED] Link premium form tanpa `programId` dapat sukses sebagai response standalone tanpa registrasi/tiket; link kini program-aware dan relasi ambigu diblok (v5.12.0).
+- [FIXED] Publish form linked melewati sinkronisasi bila form ID sama; publish sekarang membuat/sinkron workflow version dan memakai reconciliation future-only setelah RSVP ada (v5.12.0).
+- [FIXED] Portal tiket V2 membuang kolom QR/gate legacy sehingga kupon yang ada dapat terlihat hilang; mapping current/legacy/dual kini dinormalisasi (v5.12.0).
+- [FIXED] RPC gathering privileged dan policy legacy terlalu permisif; hak execute dibatasi ke service role serta policy public eligibility/registration insert dihapus (v5.12.0).
+- [FIXED] Audit manual approval/reject/unlock menyimpan admin ID undefined karena salah mengambil properti; sekarang memakai ID user admin terautentikasi (v5.12.0).
+- [FIXED] Route registrasi/pembayaran V2 duplikat tertinggal sebagai dead code setelah `return`; blok tidak terjangkau dihapus dan implementasi aktif tetap tunggal (v5.12.0).
+- [FIXED] Admin/PWA lama dapat mengubah deadline langsung melalui Data API tanpa audit; trigger database kini hanya membuka write di dalam RPC deadline terkontrol (v5.12.0).
+- [FIXED] Draft form dan schema baru dapat bocor ke RSVP live/historis karena `dynamic_forms` ditimpa in-place; schema kini disnapshot per workflow dan seluruh snapshot production dibackfill (v5.12.0).
+- [FIXED] URL stale/crafted dapat memasangkan form dari path dengan workflow program lain; portal dan backend kini memverifikasi `dynamic_form_id` authoritative (v5.12.0).
+- [FIXED] Self-heal dapat mengaktifkan kembali QR expired milik program closed; issuer kini memvalidasi lifecycle program dan reaktivasi expired dibatasi pada resubmit declined→attending atau rekonsiliasi admin (v5.12.0).
+- [FIXED] Approval pembayaran program closed dapat tersimpan paid walau issuer menolak QR; proof/approval kini memvalidasi lifecycle sebelum mutasi ledger (v5.12.0).
+- [FIXED] Targeting draft mutable dapat langsung memblok peserta yang masih ada di frozen eligibility; form program kini memakai validasi eligibility authoritative dari status endpoint (v5.12.0).
+- [FIXED] Respons pagination lama dapat menimpa filter/program terbaru; sequence guard mengabaikan respons request yang sudah stale (v5.12.0).
 - [FIXED] Gambar desain baju/size chart pada Form Experience V2 tampil setengah lebar dan tidak dapat diperbesar; galeri kini responsif dengan lightbox fullscreen, zoom 100-300%, Escape, dan focus return (v5.11.1).
 - [FIXED] Bukti pembayaran formulir Program Workflow V2 hanya menunggu review admin walaupun kiosk sudah memakai Groq; route payment-proof form kini dapat verifikasi Groq otomatis, auto-approve bila valid, fallback manual bila AI ragu/offline, dan reject agar user upload ulang bila jelas tidak valid (v5.11.0).
 - [FIXED] Harga oversize dan keluarga tampil nol karena link-form menimpa harga Form Studio dengan kolom program legacy bernilai nol; Form Studio kini menjadi sumber harga utama (v5.11.0).

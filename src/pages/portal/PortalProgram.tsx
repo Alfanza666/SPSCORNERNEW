@@ -45,6 +45,8 @@ interface Coupon {
   status: string;
   coupon_code: string;
   qr_code?: string;
+  barcode?: string;
+  coupon_type?: string;
   name?: string;
   nik?: string;
   claimed_at: string;
@@ -63,7 +65,23 @@ interface TicketModalData {
 }
 
 function getCouponQrValue(coupon: Coupon): string {
-  return coupon.coupon_code || coupon.qr_code || coupon.id;
+  return coupon.coupon_code || coupon.qr_code || coupon.barcode || coupon.id;
+}
+
+function normalizeProgramCoupon(row: any): Coupon {
+  const rawEntitlement = String(row?.gate_type || row?.coupon_type || row?.entitlement_code || '').toLowerCase();
+  const gateType = rawEntitlement === 'food' || rawEntitlement.includes('meal')
+    ? 'meal'
+    : rawEntitlement.includes('attendance') ? 'attendance' : rawEntitlement;
+  const inferredFamily = rawEntitlement.includes('family');
+  return {
+    ...row,
+    coupon_code: row?.coupon_code || row?.qr_code || row?.barcode || row?.id,
+    gate_type: gateType,
+    beneficiary_type: row?.beneficiary_type || (inferredFamily ? 'family' : 'employee'),
+    entitlement_metadata: row?.entitlement_metadata || {},
+    metadata: row?.metadata || {},
+  };
 }
 
 function getCouponBeneficiary(coupon: Coupon, fallbackName?: string, index = 0): string {
@@ -221,27 +239,17 @@ export default function PortalProgram() {
       const registration = result.data || result.registration;
       if (response.ok && result.success && registration) {
         // V2 registration found - map to coupon format for backward compatibility
-        const v2Coupons = (registration.coupons || result.entitlements || []).map((e: any) => ({
-          id: e.id,
-          coupon_code: e.coupon_code,
-          gate_type: e.gate_type,
-          status: e.status,
-          beneficiary_type: e.beneficiary_type,
-          beneficiary_index: e.beneficiary_index,
-          entitlement_code: e.entitlement_code,
-          name: e.name,
-          nik: e.nik,
-        }));
+        const v2Coupons = (registration.coupons || result.entitlements || []).map(normalizeProgramCoupon);
         setMyCoupons(v2Coupons);
       } else {
         // Fallback to legacy query
         const { data } = await supabase.from('program_coupons').select('*').eq('program_id', program.id).or(`nik.eq.${user?.nik},user_id.eq.${user?.id}`);
-        if (data) setMyCoupons(data);
+        if (data) setMyCoupons(data.map(normalizeProgramCoupon));
       }
     } catch (e) {
       // Fallback to legacy query
       const { data } = await supabase.from('program_coupons').select('*').eq('program_id', program.id).or(`nik.eq.${user?.nik},user_id.eq.${user?.id}`);
-      if (data) setMyCoupons(data);
+      if (data) setMyCoupons(data.map(normalizeProgramCoupon));
     }
     
     setFormData({});

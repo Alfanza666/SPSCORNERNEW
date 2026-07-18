@@ -50,6 +50,63 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
     return { userId: user.id };
   }
 
+  async function buildProgramWorkflowDraft(programId: string, formId: string, actorId: string) {
+    const { data: program, error: programError } = await supabase
+      .from('union_programs')
+      .select('id, program_type, dynamic_form_id, family_package_price, shirt_price_map')
+      .eq('id', programId)
+      .single();
+    if (programError || !program) throw Object.assign(new Error('Program not found'), { status: 404 });
+
+    const { data: form, error: formError } = await supabase
+      .from('dynamic_forms')
+      .select('id, title, description, fields, is_active')
+      .eq('id', formId)
+      .single();
+    if (formError || !form) throw Object.assign(new Error('Form not found'), { status: 404 });
+    if (!form.is_active) {
+      throw Object.assign(new Error('Publish the form before synchronizing it to a program'), { status: 409 });
+    }
+
+    let metadata: any = {};
+    try { metadata = JSON.parse(form.description || '{}'); } catch { metadata = { text: form.description || '' }; }
+    const synchronizedFields = (form.fields || []).map((field: any) => {
+      if (program.program_type === 'gathering' && (field.system_key === 'family_count' || field.id === 'family_count')) {
+        return field.unit_price === undefined
+          ? { ...field, unit_price: Math.max(0, Number(program.family_package_price || 0)) }
+          : field;
+      }
+      if (program.program_type === 'gathering' && (field.system_key === 'shirt_size' || field.id === 'shirt_size')) {
+        return {
+          ...field,
+          options: (field.options || []).map((option: any) => ({
+            ...option,
+            price: option.price === undefined
+              ? Math.max(0, Number(program.shirt_price_map?.[String(option.value).toUpperCase()] || 0))
+              : option.price,
+          })),
+        };
+      }
+      return field;
+    });
+
+    const formConfig = {
+      id: form.id,
+      title: form.title,
+      description: metadata.text ?? form.description ?? '',
+      fields: synchronizedFields,
+      experience_version: metadata.experience_version === 2 ? 2 : 1,
+      outcomes: metadata.outcomes || [],
+      program_automation: metadata.program_automation || undefined,
+      welcome_screen: metadata.welcome_screen || undefined,
+    };
+    const workflowConfig = createProgramWorkflowConfig(formConfig as any, programId, formId, actorId);
+    if (!workflowConfig) {
+      throw Object.assign(new Error('Form must contain a valid attendance field binding'), { status: 422 });
+    }
+    return { program, workflowConfig, synchronizedFields };
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // ADMIN ENDPOINTS
   // ═══════════════════════════════════════════════════════════════════════════
@@ -65,57 +122,7 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
       let synchronizedFields: any[] = [];
 
       if (formId) {
-        const { data: program, error: programError } = await supabase
-          .from('union_programs')
-          .select('program_type, family_package_price, shirt_price_map')
-          .eq('id', programId)
-          .single();
-        if (programError || !program) return res.status(404).json({ error: 'Program not found' });
-
-        const { data: form, error: formError } = await supabase
-          .from('dynamic_forms')
-          .select('id, title, description, fields, is_active')
-          .eq('id', formId)
-          .single();
-        if (formError || !form) return res.status(404).json({ error: 'Form not found' });
-        if (!form.is_active) return res.status(409).json({ error: 'Publish the form before linking it to a program' });
-
-        let metadata: any = {};
-        try { metadata = JSON.parse(form.description || '{}'); } catch { metadata = { text: form.description || '' }; }
-        synchronizedFields = (form.fields || []).map((field: any) => {
-          if (program.program_type === 'gathering' && (field.system_key === 'family_count' || field.id === 'family_count')) {
-            // Form Studio is the source of truth. The program column is only a
-            // compatibility fallback for forms created before per-field pricing.
-            return field.unit_price === undefined
-              ? { ...field, unit_price: Math.max(0, Number(program.family_package_price || 0)) }
-              : field;
-          }
-          if (program.program_type === 'gathering' && (field.system_key === 'shirt_size' || field.id === 'shirt_size')) {
-            return {
-              ...field,
-              options: (field.options || []).map((option: any) => ({
-                ...option,
-                price: option.price === undefined
-                  ? Math.max(0, Number(program.shirt_price_map?.[String(option.value).toUpperCase()] || 0))
-                  : option.price,
-              })),
-            };
-          }
-          return field;
-        });
-
-        const formConfig = {
-          id: form.id,
-          title: form.title,
-          description: metadata.text ?? form.description ?? '',
-          fields: synchronizedFields,
-          experience_version: metadata.experience_version === 2 ? 2 : 1,
-          outcomes: metadata.outcomes || [],
-          program_automation: metadata.program_automation || undefined,
-          welcome_screen: metadata.welcome_screen || undefined,
-        };
-        workflowConfig = createProgramWorkflowConfig(formConfig as any, programId, formId, admin.userId);
-        if (!workflowConfig) return res.status(422).json({ error: 'Form must contain a valid attendance field binding' });
+        ({ workflowConfig, synchronizedFields } = await buildProgramWorkflowDraft(programId, formId, admin.userId));
       }
 
       const { data, error } = await supabase.rpc('link_program_form_v2', {
@@ -129,7 +136,89 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
       return res.json(data);
     } catch (error: any) {
       console.error('Link program form error:', error);
-      return res.status(500).json({ error: error.message });
+      return res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * PATCH /api/admin/programs/:programId/rsvp-deadline
+   * Update the live deadline without mutating versioned workflow/eligibility.
+   */
+  app.patch('/api/admin/programs/:programId/rsvp-deadline', async (req: any, res: any) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+
+      const { programId } = req.params;
+      const deadline = req.body?.deadline;
+      const expectedDeadline = req.body?.expectedDeadline ?? req.body?.expected_deadline ?? null;
+      const reason = String(req.body?.reason || '').trim();
+      const parsedDeadline = new Date(deadline);
+      if (!deadline || Number.isNaN(parsedDeadline.getTime())) {
+        return res.status(400).json({ error: 'Deadline RSVP tidak valid.' });
+      }
+      if (reason.length < 3 || reason.length > 500) {
+        return res.status(400).json({ error: 'Alasan perubahan deadline wajib diisi (3-500 karakter).' });
+      }
+
+      const { data, error } = await supabase.rpc('update_program_rsvp_deadline', {
+        p_program_id: programId,
+        p_new_deadline: parsedDeadline.toISOString(),
+        p_expected_deadline: expectedDeadline || null,
+        p_reason: reason,
+        p_actor_id: admin.userId,
+      });
+      if (error) {
+        const concurrent = error.code === '40001' || String(error.message || '').includes('another administrator');
+        return res.status(concurrent ? 409 : 422).json({ error: error.message });
+      }
+      return res.json(data);
+    } catch (error: any) {
+      console.error('RSVP deadline update error:', error);
+      return res.status(500).json({ error: error.message || 'Deadline RSVP belum dapat diperbarui.' });
+    }
+  });
+
+  /**
+   * POST /api/admin/programs/:programId/workflow/reconcile
+   * Snapshot current linked-form rules for future submissions. Historical
+   * registrations stay pinned to their original workflow_config_id.
+   */
+  app.post('/api/admin/programs/:programId/workflow/reconcile', async (req: any, res: any) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+
+      const { programId } = req.params;
+      const reason = String(req.body?.reason || '').trim();
+      if (reason.length < 5 || reason.length > 500) {
+        return res.status(400).json({ error: 'Alasan sinkronisasi workflow wajib diisi (5-500 karakter).' });
+      }
+      const { data: program, error: programError } = await supabase
+        .from('union_programs')
+        .select('dynamic_form_id')
+        .eq('id', programId)
+        .single();
+      if (programError || !program?.dynamic_form_id) {
+        return res.status(404).json({ error: 'Program atau formulir terkait tidak ditemukan.' });
+      }
+
+      const { workflowConfig } = await buildProgramWorkflowDraft(
+        programId,
+        program.dynamic_form_id,
+        admin.userId,
+      );
+      const { data, error } = await supabase.rpc('reconcile_program_workflow_v2', {
+        p_program_id: programId,
+        p_config: workflowConfig,
+        p_reason: reason,
+        p_actor_id: admin.userId,
+      });
+      if (error) return res.status(422).json({ error: error.message });
+      return res.json(data);
+    } catch (error: any) {
+      console.error('Workflow reconciliation error:', error);
+      return res.status(error.status || 500).json({ error: error.message || 'Workflow belum dapat disinkronkan.' });
     }
   });
 
@@ -605,376 +694,4 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
     }
   });
 
-  // Registration/payment endpoints below are retained temporarily as source
-  // compatibility only. The hardened ProgramRegistrationWorkflow routes are
-  // the single active contract, preventing duplicate Express handlers from
-  // shadowing one another during the migration rollout.
-  return;
-
-  /**
-   * GET /api/portal/programs/:programId/registration-v2
-   * Get employee's own registration, payment, and entitlements.
-   */
-  app.get("/api/portal/programs/:programId/registration-v2", async (req: any, res: any) => {
-    try {
-      const auth = await requireAuth(req, res);
-      if (!auth) return;
-
-      const { programId } = req.params;
-
-      // Get employee's NIK
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nik')
-        .eq('id', auth.userId)
-        .single();
-
-      if (!profile?.nik) {
-        return res.status(400).json({ error: "NIK not found" });
-      }
-
-      // Get registration
-      const { data: registration, error: regError } = await supabase
-        .from('program_registrations')
-        .select('*')
-        .eq('program_id', programId)
-        .eq('nik', profile.nik)
-        .single();
-
-      if (regError || !registration) {
-        return res.json({
-          success: true,
-          registration: null,
-          items: [],
-          payments: [],
-          entitlements: [],
-        });
-      }
-
-      // Get items
-      const { data: items } = await supabase
-        .from('program_registration_items')
-        .select('*')
-        .eq('registration_id', registration.id);
-
-      // Get payments
-      const { data: payments } = await supabase
-        .from('program_registration_payments')
-        .select('*')
-        .eq('registration_id', registration.id)
-        .order('created_at', { ascending: false });
-
-      // Get entitlements (coupons)
-      const { data: entitlements } = await supabase
-        .from('program_coupons')
-        .select('*')
-        .eq('program_registration_id', registration.id);
-
-      res.json({
-        success: true,
-        registration,
-        items: items || [],
-        payments: payments || [],
-        entitlements: entitlements || [],
-      });
-    } catch (error: any) {
-      console.error("Portal registration-v2 error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  /**
-   * PUT /api/portal/programs/:programId/registration-v2/draft
-   * Autosave an editable draft.
-   */
-  app.put("/api/portal/programs/:programId/registration-v2/draft", async (req: any, res: any) => {
-    try {
-      const auth = await requireAuth(req, res);
-      if (!auth) return;
-
-      const { programId } = req.params;
-      const { answers } = req.body;
-
-      // Get employee's NIK
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nik')
-        .eq('id', auth.userId)
-        .single();
-
-      if (!profile?.nik) {
-        return res.status(400).json({ error: "NIK not found" });
-      }
-
-      // Get or create registration
-      const registration = await workflowService.getOrCreateRegistration(
-        programId,
-        auth.userId,
-        profile.nik,
-        answers
-      );
-
-      // Update answers
-      const { error: updateError } = await supabase
-        .from('program_registrations')
-        .update({
-          answers_snapshot: answers,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', registration.id);
-
-      if (updateError) throw updateError;
-
-      res.json({ success: true, registration_id: registration.id });
-    } catch (error: any) {
-      console.error("Draft autosave error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  /**
-   * POST /api/portal/programs/:programId/registration-v2/submit
-   * Server validation, price snapshot, and idempotent base entitlement issuance.
-   */
-  app.post("/api/portal/programs/:programId/registration-v2/submit", async (req: any, res: any) => {
-    try {
-      const auth = await requireAuth(req, res);
-      if (!auth) return;
-
-      const { programId } = req.params;
-      const { attendance_status, answers } = req.body;
-
-      // Get employee's NIK
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nik, name')
-        .eq('id', auth.userId)
-        .single();
-
-      if (!profile?.nik) {
-        return res.status(400).json({ error: "NIK not found" });
-      }
-
-      const result = await workflowService.submitRSVP(
-        programId,
-        auth.userId,
-        profile.nik,
-        attendance_status,
-        { ...answers, attendee_name: profile.name }
-      );
-
-      res.json(result);
-    } catch (error: any) {
-      console.error("RSVP submit error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  /**
-   * POST /api/portal/programs/:programId/registration-v2/payment-proof
-   * Upload new/replacement payment proof.
-   */
-  app.post("/api/portal/programs/:programId/registration-v2/payment-proof", async (req: any, res: any) => {
-    try {
-      const auth = await requireAuth(req, res);
-      if (!auth) return;
-
-      const { programId } = req.params;
-      const { proof_url, registration_id } = req.body;
-
-      if (!proof_url) {
-        return res.status(400).json({ error: "proof_url is required" });
-      }
-
-      const result = await workflowService.uploadPaymentProof(registration_id, proof_url, auth.userId);
-      res.json(result);
-    } catch (error: any) {
-      console.error("Payment proof error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  /**
-   * GET /api/portal/programs/:programId/entitlements-v2
-   * Get employee/family attendance and meal cards.
-   */
-  app.get("/api/portal/programs/:programId/entitlements-v2", async (req: any, res: any) => {
-    try {
-      const auth = await requireAuth(req, res);
-      if (!auth) return;
-
-      const { programId } = req.params;
-
-      // Get employee's NIK
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nik')
-        .eq('id', auth.userId)
-        .single();
-
-      if (!profile?.nik) {
-        return res.status(400).json({ error: "NIK not found" });
-      }
-
-      // Get registration
-      const { data: registration } = await supabase
-        .from('program_registrations')
-        .select('id')
-        .eq('program_id', programId)
-        .eq('nik', profile.nik)
-        .single();
-
-      if (!registration) {
-        return res.json({ success: true, entitlements: [] });
-      }
-
-      // Get entitlements (coupons)
-      const { data: entitlements, error } = await supabase
-        .from('program_coupons')
-        .select('*')
-        .eq('program_registration_id', registration.id)
-        .order('beneficiary_type', { ascending: true })
-        .order('beneficiary_index', { ascending: true });
-
-      if (error) throw error;
-
-      // Group by beneficiary
-      const grouped: Record<string, any[]> = {};
-      for (const e of (entitlements || [])) {
-        const key = e.beneficiary_type === 'employee'
-          ? 'employee'
-          : `family_${e.beneficiary_index}`;
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(e);
-      }
-
-      res.json({ success: true, entitlements: entitlements || [], grouped });
-    } catch (error: any) {
-      console.error("Entitlements-v2 error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PAYMENT APPROVAL/REJECTION (Admin)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /**
-   * POST /api/admin/program-registrations-v2/:registrationId/payments/:paymentId/approve
-   */
-  app.post("/api/admin/program-registrations-v2/:registrationId/payments/:paymentId/approve", async (req: any, res: any) => {
-    try {
-      const admin = await requireAdmin(req, res);
-      if (!admin) return;
-
-      const { paymentId } = req.params;
-      const result = await workflowService.reviewPayment(paymentId, 'approve', admin.userId);
-      res.json(result);
-    } catch (error: any) {
-      console.error("Payment approve error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  /**
-   * POST /api/admin/program-registrations-v2/:registrationId/payments/:paymentId/reject
-   */
-  app.post("/api/admin/program-registrations-v2/:registrationId/payments/:paymentId/reject", async (req: any, res: any) => {
-    try {
-      const admin = await requireAdmin(req, res);
-      if (!admin) return;
-
-      const { paymentId } = req.params;
-      const { reason } = req.body;
-      const result = await workflowService.reviewPayment(paymentId, 'reject', admin.userId, reason);
-      res.json(result);
-    } catch (error: any) {
-      console.error("Payment reject error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  /**
-   * POST /api/admin/program-registrations-v2/:registrationId/unlock
-   * Admin reopen a locked registration.
-   */
-  app.post("/api/admin/program-registrations-v2/:registrationId/unlock", async (req: any, res: any) => {
-    try {
-      const admin = await requireAdmin(req, res);
-      if (!admin) return;
-
-      const { registrationId } = req.params;
-      const { reason } = req.body;
-
-      if (!reason) {
-        return res.status(400).json({ error: "reason is required" });
-      }
-
-      // Update registration status to draft with audit
-      const { error: updateError } = await supabase
-        .from('program_registrations')
-        .update({
-          registration_status: 'draft',
-          payment_status: 'not_required',
-          metadata: {
-            unlock_reason: reason,
-            unlocked_by: admin.userId,
-            unlocked_at: new Date().toISOString(),
-          },
-        })
-        .eq('id', registrationId);
-
-      if (updateError) throw updateError;
-
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error("Unlock registration error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  /**
-   * GET /api/admin/program-registrations-v2
-   * List all V2 registrations with filters.
-   */
-  app.get("/api/admin/program-registrations-v2", async (req: any, res: any) => {
-    try {
-      const admin = await requireAdmin(req, res);
-      if (!admin) return;
-
-      const { program_id, status, payment_status, page = 1, limit = 50 } = req.query;
-      const offset = (parseInt(page) - 1) * parseInt(limit);
-
-      let query = supabase
-        .from('program_registrations')
-        .select('*', { count: 'exact' });
-
-      if (program_id) {
-        query = query.eq('program_id', program_id);
-      }
-      if (status) {
-        query = query.eq('attendance_status', status);
-      }
-      if (payment_status) {
-        query = query.eq('payment_status', payment_status);
-      }
-
-      const { data, count, error } = await query
-        .order('created_at', { ascending: false })
-        .range(offset, offset + parseInt(limit) - 1);
-
-      if (error) throw error;
-
-      res.json({
-        success: true,
-        data: data || [],
-        total: count || 0,
-        page: parseInt(page),
-        limit: parseInt(limit),
-      });
-    } catch (error: any) {
-      console.error("List registrations error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 }

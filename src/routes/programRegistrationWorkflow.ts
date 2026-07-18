@@ -393,8 +393,14 @@ export function buildRegistrationQuote(workflow: any, answers: Record<string, an
       );
     }
 
-    const entryPrice = safeMoney(pricingRules?.family?.entry_unit_price ?? 0, "tiket keluarga");
-    const mealPrice = safeMoney(pricingRules?.family?.meal_unit_price ?? 0, "makan keluarga");
+    const familyRules = isPlainObject(pricingRules?.family) ? pricingRules.family : {};
+    const hasSplitFamilyPrice = Object.prototype.hasOwnProperty.call(familyRules, "entry_unit_price")
+      || Object.prototype.hasOwnProperty.call(familyRules, "meal_unit_price");
+    const entryPrice = safeMoney(
+      hasSplitFamilyPrice ? familyRules.entry_unit_price ?? 0 : familyRules.package_unit_price ?? 0,
+      "tiket keluarga",
+    );
+    const mealPrice = safeMoney(hasSplitFamilyPrice ? familyRules.meal_unit_price ?? 0 : 0, "makan keluarga");
     if (entryPrice > 0) {
       items.push({
         item_code: "family_entry",
@@ -853,6 +859,27 @@ export function paymentInstructions(workflow: any) {
   };
 }
 
+function workflowFormSnapshot(workflow: any): Record<string, any> | null {
+  const snapshot = isPlainObject(workflow?.metadata?.form_snapshot)
+    ? workflow.metadata.form_snapshot
+    : null;
+  if (!snapshot || !Array.isArray(snapshot.fields)) return null;
+  const snapshotFormId = String(snapshot.dynamic_form_id || snapshot.id || "");
+  if (!snapshotFormId || snapshotFormId !== String(workflow?.dynamic_form_id || "")) return null;
+  return snapshot;
+}
+
+function workflowPricingForClient(workflow: any) {
+  return {
+    workflow_config_id: workflow?.id || null,
+    workflow_version: workflow?.version || null,
+    dynamic_form_id: workflow?.dynamic_form_id || null,
+    field_bindings: isPlainObject(workflow?.field_bindings) ? workflow.field_bindings : {},
+    pricing_rules: isPlainObject(workflow?.pricing_rules) ? workflow.pricing_rules : {},
+    form_snapshot: workflowFormSnapshot(workflow),
+  };
+}
+
 export function resolveWorkflowPaymentMethod(workflow: any, requestedMethod?: unknown): string {
   const instructions = paymentInstructions(workflow);
   const requested = String(requestedMethod || "");
@@ -901,7 +928,13 @@ function throwDatabaseError(error: any, fallbackMessage: string): never {
   throw new WorkflowHttpError(500, "DATABASE_ERROR", fallbackMessage, { database_code: error?.code });
 }
 
-async function loadProgramContext(supabase: any, programId: string, profile: any) {
+async function loadProgramContext(
+  supabase: any,
+  programId: string,
+  profile: any,
+  pinnedWorkflowConfigId?: string | null,
+  options: { enforceDeadline?: boolean } = {},
+) {
   const { data: program, error: programError } = await supabase
     .from("union_programs")
     .select("id, name, program_type, is_active, is_targeted, start_date, end_date, rsvp_deadline, publication_status, config_version, dynamic_form_id")
@@ -914,7 +947,12 @@ async function loadProgramContext(supabase: any, programId: string, profile: any
   if (!program.is_active || isProgramExpired(program.end_date)) {
     throw new WorkflowHttpError(409, "PROGRAM_CLOSED", "Program sudah ditutup atau melewati batas waktu.");
   }
-  if (program.rsvp_deadline && new Date(program.rsvp_deadline).getTime() <= Date.now()) {
+  if (program.program_type === "gathering" && program.publication_status !== "published") {
+    throw new WorkflowHttpError(409, "PROGRAM_NOT_PUBLISHED", "Program belum diterbitkan atau sudah ditutup.");
+  }
+  if (options.enforceDeadline !== false
+    && program.rsvp_deadline
+    && new Date(program.rsvp_deadline).getTime() <= Date.now()) {
     throw new WorkflowHttpError(409, "RSVP_DEADLINE_PASSED", "Batas waktu RSVP sudah berakhir.");
   }
 
@@ -931,12 +969,14 @@ async function loadProgramContext(supabase: any, programId: string, profile: any
     if (!eligible) throw new WorkflowHttpError(403, "NOT_ELIGIBLE", "Anda tidak terdaftar sebagai peserta program ini.");
   }
 
-  const { data: workflow, error: workflowError } = await supabase
+  let workflowQuery = supabase
     .from("program_workflow_configs")
     .select("*")
-    .eq("program_id", programId)
-    .eq("is_active", true)
-    .maybeSingle();
+    .eq("program_id", programId);
+  workflowQuery = pinnedWorkflowConfigId
+    ? workflowQuery.eq("id", pinnedWorkflowConfigId)
+    : workflowQuery.eq("is_active", true);
+  const { data: workflow, error: workflowError } = await workflowQuery.maybeSingle();
   if (workflowError) throwDatabaseError(workflowError, "Gagal memuat konfigurasi workflow.");
   if (!workflow) throw new WorkflowHttpError(409, "WORKFLOW_NOT_ACTIVE", "Workflow V2 belum diaktifkan untuk program ini.");
 
@@ -974,7 +1014,11 @@ async function loadProgramContext(supabase: any, programId: string, profile: any
     }
   }
 
-  return { program, workflow, form };
+  const snapshot = workflowFormSnapshot(workflow);
+  const versionedForm = snapshot
+    ? { ...form, ...snapshot, id: form.id, fields: snapshot.fields }
+    : form;
+  return { program, workflow, form: versionedForm };
 }
 
 async function signPaymentProofUrls(supabase: any, payments: any[]) {
@@ -1013,19 +1057,24 @@ async function loadRegistrationBatchDetails(supabase: any, registrations: any[])
   if (registrations.length === 0) return [];
   const ids = registrations.map(registration => registration.id);
   const programIds = [...new Set(registrations.map(registration => registration.program_id).filter(Boolean))];
-  const [itemsResult, paymentsResult, couponsResult, programsResult] = await Promise.all([
+  const workflowConfigIds = [...new Set(registrations.map(registration => registration.workflow_config_id).filter(Boolean))];
+  const [itemsResult, paymentsResult, couponsResult, programsResult, workflowsResult] = await Promise.all([
     supabase.from("program_registration_items").select("*").in("registration_id", ids).order("created_at"),
     supabase.from("program_registration_payments")
       .select("id, registration_id, payment_method, provider, reference_id, expected_amount, paid_amount, currency, status, proof_url, proof_metadata, provider_transaction_id, verified_by, verified_at, paid_at, expires_at, created_at, updated_at")
       .in("registration_id", ids)
       .order("created_at", { ascending: false }),
     supabase.from("program_coupons").select("*").in("program_registration_id", ids).order("issued_at"),
-    supabase.from("union_programs").select("id, name").in("id", programIds),
+    supabase.from("union_programs").select("id, name, is_active, end_date, publication_status").in("id", programIds),
+    workflowConfigIds.length > 0
+      ? supabase.from("program_workflow_configs").select("id, entitlement_rules, payment_rules").in("id", workflowConfigIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (itemsResult.error) throwDatabaseError(itemsResult.error, "Gagal memuat rincian biaya.");
   if (paymentsResult.error) throwDatabaseError(paymentsResult.error, "Gagal memuat pembayaran.");
   if (couponsResult.error) throwDatabaseError(couponsResult.error, "Gagal memuat kupon.");
   if (programsResult.error) throwDatabaseError(programsResult.error, "Gagal memuat nama program.");
+  if (workflowsResult.error) throwDatabaseError(workflowsResult.error, "Gagal memuat konfigurasi tiket.");
 
   const groupByRegistration = (rows: any[]) => rows.reduce((groups: Map<string, any[]>, row: any) => {
     const key = row.registration_id || row.program_registration_id;
@@ -1038,13 +1087,24 @@ async function loadRegistrationBatchDetails(supabase: any, registrations: any[])
   const payments = groupByRegistration(signedPayments);
   const coupons = groupByRegistration(couponsResult.data || []);
   const programs = new Map((programsResult.data || []).map(program => [program.id, program]));
-  return registrations.map(registration => ({
-    ...registration,
-    program: programs.get(registration.program_id) || null,
-    items: items.get(registration.id) || [],
-    payments: payments.get(registration.id) || [],
-    coupons: coupons.get(registration.id) || [],
-  }));
+  const workflows = new Map((workflowsResult.data || []).map(workflow => [workflow.id, workflow]));
+  return registrations.map(registration => {
+    const registrationCoupons = coupons.get(registration.id) || [];
+    const workflow = workflows.get(registration.workflow_config_id) || {};
+    return {
+      ...registration,
+      program: programs.get(registration.program_id) || null,
+      items: items.get(registration.id) || [],
+      payments: payments.get(registration.id) || [],
+      coupons: registrationCoupons,
+      ticket_integrity: summarizeRegistrationTicketIntegrity(
+        registration,
+        workflow,
+        registrationCoupons,
+        programs.get(registration.program_id),
+      ),
+    };
+  });
 }
 
 let couponSchemaCache: { current: boolean; legacy: boolean } | null = null;
@@ -1070,6 +1130,86 @@ function entitlementCodes(workflow: any, beneficiary: "employee" | "family") {
     .filter(value => value === "attendance" || value === "meal"))];
 }
 
+export function isFamilyEntitlementReleased(registration: any, workflow: any): boolean {
+  if (Number(registration?.family_count || 0) <= 0) return false;
+  const paymentStatus = normalizeWorkflowValue(registration?.payment_status);
+  if (paymentStatus === "paid" || paymentStatus === "not_required") return true;
+  return workflow?.payment_rules?.hold_family_entitlements_until_paid === false;
+}
+
+const ENTITLEMENT_ELIGIBLE_REGISTRATION_STATUSES = new Set([
+  "submitted",
+  "pending_payment",
+  "payment_pending",
+  "payment_review",
+  "payment_rejected",
+  "confirmed",
+  "locked",
+]);
+
+const INACTIVE_COUPON_STATUSES = new Set(["expired", "cancelled", "void"]);
+
+function canIssueRegistrationEntitlements(registration: any): boolean {
+  return normalizeWorkflowValue(registration?.attendance_status) === "attending"
+    && ENTITLEMENT_ELIGIBLE_REGISTRATION_STATUSES.has(normalizeWorkflowValue(registration?.registration_status));
+}
+
+function isActiveEntitlementCoupon(coupon: any): boolean {
+  return !INACTIVE_COUPON_STATUSES.has(normalizeWorkflowValue(coupon?.status));
+}
+
+function entitlementDefinitions(registration: any, workflow: any) {
+  const definitions: Array<{ entitlement: string; beneficiary: "employee" | "family"; index: number | null }> = [];
+  for (const entitlement of entitlementCodes(workflow, "employee")) {
+    definitions.push({ entitlement, beneficiary: "employee", index: null });
+  }
+  if (isFamilyEntitlementReleased(registration, workflow)) {
+    for (let index = 1; index <= Number(registration.family_count || 0); index += 1) {
+      for (const entitlement of entitlementCodes(workflow, "family")) {
+        definitions.push({ entitlement, beneficiary: "family", index });
+      }
+    }
+  }
+  return definitions;
+}
+
+export function summarizeRegistrationTicketIntegrity(registration: any, workflow: any, coupons: any[], program?: any) {
+  const familyEntitlementCount = Number(registration?.family_count || 0)
+    * entitlementCodes(workflow, "family").length;
+  const familyReleased = isFamilyEntitlementReleased(registration, workflow);
+  const expected = entitlementDefinitions(registration, workflow);
+  const expectedKeys = new Set(expected.map(definition =>
+    `${definition.entitlement}:${definition.beneficiary}:${definition.index || 0}`
+  ));
+  const validCoupons = (coupons || []).filter(isActiveEntitlementCoupon);
+  const issuedKeys = new Set(validCoupons.map(couponKey));
+  const issuedExpectedKeys = [...expectedKeys].filter(key => issuedKeys.has(key));
+  const familyIssuedCount = [...issuedKeys].filter(key => key.includes(":family:")).length;
+  const missingCount = expectedKeys.size - issuedExpectedKeys.length;
+
+  return {
+    expected_count: expectedKeys.size,
+    issued_count: issuedExpectedKeys.length,
+    missing_count: missingCount,
+    family_expected_count: familyEntitlementCount,
+    family_issued_count: Math.min(familyIssuedCount, familyEntitlementCount),
+    family_held_count: familyReleased ? 0 : familyEntitlementCount,
+    family_released: familyReleased,
+    repairable: canIssueRegistrationEntitlements(registration)
+      && missingCount > 0
+      && (!program || (
+        program.is_active === true
+        && program.publication_status === "published"
+        && !isProgramExpired(program.end_date)
+      )),
+    status: missingCount > 0
+      ? "missing"
+      : familyEntitlementCount > 0 && !familyReleased
+        ? "waiting_payment"
+        : "complete",
+  };
+}
+
 function familyBeneficiaryName(registration: any, workflow: any, index: number): string {
   return `Keluarga ${index}`;
 }
@@ -1091,30 +1231,53 @@ function createCouponCode(entitlement: string, beneficiary: string, index: numbe
   return `${prefix}${family}-${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
 }
 
-async function issueRegistrationEntitlements(supabase: any, registration: any, workflow: any, attempt = 0) {
-  if (registration.attendance_status !== "attending"
-    || !["submitted", "pending_payment", "payment_pending", "payment_review", "payment_rejected", "confirmed", "locked"].includes(registration.registration_status)) {
+interface EntitlementIssueOptions {
+  recoverInactive?: boolean;
+  recoverExpired?: boolean;
+  recoveryReason?: string;
+  recoveryActorId?: string;
+}
+
+async function programAllowsEntitlementIssuance(supabase: any, programId: string): Promise<boolean> {
+  const { data: program, error } = await supabase
+    .from("union_programs")
+    .select("is_active, end_date, publication_status")
+    .eq("id", programId)
+    .maybeSingle();
+  if (error) throwDatabaseError(error, "Gagal memeriksa status program sebelum menerbitkan tiket.");
+  return Boolean(
+    program?.is_active
+    && program.publication_status === "published"
+    && !isProgramExpired(program.end_date),
+  );
+}
+
+export async function issueRegistrationEntitlements(
+  supabase: any,
+  registration: any,
+  workflow: any,
+  options: EntitlementIssueOptions = {},
+  attempt = 0,
+) {
+  if (!canIssueRegistrationEntitlements(registration)) {
     return [];
   }
+  if (!await programAllowsEntitlementIssuance(supabase, registration.program_id)) {
+    throw new WorkflowHttpError(
+      409,
+      "PROGRAM_CLOSED",
+      "Tiket tidak dapat diterbitkan karena program tidak aktif, belum published, atau sudah berakhir.",
+    );
+  }
 
-  const { data: existing, error: existingError } = await supabase
+  const existingResult = await supabase
     .from("program_coupons")
-    .select("id, entitlement_code, beneficiary_type, beneficiary_index")
+    .select("*")
     .eq("program_registration_id", registration.id);
-  if (existingError) throwDatabaseError(existingError, "Gagal memeriksa entitlement program.");
-  const existingKeys = new Set((existing || []).map(couponKey));
-  const definitions: any[] = [];
-
-  for (const entitlement of entitlementCodes(workflow, "employee")) {
-    definitions.push({ entitlement, beneficiary: "employee", index: null });
-  }
-  if (registration.payment_status === "paid") {
-    for (let index = 1; index <= Number(registration.family_count || 0); index += 1) {
-      for (const entitlement of entitlementCodes(workflow, "family")) {
-        definitions.push({ entitlement, beneficiary: "family", index });
-      }
-    }
-  }
+  if (existingResult.error) throwDatabaseError(existingResult.error, "Gagal memeriksa entitlement program.");
+  let existing = existingResult.data || [];
+  const existingKeys = new Set(existing.filter(isActiveEntitlementCoupon).map(couponKey));
+  const definitions = entitlementDefinitions(registration, workflow);
 
   let missing = definitions.filter(definition => !existingKeys.has(
     `${definition.entitlement}:${definition.beneficiary}:${definition.index || 0}`,
@@ -1123,6 +1286,84 @@ async function issueRegistrationEntitlements(supabase: any, registration: any, w
 
   const schema = await detectCouponSchema(supabase);
   const issuedAt = new Date().toISOString();
+
+  // An RSVP that was changed to "tidak hadir" leaves its linked QR expired.
+  // Reuse the row with a rotated code when the participant attends again.
+  // Cancelled/void rows require an explicit admin reconciliation to avoid
+  // silently reviving a deliberately invalidated credential.
+  const recoverableStatuses = options.recoverInactive
+    ? ["expired", "cancelled", "void"]
+    : options.recoverExpired ? ["expired"] : [];
+  for (const definition of missing) {
+    const expectedKey = `${definition.entitlement}:${definition.beneficiary}:${definition.index || 0}`;
+    const candidate = existing.find(coupon =>
+      recoverableStatuses.includes(normalizeWorkflowValue(coupon?.status))
+      && couponKey(coupon) === expectedKey
+    );
+    if (!candidate) continue;
+
+    const code = createCouponCode(definition.entitlement, definition.beneficiary, definition.index);
+    const beneficiaryName = definition.beneficiary === "family"
+      ? familyBeneficiaryName(registration, workflow, definition.index)
+      : registration.attendee_name || registration.nik;
+    const entitlementMetadata = {
+      ...(isPlainObject(candidate.entitlement_metadata) ? candidate.entitlement_metadata : {}),
+      ...(isPlainObject(candidate.metadata) ? candidate.metadata : {}),
+      workflow_version: registration.workflow_version,
+      beneficiary_label: definition.beneficiary === "employee" ? "Karyawan" : `Keluarga ${definition.index}`,
+      beneficiary_name: beneficiaryName,
+      workflow_v2_reactivated_at: issuedAt,
+      workflow_v2_reactivation_reason: options.recoveryReason || "registration_resubmitted",
+      ...(options.recoveryActorId ? { workflow_v2_reactivated_by: options.recoveryActorId } : {}),
+    };
+    const updatePayload: any = {
+      status: "active",
+      issued_at: issuedAt,
+      metadata: entitlementMetadata,
+      entitlement_metadata: entitlementMetadata,
+    };
+    if (schema.current) {
+      updatePayload.coupon_code = code;
+      updatePayload.gate_type = definition.entitlement;
+    }
+    if (schema.legacy) {
+      updatePayload.qr_code = code;
+      updatePayload.barcode = code;
+      updatePayload.coupon_type = definition.entitlement === "meal" ? "food" : definition.entitlement;
+    }
+
+    const { error: reactivateError } = await supabase
+      .from("program_coupons")
+      .update(updatePayload)
+      .eq("id", candidate.id)
+      .in("status", recoverableStatuses);
+    if (reactivateError) throwDatabaseError(reactivateError, "Gagal mengaktifkan kembali tiket program.");
+  }
+
+  const refreshedResult = await supabase
+    .from("program_coupons")
+    .select("*")
+    .eq("program_registration_id", registration.id);
+  if (refreshedResult.error) throwDatabaseError(refreshedResult.error, "Gagal memverifikasi tiket yang diaktifkan kembali.");
+  existing = refreshedResult.data || [];
+  existingKeys.clear();
+  for (const coupon of existing.filter(isActiveEntitlementCoupon)) existingKeys.add(couponKey(coupon));
+  missing = definitions.filter(definition => !existingKeys.has(
+    `${definition.entitlement}:${definition.beneficiary}:${definition.index || 0}`,
+  ));
+  if (missing.length === 0) return existing;
+
+  const blockedByInactiveCoupon = missing.some(definition => {
+    const expectedKey = `${definition.entitlement}:${definition.beneficiary}:${definition.index || 0}`;
+    return existing.some(coupon => INACTIVE_COUPON_STATUSES.has(normalizeWorkflowValue(coupon?.status)) && couponKey(coupon) === expectedKey);
+  });
+  if (blockedByInactiveCoupon) {
+    throw new WorkflowHttpError(
+      409,
+      "ENTITLEMENT_REQUIRES_ADMIN_REVIEW",
+      "Tiket nonaktif memerlukan rekonsiliasi admin sebelum dapat diterbitkan kembali.",
+    );
+  }
 
   // Targeted legacy programs may already have employee coupons. Link an active
   // matching coupon to V2 instead of issuing a duplicate code.
@@ -1165,11 +1406,11 @@ async function issueRegistrationEntitlements(supabase: any, registration: any, w
     }
     const { data: linkedAfterAdoption, error: linkedAfterAdoptionError } = await supabase
       .from("program_coupons")
-      .select("id, entitlement_code, beneficiary_type, beneficiary_index")
+      .select("*")
       .eq("program_registration_id", registration.id);
     if (linkedAfterAdoptionError) throwDatabaseError(linkedAfterAdoptionError, "Gagal memverifikasi kupon legacy.");
     existingKeys.clear();
-    for (const coupon of linkedAfterAdoption || []) existingKeys.add(couponKey(coupon));
+    for (const coupon of (linkedAfterAdoption || []).filter(isActiveEntitlementCoupon)) existingKeys.add(couponKey(coupon));
     missing = definitions.filter(definition => !existingKeys.has(
       `${definition.entitlement}:${definition.beneficiary}:${definition.index || 0}`,
     ));
@@ -1225,7 +1466,7 @@ async function issueRegistrationEntitlements(supabase: any, registration: any, w
   const { error: insertError } = await supabase.from("program_coupons").insert(rows);
   if (insertError) {
     if (insertError.code === "23505" && attempt < 2) {
-      return issueRegistrationEntitlements(supabase, registration, workflow, attempt + 1);
+      return issueRegistrationEntitlements(supabase, registration, workflow, options, attempt + 1);
     }
     throwDatabaseError(insertError, "Gagal menerbitkan kupon program.");
   }
@@ -1237,6 +1478,35 @@ async function issueRegistrationEntitlements(supabase: any, registration: any, w
     .order("issued_at");
   if (issuedError) throwDatabaseError(issuedError, "Gagal memuat kupon yang diterbitkan.");
   return issued || [];
+}
+
+async function appendEntitlementReconciliationAudit(
+  supabase: any,
+  registrationId: string,
+  entry: Record<string, unknown>,
+) {
+  const { data: latest, error: loadError } = await supabase
+    .from("program_registrations")
+    .select("metadata")
+    .eq("id", registrationId)
+    .single();
+  if (loadError || !latest) throwDatabaseError(loadError, "Gagal memuat audit rekonsiliasi tiket.");
+  const currentMetadata = isPlainObject(latest.metadata) ? latest.metadata : {};
+  const history = Array.isArray(currentMetadata.entitlement_reconciliation_history)
+    ? currentMetadata.entitlement_reconciliation_history.slice(-19)
+    : [];
+  const { data: updated, error: auditError } = await supabase
+    .from("program_registrations")
+    .update({
+      metadata: {
+        ...currentMetadata,
+        entitlement_reconciliation_history: [...history, entry],
+      },
+    })
+    .eq("id", registrationId)
+    .select("id")
+    .single();
+  if (auditError || !updated) throwDatabaseError(auditError, "Audit rekonsiliasi tiket belum dapat disimpan.");
 }
 
 async function expireUnlinkedLegacyEntitlements(supabase: any, registration: any, reason: string) {
@@ -1327,14 +1597,10 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       const profile = await getProfile(supabase, user);
       if (!profile.nik) throw new WorkflowHttpError(422, "NIK_REQUIRED", "Profil Anda belum memiliki NIK.");
       const submittedAnswers = validateAnswersPayload(req.body?.answers);
-      const { workflow, form } = await loadProgramContext(supabase, programId, profile);
 
-      const { visibleFields, snapshot } = visibleAnswerSnapshot(form.fields || [], submittedAnswers);
-      validateWorkflowAnswers(visibleFields, snapshot);
-      const quote = buildRegistrationQuote(workflow, snapshot);
-      const answerCanonical = canonicalJson(snapshot);
-      const answerHash = crypto.createHash("sha256").update(answerCanonical).digest("hex");
-
+      // Existing RSVP records stay pinned to the workflow version used when
+      // they were created. A newly reconciled active workflow only applies to
+      // participants who have not registered yet.
       let { data: existingRegistration, error: existingError } = await supabase
         .from("program_registrations")
         .select("*")
@@ -1352,6 +1618,38 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
         if (byNik.error) throwDatabaseError(byNik.error, "Gagal memeriksa registrasi sebelumnya.");
         existingRegistration = byNik.data;
       }
+
+      const { workflow, form } = await loadProgramContext(
+        supabase,
+        programId,
+        profile,
+        existingRegistration?.workflow_config_id,
+      );
+      const expectedFormId = req.body?.expectedFormId ?? req.body?.expected_form_id;
+      if (expectedFormId && String(expectedFormId) !== String(workflow.dynamic_form_id)) {
+        throw new WorkflowHttpError(
+          409,
+          "FORM_PROGRAM_MISMATCH",
+          "Tautan formulir tidak sesuai dengan program. Buka kembali formulir dari halaman program.",
+        );
+      }
+
+      const { visibleFields, snapshot } = visibleAnswerSnapshot(form.fields || [], submittedAnswers);
+      validateWorkflowAnswers(visibleFields, snapshot);
+      const quote = buildRegistrationQuote(workflow, snapshot);
+      if (req.body?.clientTotal !== undefined && req.body?.clientTotal !== null) {
+        const clientTotal = Number(req.body.clientTotal);
+        if (!Number.isSafeInteger(clientTotal) || clientTotal < 0 || clientTotal !== quote.total_amount) {
+          throw new WorkflowHttpError(
+            409,
+            "WORKFLOW_PRICING_STALE",
+            "Harga formulir telah diperbarui. Muat ulang halaman sebelum melakukan pembayaran.",
+            { authoritative_total: quote.total_amount },
+          );
+        }
+      }
+      const answerCanonical = canonicalJson(snapshot);
+      const answerHash = crypto.createHash("sha256").update(answerCanonical).digest("hex");
 
       const answersUnchanged = existingRegistration
         ? canonicalJson(existingRegistration.answers_snapshot || {}) === answerCanonical
@@ -1398,6 +1696,10 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
         ? "declined"
         : quote.requires_payment ? "payment_pending" : "confirmed";
       const paymentStatus = quote.requires_payment ? "pending" : "not_required";
+      const entitlementIssueOptions: EntitlementIssueOptions = existingRegistration?.attendance_status === "declined"
+        && quote.attendance_status === "attending"
+        ? { recoverExpired: true, recoveryReason: "rsvp_resubmitted_after_decline" }
+        : {};
       const registrationPayload = {
         ...(existingRegistration?.id ? { id: existingRegistration.id } : {}),
         program_id: programId,
@@ -1470,7 +1772,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       let payment = null;
       if (quote.requires_payment) {
         payment = await createOrReusePendingPayment(supabase, registration, workflow, answerHash, submittedAnswers._payment_method);
-        await issueRegistrationEntitlements(supabase, registration, workflow);
+        await issueRegistrationEntitlements(supabase, registration, workflow, entitlementIssueOptions);
       } else {
         const { error: cancelPaymentError } = await supabase
           .from("program_registration_payments")
@@ -1479,7 +1781,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
           .in("status", ["pending", "under_review", "failed", "rejected"]);
         if (cancelPaymentError) throwDatabaseError(cancelPaymentError, "Gagal menutup pembayaran lama.");
         if (quote.attendance_status === "attending") {
-          await issueRegistrationEntitlements(supabase, registration, workflow);
+          await issueRegistrationEntitlements(supabase, registration, workflow, entitlementIssueOptions);
         }
       }
 
@@ -1502,23 +1804,56 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       if (!isUuid(programId)) throw new WorkflowHttpError(400, "INVALID_PROGRAM_ID", "ID program tidak valid.");
       const user = await authenticateRequest(supabase, req);
       const profile = await getProfile(supabase, user);
-      const { data: registration, error } = await supabase
+      let { data: registration, error } = await supabase
         .from("program_registrations")
         .select("*")
         .eq("program_id", programId)
         .eq("user_id", user.id)
         .maybeSingle();
       if (error) throwDatabaseError(error, "Gagal memuat status registrasi.");
-      if (!registration) return res.json({ success: true, data: null });
-      const { data: workflow } = await supabase
-        .from("program_workflow_configs")
-        .select("payment_rules")
-        .eq("id", registration.workflow_config_id)
-        .maybeSingle();
+      if (!registration && profile.nik) {
+        const byNik = await supabase
+          .from("program_registrations")
+          .select("*")
+          .eq("program_id", programId)
+          .eq("nik", profile.nik)
+          .maybeSingle();
+        if (byNik.error) throwDatabaseError(byNik.error, "Gagal memuat status registrasi.");
+        registration = byNik.data;
+      }
+
+      // Reuse the same authoritative program/eligibility/form validation as
+      // submit, while still allowing an existing participant to view status
+      // after the RSVP deadline has passed.
+      const { workflow } = await loadProgramContext(
+        supabase,
+        programId,
+        profile,
+        registration?.workflow_config_id,
+        { enforceDeadline: false },
+      );
+
+      let details = registration ? await loadRegistrationDetails(supabase, registration) : null;
+      if (registration && details) {
+        let ticketIntegrity = summarizeRegistrationTicketIntegrity(registration, workflow, details.coupons || []);
+        if (ticketIntegrity.repairable) {
+          try {
+            await issueRegistrationEntitlements(supabase, registration, workflow);
+            details = await loadRegistrationDetails(supabase, registration);
+            ticketIntegrity = summarizeRegistrationTicketIntegrity(registration, workflow, details.coupons || []);
+          } catch (repairError) {
+            console.error("[ProgramWorkflowV2] Entitlement self-heal failed:", repairError);
+          }
+        }
+        details.ticket_integrity = ticketIntegrity;
+      }
       return res.json({
         success: true,
-        data: await loadRegistrationDetails(supabase, registration),
-        payment_instructions: registration.total_amount > 0 ? paymentInstructions(workflow) : null,
+        data: details,
+        workflow_pricing: workflowPricingForClient(workflow),
+        payment_instructions: !registration || Number(registration.total_amount) > 0
+          ? paymentInstructions(workflow)
+          : null,
         participant: { nik: profile.nik, name: profile.name },
       });
     } catch (error) {
@@ -1550,6 +1885,9 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       }
       if (registration.payment_status === "paid") {
         throw new WorkflowHttpError(409, "PAYMENT_ALREADY_PAID", "Pembayaran sudah disetujui.");
+      }
+      if (!await programAllowsEntitlementIssuance(supabase, registration.program_id)) {
+        throw new WorkflowHttpError(409, "PROGRAM_CLOSED", "Bukti pembayaran tidak dapat diproses karena program sudah ditutup atau berakhir.");
       }
 
       let paymentQuery = supabase
@@ -1784,6 +2122,107 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
     }
   });
 
+  app.post("/api/admin/program-registrations-v2/:registrationId/reconcile-entitlements", async (req: any, res: any) => {
+    try {
+      const { registrationId } = req.params;
+      if (!isUuid(registrationId)) throw new WorkflowHttpError(400, "INVALID_ID", "ID registrasi tidak valid.");
+      const reason = String(req.body?.reason || "").trim();
+      if (reason.length < 3 || reason.length > 500) {
+        throw new WorkflowHttpError(400, "RECONCILIATION_REASON_REQUIRED", "Alasan rekonsiliasi tiket wajib diisi.");
+      }
+      const { user: admin } = await requireAdmin(supabase, req);
+      const { data: registration, error: registrationError } = await supabase
+        .from("program_registrations")
+        .select("*")
+        .eq("id", registrationId)
+        .single();
+      if (registrationError || !registration) {
+        if (registrationError?.code === "PGRST116") throw new WorkflowHttpError(404, "REGISTRATION_NOT_FOUND", "Registrasi tidak ditemukan.");
+        throwDatabaseError(registrationError, "Gagal memuat registrasi.");
+      }
+      if (registration.attendance_status !== "attending") {
+        throw new WorkflowHttpError(409, "ENTITLEMENT_NOT_APPLICABLE", "Tiket hanya diterbitkan untuk peserta yang hadir.");
+      }
+      if (!await programAllowsEntitlementIssuance(supabase, registration.program_id)) {
+        throw new WorkflowHttpError(409, "PROGRAM_CLOSED", "Tiket tidak dapat diterbitkan karena program tidak aktif, belum published, atau sudah berakhir.");
+      }
+
+      const { data: workflow, error: workflowError } = await supabase
+        .from("program_workflow_configs")
+        .select("*")
+        .eq("id", registration.workflow_config_id)
+        .single();
+      if (workflowError || !workflow) throwDatabaseError(workflowError, "Gagal memuat workflow registrasi.");
+
+      const beforeDetails = await loadRegistrationDetails(supabase, registration);
+      const before = summarizeRegistrationTicketIntegrity(registration, workflow, beforeDetails.coupons || []);
+      if (!before.repairable) {
+        if (before.missing_count > 0 && before.status !== "waiting_payment") {
+          throw new WorkflowHttpError(
+            409,
+            "ENTITLEMENT_REPAIR_NOT_ALLOWED",
+            "Status registrasi belum mengizinkan penerbitan ulang tiket.",
+          );
+        }
+        if (before.missing_count === 0) {
+          await appendEntitlementReconciliationAudit(supabase, registration.id, {
+            at: new Date().toISOString(),
+            by: admin.id,
+            reason,
+            outcome: "verified_complete",
+            missing_before: 0,
+            issued_after: before.issued_count,
+          });
+        }
+        return res.json({
+          success: true,
+          idempotent: true,
+          data: { ...beforeDetails, ticket_integrity: before },
+          message: before.status === "waiting_payment"
+            ? "Tiket keluarga masih menunggu penyelesaian pembayaran."
+            : "Seluruh tiket yang diwajibkan sudah lengkap.",
+        });
+      }
+
+      await appendEntitlementReconciliationAudit(supabase, registration.id, {
+        at: new Date().toISOString(),
+        by: admin.id,
+        reason,
+        outcome: "started",
+        missing_before: before.missing_count,
+        issued_before: before.issued_count,
+      });
+      await issueRegistrationEntitlements(supabase, registration, workflow, {
+        recoverInactive: true,
+        recoveryReason: reason,
+        recoveryActorId: admin.id,
+      });
+      const afterDetails = await loadRegistrationDetails(supabase, registration);
+      const after = summarizeRegistrationTicketIntegrity(registration, workflow, afterDetails.coupons || []);
+      if (after.missing_count > 0) {
+        throw new WorkflowHttpError(500, "ENTITLEMENT_RECONCILIATION_INCOMPLETE", "Sebagian tiket masih belum berhasil diterbitkan.");
+      }
+
+      await appendEntitlementReconciliationAudit(supabase, registration.id, {
+        at: new Date().toISOString(),
+        by: admin.id,
+        reason,
+        outcome: "completed",
+        missing_before: before.missing_count,
+        issued_after: after.issued_count,
+      });
+
+      return res.json({
+        success: true,
+        idempotent: false,
+        data: { ...afterDetails, ticket_integrity: after },
+        message: `${before.missing_count} tiket yang hilang berhasil diterbitkan tanpa duplikasi.`,
+      });
+    } catch (error) {
+      return sendWorkflowError(res, error);
+    }
+  });
+
   app.get("/api/admin/program-registrations-v2", async (req: any, res: any) => {
     try {
       await requireAdmin(supabase, req);
@@ -1829,6 +2268,9 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       if (registrationError || !registration) {
         if (registrationError?.code === "PGRST116") throw new WorkflowHttpError(404, "REGISTRATION_NOT_FOUND", "Registrasi tidak ditemukan.");
         throwDatabaseError(registrationError, "Gagal memuat registrasi.");
+      }
+      if (!await programAllowsEntitlementIssuance(supabase, registration.program_id)) {
+        throw new WorkflowHttpError(409, "PROGRAM_CLOSED", "Pembayaran tidak dapat disetujui karena program sudah ditutup atau berakhir.");
       }
       const { data: payment, error: paymentError } = await supabase
         .from("program_registration_payments")

@@ -1,3 +1,34 @@
+v5.12.0 - Audited RSVP Operations & Family Ticket Recovery (MINOR)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Deadline baru pada program yang sudah memiliki RSVP ditimpa kembali oleh nilai lama sebelum update, tetapi toast tetap menyatakan sukses. Konversi timestamp UTC dengan `slice(0, 16)` juga menggeser waktu pada browser WITA.
+- Form Studio menampilkan harga keluarga Rp35.000 dari `dynamic_forms`, sedangkan workflow server yang immutable masih menyimpan Rp0. Portal meminta bukti berdasarkan harga live, lalu endpoint submit mengembalikan total Rp0 sehingga file bukti tidak pernah diunggah atau dicatat.
+- Penerbitan QR keluarga hanya menerima status pembayaran `paid`; registrasi gratis/`not_required` tidak pernah memperoleh QR keluarga walaupun sudah confirmed.
+- Verifikasi RSVP default ke `under_review`, sehingga registrasi `paid` otomatis dan `not_required` tersembunyi. Frontend meminta 200 row, tetapi backend membatasi 100 tanpa pagination UI.
+- Approval pembayaran dan insert kupon merupakan write terpisah; kegagalan terakhir dapat meninggalkan registrasi settled dengan QR kurang tanpa aksi recovery.
+- Link form tanpa `programId` dapat jatuh ke response standalone dan tidak membuat `program_registrations`/tiket. Publish form yang sudah linked juga melewati sinkronisasi workflow.
+- RPC privileged gathering di production masih executable oleh anon/authenticated, dan dua policy legacy terlalu permisif membuka eligibility serta insert registrasi langsung.
+
+### Perbaikan:
+- **[RSVP DEADLINE]** Deadline existing kini diubah melalui endpoint admin + RPC service-role-only dengan validasi waktu lokal, row lock, optimistic concurrency, alasan wajib, dan audit old/new. `config_version`, workflow, serta eligibility snapshot tidak disentuh.
+- **[WORKFLOW VERSIONING]** Publish form linked selalu menyinkronkan snapshot. Program yang sudah memiliki RSVP membuat workflow version future-only beralasan; registrasi lama tetap pinned ke versi historis.
+- **[FORM SNAPSHOT]** Setiap workflow kini menyimpan schema form immutable. Draft tidak bocor ke form live, retry/edit RSVP lama memakai field snapshot historis, dan seluruh workflow production lama sudah dibackfill.
+- **[FORM/PROGRAM BINDING]** Context workflow mengirim `dynamic_form_id` authoritative; portal serta submit menolak tautan `formId` yang tidak cocok dengan program.
+- **[AUTHORITATIVE ELIGIBILITY]** Form program tidak lagi memakai target draft `dynamic_forms` untuk gating; status endpoint memvalidasi frozen `program_eligibility` dan snapshot workflow yang sama dengan submit.
+- **[AUTHORITATIVE PRICING]** Portal memproyeksikan field pricing dari workflow server secara immutable dan mengirim `clientTotal`; total stale ditolak sebelum write registrasi/pembayaran.
+- **[DEEP LINK]** Copy link selalu menyertakan `programId`; link lama me-resolve tepat satu gathering published dan menolak relasi ambigu.
+- **[FAMILY TICKETS]** Status `not_required` kini dianggap settled untuk entitlement keluarga. Pemeriksaan integritas menghitung QR expected/issued/missing, self-heal portal dan endpoint admin menerbitkan kekurangan secara idempoten.
+- **[TICKET LIFECYCLE]** Tiket expired hanya diputar kembali saat RSVP benar-benar berubah dari declined ke attending; program draft/closed/inactive/berakhir tidak dapat menerbitkan atau menghidupkan QR.
+- **[PAYMENT LIFECYCLE]** Upload/approval pembayaran untuk program closed ditolak sebelum ledger berubah, sehingga sistem tidak dapat mengklaim QR aktif ketika issuer sengaja diblok.
+- **[VERIFIKASI RSVP]** Default menjadi Semua, ditambah status Tanpa pembayaran, pemilih program, pagination 100-row, detail item/payment/coupon, warning QR kurang, dan tombol Perbaiki QR responsif.
+- **[COUPON COMPATIBILITY]** Portal menormalisasi `coupon_code`/`qr_code`/`barcode` serta `gate_type`/`coupon_type`/`entitlement_code` agar schema current, legacy, dan dual tetap tampil.
+- **[AUDIT IDENTITY]** Referensi admin yang sebelumnya memakai `admin.id` undefined diperbaiki menjadi user ID terautentikasi untuk approval/reject/unlock audit.
+- **[SECURITY]** Execute RPC publish/link/deadline/reconcile dicabut dari PUBLIC/anon/authenticated dan hanya diberikan ke service role; policy `USING true`/`WITH CHECK true` legacy dihapus. Trigger database memaksa semua update deadline melewati RPC audit sehingga klien lama/Data API tidak dapat bypass.
+- **[CLEANUP]** Blok route registrasi/pembayaran V2 duplikat yang berada setelah `return` dan tidak mungkin dieksekusi dihapus; kontrak aktif tetap terisolasi di `programRegistrationWorkflow.ts`.
+- **[PRODUCTION RECOVERY]** Migrasi 008-010 diterapkan; workflow aktif direkonsiliasi ke version 6 dengan harga keluarga Rp35.000 dan seluruh 6 workflow memiliki form snapshot valid. Satu RSVP terdampak dipulihkan tepat 2 QR keluarga (attendance + meal) tanpa duplikasi. Status pembayaran tidak dipalsukan karena tidak ada bukti/payment row historis.
+- **[QA]** Ditambahkan unit test pricing projection serta ticket integrity untuk paid/not_required/pending, dan checklist manual deadline, concurrency, pagination, deep-link, stale pricing, legacy coupon, serta recovery.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, changelog, dan error history disinkronkan ke v5.12.0.
+
 v5.11.1 - Form Reference Image Readability & Zoom (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

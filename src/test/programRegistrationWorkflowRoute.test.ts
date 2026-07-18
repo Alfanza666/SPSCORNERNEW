@@ -6,6 +6,8 @@ import {
   getVisibleWorkflowFields,
   paymentInstructions,
   resolveWorkflowPaymentMethod,
+  isFamilyEntitlementReleased,
+  summarizeRegistrationTicketIntegrity,
   validateWorkflowAnswers,
 } from '../routes/programRegistrationWorkflow';
 
@@ -64,6 +66,27 @@ describe('Program Registration Workflow V2 pricing', () => {
     expect(quote.is_camping).toBe(false);
     expect(quote.family_count).toBe(2);
     expect(quote.total_amount).toBe(90_000);
+  });
+
+  it('keeps legacy package-only family pricing consistent with the portal projection', () => {
+    const quote = buildRegistrationQuote({
+      ...workflow,
+      pricing_rules: {
+        ...workflow.pricing_rules,
+        family: { package_unit_price: 40_000, max_members: 5 },
+      },
+    }, {
+      attendance: 'Ya',
+      shirt: 'S',
+      camping: 'Tidak',
+      family: 'Ya',
+      family_count: 2,
+    });
+
+    expect(quote.total_amount).toBe(80_000);
+    expect(quote.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ item_code: 'family_entry', quantity: 2, unit_price: 40_000 }),
+    ]));
   });
 
   it('rejects a family count above the configured maximum', () => {
@@ -225,5 +248,117 @@ describe('Program Registration Workflow V2 form logic', () => {
     });
     expect(resolveWorkflowPaymentMethod(paymentWorkflow, 'manual_qris')).toBe('bank_transfer');
     expect(resolveWorkflowPaymentMethod(paymentWorkflow, 'bank_transfer')).toBe('bank_transfer');
+  });
+});
+
+describe('Program Registration Workflow V2 ticket integrity', () => {
+  const entitlementWorkflow = {
+    entitlement_rules: { employee: ['attendance', 'meal'], family: ['attendance', 'meal'] },
+    payment_rules: { hold_family_entitlements_until_paid: true },
+  };
+
+  it('releases family tickets when payment is explicitly not required', () => {
+    const registration = {
+      attendance_status: 'attending',
+      registration_status: 'confirmed',
+      payment_status: 'not_required',
+      family_count: 1,
+    };
+    expect(isFamilyEntitlementReleased(registration, entitlementWorkflow)).toBe(true);
+    expect(summarizeRegistrationTicketIntegrity(registration, entitlementWorkflow, [
+      { entitlement_code: 'employee_attendance', beneficiary_type: 'employee', beneficiary_index: null, status: 'active' },
+      { entitlement_code: 'employee_meal', beneficiary_type: 'employee', beneficiary_index: null, status: 'active' },
+    ])).toMatchObject({
+      expected_count: 4,
+      issued_count: 2,
+      missing_count: 2,
+      family_expected_count: 2,
+      family_issued_count: 0,
+      repairable: true,
+      status: 'missing',
+    });
+  });
+
+  it('holds only family tickets while a required payment is pending', () => {
+    const registration = {
+      attendance_status: 'attending',
+      registration_status: 'payment_pending',
+      payment_status: 'pending',
+      family_count: 2,
+    };
+    expect(isFamilyEntitlementReleased(registration, entitlementWorkflow)).toBe(false);
+    expect(summarizeRegistrationTicketIntegrity(registration, entitlementWorkflow, [
+      { entitlement_code: 'employee_attendance', beneficiary_type: 'employee', beneficiary_index: null, status: 'active' },
+      { entitlement_code: 'employee_meal', beneficiary_type: 'employee', beneficiary_index: null, status: 'active' },
+    ])).toMatchObject({
+      expected_count: 2,
+      issued_count: 2,
+      missing_count: 0,
+      family_expected_count: 4,
+      family_held_count: 4,
+      repairable: false,
+      status: 'waiting_payment',
+    });
+  });
+
+  it('counts paid family coupons idempotently by entitlement key', () => {
+    const registration = {
+      attendance_status: 'attending',
+      registration_status: 'confirmed',
+      payment_status: 'paid',
+      family_count: 1,
+    };
+    const coupons = [
+      { entitlement_code: 'employee_attendance', beneficiary_type: 'employee', beneficiary_index: null, status: 'active' },
+      { entitlement_code: 'employee_meal', beneficiary_type: 'employee', beneficiary_index: null, status: 'claimed' },
+      { entitlement_code: 'family_attendance', beneficiary_type: 'family', beneficiary_index: 1, status: 'active' },
+      { entitlement_code: 'family_meal', beneficiary_type: 'family', beneficiary_index: 1, status: 'active' },
+      { entitlement_code: 'family_meal', beneficiary_type: 'family', beneficiary_index: 1, status: 'expired' },
+    ];
+    expect(summarizeRegistrationTicketIntegrity(registration, entitlementWorkflow, coupons)).toMatchObject({
+      expected_count: 4,
+      issued_count: 4,
+      missing_count: 0,
+      family_issued_count: 2,
+      repairable: false,
+      status: 'complete',
+    });
+  });
+
+  it('does not offer ticket repair while an unlocked registration is still draft', () => {
+    const registration = {
+      attendance_status: 'attending',
+      registration_status: 'draft',
+      payment_status: 'not_required',
+      family_count: 1,
+    };
+    expect(summarizeRegistrationTicketIntegrity(registration, entitlementWorkflow, [])).toMatchObject({
+      missing_count: 4,
+      repairable: false,
+      status: 'missing',
+    });
+  });
+
+  it('never offers ticket repair for a closed or expired program', () => {
+    const registration = {
+      attendance_status: 'attending',
+      registration_status: 'confirmed',
+      payment_status: 'not_required',
+      family_count: 1,
+    };
+    const closedProgram = {
+      is_active: false,
+      publication_status: 'closed',
+      end_date: '2020-01-01',
+    };
+    expect(summarizeRegistrationTicketIntegrity(
+      registration,
+      entitlementWorkflow,
+      [],
+      closedProgram,
+    )).toMatchObject({
+      missing_count: 4,
+      repairable: false,
+    });
   });
 });

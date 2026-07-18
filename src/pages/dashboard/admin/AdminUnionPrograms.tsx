@@ -17,6 +17,36 @@ interface FormField {
   help_text: string;
 }
 
+const padDatePart = (value: number) => String(value).padStart(2, '0');
+
+const isoToLocalDateTimeInput = (value: unknown) => {
+  if (!value) return '';
+  const date = new Date(String(value));
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+};
+
+const localDateTimeToIso = (value: string) => {
+  if (!value.trim()) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const storedDeadlineToIso = (value: unknown) => {
+  if (!value) return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const hasDeadlineChanged = (storedValue: unknown, localValue: string) => {
+  const storedIso = storedDeadlineToIso(storedValue);
+  const nextIso = localDateTimeToIso(localValue);
+  if (!localValue.trim()) return storedIso !== null;
+  if (!nextIso) return true;
+  if (!storedIso) return true;
+  return Math.floor(new Date(storedIso).getTime() / 60_000) !== Math.floor(new Date(nextIso).getTime() / 60_000);
+};
+
 export default function AdminUnionPrograms() {
   const navigate = useNavigate();
   const [programs, setPrograms] = useState<any[]>([]);
@@ -25,6 +55,7 @@ export default function AdminUnionPrograms() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProgram, setEditingProgram] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [deadlineChangeReason, setDeadlineChangeReason] = useState('');
   const [showFormBuilder, setShowFormBuilder] = useState(false);
   const [showEligibility, setShowEligibility] = useState(false);
 
@@ -144,6 +175,9 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
   const [eligibleUsers, setEligibleUsers] = useState<any[]>([]);
   const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
   const [targetDepartments, setTargetDepartments] = useState<string[]>([]);
+  const deadlineChangedInForm = Boolean(editingProgram?.id)
+    && formData.program_type === 'gathering'
+    && hasDeadlineChanged(editingProgram.rsvp_deadline, formData.rsvp_deadline);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -221,6 +255,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
     setTargetDepartments([]);
     setTargetCutoffDate('');
     setUploadedEligibleCount(0);
+    setDeadlineChangeReason('');
     setIsModalOpen(false);
     setEditingProgram(null);
     setShowFormBuilder(false);
@@ -230,6 +265,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
   const openEditModal = (program: any) => {
     const meta = program.metadata || {};
     setEditingProgram(program);
+    setDeadlineChangeReason('');
     if (bannerPreview && bannerPreview.startsWith('blob:')) URL.revokeObjectURL(bannerPreview);
     setBannerFile(null);
     setBannerPreview(program.banner_url || '');
@@ -242,7 +278,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       is_active: program.is_active,
       is_targeted: program.is_targeted,
       dynamic_form_id: program.dynamic_form_id || '',
-      rsvp_deadline: program.rsvp_deadline ? String(program.rsvp_deadline).slice(0, 16) : '',
+      rsvp_deadline: isoToLocalDateTimeInput(program.rsvp_deadline),
       banner_url: program.banner_url || '',
       // Gathering
       enable_meal: meta.enable_meal ?? true,
@@ -371,6 +407,24 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
     e.preventDefault();
     setSaving(true);
     try {
+      const hasDeadlineInput = formData.program_type === 'gathering' && Boolean(formData.rsvp_deadline.trim());
+      const requestedDeadlineIso = hasDeadlineInput ? localDateTimeToIso(formData.rsvp_deadline) : null;
+      const originalDeadlineIso = editingProgram?.id ? storedDeadlineToIso(editingProgram.rsvp_deadline) : null;
+      const deadlineChanged = deadlineChangedInForm;
+
+      if (hasDeadlineInput && !requestedDeadlineIso) {
+        throw new Error('Format deadline RSVP tidak valid. Pilih tanggal dan waktu kembali.');
+      }
+      if (deadlineChanged && !requestedDeadlineIso) {
+        throw new Error('Deadline RSVP program yang sudah ada tidak boleh dikosongkan.');
+      }
+      if (requestedDeadlineIso && (!editingProgram?.id || deadlineChanged) && new Date(requestedDeadlineIso).getTime() <= Date.now()) {
+        throw new Error('Deadline RSVP harus berada di masa depan.');
+      }
+      if (deadlineChanged && deadlineChangeReason.trim().length < 3) {
+        throw new Error('Alasan perubahan deadline RSVP wajib diisi minimal 3 karakter.');
+      }
+
       let existingRegistrationCount = 0;
       if (editingProgram?.id && formData.program_type === 'gathering') {
         const { count, error: countError } = await supabase
@@ -407,7 +461,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
         form_config: formConfig,
         target_departments: targetDepartments.length > 0 ? targetDepartments : null,
         target_cutoff_date: targetCutoffDate || null,
-        rsvp_deadline: formData.program_type === 'gathering' ? formData.rsvp_deadline || null : null,
+        rsvp_deadline: formData.program_type === 'gathering' ? requestedDeadlineIso : null,
         registration_enabled: formData.program_type === 'gathering',
         benefit_enabled: formData.program_type === 'gathering',
         family_package_price: formData.program_type === 'gathering' && formData.enable_family ? Math.max(0, Number(formData.family_package_price || 0)) : 0,
@@ -438,13 +492,19 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
           allow_register_team: formData.allow_register_team
         }
       };
+      if (editingProgram?.id) {
+        // Deadline existing disimpan melalui endpoint terotorisasi agar validasi,
+        // optimistic concurrency, dan audit backend tidak terlewati. Properti
+        // harus benar-benar dihilangkan agar modal lama tidak menimpa deadline
+        // terbaru milik admin lain melalui generic Data API update.
+        delete programData.rsvp_deadline;
+      }
       if (editingProgram?.id && existingRegistrationCount > 0 && formData.program_type === 'gathering') {
         programData.program_type = editingProgram.program_type || programData.program_type;
         programData.dynamic_form_id = editingProgram.dynamic_form_id || null;
         programData.is_targeted = editingProgram.is_targeted ?? programData.is_targeted;
         programData.target_departments = editingProgram.target_departments ?? programData.target_departments;
         programData.target_cutoff_date = editingProgram.target_cutoff_date ?? programData.target_cutoff_date;
-        programData.rsvp_deadline = editingProgram.rsvp_deadline ?? programData.rsvp_deadline;
         programData.family_package_price = editingProgram.family_package_price ?? programData.family_package_price;
         programData.shirt_price_map = editingProgram.shirt_price_map ?? programData.shirt_price_map;
         programData.eligibility_source_filter = editingProgram.eligibility_source_filter ?? programData.eligibility_source_filter;
@@ -470,8 +530,34 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
           .select()
           .single();
         if (error) throw error;
+        if (!data?.id || data.id !== editingProgram.id) {
+          throw new Error('Server tidak mengonfirmasi pembaruan program. Muat ulang lalu coba kembali.');
+        }
         programId = editingProgram.id;
-        toast.success('Program berhasil diperbarui');
+
+        if (deadlineChanged) {
+          const token = (await supabase.auth.getSession()).data.session?.access_token;
+          if (!token) throw new Error('Sesi admin berakhir. Silakan login kembali.');
+          const deadlineResponse = await fetch(`/api/admin/programs/${encodeURIComponent(programId)}/rsvp-deadline`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              deadline: requestedDeadlineIso,
+              expectedDeadline: originalDeadlineIso,
+              reason: deadlineChangeReason.trim(),
+            }),
+          });
+          const deadlineResult = await deadlineResponse.json().catch(() => ({}));
+          if (!deadlineResponse.ok || deadlineResult?.success !== true || !deadlineResult?.data) {
+            throw new Error(deadlineResult?.error || deadlineResult?.message || 'Gagal memperbarui deadline RSVP.');
+          }
+          const confirmedDeadlineIso = storedDeadlineToIso(deadlineResult.data.rsvp_deadline);
+          if (!confirmedDeadlineIso || confirmedDeadlineIso !== requestedDeadlineIso) {
+            throw new Error('Server tidak mengonfirmasi deadline RSVP yang baru. Muat ulang lalu coba kembali.');
+          }
+        }
+
+        toast.success(deadlineChanged ? 'Program dan deadline RSVP berhasil diperbarui' : 'Program berhasil diperbarui');
       } else {
         const { data, error } = await supabase
           .from('union_programs')
@@ -1141,6 +1227,24 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                                 className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg px-3 py-2 text-sm"
                               />
                               <p className="mt-1 text-[10px] text-zinc-400">Batas akhir peserta mengisi formulir RSVP. Wajib sebelum waktu mulai acara.</p>
+                              {deadlineChangedInForm && (
+                                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/70 dark:bg-amber-950/30">
+                                  <label className="block text-xs font-bold text-amber-800 dark:text-amber-300">
+                                    Alasan perubahan deadline *
+                                  </label>
+                                  <textarea
+                                    required
+                                    minLength={3}
+                                    maxLength={500}
+                                    rows={2}
+                                    value={deadlineChangeReason}
+                                    onChange={e => setDeadlineChangeReason(e.target.value)}
+                                    className="mt-2 w-full resize-y rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 dark:border-amber-800 dark:bg-zinc-900 dark:text-white"
+                                    placeholder="Contoh: Memperpanjang waktu konfirmasi peserta"
+                                  />
+                                  <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-400">Minimal 3 karakter. Perubahan akan dicatat oleh sistem.</p>
+                                </div>
+                              )}
                             </div>
                             <div className="sm:col-span-2">
                               <label className="block text-xs font-semibold text-zinc-500 mb-1">Kuota Maks (0 = unlimited)</label>
