@@ -345,7 +345,7 @@ export default function PortalProgram() {
   }
 
   const visiblePrograms = Object.values((programs || []).reduce((groups: Record<string, any>, program: any) => {
-    const group = String(program?.metadata?.parent_event_code || program?.metadata?.parent_event_name || program?.name || program.id).replace(/\s*[—-]\s*(Utama|Susulan|Pendaftaran.*)$/i, '').trim();
+    const group = String(program?.metadata?.parent_event_code || program?.metadata?.parent_event_id || program.id);
     if (!groups[group]) groups[group] = { ...program, _candidates: [program] };
     else { groups[group]._candidates.push(program); if (!groups[group].is_active && program.is_active) Object.assign(groups[group], program); }
     return groups;

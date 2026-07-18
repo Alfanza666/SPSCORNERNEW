@@ -50,7 +50,7 @@ const hasDeadlineChanged = (storedValue: unknown, localValue: string) => {
 const programGroupLabel = (program: any) => {
   const explicit = program?.metadata?.parent_event_name || program?.metadata?.parent_event_code;
   if (explicit) return String(explicit);
-  return String(program?.name || '').replace(/\s*[—-]\s*(Utama|Susulan|Pendaftaran.*)$/i, '').trim();
+  return explicit ? String(explicit) : String(program?.id || '');
 };
 
 export default function AdminUnionPrograms() {
@@ -99,6 +99,7 @@ export default function AdminUnionPrograms() {
 
   const [formData, setFormData] = useState({
     name: '',
+    parent_program_id: '',
     description: '',
     program_type: '',
     start_date: '',
@@ -252,7 +253,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
 
   const resetForm = () => {
     setFormData({
-      name: '', description: '', program_type: '',
+      name: '', parent_program_id: '', description: '', program_type: '',
       start_date: '', end_date: '', is_active: true, is_targeted: false,
       dynamic_form_id: '', banner_url: '', rsvp_deadline: '',
       enable_meal: true, enable_doorprize: false, enable_family: false, enable_form: true,
@@ -284,6 +285,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
     setBannerPreview(program.banner_url || '');
     setFormData({
       name: program.name,
+      parent_program_id: program.metadata?.parent_event_id || '',
       description: program.description || '',
       program_type: program.program_type || 'gathering',
       start_date: program.start_date || '',
@@ -503,6 +505,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
           tournament_mode: formData.tournament_mode,
           team_size: formData.team_size,
           allow_register_team: formData.allow_register_team
+          ,parent_event_id: formData.parent_program_id || null
         }
       };
       if (editingProgram?.id) {
@@ -1044,8 +1047,8 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
               <form onSubmit={handleSubmit} className="overflow-y-auto p-4 md:p-6 space-y-6 flex-1">
                 {/* STEP 1: Dasar - Wajib diisi dulu */}
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Nama Program *</label>
+                      <div>
+                        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Nama Program *</label>
                     <input
                       type="text"
                       required
@@ -1071,6 +1074,14 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                       <div>
                         <p className="font-bold text-zinc-900 dark:text-white">Banner Acara</p>
                         <p className="text-xs text-zinc-500">Opsional: Unggah gambar banner untuk tampilan di portal</p>
+                      </div>
+                      <div className="mt-4">
+                        <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Parent Program / Grup (opsional)</label>
+                        <select value={formData.parent_program_id} onChange={e => setFormData({ ...formData, parent_program_id: e.target.value })} className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 text-sm">
+                          <option value="">Tidak digabung dengan program lain</option>
+                          {programs.filter(p => p.id !== editingProgram?.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <p className="mt-1 text-xs text-zinc-500">Pilih parent hanya jika jalur ini memang bagian dari event yang sama. Target dan form tetap terpisah.</p>
                       </div>
                     </div>
                     
