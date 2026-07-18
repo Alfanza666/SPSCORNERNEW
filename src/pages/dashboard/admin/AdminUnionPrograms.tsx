@@ -47,6 +47,12 @@ const hasDeadlineChanged = (storedValue: unknown, localValue: string) => {
   return Math.floor(new Date(storedIso).getTime() / 60_000) !== Math.floor(new Date(nextIso).getTime() / 60_000);
 };
 
+const programGroupLabel = (program: any) => {
+  const explicit = program?.metadata?.parent_event_name || program?.metadata?.parent_event_code;
+  if (explicit) return String(explicit);
+  return String(program?.name || '').replace(/\s*[—-]\s*(Utama|Susulan|Pendaftaran.*)$/i, '').trim();
+};
+
 export default function AdminUnionPrograms() {
   const navigate = useNavigate();
   const [programs, setPrograms] = useState<any[]>([]);
@@ -802,6 +808,9 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                     <h3 className="font-bold text-zinc-900 dark:text-white">{prog.name}</h3>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-1">{richTextToPlainText(prog.description) || 'Tidak ada deskripsi tambahan.'}</p>
                     <div className="flex flex-wrap gap-2 mt-2">
+                      {programGroupLabel(prog) && (
+                        <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">Grup: {programGroupLabel(prog)}</span>
+                      )}
                       <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-medium rounded-full capitalize">{prog.program_type}</span>
                       {prog.is_targeted && (
                         <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-medium rounded-full flex items-center gap-1">
