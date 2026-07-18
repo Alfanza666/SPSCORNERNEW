@@ -2122,6 +2122,30 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
     }
   });
 
+  // Explicit correction flow for a falsely claimed/legacy QR. Keeps audit history,
+  // expires every old entitlement, and lets the participant submit again.
+  app.post("/api/admin/program-registrations-v2/:registrationId/correct-claimed", async (req: any, res: any) => {
+    try {
+      const { user: admin } = await requireAdmin(supabase, req);
+      const reason = String(req.body?.reason || '').trim();
+      if (reason.length < 5) throw new WorkflowHttpError(400, 'CORRECTION_REASON_REQUIRED', 'Alasan koreksi wajib diisi minimal 5 karakter.');
+      const { data: registration, error } = await supabase.from('program_registrations').select('*').eq('id', req.params.registrationId).single();
+      if (error || !registration) throw new WorkflowHttpError(404, 'REGISTRATION_NOT_FOUND', 'Registrasi tidak ditemukan.');
+      const now = new Date().toISOString();
+      const { data: coupons, error: couponError } = await supabase.from('program_coupons').select('id,metadata,status').eq('program_registration_id', registration.id);
+      if (couponError) throwDatabaseError(couponError, 'Gagal memuat tiket lama.');
+      for (const coupon of coupons || []) {
+        const metadata = { ...(isPlainObject(coupon.metadata) ? coupon.metadata : {}), correction_reason: reason, corrected_at: now, corrected_by: admin.id, previous_status: coupon.status };
+        const { error: updateError } = await supabase.from('program_coupons').update({ status: 'expired', metadata }).eq('id', coupon.id);
+        if (updateError) throwDatabaseError(updateError, 'Gagal menonaktifkan tiket lama.');
+      }
+      const history = Array.isArray(registration.metadata?.correction_history) ? registration.metadata.correction_history.slice(-19) : [];
+      const { data: updated, error: updateRegistrationError } = await supabase.from('program_registrations').update({ registration_status: 'draft', payment_status: 'not_required', confirmed_at: null, metadata: { ...(registration.metadata || {}), corrected_for_resubmit: true, correction_history: [...history, { at: now, by: admin.id, reason }] } }).eq('id', registration.id).select().single();
+      if (updateRegistrationError) throwDatabaseError(updateRegistrationError, 'Gagal membuka ulang registrasi.');
+      return res.json({ success: true, data: await loadRegistrationDetails(supabase, updated), expired_coupon_count: (coupons || []).length });
+    } catch (error) { return sendWorkflowError(res, error); }
+  });
+
   app.post("/api/admin/program-registrations-v2/:registrationId/reconcile-entitlements", async (req: any, res: any) => {
     try {
       const { registrationId } = req.params;
