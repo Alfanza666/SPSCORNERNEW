@@ -1,3 +1,24 @@
+v5.13.0 - Canonical Transaction Reporting & Compact Admin Overview (MINOR)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Riwayat admin mengambil seluruh tabel `transactions`, lalu tab Sukses hanya mengubah tampilan tanpa memfilter status. Akibatnya transaksi `failed` dapat tampil di tab berhasil.
+- Query dashboard dan breakdown berjalan langsung dari browser serta terkena batas 1.000 row Data API. Total kartu dihitung dari transaksi, sedangkan breakdown hanya membaca sebagian `transaction_items`, sehingga jumlah sumber pendapatan tidak mungkin direkonsiliasi.
+- Kartu omzet memakai `paid` + `success`, tetapi grafik hanya memakai `success` dan tidak benar-benar membatasi tujuh hari. Fee juga dibaca dari saldo profil mutable, bukan ledger transaksi/item yang sama.
+- Overview memuat shortcut duplikat, banner status integrasi yang tidak mewakili sumber data, editor QRIS, daftar transaksi, dan status sistem hardcoded sekaligus sehingga hierarki informasi hilang.
+- Endpoint create transaksi menerima status sukses dari browser tanpa bukti pengesahan server, dan beberapa route status lama menulis status/kolom yang tidak didukung schema aktif.
+
+### Perbaikan:
+- **[CANONICAL STATUS]** Status settled didefinisikan tunggal sebagai `paid`/`success`; `pending` dan `failed` dipisahkan pada utility, API, riwayat, analytics, seller report, dan export.
+- **[ADMIN HISTORY]** Menambahkan endpoint admin terautentikasi dengan tab Berhasil/Menunggu/Gagal, filter server-side, pagination, pencarian deep-link, serta pemisahan transaksi gagal dari percobaan validasi gagal.
+- **[NO 1K TRUNCATION]** Reporting backend membaca transaksi/item secara chunked sehingga seluruh data terhitung, bukan hanya 1.000 row pertama. Index status/waktu dan foreign key lookup ditambahkan untuk menjaga performa.
+- **[REVENUE RECONCILIATION]** Omzet lunas, fee tercatat, nilai bersih, breakdown penjual/digital, dan grafik tujuh hari WITA dihitung dari ledger settled yang sama. Breakdown selalu direkonsiliasi terhadap GMV dan item legacy tanpa alokasi ditampilkan eksplisit.
+- **[COMPACT OVERVIEW]** Dashboard difokuskan menjadi empat KPI, grafik tujuh hari, dan pusat tindakan. QRIS serta test email dipindahkan ke modal Alat Admin; shortcut, banner, status sistem hardcoded, dan daftar sekunder yang memenuhi halaman dihapus.
+- **[PAYMENT ATTESTATION]** Transaksi baru berstatus sukses wajib membawa token HMAC berumur pendek dari hasil validasi bukti server; token terikat nominal dan hash gambar. Tanpa token, alur aman kembali ke pending/manual review.
+- **[DEAD ROUTE CLEANUP]** Route bayar tanpa autentikasi serta route process/ready/complete yang menulis status/kolom di luar schema dihapus. Cancel menggunakan status `failed` dengan metadata alasan dan memverifikasi pemilik untuk transaksi anggota.
+- **[SELLER REPORT]** Laporan penjual hanya menjumlahkan item milik penjual pada transaksi settled, bukan total order lintas penjual.
+- **[QA]** Menambahkan test kontrak status, token validasi, parsing/filter reporting, pagination chunk, rekonsiliasi breakdown, dan kalender WITA; checklist manual diperluas untuk data >1.000 row, forged request, export, serta responsive dashboard.
+- **[VERSION]** package.json, package-lock.json, Home, DashboardLayout, PortalLayout, changelog, dan error history disinkronkan ke v5.13.0.
+
 v5.12.0 - Audited RSVP Operations & Family Ticket Recovery (MINOR)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

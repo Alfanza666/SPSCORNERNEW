@@ -71,11 +71,24 @@ export default function Validate() {
     try {
       const base64Data = imageSrc.split(',')[1];
       const mimeType = imageSrc.match(/data:(image\/\w+);base64,/)?.[1] || 'image/jpeg';
+      const { data: { session } } = await supabase.auth.getSession();
+      const requestHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (session?.access_token) {
+        requestHeaders.Authorization = `Bearer ${session.access_token}`;
+      }
 
       const response = await fetch('/api/validate/receipt', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: base64Data, mimeType, totalAmount }),
+        headers: requestHeaders,
+        body: JSON.stringify({
+          imageBase64: base64Data,
+          mimeType,
+          totalAmount,
+          buyer_id: user?.id || null,
+          items,
+        }),
       });
 
       const result = await response.json();
@@ -84,22 +97,15 @@ export default function Validate() {
       const aiResult = result.data;
 
       if (aiResult.valid) {
-        const { data: { session } } = await supabase.auth.getSession();
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-        };
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
-        }
-
         const createRes = await fetch('/api/transactions/create', {
           method: 'POST',
-          headers,
+          headers: requestHeaders,
           body: JSON.stringify({
             buyer_name: buyerName,
             buyer_id: user?.id || null,
             total_amount: totalAmount,
             status: 'success',
+            validation_token: aiResult.validationToken,
             receipt_image: imageSrc,
             items: items
           })
@@ -133,17 +139,9 @@ export default function Validate() {
 
       } else if (aiResult.fallbackToPending) {
         // Layanan AI bermasalah, kirim langsung sebagai pending
-        const { data: { session } } = await supabase.auth.getSession();
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-        };
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
-        }
-
         const createRes = await fetch('/api/transactions/create', {
           method: 'POST',
-          headers,
+          headers: requestHeaders,
           body: JSON.stringify({
             buyer_name: buyerName,
             buyer_id: user?.id || null,

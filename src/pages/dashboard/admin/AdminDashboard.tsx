@@ -1,84 +1,130 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { exportExcel, formatRupiah } from '../../../lib/utils';
+import { formatRupiah } from '../../../lib/utils';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Users, 
-  TrendingUp, 
-  AlertTriangle, 
+  TrendingUp,
+  AlertTriangle,
   CircleAlert,
-  CheckCircle2, 
   XCircle,
   Image as ImageIcon,
   DollarSign,
-  Download,
-  CreditCard,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Activity,
   ShieldCheck,
   Calendar,
   ChevronRight,
   Upload,
-  Search,
-  KeyRound,
   Wallet,
   QrCode,
   Loader2,
-  Package,
-  Settings,
-  Bug,
-  Receipt
+  Receipt,
+  Wrench,
+  RotateCw,
+  CircleDollarSign
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
+
+type OverviewMetrics = {
+  grossSettled: number;
+  recordedFee: number;
+  netSettled: number;
+  settledCount: number;
+  pendingCount: number;
+  failedCount: number;
+  failedAmount: number;
+  validationFailedCount: number;
+  totalSellers: number;
+  activeSellers: number;
+  pendingWithdrawals: number;
+  itemGrossSettled?: number;
+  allocationDifference?: number;
+  unallocatedGross?: number;
+  overallocatedGross?: number;
+  ledgerComplete?: boolean;
+  fulfillmentFailedCount?: number;
+  fulfillmentFailedAmount?: number;
+};
+
+type DashboardOverview = {
+  metrics: OverviewMetrics;
+  sellerBreakdown: any[];
+  salesChart: any[];
+  recentSettled: any[];
+  pendingTransactions: any[];
+};
+
+const EMPTY_METRICS: OverviewMetrics = {
+  grossSettled: 0,
+  recordedFee: 0,
+  netSettled: 0,
+  settledCount: 0,
+  pendingCount: 0,
+  failedCount: 0,
+  failedAmount: 0,
+  validationFailedCount: 0,
+  totalSellers: 0,
+  activeSellers: 0,
+  pendingWithdrawals: 0,
+  itemGrossSettled: 0,
+  allocationDifference: 0,
+  unallocatedGross: 0,
+  overallocatedGross: 0,
+  ledgerComplete: true,
+  fulfillmentFailedCount: 0,
+  fulfillmentFailedAmount: 0,
+};
+
+const toNumber = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getSellerTotal = (seller: any) =>
+  toNumber(seller?.grossSettled ?? seller?.gross_settled ?? seller?.total ?? seller?.amount);
+
+const getSellerName = (seller: any) =>
+  seller?.sellerName || seller?.seller_name || seller?.name || 'Sumber belum terpetakan';
+
+const getChartTotal = (entry: any) =>
+  toNumber(entry?.grossSettled ?? entry?.gross_settled ?? entry?.total ?? entry?.sales ?? entry?.amount);
+
+const formatChartDate = (entry: any) => {
+  if (entry?.label) return String(entry.label);
+  const rawDate = entry?.date || entry?.day;
+  if (!rawDate) return '-';
+  const parsed = new Date(`${String(rawDate).slice(0, 10)}T00:00:00+08:00`);
+  return Number.isNaN(parsed.getTime())
+    ? String(rawDate)
+    : format(parsed, 'dd MMM', { locale: id });
+};
 
 export default function AdminDashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    totalSales: 0,
-    totalTransactions: 0,
-    failedTransactions: 0,
-    totalSellers: 0,
-    activeSellers: 0,
-    totalFees: 0,
-    pendingWithdrawals: 0,
-    digiflazzBalance: 0,
-    digiflazzError: null as string | null
+  const [overview, setOverview] = useState<DashboardOverview>({
+    metrics: EMPTY_METRICS,
+    sellerBreakdown: [],
+    salesChart: [],
+    recentSettled: [],
+    pendingTransactions: [],
   });
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
-  const [failedTransactions, setFailedTransactions] = useState<any[]>([]);
   const [resetRequests, setResetRequests] = useState<any[]>([]);
   const [qrisUrl, setQrisUrl] = useState('');
   const [newQrisUrl, setNewQrisUrl] = useState('');
   const [loading, setLoading] = useState(true);
-  const [salesData, setSalesData] = useState<any[]>([]);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [uploadingQris, setUploadingQris] = useState(false);
-  const [sellerBreakdown, setSellerBreakdown] = useState<any[]>([]);
   const [showBreakdown, setShowBreakdown] = useState(false);
-
-  const handleAutoCleanup = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      await fetch('/api/admin/transactions/cleanup', {
-        method: 'POST',
-        headers: session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}
-      });
-    } catch (e) {
-      console.error('Auto-cleanup failed', e);
-    }
-  };
+  const [showAdminTools, setShowAdminTools] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin' || user?.role === 'superadmin') {
       fetchDashboardData();
-      handleAutoCleanup();
     }
   }, [user]);
 
@@ -129,202 +175,77 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      const { data: txData } = await supabase
-        .from('transactions')
-        .select('total_amount')
-        .in('status', ['success', 'paid']);
-        
-      const totalSales = txData?.reduce((sum, tx) => sum + tx.total_amount, 0) || 0;
-      
-      const { count: txCount } = await supabase
-        .from('transactions')
-        .select('*', { count: 'exact', head: true });
-        
-      const { count: failedCount } = await supabase
-        .from('failed_transactions')
-        .select('*', { count: 'exact', head: true });
-        
-      const { count: sellerCount } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'seller');
-
-      const { count: activeSellerCount } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'seller')
-        .eq('is_active', true);
-
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('total_fee_paid')
-        .eq('role', 'seller');
-      
-      const totalFees = profiles?.reduce((sum, p) => sum + (p.total_fee_paid || 0), 0) || 0;
-
-      const { count: pendingWithdrawalsCount } = await supabase
-        .from('withdrawals')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-
-      // Fetch Digiflazz Balance
-      let digiflazzBalance = 0;
-      let digiflazzError = null;
-      try {
-        const response = await fetch('/api/digital/cek-saldo');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            digiflazzBalance = data.data.deposit || 0;
-          } else {
-            digiflazzError = data.error || 'Gagal mengambil saldo';
-          }
-        } else {
-          digiflazzError = `HTTP Error: ${response.status}`;
-          console.error('Failed to fetch Digiflazz balance, status:', response.status);
-        }
-      } catch (err: any) {
-        digiflazzError = err.message || 'Network error';
-        console.error('Error fetching Digiflazz balance:', err);
-      }
-
-      setStats({
-        totalSales,
-        totalTransactions: txCount || 0,
-        failedTransactions: failedCount || 0,
-        totalSellers: sellerCount || 0,
-        activeSellers: activeSellerCount || 0,
-        totalFees,
-        pendingWithdrawals: pendingWithdrawalsCount || 0,
-        digiflazzBalance,
-        digiflazzError
-      });
-
-      const { data: recentTx } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('status', 'success')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      setRecentTransactions(recentTx || []);
-
-      const { data: pendingTx } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-      setPendingTransactions(pendingTx || []);
-
-      const { data: failedTx } = await supabase
-        .from('failed_transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      setFailedTransactions(failedTx || []);
-
-      // Fetch password reset requests using backend endpoint to bypass RLS
       const { data: { session } } = await supabase.auth.getSession();
-      const authHeader = session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {};
-      
-      try {
-        const resetsRes = await fetch('/api/admin/password-resets', {
-          headers: authHeader
-        });
-        if (resetsRes.ok) {
-          const resetsData = await resetsRes.json();
-          setResetRequests(resetsData || []);
-        }
-      } catch (err) {
-        console.error('Failed to fetch password resets:', err);
+      if (!session?.access_token) throw new Error('Sesi admin berakhir. Silakan masuk kembali.');
+
+      const authHeader = { Authorization: `Bearer ${session.access_token}` };
+      const [overviewRes, resetsResult, qrisResult] = await Promise.all([
+        fetch('/api/admin/dashboard/overview', { headers: authHeader }),
+        fetch('/api/admin/password-resets', { headers: authHeader })
+          .then(async response => response.ok ? response.json() : [])
+          .catch(error => {
+            console.error('Failed to fetch password resets:', error);
+            return [];
+          }),
+        supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'qris_image_url')
+          .maybeSingle(),
+      ]);
+
+      const overviewPayload = await overviewRes.json().catch(() => null);
+      if (!overviewRes.ok) {
+        throw new Error(overviewPayload?.error || `Gagal memuat ringkasan (${overviewRes.status})`);
       }
 
-      const { data: qrisData } = await supabase
-        .from('settings')
-        .select('value')
-        .eq('key', 'qris_image_url')
-        .single();
-      if (qrisData) {
-        setQrisUrl(qrisData.value);
-        setNewQrisUrl(qrisData.value);
+      const dashboardData = overviewPayload?.data;
+      if (!dashboardData?.metrics) {
+        throw new Error('Respons ringkasan dashboard tidak lengkap.');
       }
 
-      const { data: chartData } = await supabase
-        .from('transactions')
-        .select('created_at, total_amount')
-        .eq('status', 'success')
-        .order('created_at', { ascending: true });
+      const rawMetrics = dashboardData.metrics;
+      const normalizedOverview: DashboardOverview = {
+        metrics: {
+          grossSettled: toNumber(rawMetrics.grossSettled),
+          recordedFee: toNumber(rawMetrics.recordedFee),
+          netSettled: toNumber(rawMetrics.netSettled),
+          settledCount: toNumber(rawMetrics.settledCount),
+          pendingCount: toNumber(rawMetrics.pendingCount),
+          failedCount: toNumber(rawMetrics.failedCount),
+          failedAmount: toNumber(rawMetrics.failedAmount),
+          validationFailedCount: toNumber(rawMetrics.validationFailedCount),
+          totalSellers: toNumber(rawMetrics.totalSellers),
+          activeSellers: toNumber(rawMetrics.activeSellers),
+          pendingWithdrawals: toNumber(rawMetrics.pendingWithdrawals),
+          itemGrossSettled: toNumber(rawMetrics.itemGrossSettled),
+          allocationDifference: toNumber(rawMetrics.allocationDifference),
+          unallocatedGross: toNumber(rawMetrics.unallocatedGross),
+          overallocatedGross: toNumber(rawMetrics.overallocatedGross),
+          ledgerComplete: rawMetrics.ledgerComplete !== false,
+          fulfillmentFailedCount: toNumber(rawMetrics.fulfillmentFailedCount),
+          fulfillmentFailedAmount: toNumber(rawMetrics.fulfillmentFailedAmount),
+        },
+        sellerBreakdown: Array.isArray(dashboardData.sellerBreakdown) ? dashboardData.sellerBreakdown : [],
+        salesChart: Array.isArray(dashboardData.salesChart) ? dashboardData.salesChart : [],
+        recentSettled: Array.isArray(dashboardData.recentSettled) ? dashboardData.recentSettled : [],
+        pendingTransactions: Array.isArray(dashboardData.pendingTransactions) ? dashboardData.pendingTransactions : [],
+      };
 
-      if (chartData) {
-        const groupedData = chartData.reduce((acc: any, curr: any) => {
-          const date = format(new Date(curr.created_at), 'MMM dd');
-          if (!acc[date]) {
-            acc[date] = 0;
-          }
-          acc[date] += Number(curr.total_amount);
-          return acc;
-        }, {});
+      setOverview(normalizedOverview);
+      setPendingTransactions(normalizedOverview.pendingTransactions);
+      setResetRequests(Array.isArray(resetsResult) ? resetsResult : []);
 
-        const formattedChartData = Object.keys(groupedData).map(date => ({
-          date,
-          sales: groupedData[date]
-        }));
-        setSalesData(formattedChartData);
+      if (!qrisResult.error && qrisResult.data?.value) {
+        setQrisUrl(qrisResult.data.value);
+        setNewQrisUrl(qrisResult.data.value);
       }
-
-      // Seller revenue breakdown
-      const { data: allItems, error: itemsError } = await supabase
-        .from('transaction_items')
-        .select('transaction_id, seller_id, price, quantity, metadata, profiles:seller_id(name), products (seller_id, profiles:seller_id(name))');
-      
-      if (itemsError) {
-        console.error('Error fetching transaction_items for breakdown:', itemsError);
-      }
-
-      // Also get transaction status to only include successful ones
-      const { data: successTxIds } = await supabase
-        .from('transactions')
-        .select('id')
-        .in('status', ['success', 'paid']);
-
-      if (allItems && successTxIds) {
-        const successIdSet = new Set(successTxIds.map((t: any) => t.id));
-        const breakdown: Record<string, { name: string; total: number }> = {};
-        
-        for (const item of allItems as any[]) {
-          // Only count items from successful transactions
-          if (!successIdSet.has(item.transaction_id)) continue;
-          
-          let sellerId = 'PPOB_DIGITAL';
-          let sellerName = 'Produk Digital (PPOB)';
-          
-          const isDigital = item.metadata?.is_digital;
-          const actualSellerId = item.seller_id || item.products?.seller_id;
-          
-          if (actualSellerId) {
-            sellerId = actualSellerId;
-            sellerName = item.products?.profiles?.name || item.profiles?.name || 'Penjual Koperasi';
-          } else if (!isDigital) {
-             // Fallback for physical items without a seller
-             sellerId = 'UNKNOWN';
-             sellerName = 'Produk Koperasi Tanpa Penjual';
-          }
-          
-          if (!breakdown[sellerId]) {
-            breakdown[sellerId] = { name: sellerName, total: 0 };
-          }
-          breakdown[sellerId].total += (item.price || 0) * (item.quantity || 1);
-        }
-        
-        const breakdownArr = Object.entries(breakdown)
-          .map(([id, val]) => ({ id, name: val.name, total: val.total }))
-          .sort((a, b) => b.total - a.total);
-        
-        setSellerBreakdown(breakdownArr);
-      }
-
+      setDashboardError(null);
     } catch (error) {
       console.error('Error fetching admin data:', error);
+      const message = error instanceof Error ? error.message : 'Gagal memuat ringkasan dashboard.';
+      setDashboardError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -390,18 +311,8 @@ export default function AdminDashboard() {
       }
 
       toast.success('Transaksi berhasil disetujui!');
-      
-      // Update local state optimistically
       setPendingTransactions(prev => prev.filter(tx => tx.id !== txId));
-      const approvedTx = pendingTransactions.find(tx => tx.id === txId);
-      if (approvedTx) {
-        setRecentTransactions(prev => [{...approvedTx, status: 'success'}, ...prev].slice(0, 5));
-      }
-      setStats(prev => ({
-        ...prev,
-        totalTransactions: prev.totalTransactions + 1,
-        totalSales: prev.totalSales + (approvedTx?.total_amount || 0)
-      }));
+      await fetchDashboardData();
     } catch (error: any) {
       console.error('Error approving transaction:', error);
       toast.error(error.message);
@@ -425,7 +336,7 @@ export default function AdminDashboard() {
 
       toast.success('Transaksi ditolak');
       setPendingTransactions(prev => prev.filter(tx => tx.id !== txId));
-      setStats(prev => ({ ...prev, failedTransactions: prev.failedTransactions + 1 }));
+      await fetchDashboardData();
     } catch (error: any) {
       console.error('Error rejecting transaction:', error);
       toast.error('Gagal menolak transaksi');
@@ -461,7 +372,7 @@ export default function AdminDashboard() {
         try {
           const errorJson = JSON.parse(errorText);
           errorMessage = errorJson.error || errorMessage;
-          if (errorJson.tip) errorMessage += `\n\n💡 ${errorJson.tip}`;
+          if (errorJson.tip) errorMessage += `\n\nTips: ${errorJson.tip}`;
         } catch (e) {
           errorMessage = `Server Error (${response.status}): ${errorText.substring(0, 50)}...`;
         }
@@ -480,716 +391,550 @@ export default function AdminDashboard() {
     }
   };
 
-  const exportToExcel = async () => {
-    try {
-      const { data: allTx, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      if (!allTx || allTx.length === 0) {
-        toast.error('Tidak ada data transaksi untuk diexport.');
-        return;
-      }
-      
-      const headers = ['ID Pesanan', 'Nama Pembeli', 'Total (Rp)', 'Status', 'Metode Pembayaran', 'Tanggal'];
-      const rows = allTx.map(tx => [
-        tx.id,
-        tx.buyer_name,
-        tx.total_amount,
-        tx.status === 'success' ? 'Berhasil' : tx.status === 'failed' ? 'Gagal' : 'Pending',
-        tx.payment_method?.toUpperCase() || 'QRIS',
-        format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')
-      ]);
-
-      exportExcel(headers, rows, `laporan_penjualan_${format(new Date(), 'yyyyMMdd')}`);
-    } catch (error: any) {
-      console.error('Error exporting Excel:', error);
-      toast.error(`Gagal mengekspor laporan: ${error.message}`);
-    }
-  };
-
   if (loading) {
     return (
-      <div className="space-y-10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
-            <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-4 w-52" />
           </div>
-          <div className="flex gap-3">
-            <Skeleton className="h-12 w-32 rounded-xl" />
-            <Skeleton className="h-12 w-32 rounded-xl" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-28 rounded-xl" />
+            <Skeleton className="h-10 w-28 rounded-xl" />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-2xl" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-36 rounded-2xl" />
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-10">
-          <div className="lg:col-span-2 space-y-10">
-            <Skeleton className="h-96 rounded-2xl" />
-            <div className="grid md:grid-cols-2 gap-10">
-              <Skeleton className="h-64 rounded-2xl md:col-span-2" />
-              <Skeleton className="h-64 rounded-2xl" />
-              <Skeleton className="h-64 rounded-2xl" />
-            </div>
-          </div>
-          <div className="space-y-10">
-            <Skeleton className="h-96 rounded-2xl" />
-            <Skeleton className="h-48 rounded-2xl" />
-          </div>
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Skeleton className="h-80 rounded-2xl lg:col-span-2" />
+          <Skeleton className="h-80 rounded-2xl" />
         </div>
       </div>
     );
   }
 
-  const maxSales = Math.max(...salesData.map(d => d.sales), 1);
-
-  const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
-    <motion.div 
-      whileHover={{ y: -4, scale: 1.02 }}
-      className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-6 flex flex-col gap-4 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md dark:shadow-none transition-all"
-    >
-      <div className="flex items-center justify-between">
-        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center ${color}`}>
-          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
-        </div>
-      </div>
-      <div>
-        <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">{title}</p>
-        <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">{value}</h3>
-        {subtitle && (
-          <p className="text-xs text-red-500 mt-2 whitespace-normal break-words">{subtitle}</p>
-        )}
-      </div>
-    </motion.div>
+  const { metrics } = overview;
+  const salesData = overview.salesChart.map(entry => ({
+    ...entry,
+    label: formatChartDate(entry),
+    total: getChartTotal(entry),
+  }));
+  const maxSales = Math.max(...salesData.map(entry => entry.total), 1);
+  const breakdownTotal = overview.sellerBreakdown.reduce(
+    (sum, seller) => sum + getSellerTotal(seller),
+    0,
   );
+  const breakdownDifference = metrics.grossSettled - breakdownTotal;
+  const expectedNetSettled = toNumber(metrics.itemGrossSettled) - metrics.recordedFee;
+  const netDifference = metrics.netSettled - expectedNetSettled;
+  const needsAction =
+    metrics.pendingCount +
+    metrics.pendingWithdrawals +
+    resetRequests.length;
+  const hasFinancialMismatch =
+    Math.abs(breakdownDifference) >= 1 || Math.abs(netDifference) >= 1 || metrics.ledgerComplete === false;
 
-  return (
-    <div className="space-y-6 sm:space-y-10">
-      {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight mb-2">
-            Overview Dashboard
-          </h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2 font-medium">
-            <Calendar className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-            Hari ini, {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <button 
-            onClick={handleTestEmail}
-            className="flex-1 sm:flex-none bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all h-10 px-3 sm:px-5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold shadow-sm"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span className="hidden sm:inline">Test Email Sariroti</span>
-            <span className="sm:hidden">Test Email</span>
-          </button>
-          <button 
-            onClick={fetchDashboardData}
-            className="flex-1 sm:flex-none bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-all h-10 px-3 sm:px-5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold shadow-sm dark:shadow-none"
-          >
-            <Activity className="w-4 h-4" />
-            <span className="hidden sm:inline">Refresh Data</span>
-            <span className="sm:hidden">Refresh</span>
-          </button>
-          <button 
-            onClick={exportToExcel} 
-            className="flex-1 sm:flex-none bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white transition-all h-10 px-3 sm:px-5 rounded-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold shadow-sm shadow-blue-600/20 dark:shadow-none"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Export Laporan</span>
-            <span className="sm:hidden">Export</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Quick Access Menu */}
-      <div className="bg-white dark:bg-zinc-900 rounded-[2rem] p-4 sm:p-6 shadow-sm border border-zinc-100 dark:border-zinc-800">
-         <h2 className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest mb-4">Akses Cepat</h2>
-         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
-            <button 
-              onClick={() => navigate('/dashboard/admin/transactions')}
-              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
-            >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
-                <Receipt className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Riwayat Transaksi</span>
-            </button>
-            <button 
-              onClick={() => navigate('/dashboard/admin/products')}
-              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
-            >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
-                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Semua Produk</span>
-            </button>
-            <button 
-              onClick={() => navigate('/dashboard/admin/withdrawals')}
-              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
-            >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
-                <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
-              </div>
-              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Penarikan Saldo</span>
-            </button>
-            <button 
-              onClick={() => navigate('/dashboard/admin/settings')}
-              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
-            >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
-                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Pengaturan Web</span>
-            </button>
-            <button 
-              onClick={() => navigate('/dashboard/admin/reports')}
-              className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-3xl bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 transition-colors group"
-            >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 clay-icon-blue flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform relative">
-                <Bug className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 dark:text-red-400" />
-              </div>
-              <span className="text-xs font-bold text-center text-zinc-700 dark:text-zinc-300 line-clamp-1">Laporan & Bug</span>
-            </button>
-         </div>
-      </div>
-
-      {/* iPaymu Integration Status Banner — hanya tampil hijau jika VA & API KEY terkonfigurasi */}
-      <div className={`rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border ${
-        stats.digiflazzBalance > 0
-          ? 'bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-100 dark:border-emerald-800/30'
-          : 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800/30'
-      }`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-            stats.digiflazzBalance > 0
-              ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400'
-              : 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400'
-          }`}>
-            <ShieldCheck className="w-5 h-5" />
+  const MetricCard = ({
+    title,
+    value,
+    description,
+    formula,
+    icon: Icon,
+    iconClass,
+    onClick,
+    footer,
+  }: any) => {
+    const Component = onClick ? 'button' : 'div';
+    return (
+      <Component
+        type={onClick ? 'button' : undefined}
+        onClick={onClick}
+        className={[
+          'group flex min-h-36 w-full flex-col rounded-2xl border border-zinc-100 bg-white p-5 text-left shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-900 sm:p-6',
+          onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md dark:hover:border-blue-800' : '',
+        ].join(' ')}
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className={['flex h-11 w-11 items-center justify-center rounded-2xl', iconClass].join(' ')}>
+            <Icon className="h-5 w-5" />
           </div>
-          <div>
-            <h3 className={`text-sm font-bold ${
-              stats.digiflazzBalance > 0 ? 'text-emerald-900 dark:text-emerald-100' : 'text-amber-900 dark:text-amber-100'
-            }`}>Integrasi iPaymu (Payment Gateway)</h3>
-            <p className={`text-xs mt-0.5 ${
-              stats.digiflazzBalance > 0 ? 'text-emerald-700/80 dark:text-emerald-300/80' : 'text-amber-700/80 dark:text-amber-300/80'
-            }`}>
-              {stats.digiflazzBalance > 0
-                ? 'Payment gateway aktif dan terkonfigurasi dengan benar.'
-                : 'Pastikan IPAYMU_VA dan IPAYMU_API_KEY sudah diatur di environment variables (.env).'}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${
-            stats.digiflazzBalance > 0 ? 'bg-emerald-500' : 'bg-amber-500'
-          }`} />
-          <span className={`text-xs font-bold uppercase tracking-widest ${
-            stats.digiflazzBalance > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'
-          }`}>
-            {stats.digiflazzBalance > 0 ? 'Production Mode' : 'Belum Dikonfigurasi'}
+          <span className="group/info relative inline-flex">
+            <CircleAlert className="h-4 w-4 cursor-help text-zinc-400" aria-label={'Rumus ' + title} />
+            <span
+              role="tooltip"
+              className="pointer-events-none absolute right-0 top-6 z-30 hidden w-64 rounded-xl bg-zinc-950 px-3 py-2 text-[11px] font-medium leading-relaxed text-white shadow-xl group-hover/info:block dark:bg-white dark:text-zinc-900"
+            >
+              {formula}
+            </span>
           </span>
         </div>
-      </div>
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">{title}</p>
+        <p className="mt-1 text-xl font-black tracking-tight text-zinc-950 dark:text-white sm:text-2xl">{value}</p>
+        <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">{description}</p>
+        {footer}
+      </Component>
+    );
+  };
 
-      {/* Configuration Alert */}
-      {(stats.digiflazzBalance === 0 && !stats.digiflazzError) || (stats.digiflazzError && stats.digiflazzError.includes('credentials not configured')) ? (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
-            <CircleAlert className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200 mb-1">Peringatan Konfigurasi</h4>
-            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-              Saldo Digiflazz terbaca Rp 0 atau kredensial belum diatur. Pastikan <strong>DIGIFLAZZ_USERNAME</strong> dan <strong>DIGIFLAZZ_API_KEY</strong> sudah diatur dengan benar di menu Settings. 
-              Jika menggunakan Resend, pastikan <strong>RESEND_API_KEY</strong> juga sudah aktif.
-            </p>
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
+            Overview Dashboard
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <span className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-blue-500" />
+              {format(new Date(), 'EEEE, dd MMMM yyyy', { locale: id })}
+            </span>
+            <span>{metrics.activeSellers}/{metrics.totalSellers} penjual aktif</span>
           </div>
         </div>
-      ) : null}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
-        <div 
-          className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-6 flex flex-col gap-4 border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md dark:shadow-none transition-all cursor-pointer group col-span-1"
-          onClick={() => setShowBreakdown(true)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" />
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <button
+            type="button"
+            onClick={fetchDashboardData}
+            className="flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 text-xs font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            <RotateCw className="h-4 w-4" />
+            Segarkan
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAdminTools(true)}
+            className="flex h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-bold text-white shadow-sm shadow-blue-600/20 transition-colors hover:bg-blue-700"
+          >
+            <Wrench className="h-4 w-4" />
+            Alat Admin
+          </button>
+        </div>
+      </div>
+
+      {dashboardError && (
+        <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="text-sm font-bold">Ringkasan belum dapat dipercaya</p>
+              <p className="mt-1 text-xs">{dashboardError}</p>
             </div>
           </div>
-          <div>
-            <p className="text-[10px] sm:text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 truncate">Total Pendapatan</p>
-            <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">{formatRupiah(stats.totalSales)}</h3>
-            <p className="text-xs text-blue-500 dark:text-blue-400 mt-2 font-bold flex items-center gap-1 group-hover:underline">
-              <ChevronRight className="w-3 h-3" /> Lihat breakdown sumber
-            </p>
-          </div>
+          <button type="button" onClick={fetchDashboardData} className="h-9 rounded-xl bg-red-600 px-4 text-xs font-bold text-white hover:bg-red-700">
+            Coba lagi
+          </button>
         </div>
-        <StatCard 
-          title="Total Biaya (Fee)" 
-          value={formatRupiah(stats.totalFees)} 
-          icon={CreditCard} 
-          color="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          title="Omzet Lunas (GMV)"
+          value={formatRupiah(metrics.grossSettled)}
+          description={metrics.settledCount.toLocaleString('id-ID') + ' transaksi paid/success, semua waktu'}
+          formula="Jumlah total transaksi berstatus paid atau success. Pending dan gagal tidak dihitung."
+          icon={DollarSign}
+          iconClass="bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
+          onClick={() => setShowBreakdown(true)}
+          footer={
+            <span className="mt-auto flex items-center gap-1 pt-3 text-[11px] font-bold text-blue-600 dark:text-blue-400">
+              Lihat sumber omzet <ChevronRight className="h-3.5 w-3.5" />
+            </span>
+          }
         />
-        <StatCard 
-          title="Saldo Digiflazz" 
-          value={stats.digiflazzError ? 'Error' : formatRupiah(stats.digiflazzBalance)} 
-          icon={Wallet} 
-          color={stats.digiflazzError ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400" : "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"}
-          subtitle={stats.digiflazzError}
+        <MetricCard
+          title="Fee Tercatat"
+          value={formatRupiah(metrics.recordedFee)}
+          description="Selisih nilai bruto dan subtotal ledger transaksi lunas"
+          formula="Item gross settled dikurangi subtotal ledger settled. Transaksi tanpa item tidak dihitung sebagai fee."
+          icon={CircleDollarSign}
+          iconClass="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
         />
-        <StatCard 
-          title="Penjual Aktif" 
-          value={`${stats.activeSellers} / ${stats.totalSellers}`} 
-          icon={Users} 
-          color="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
+        <MetricCard
+          title="Bersih Setelah Fee"
+          value={formatRupiah(metrics.netSettled)}
+          description="Jumlah subtotal ledger untuk transaksi lunas"
+          formula="Jumlah subtotal transaction_items pada transaksi paid atau success; setara GMV dikurangi fee tercatat. Bukan saldo kas atau saldo bank."
+          icon={Wallet}
+          iconClass="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
         />
-        <StatCard 
-          title="Penarikan Pending" 
-          value={stats.pendingWithdrawals} 
-          icon={AlertTriangle} 
-          color="bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
+        <MetricCard
+          title="Perlu Tindakan"
+          value={needsAction.toLocaleString('id-ID')}
+          description={metrics.pendingCount + ' transaksi | ' + resetRequests.length + ' reset | ' + metrics.pendingWithdrawals + ' penarikan'}
+          formula="Transaksi pending + penarikan pending + permintaan reset password. Percobaan validasi gagal adalah riwayat, bukan antrean tindakan."
+          icon={AlertTriangle}
+          iconClass="bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400"
+          footer={
+            <p className="mt-auto pt-3 text-[11px] font-semibold text-red-600 dark:text-red-400">
+              {metrics.failedCount} transaksi gagal | {formatRupiah(metrics.failedAmount)}
+            </p>
+          }
         />
       </div>
 
-      {/* Seller Revenue Breakdown Modal */}
-      {showBreakdown && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowBreakdown(false)}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            onClick={e => e.stopPropagation()}
-            className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-zinc-200 dark:border-zinc-800"
-          >
-            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-blue-50/50 dark:bg-blue-900/10">
-              <div>
-                <h3 className="text-lg font-black text-zinc-900 dark:text-white">Breakdown Total Pendapatan</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Sumber pendapatan per penjual (semua transaksi)</p>
+      {hasFinancialMismatch && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="text-sm font-bold">Rekonsiliasi data diperlukan</p>
+            <p className="mt-1 text-xs leading-relaxed">
+              {Math.abs(breakdownDifference) >= 1
+                ? 'Breakdown berbeda ' + formatRupiah(Math.abs(breakdownDifference)) + ' dari omzet. '
+                : ''}
+              {Math.abs(netDifference) >= 1
+                ? 'Nilai bersih berbeda ' + formatRupiah(Math.abs(netDifference)) + ' dari rumus omzet dikurangi fee.'
+                : ''}
+            </p>
+          </div>
+        </div>
+      )}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-6 lg:col-span-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-base font-black text-zinc-900 dark:text-white sm:text-lg">
+                Omzet Lunas 7 Hari
+              </h2>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Hanya transaksi paid/success, dikelompokkan menurut kalender WITA.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+              GMV settled
+            </div>
+          </div>
+
+          <div className="mt-6 flex h-60 w-full items-end gap-2 sm:h-72 sm:gap-3">
+            {salesData.length === 0 ? (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-zinc-300 dark:text-zinc-600">
+                <TrendingUp className="h-10 w-10 stroke-[1]" />
+                <p className="text-sm font-semibold">Belum ada transaksi lunas dalam 7 hari</p>
               </div>
-              <button onClick={() => setShowBreakdown(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-                <XCircle className="w-5 h-5" />
+            ) : (
+              salesData.map((entry, index) => {
+                const heightPercentage = (entry.total / maxSales) * 100;
+                return (
+                  <div
+                    key={entry.date || entry.day || index}
+                    className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-3"
+                  >
+                    <div className="relative flex h-full w-full items-end justify-center">
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: Math.max(heightPercentage, entry.total > 0 ? 4 : 0) + '%' }}
+                        transition={{ duration: 0.6, delay: index * 0.04 }}
+                        className="relative w-full max-w-12 rounded-t-lg bg-blue-500 transition-colors group-hover:bg-blue-600"
+                      >
+                        <div className="pointer-events-none absolute -top-11 left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-zinc-950 px-2.5 py-1.5 text-[10px] font-bold text-white shadow-xl group-hover:block dark:bg-white dark:text-zinc-950">
+                          {formatRupiah(entry.total)}
+                        </div>
+                      </motion.div>
+                    </div>
+                    <span className="w-full truncate text-center text-[9px] font-bold uppercase text-zinc-400 sm:text-[10px]">
+                      {entry.label}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        <section className="flex min-h-80 flex-col overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="border-b border-zinc-100 p-4 dark:border-zinc-800 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-black text-zinc-900 dark:text-white">Pusat Tindakan</h2>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Antrean yang membutuhkan keputusan admin.</p>
+              </div>
+              {needsAction > 0 && (
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-black text-red-700 dark:bg-red-900/40 dark:text-red-300">
+                  {needsAction}
+                </span>
+              )}
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {[
+                ['Pembayaran', metrics.pendingCount],
+                ['Reset akun', resetRequests.length],
+                ['Penarikan', metrics.pendingWithdrawals],
+              ].map(([label, value]) => (
+                <div key={String(label)} className="rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800/60">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{label}</p>
+                  <p className="mt-0.5 text-base font-black text-zinc-900 dark:text-white">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {toNumber(metrics.fulfillmentFailedCount) > 0 && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                <p className="text-[10px] font-black uppercase tracking-wider">Fulfillment digital perlu rekonsiliasi</p>
+                <p className="mt-1 text-[10px] leading-relaxed">
+                  {toNumber(metrics.fulfillmentFailedCount)} pembayaran sudah lunas, tetapi pengiriman produk digital gagal
+                  {toNumber(metrics.fulfillmentFailedAmount) > 0
+                    ? ' | ' + formatRupiah(toNumber(metrics.fulfillmentFailedAmount))
+                    : ''}.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="max-h-[30rem] flex-1 divide-y divide-zinc-100 overflow-y-auto dark:divide-zinc-800">
+            {pendingTransactions.slice(0, 3).map(transaction => (
+              <div key={transaction.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">
+                      {transaction.buyer_name || transaction.buyerName || 'Pembeli'}
+                    </p>
+                    <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+                      Pembayaran pending | {formatRupiah(transaction.total_amount ?? transaction.totalAmount ?? 0)}
+                    </p>
+                  </div>
+                  <Receipt className="h-4 w-4 shrink-0 text-blue-500" />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleRejectTransaction(transaction.id)}
+                    className="h-8 rounded-lg border border-red-200 text-[10px] font-bold text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/30"
+                  >
+                    Tolak
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleApproveTransaction(transaction.id)}
+                    className="h-8 rounded-lg bg-blue-600 text-[10px] font-bold text-white hover:bg-blue-700"
+                  >
+                    Konfirmasi
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {resetRequests.slice(0, 3).map(request => (
+              <div key={request.id} className="flex items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">
+                    {request.user_name || 'Pengguna'}
+                  </p>
+                  <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">Permintaan reset password</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCompleteReset(request.id)}
+                  className="h-8 shrink-0 rounded-lg bg-amber-100 px-3 text-[10px] font-bold text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300"
+                >
+                  Tandai selesai
+                </button>
+              </div>
+            ))}
+
+            {pendingTransactions.length === 0 && resetRequests.length === 0 && (
+              <div className="flex min-h-32 flex-col items-center justify-center gap-2 p-6 text-center text-zinc-400">
+                <ShieldCheck className="h-8 w-8 text-emerald-500" />
+                <p className="text-sm font-semibold">Tidak ada antrean pembayaran atau reset akun</p>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard/admin/transactions')}
+            className="border-t border-zinc-100 p-3 text-xs font-bold text-blue-600 hover:bg-blue-50 dark:border-zinc-800 dark:text-blue-400 dark:hover:bg-blue-950/20"
+          >
+            Buka riwayat transaksi
+          </button>
+        </section>
+      </div>
+
+      {showBreakdown && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-2 backdrop-blur-sm sm:p-4"
+          onClick={() => setShowBreakdown(false)}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="revenue-breakdown-title"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={event => event.stopPropagation()}
+            className="flex max-h-[calc(100dvh-1rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100dvh-2rem)]"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-100 p-4 dark:border-zinc-800 sm:p-6">
+              <div>
+                <h2 id="revenue-breakdown-title" className="text-lg font-black text-zinc-900 dark:text-white">
+                  Sumber Omzet Lunas
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Agregasi seluruh transaksi paid/success, termasuk PPOB.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Tutup rincian omzet"
+                onClick={() => setShowBreakdown(false)}
+                className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white"
+              >
+                <XCircle className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6 space-y-3 max-h-96 overflow-y-auto">
-              {sellerBreakdown.length === 0 ? (
-                <p className="text-center text-zinc-400 dark:text-zinc-500 text-sm italic py-8">Belum ada data penjualan per penjual</p>
+
+            <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+              {overview.sellerBreakdown.length === 0 ? (
+                <p className="py-8 text-center text-sm text-zinc-400">Belum ada rincian sumber omzet.</p>
               ) : (
-                sellerBreakdown.map((seller, idx) => {
-                  const percentage = stats.totalSales > 0 ? ((seller.total / stats.totalSales) * 100).toFixed(1) : '0';
+                overview.sellerBreakdown.map((seller, index) => {
+                  const total = getSellerTotal(seller);
+                  const percentage = metrics.grossSettled > 0
+                    ? (total / metrics.grossSettled) * 100
+                    : 0;
                   return (
-                    <div key={seller.id} className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 flex items-center justify-center font-black text-sm">
-                        {idx + 1}
+                    <div key={seller.sellerId || seller.seller_id || seller.id || index} className="flex items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-xs font-black text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                        {index + 1}
                       </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-sm font-bold text-zinc-900 dark:text-white">{seller.name}</span>
-                          <span className="text-sm font-black text-blue-600 dark:text-blue-400">{formatRupiah(seller.total)}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">{getSellerName(seller)}</p>
+                          <p className="shrink-0 text-sm font-black text-blue-600 dark:text-blue-400">{formatRupiah(total)}</p>
                         </div>
-                        <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                          <div className="h-full rounded-full bg-blue-500" style={{ width: Math.min(percentage, 100) + '%' }} />
                         </div>
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 font-medium">{percentage}% dari total</p>
+                        <p className="mt-1 text-[10px] font-medium text-zinc-400">{percentage.toFixed(1)}% dari GMV</p>
                       </div>
                     </div>
                   );
                 })
               )}
-              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
-                <span className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Total Keseluruhan</span>
-                <span className="text-base font-black text-zinc-900 dark:text-white">{formatRupiah(stats.totalSales)}</span>
+            </div>
+
+            <div className="border-t border-zinc-100 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950/50 sm:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-xs font-black uppercase tracking-wider text-zinc-500">Total breakdown</span>
+                <span className="text-base font-black text-zinc-950 dark:text-white">{formatRupiah(breakdownTotal)}</span>
               </div>
+              <div className="mt-2 flex items-center justify-between gap-4 text-xs">
+                <span className="text-zinc-500">Omzet lunas</span>
+                <span className="font-bold text-zinc-700 dark:text-zinc-200">{formatRupiah(metrics.grossSettled)}</span>
+              </div>
+              {Math.abs(breakdownDifference) >= 1 && (
+                <p className="mt-3 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                  Selisih rekonsiliasi: {formatRupiah(Math.abs(breakdownDifference))}. Jangan gunakan breakdown ini sebelum data diperbaiki.
+                </p>
+              )}
             </div>
           </motion.div>
         </div>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-6 sm:gap-10">
-        {/* Sales Chart */}
-        <div className="lg:col-span-2 space-y-6 sm:space-y-10">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-4 sm:p-8">
-            <div className="flex items-center justify-between mb-6 sm:mb-10">
+      {showAdminTools && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-2 backdrop-blur-sm sm:p-4"
+          onClick={() => setShowAdminTools(false)}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="admin-tools-title"
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={event => event.stopPropagation()}
+            className="flex max-h-[calc(100dvh-1rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100dvh-2rem)]"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-100 p-4 dark:border-zinc-800 sm:p-6">
               <div>
-                <h2 className="text-lg sm:text-xl font-black text-zinc-900 dark:text-white tracking-tight">Grafik Penjualan</h2>
-                <p className="text-[10px] sm:text-xs text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest mt-1">7 Hari Terakhir</p>
+                <h2 id="admin-tools-title" className="flex items-center gap-2 text-lg font-black text-zinc-900 dark:text-white">
+                  <Wrench className="h-5 w-5 text-blue-600" />
+                  Alat Admin
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Pengujian email dan pengaturan QRIS dipisahkan dari ringkasan operasional.
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500 dark:bg-blue-400" />
-                  <span className="text-[8px] sm:text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Pendapatan</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="h-[200px] sm:h-[350px] w-full flex items-end gap-2 sm:gap-3 pt-6 sm:pt-10">
-              {salesData.length === 0 ? (
-                <div className="w-full h-full flex flex-col items-center justify-center text-zinc-300 dark:text-zinc-600 gap-4">
-                  <TrendingUp className="w-12 h-12 stroke-[1]" />
-                  <p className="font-bold">Belum ada data penjualan</p>
-                </div>
-              ) : (
-                salesData.map((data, index) => {
-                  const heightPercentage = (data.sales / maxSales) * 100;
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center gap-4 group h-full justify-end">
-                      <div className="w-full relative flex justify-center h-full items-end">
-                        <motion.div 
-                          initial={{ height: 0 }}
-                          animate={{ height: `${Math.max(heightPercentage, 4)}%` }}
-                          transition={{ duration: 1, delay: index * 0.1, ease: "easeOut" }}
-                          className="w-full max-w-[48px] bg-blue-500 dark:bg-blue-600 rounded-t-xl transition-all duration-300 group-hover:bg-blue-600 dark:group-hover:bg-blue-500 group-hover:shadow-lg group-hover:shadow-blue-500/20 relative"
-                        >
-                          {/* Tooltip */}
-                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-black py-2 px-3 rounded-lg whitespace-nowrap z-20 shadow-xl pointer-events-none">
-                            {formatRupiah(data.sales)}
-                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 dark:bg-white rotate-45" />
-                          </div>
-                        </motion.div>
-                      </div>
-                      <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider truncate w-full text-center">
-                        {data.date}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Transactions Lists */}
-          <div className="grid md:grid-cols-2 gap-10">
-            {/* Pending Transactions */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden md:col-span-2">
-              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-blue-50/50 dark:bg-blue-900/20">
-                <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-blue-600 dark:text-blue-500" />
-                  Transaksi Menunggu Konfirmasi (QRIS Manual)
-                  {pendingTransactions.length > 0 && (
-                    <span className="bg-blue-600 dark:bg-blue-500 text-white dark:text-blue-950 text-[10px] px-2 py-0.5 rounded-full animate-pulse">
-                      {pendingTransactions.length}
-                    </span>
-                  )}
-                </h3>
-              </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                <AnimatePresence mode="popLayout">
-                  {pendingTransactions.map((tx) => (
-                    <motion.div 
-                      layout
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      key={tx.id} 
-                      className="p-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors gap-4"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center clay-icon">
-                          <QrCode className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-zinc-900 dark:text-white">{tx.buyer_name}</p>
-                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">Total: {formatRupiah(tx.total_amount)}</p>
-                          <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium">
-                            {format(new Date(tx.created_at), 'dd MMM, HH:mm:ss', { locale: id })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleRejectTransaction(tx.id)}
-                          className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
-                        >
-                          Tolak
-                        </button>
-                        <button 
-                          onClick={() => handleApproveTransaction(tx.id)}
-                          className="btn-clay-primary py-2 px-6 text-[10px] bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 border-blue-700 dark:border-blue-600 text-white dark:text-blue-950"
-                        >
-                          Konfirmasi Bayar
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {pendingTransactions.length === 0 && (
-                  <div className="p-10 text-center text-zinc-400 text-sm font-medium italic">Tidak ada transaksi pending</div>
-                )}
-              </div>
-            </div>
-
-            {/* Password Reset Requests */}
-            <div id="reset-requests" className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden md:col-span-2">
-              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-amber-50/50 dark:bg-amber-900/20">
-                <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                  <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-500" />
-                  Permintaan Reset Password
-                  {resetRequests.length > 0 && (
-                    <span className="bg-amber-600 dark:bg-amber-500 text-white dark:text-amber-950 text-[10px] px-2 py-0.5 rounded-full animate-pulse">
-                      {resetRequests.length}
-                    </span>
-                  )}
-                </h3>
-              </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                <AnimatePresence mode="popLayout">
-                  {resetRequests.map((req) => (
-                    <motion.div 
-                      layout
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      key={req.id} 
-                      className="p-5 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors gap-4"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center clay-icon">
-                          <Users className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-zinc-900 dark:text-white">{req.user_name}</p>
-                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-black uppercase tracking-widest">NIK: {req.user_nik}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-3">
-                        <div className="text-right mr-0 sm:mr-4">
-                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-                            {format(new Date(req.created_at), 'dd MMM, HH:mm:ss', { locale: id })}
-                          </p>
-                        </div>
-                        <button 
-                          onClick={() => handleCompleteReset(req.id)}
-                          className="btn-clay-primary py-2 px-4 text-[10px] bg-amber-600 dark:bg-amber-500 hover:bg-amber-700 dark:hover:bg-amber-600 border-amber-700 dark:border-amber-600 text-white dark:text-amber-950"
-                        >
-                          Selesai Reset
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {resetRequests.length === 0 && (
-                  <div className="p-10 text-center text-zinc-400 text-sm font-medium italic">Tidak ada permintaan reset pending</div>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
-                <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                  Transaksi Sukses
-                </h3>
-                <button className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline">Lihat Semua</button>
-              </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                <AnimatePresence mode="popLayout">
-                  {recentTransactions.map((tx) => (
-                    <motion.div 
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      key={tx.id} 
-                      className="p-4 sm:p-5 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
-                    >
-                      <div className="flex items-center gap-3 sm:gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-sm clay-icon">
-                          {tx.buyer_name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-bold text-zinc-900 dark:text-white text-xs sm:text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{tx.buyer_name}</p>
-                          <p className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-                            {format(new Date(tx.created_at), 'dd MMM, HH:mm:ss', { locale: id })}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-sm">{formatRupiah(tx.total_amount || 0)}</p>
-                        <span className="clay-badge bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">Berhasil</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {recentTransactions.length === 0 && (
-                  <div className="p-10 text-center text-zinc-400 dark:text-zinc-500 text-sm font-medium italic">Belum ada transaksi</div>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
-                <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                  <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
-                  Indikasi Palsu
-                </h3>
-                <button className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest hover:underline">Lihat Semua</button>
-              </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                <AnimatePresence mode="popLayout">
-                  {failedTransactions.map((tx) => (
-                    <motion.div 
-                      layout
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      key={tx.id} 
-                      className="p-4 sm:p-5 flex flex-col gap-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 flex items-center justify-center font-black text-xs clay-icon">
-                            {tx.buyer_name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="font-bold text-zinc-900 dark:text-white text-xs sm:text-sm">{tx.buyer_name}</p>
-                            <p className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
-                              {format(new Date(tx.created_at), 'dd MMM, HH:mm', { locale: id })}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="font-black text-zinc-900 dark:text-white text-xs sm:text-sm">{formatRupiah(tx.attempted_amount)}</p>
-                      </div>
-                      <div className="flex items-start gap-3 bg-red-50/50 dark:bg-red-900/10 p-3 rounded-xl border border-red-100/50 dark:border-red-800/30">
-                         <AlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
-                         <p className="text-[10px] text-red-700 dark:text-red-300 font-medium leading-relaxed line-clamp-2">
-                           {tx.reason}
-                         </p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {failedTransactions.length === 0 && (
-                  <div className="p-10 text-center text-zinc-400 dark:text-zinc-500 text-sm font-medium italic">Tidak ada catatan gagal</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar Settings */}
-        <div className="space-y-6 sm:space-y-10">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6 sm:p-8">
-            <h3 className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest mb-6 sm:mb-8 flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Pengaturan QRIS
-            </h3>
-            
-            <div className="space-y-6 sm:space-y-8">
-              <div className="relative group">
-                <div className="absolute -inset-2 bg-blue-500/5 dark:bg-blue-500/10 rounded-3xl blur-xl group-hover:bg-blue-500/10 dark:group-hover:bg-blue-500/20 transition-colors" />
-                <div className="relative bg-zinc-50 dark:bg-zinc-800/50 p-6 rounded-[2rem] border border-zinc-200/60 dark:border-zinc-700/50 flex justify-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
-                  {qrisUrl ? (
-                    <img src={qrisUrl} alt="QRIS Aktif" className="w-full aspect-square object-contain rounded-xl" />
-                  ) : (
-                    <div className="w-full aspect-square flex flex-col items-center justify-center text-zinc-300 dark:text-zinc-600 gap-3">
-                      <QrCode className="w-16 h-16 stroke-[1]" />
-                      <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Belum Ada QRIS</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <label className="text-[10px] sm:text-xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Ganti Gambar QRIS</label>
-                <div className="relative">
-                  <input 
-                    type="file"
-                    accept="image/*"
-                    onChange={handleQrisUpload}
-                    disabled={uploadingQris}
-                    className="hidden"
-                    id="qris-upload"
-                  />
-                  <label 
-                    htmlFor="qris-upload"
-                    className="w-full h-12 bg-zinc-50 dark:bg-zinc-800/50 border-2 border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl flex items-center justify-center gap-3 cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
-                  >
-                    {uploadingQris ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-600 dark:text-blue-400" />
-                    ) : (
-                      <>
-                        <Upload className="w-5 h-5 text-zinc-400 dark:text-zinc-500 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                        <span className="text-xs sm:text-sm font-bold text-zinc-500 dark:text-zinc-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">Pilih File Baru</span>
-                      </>
-                    )}
-                  </label>
-                </div>
-                
-                {newQrisUrl && newQrisUrl !== qrisUrl && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-800/30"
-                  >
-                    <img src={newQrisUrl} alt="Preview" className="w-12 h-12 object-cover rounded-lg shadow-sm" />
-                    <div className="flex-1">
-                      <p className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">Preview Terunggah</p>
-                      <p className="text-[9px] text-amber-500 dark:text-amber-500/80 font-medium">Klik simpan untuk menerapkan</p>
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-
-              <button 
-                onClick={handleUpdateQris} 
-                disabled={!newQrisUrl || newQrisUrl === qrisUrl}
-                className="btn-clay-primary w-full h-12 flex items-center justify-center gap-2 disabled:opacity-50 disabled:shadow-none text-xs sm:text-sm"
+              <button
+                type="button"
+                aria-label="Tutup alat admin"
+                onClick={() => setShowAdminTools(false)}
+                className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white"
               >
-                <ShieldCheck className="w-5 h-5" />
-                Simpan Perubahan
+                <XCircle className="h-5 w-5" />
               </button>
             </div>
-          </div>
 
-          <div className="bg-zinc-900 dark:bg-zinc-950 rounded-2xl p-8 text-white relative overflow-hidden border-none shadow-sm">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 dark:bg-blue-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
-            <div className="relative z-10">
-              <h3 className="text-sm font-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                Status Sistem
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-400 font-medium">Database</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse" />
-                    Online
-                  </span>
+            <div className="grid flex-1 gap-6 overflow-y-auto p-4 sm:p-6 lg:grid-cols-[0.8fr_1.2fr]">
+              <section className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800 sm:p-5">
+                <h3 className="text-sm font-black text-zinc-900 dark:text-white">Pengujian Sistem</h3>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Kirim email uji tanpa mencampurkannya dengan metrik pendapatan.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleTestEmail}
+                  className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white hover:bg-emerald-700"
+                >
+                  <ShieldCheck className="h-4 w-4" />
+                  Test Email Sariroti
+                </button>
+              </section>
+
+              <section className="rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800 sm:p-5">
+                <h3 className="flex items-center gap-2 text-sm font-black text-zinc-900 dark:text-white">
+                  <ImageIcon className="h-4 w-4 text-blue-600" />
+                  Pengaturan QRIS
+                </h3>
+                <div className="mt-4 grid gap-4 sm:grid-cols-[10rem_1fr]">
+                  <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-zinc-50 p-3 dark:bg-zinc-800/60">
+                    {newQrisUrl || qrisUrl ? (
+                      <img src={newQrisUrl || qrisUrl} alt="Pratinjau QRIS aktif" className="h-full w-full object-contain" />
+                    ) : (
+                      <QrCode className="h-14 w-14 text-zinc-300 dark:text-zinc-600" />
+                    )}
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQrisUpload}
+                      disabled={uploadingQris}
+                      className="hidden"
+                      id="dashboard-qris-upload"
+                    />
+                    <label
+                      htmlFor="dashboard-qris-upload"
+                      className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 text-xs font-bold text-zinc-600 hover:border-blue-400 hover:bg-blue-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-blue-950/20"
+                    >
+                      {uploadingQris ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      {uploadingQris ? 'Mengunggah...' : 'Pilih gambar QRIS'}
+                    </label>
+                    <p className="mt-2 text-[10px] leading-relaxed text-zinc-400">
+                      Maksimal 2 MB. Perubahan baru aktif setelah disimpan.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleUpdateQris}
+                      disabled={!newQrisUrl || newQrisUrl === qrisUrl}
+                      className="mt-4 h-11 rounded-xl bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      Simpan QRIS
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-400 font-medium">AI Validator</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse" />
-                    Ready
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-400 font-medium">Storage</span>
-                  <span className="flex items-center gap-1.5 text-[10px] font-black text-blue-500 dark:text-blue-400 uppercase">
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400 animate-pulse" />
-                    Active
-                  </span>
-                </div>
-              </div>
+              </section>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,22 +1,116 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { formatRupiah, exportExcel, cn } from '../../../lib/utils';
 import { format, isValid } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, ArrowRight, User, Image as ImageIcon, ExternalLink, Clock, Bell, Package, PackageCheck, Loader2 } from 'lucide-react';
+import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, User, Image as ImageIcon, ExternalLink, Clock, Package, Loader2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, TransactionSkeleton } from '../../../components/ui/Skeleton';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '../../../store/useAuthStore';
+import {
+  classifyTransactionStatus,
+  getTransactionStatusPresentation,
+  type TransactionHistoryGroup,
+} from '../../../utils/transactionStatus';
+
+const PAGE_SIZE = 50;
+const EXPORT_PAGE_SIZE = 250;
+
+interface TransactionHistoryRow {
+  id: string;
+  source: 'transaction' | 'validation_attempt';
+  buyer_name: string;
+  buyer_id?: string | null;
+  amount: number;
+  order_amount?: number | null;
+  total_amount?: number | null;
+  attempted_amount?: number | null;
+  status: string;
+  payment_method?: string | null;
+  reason?: string | null;
+  receipt_image?: string | null;
+  created_at: string;
+  metadata?: Record<string, any> | null;
+  payment_details?: Record<string, any> | null;
+}
+
+interface HistoryPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+interface HistoryCounts {
+  settled: number;
+  pending: number;
+  failed: number;
+}
+
+interface HistoryResponse {
+  success: boolean;
+  data: TransactionHistoryRow[];
+  pagination: HistoryPagination;
+  counts: HistoryCounts;
+  error?: string;
+}
+
+interface HistoryQuery {
+  group: TransactionHistoryGroup;
+  page: number;
+  pageSize: number;
+  search?: string;
+  sellerId?: string;
+  paymentMethod?: string;
+  startDate?: string;
+  endDate?: string;
+  signal?: AbortSignal;
+}
+
+const EMPTY_COUNTS: HistoryCounts = { settled: 0, pending: 0, failed: 0 };
+const EMPTY_PAGINATION: HistoryPagination = { page: 1, pageSize: PAGE_SIZE, total: 0, totalPages: 1 };
+
+const TAB_CONFIG: Array<{ key: TransactionHistoryGroup; label: string }> = [
+  { key: 'settled', label: 'Berhasil' },
+  { key: 'pending', label: 'Menunggu' },
+  { key: 'failed', label: 'Gagal' },
+];
+
+function TransactionStatusBadge({ status }: { status: unknown }) {
+  const presentation = getTransactionStatusPresentation(status);
+  const Icon = presentation.kind === 'settled'
+    ? CheckCircle2
+    : presentation.kind === 'pending'
+      ? Clock
+      : presentation.kind === 'failed'
+        ? XCircle
+        : AlertTriangle;
+  const className = presentation.kind === 'settled'
+    ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'
+    : presentation.kind === 'pending'
+      ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
+      : presentation.kind === 'failed'
+        ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300';
+
+  return (
+    <span className={`clay-badge ${className}`} title={presentation.normalized || undefined}>
+      <Icon className="w-3 h-3 mr-1.5 shrink-0" />
+      {presentation.label}
+    </span>
+  );
+}
 
 export default function AdminTransactions() {
-  const { user } = useAuthStore();
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [failedTransactions, setFailedTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<TransactionHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'success' | 'failed'>('success');
-  const [selectedTx, setSelectedTx] = useState<any | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<TransactionHistoryGroup>('settled');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<HistoryPagination>(EMPTY_PAGINATION);
+  const [counts, setCounts] = useState<HistoryCounts>(EMPTY_COUNTS);
+  const [selectedTx, setSelectedTx] = useState<TransactionHistoryRow | null>(null);
   const [txItems, setTxItems] = useState<any[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,77 +120,14 @@ export default function AdminTransactions() {
     startDate: '',
     endDate: '',
     sellerId: '',
-    status: '',
     paymentMethod: ''
   });
-  const [sellerTxIds, setSellerTxIds] = useState<Set<string>>(new Set());
-  const [sellerSubtotals, setSellerSubtotals] = useState<Record<string, number>>({});
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // Auto-open transaction detail if ?id= param is present (from notification deep-link)
-  useEffect(() => {
-    const idFromUrl = searchParams.get('id');
-    if (idFromUrl && (transactions.length > 0 || failedTransactions.length > 0)) {
-      const tx = transactions.find(t => t.id === idFromUrl);
-      const failedTx = failedTransactions.find(t => t.id === idFromUrl);
-      
-      if (tx) {
-        if (activeTab !== 'success') setActiveTab('success');
-        openDetails(tx, true);
-        setSearchParams({}, { replace: true });
-      } else if (failedTx) {
-        if (activeTab !== 'failed') setActiveTab('failed');
-        openDetails(failedTx, false);
-        setSearchParams({}, { replace: true });
-      }
-    }
-  }, [searchParams, transactions, failedTransactions]);
-
-  const handleAutoCleanup = async () => {
-    try {
-      // Use absolute path for reliability
-      await fetch('/api/admin/transactions/cleanup', { method: 'POST' });
-    } catch (e) {
-      console.error('Auto-cleanup failed', e);
-    }
-  };
-
-  useEffect(() => {
-    fetchTransactions();
-    fetchSellers();
-    handleAutoCleanup();
-  }, []);
-
-  useEffect(() => {
-    if (filters.sellerId) {
-      fetchSellerTransactionIds(filters.sellerId);
-    } else {
-      setSellerTxIds(new Set());
-      setSellerSubtotals({});
-    }
-  }, [filters.sellerId]);
+  const deepLinkHandledRef = useRef<string | null>(null);
 
   const fetchSellers = async () => {
     const { data } = await supabase.from('profiles').select('id, name').eq('role', 'seller');
     setSellers(data || []);
-  };
-
-  const fetchSellerTransactionIds = async (sellerId: string) => {
-    const { data } = await supabase
-      .from('transaction_items')
-      .select('transaction_id, price, quantity')
-      .eq('seller_id', sellerId);
-    
-    if (data) {
-      const ids = new Set<string>();
-      const subtotals: Record<string, number> = {};
-      data.forEach(item => {
-        ids.add(item.transaction_id);
-        subtotals[item.transaction_id] = (subtotals[item.transaction_id] || 0) + (item.price * item.quantity);
-      });
-      setSellerTxIds(ids);
-      setSellerSubtotals(subtotals);
-    }
   };
 
   const fetchTransactionItems = async (txId: string) => {
@@ -116,92 +147,182 @@ export default function AdminTransactions() {
     }
   };
 
-  const openDetails = async (tx: any, isSuccessTab: boolean = activeTab === 'success') => {
+  const openDetails = useCallback(async (tx: TransactionHistoryRow) => {
     setSelectedTx(tx);
-    if (isSuccessTab) {
+    if (tx.source === 'transaction') {
       await fetchTransactionItems(tx.id);
     } else {
       setTxItems([]);
     }
-  };
+  }, []);
 
-  const fetchTransactions = async () => {
+  const fetchHistoryPage = useCallback(async (query: HistoryQuery): Promise<HistoryResponse> => {
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    if (!token) throw new Error('Sesi admin tidak tersedia. Silakan masuk kembali.');
+
+    const params = new URLSearchParams({
+      group: query.group,
+      page: String(query.page),
+      pageSize: String(query.pageSize),
+    });
+    if (query.search?.trim()) params.set('search', query.search.trim());
+    if (query.sellerId) params.set('sellerId', query.sellerId);
+    if (query.paymentMethod) params.set('paymentMethod', query.paymentMethod);
+    if (query.startDate) params.set('startDate', query.startDate);
+    if (query.endDate) params.set('endDate', query.endDate);
+
+    const response = await fetch(`/api/admin/transactions/history?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: query.signal,
+    });
+    const payload = await response.json().catch(() => ({})) as Partial<HistoryResponse>;
+    if (!response.ok || payload.success !== true || !Array.isArray(payload.data)) {
+      throw new Error(payload.error || 'Gagal memuat riwayat transaksi.');
+    }
+
+    return {
+      success: true,
+      data: payload.data,
+      pagination: {
+        page: Number(payload.pagination?.page || query.page),
+        pageSize: Number(payload.pagination?.pageSize || query.pageSize),
+        total: Number(payload.pagination?.total || 0),
+        totalPages: Math.max(1, Number(payload.pagination?.totalPages || 1)),
+      },
+      counts: {
+        settled: Number(payload.counts?.settled || 0),
+        pending: Number(payload.counts?.pending || 0),
+        failed: Number(payload.counts?.failed || 0),
+      },
+    };
+  }, []);
+
+  useEffect(() => {
+    fetchSellers();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setTransactions([]);
+    setPagination({ ...EMPTY_PAGINATION, page });
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await fetchHistoryPage({
+          group: activeTab,
+          page,
+          pageSize: PAGE_SIZE,
+          search: searchTerm,
+          sellerId: filters.sellerId,
+          paymentMethod: filters.paymentMethod,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          signal: controller.signal,
+        });
+        setTransactions(result.data);
+        setPagination(result.pagination);
+        setCounts(result.counts);
+      } catch (error: any) {
+        if (error?.name !== 'AbortError') {
+          console.error('Error fetching transaction history:', error);
+          toast.error(error?.message || 'Gagal memuat riwayat transaksi.', { id: 'transaction-history-load' });
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, searchTerm ? 250 : 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [activeTab, page, searchTerm, filters.endDate, filters.paymentMethod, filters.sellerId, filters.startDate, fetchHistoryPage]);
+
+  useEffect(() => {
+    const idFromUrl = searchParams.get('id');
+    if (!idFromUrl || deepLinkHandledRef.current === idFromUrl) return;
+    deepLinkHandledRef.current = idFromUrl;
+    let cancelled = false;
+
+    const findDeepLinkedTransaction = async () => {
+      try {
+        for (const group of ['settled', 'pending', 'failed'] as TransactionHistoryGroup[]) {
+          const result = await fetchHistoryPage({ group, page: 1, pageSize: 5, search: idFromUrl });
+          const transaction = result.data.find(row => row.id === idFromUrl);
+          if (!transaction || cancelled) continue;
+
+          const classifiedGroup = classifyTransactionStatus(transaction.status);
+          if (classifiedGroup === 'unknown') {
+            toast.error('Transaksi ditemukan, tetapi statusnya tidak dikenal oleh sistem.');
+            return;
+          }
+
+          setActiveTab(classifiedGroup);
+          setPage(1);
+          setSearchTerm(idFromUrl);
+          await openDetails(transaction);
+          setSearchParams({}, { replace: true });
+          return;
+        }
+        if (!cancelled) toast.error('Transaksi dari tautan tidak ditemukan.');
+      } catch (error: any) {
+        if (!cancelled) toast.error(error?.message || 'Gagal membuka detail transaksi.');
+      }
+    };
+
+    findDeepLinkedTransaction();
+    return () => { cancelled = true; };
+  }, [fetchHistoryPage, openDetails, searchParams, setSearchParams]);
+
+  const exportToExcel = async () => {
+    setExporting(true);
     try {
-      setLoading(true);
-      
-      const { data: txData, error: txError } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (txError) throw txError;
-      setTransactions(txData || []);
+      const baseQuery = {
+        group: activeTab,
+        pageSize: EXPORT_PAGE_SIZE,
+        search: searchTerm,
+        sellerId: filters.sellerId,
+        paymentMethod: filters.paymentMethod,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+      };
+      const firstPage = await fetchHistoryPage({ ...baseQuery, page: 1 });
+      const dataToExport = [...firstPage.data];
+      for (let exportPage = 2; exportPage <= firstPage.pagination.totalPages; exportPage += 1) {
+        const nextPage = await fetchHistoryPage({ ...baseQuery, page: exportPage });
+        dataToExport.push(...nextPage.data);
+      }
+      if (dataToExport.length === 0) {
+        toast.error('Tidak ada data yang sesuai filter untuk diekspor.');
+        return;
+      }
 
-      const { data: failedData, error: failedError } = await supabase
-        .from('failed_transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (failedError) throw failedError;
-      setFailedTransactions(failedData || []);
-
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const exportToExcel = () => {
-    const dataToExport = activeTab === 'success' ? transactions : failedTransactions;
-    if (dataToExport.length === 0) return;
-
-    let headers: string[];
-    let rows: (string | number | null)[][];
-
-    if (activeTab === 'success') {
-      headers = ['ID Transaksi', 'Nama Pembeli', 'Email Pembeli', 'Total Bayar (Rp)', 'Metode Bayar', 'Status', 'Tanggal'];
-      rows = dataToExport.map(tx => [
+      const headers = ['ID', 'Sumber', 'Nama Pembeli', 'Nilai (Rp)', 'Metode Bayar', 'Status', 'Alasan', 'Tanggal'];
+      const rows = dataToExport.map(tx => [
         tx.id,
-        tx.buyer_name,
-        tx.buyer_email || '-',
-        Number(tx.total_amount),
+        tx.source === 'validation_attempt' ? 'Percobaan validasi' : 'Transaksi',
+        tx.buyer_name || '-',
+        Number(tx.amount || 0),
         tx.payment_method || '-',
-        tx.status,
-        format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm:ss')
+        getTransactionStatusPresentation(tx.status).label,
+        tx.reason || '-',
+        isValid(new Date(tx.created_at)) ? format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm:ss') : '-',
       ]);
-    } else {
-      headers = ['ID', 'Nama Pembeli', 'Total Dicoba (Rp)', 'Alasan Gagal', 'Tanggal'];
-      rows = dataToExport.map(tx => [
-        tx.id,
-        tx.buyer_name,
-        Number(tx.attempted_amount),
-        tx.reason,
-        format(new Date(tx.created_at), 'dd/MM/yyyy HH:mm:ss')
-      ]);
+      exportExcel(headers, rows, `laporan_transaksi_${activeTab}_${format(new Date(), 'yyyyMMdd')}`, 'Laporan Transaksi');
+    } catch (error: any) {
+      toast.error(error?.message || 'Gagal mengekspor riwayat transaksi.');
+    } finally {
+      setExporting(false);
     }
-
-    exportExcel(headers, rows, `laporan_transaksi_${activeTab}_${format(new Date(), 'yyyyMMdd')}`, 'Laporan Transaksi');
   };
 
-  const filteredTransactions = (activeTab === 'success' ? transactions : failedTransactions).filter(tx => {
-    const matchesSearch = tx.buyer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tx.id.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const txDate = new Date(tx.created_at);
-    const matchesStartDate = !filters.startDate || txDate >= new Date(filters.startDate);
-    const matchesEndDate = !filters.endDate || txDate <= new Date(filters.endDate + 'T23:59:59');
-    
-    const matchesSeller = !filters.sellerId || (activeTab === 'success' && sellerTxIds.has(tx.id));
-    
-    const matchesStatus = !filters.status || (activeTab === 'success' && tx.status === filters.status);
-    
-    // Check if the property exists before matching (since failed_transactions might not have it or have different model)
-    const matchesPaymentMethod = !filters.paymentMethod || 
-      (activeTab === 'success' && tx.payment_method && typeof tx.payment_method === 'string' && tx.payment_method.toLowerCase().includes(filters.paymentMethod.toLowerCase()));
+  const changeTab = (group: TransactionHistoryGroup) => {
+    setActiveTab(group);
+    setPage(1);
+  };
 
-    return matchesSearch && matchesStartDate && matchesEndDate && matchesSeller && matchesStatus && matchesPaymentMethod;
-  });
+  const filteredTransactions = transactions;
 
   if (loading && transactions.length === 0) {
     return (
@@ -261,39 +382,39 @@ export default function AdminTransactions() {
             Pantau semua aktivitas pembayaran di SPS Corner
           </p>
         </div>
-        <button 
-          onClick={exportToExcel} 
-          className="btn-clay-primary h-12 px-8 flex items-center gap-3"
+        <button
+          onClick={exportToExcel}
+          disabled={exporting}
+          className="btn-clay-primary h-12 px-8 flex items-center gap-3 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Download className="w-5 h-5" />
-          Export Excel
+          {exporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+          {exporting ? 'Menyiapkan...' : 'Export Excel'}
         </button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
         <div className="flex bg-zinc-100 dark:bg-zinc-800/50 p-1.5 rounded-2xl border border-zinc-200/60 dark:border-zinc-700/50 w-full md:w-auto shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.2)]">
-          <button
-            onClick={() => setActiveTab('success')}
-            className={cn(
-              "flex-1 md:flex-none px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
-              activeTab === 'success' 
-                ? "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm" 
-                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-            )}
-          >
-            Sukses
-          </button>
-          <button
-            onClick={() => setActiveTab('failed')}
-            className={cn(
-              "flex-1 md:flex-none px-6 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
-              activeTab === 'failed' 
-                ? "bg-white dark:bg-zinc-700 text-red-600 dark:text-red-400 shadow-sm" 
-                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-            )}
-          >
-            Gagal
-          </button>
+          {TAB_CONFIG.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => changeTab(tab.key)}
+              className={cn(
+                "flex-1 md:flex-none px-3 sm:px-5 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                activeTab === tab.key
+                  ? tab.key === 'failed'
+                    ? "bg-white dark:bg-zinc-700 text-red-600 dark:text-red-400 shadow-sm"
+                    : tab.key === 'pending'
+                      ? "bg-white dark:bg-zinc-700 text-amber-600 dark:text-amber-400 shadow-sm"
+                      : "bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              )}
+            >
+              <span>{tab.label}</span>
+              <span className="rounded-full bg-zinc-200/70 dark:bg-zinc-800 px-2 py-0.5 text-[9px] tabular-nums">
+                {counts[tab.key].toLocaleString('id-ID')}
+              </span>
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-1 flex-col md:flex-row items-center gap-4 w-full md:w-auto">
@@ -304,13 +425,19 @@ export default function AdminTransactions() {
                 type="text" 
                 placeholder="Cari pembeli atau ID..." 
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
                 className="input-clay pl-12 h-12 w-full"
               />
             </div>
             <select 
               value={filters.sellerId}
-              onChange={(e) => setFilters({...filters, sellerId: e.target.value})}
+              onChange={(e) => {
+                setFilters({...filters, sellerId: e.target.value});
+                setPage(1);
+              }}
               className="input-clay h-12 appearance-none hidden md:block w-48 shrink-0"
             >
               <option value="">Semua Penjual</option>
@@ -340,7 +467,7 @@ export default function AdminTransactions() {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6 sm:p-8 bg-zinc-50/30 dark:bg-zinc-800/30 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-6 sm:p-8 bg-zinc-50/30 dark:bg-zinc-800/30 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Dari Tanggal</label>
                 <div className="relative">
@@ -348,7 +475,10 @@ export default function AdminTransactions() {
                     type="date" 
                     max={filters.endDate || undefined}
                     value={filters.startDate}
-                    onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                    onChange={(e) => {
+                      setFilters({...filters, startDate: e.target.value});
+                      setPage(1);
+                    }}
                     className="input-clay h-12 w-full relative z-10 text-transparent sm:text-transparent bg-transparent focus:bg-transparent dark:focus:bg-transparent [&::-webkit-datetime-edit]:hidden [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4"
                   />
                   <div className="absolute inset-0 flex items-center px-4 pointer-events-none z-0 bg-white dark:bg-zinc-800 rounded-xl">
@@ -365,7 +495,10 @@ export default function AdminTransactions() {
                     type="date" 
                     min={filters.startDate || undefined}
                     value={filters.endDate}
-                    onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+                    onChange={(e) => {
+                      setFilters({...filters, endDate: e.target.value});
+                      setPage(1);
+                    }}
                     className="input-clay h-12 w-full relative z-10 text-transparent sm:text-transparent bg-transparent focus:bg-transparent dark:focus:bg-transparent [&::-webkit-datetime-edit]:hidden [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-4"
                   />
                   <div className="absolute inset-0 flex items-center px-4 pointer-events-none z-0 bg-white dark:bg-zinc-800 rounded-xl">
@@ -376,27 +509,14 @@ export default function AdminTransactions() {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Status Transaksi</label>
-                <select 
-                  value={filters.status}
-                  onChange={(e) => setFilters({...filters, status: e.target.value})}
-                  className="input-clay h-12 w-full appearance-none"
-                  disabled={activeTab !== 'success'}
-                >
-                  <option value="">Semua Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid (Dibayar)</option>
-                  <option value="success">Success (Selesai)</option>
-                  <option value="failed">Failed</option>
-                </select>
-              </div>
-              <div className="space-y-2">
                 <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Metode Bayar</label>
                 <select 
                   value={filters.paymentMethod}
-                  onChange={(e) => setFilters({...filters, paymentMethod: e.target.value})}
+                  onChange={(e) => {
+                    setFilters({...filters, paymentMethod: e.target.value});
+                    setPage(1);
+                  }}
                   className="input-clay h-12 w-full appearance-none"
-                  disabled={activeTab !== 'success'}
                 >
                   <option value="">Semua Metode</option>
                   <option value="cash">Tunai (Cash)</option>
@@ -405,9 +525,28 @@ export default function AdminTransactions() {
                   <option value="points">Points (Loyalty)</option>
                 </select>
               </div>
-              <div className="md:col-span-2 lg:col-span-4 flex justify-end">
-                <button 
-                  onClick={() => setFilters({ startDate: '', endDate: '', sellerId: '', status: '', paymentMethod: '' })}
+              <div className="space-y-2 md:hidden">
+                <label className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Penjual</label>
+                <select
+                  value={filters.sellerId}
+                  onChange={(e) => {
+                    setFilters({...filters, sellerId: e.target.value});
+                    setPage(1);
+                  }}
+                  className="input-clay h-12 w-full appearance-none"
+                >
+                  <option value="">Semua Penjual</option>
+                  {sellers.map(seller => (
+                    <option key={seller.id} value={seller.id}>{seller.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-2 lg:col-span-3 flex justify-end">
+                <button
+                  onClick={() => {
+                    setFilters({ startDate: '', endDate: '', sellerId: '', paymentMethod: '' });
+                    setPage(1);
+                  }}
                   className="text-xs font-black text-red-500 dark:text-red-400 uppercase tracking-widest hover:text-red-600 dark:hover:text-red-300 transition-colors"
                 >
                   Reset Filter
@@ -440,7 +579,7 @@ export default function AdminTransactions() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    key={tx.id} 
+                    key={`${tx.source}:${tx.id}`}
                     className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors group"
                   >
                     <td className="p-4 lg:p-6">
@@ -452,6 +591,9 @@ export default function AdminTransactions() {
                         <span className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
                           <Calendar className="w-3.5 h-3.5" />
                           {isValid(new Date(tx.created_at)) ? format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm:ss', { locale: id }) : 'Waktu tidak valid'}
+                        </span>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                          {tx.source === 'validation_attempt' ? 'Percobaan validasi' : 'Transaksi'}
                         </span>
                       </div>
                     </td>
@@ -467,36 +609,21 @@ export default function AdminTransactions() {
                     </td>
                     <td className="p-4 lg:p-6">
                       <div className="flex flex-col">
-                        <p className={`text-sm lg:text-base font-black tracking-tight ${activeTab === 'success' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
-                          {formatRupiah(filters.sellerId && activeTab === 'success' ? (sellerSubtotals[tx.id] || 0) : (activeTab === 'success' ? tx.total_amount : tx.attempted_amount))}
+                        <p className={`text-sm lg:text-base font-black tracking-tight ${activeTab === 'settled' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
+                          {formatRupiah(Number(tx.amount || 0))}
                         </p>
-                        {filters.sellerId && activeTab === 'success' && (
-                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Total Pesanan: {formatRupiah(tx.total_amount || 0)}</p>
+                        {filters.sellerId && tx.source === 'transaction' && Number(tx.order_amount ?? tx.total_amount ?? 0) !== Number(tx.amount || 0) && (
+                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Total Pesanan: {formatRupiah(Number(tx.order_amount ?? tx.total_amount ?? 0))}</p>
                         )}
                       </div>
                     </td>
                     <td className="p-4 lg:p-6">
-                      {activeTab === 'success' ? (
-                        <span className={`clay-badge ${
-                          tx.status === 'success' || tx.status === 'paid' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' :
-                          tx.status === 'processing' || tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' :
-                          'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
-                        }`}>
-                          {tx.status === 'success' || tx.status === 'paid' ? <CheckCircle2 className="w-3 h-3 mr-1.5" /> : 
-                           tx.status === 'processing' || tx.status === 'pending' ? <Clock className="w-3 h-3 mr-1.5" /> : <XCircle className="w-3 h-3 mr-1.5" />}
-                          {tx.status === 'success' ? 'Selesai' : 
-                           tx.status === 'paid' ? 'Dibayar' : 
-                           tx.status === 'processing' ? 'Proses' : 
-                           tx.status === 'pending' ? 'Menunggu' : 'Gagal'}
-                        </span>
-                      ) : (
-                        <div className="flex flex-col gap-1">
-                          <span className="clay-badge bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 w-fit">
-                            <XCircle className="w-3 h-3 mr-1.5" /> Gagal
-                          </span>
+                      <div className="flex flex-col gap-1">
+                        <TransactionStatusBadge status={tx.status} />
+                        {tx.reason && (
                           <p className="text-[10px] text-red-600 dark:text-red-400 font-bold truncate max-w-[150px] lg:max-w-[200px]" title={tx.reason}>{tx.reason}</p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 lg:p-6 text-right">
                       <button 
@@ -524,7 +651,7 @@ export default function AdminTransactions() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
-                key={tx.id} 
+                key={`${tx.source}:${tx.id}`}
                 className="p-4 space-y-4"
               >
                 <div className="flex justify-between items-start">
@@ -538,22 +665,7 @@ export default function AdminTransactions() {
                       {format(new Date(tx.created_at), 'dd MMM yy, HH:mm:ss', { locale: id })}
                     </span>
                   </div>
-                  {activeTab === 'success' ? (
-                    <span className={`clay-badge ${
-                      tx.status === 'success' || tx.status === 'paid' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400' :
-                      tx.status === 'processing' || tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' :
-                      'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
-                    }`}>
-                      {tx.status === 'success' ? 'Selesai' : 
-                       tx.status === 'paid' ? 'Dibayar' : 
-                       tx.status === 'processing' ? 'Proses' : 
-                       tx.status === 'pending' ? 'Menunggu' : 'Gagal'}
-                    </span>
-                  ) : (
-                    <span className="clay-badge bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
-                      Gagal
-                    </span>
-                  )}
+                  <TransactionStatusBadge status={tx.status} />
                 </div>
                 
                 <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-2xl border border-zinc-100 dark:border-zinc-700/50 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[inset_1px_1px_2px_rgba(0,0,0,0.2)]">
@@ -566,16 +678,16 @@ export default function AdminTransactions() {
                   </div>
                   <div className="text-right">
                     <p className="text-[8px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Total</p>
-                    <p className={`font-black text-sm ${activeTab === 'success' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
-                      {formatRupiah(filters.sellerId && activeTab === 'success' ? sellerSubtotals[tx.id] : (activeTab === 'success' ? tx.total_amount : tx.attempted_amount))}
+                    <p className={`font-black text-sm ${activeTab === 'settled' ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-900 dark:text-white'}`}>
+                      {formatRupiah(Number(tx.amount || 0))}
                     </p>
-                    {filters.sellerId && activeTab === 'success' && (
-                      <p className="text-[8px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Total Pesanan: {formatRupiah(tx.total_amount)}</p>
+                    {filters.sellerId && tx.source === 'transaction' && Number(tx.order_amount ?? tx.total_amount ?? 0) !== Number(tx.amount || 0) && (
+                      <p className="text-[8px] text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Total Pesanan: {formatRupiah(Number(tx.order_amount ?? tx.total_amount ?? 0))}</p>
                     )}
                   </div>
                 </div>
 
-                {activeTab === 'failed' && tx.reason && (
+                {tx.reason && (
                   <p className="text-[10px] text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-900/20 p-3 rounded-xl border border-red-100 dark:border-red-800/30 line-clamp-2">{tx.reason}</p>
                 )}
 
@@ -595,6 +707,34 @@ export default function AdminTransactions() {
             <div className="flex flex-col items-center gap-4 text-zinc-300 dark:text-zinc-600">
               <Receipt className="w-16 h-16 stroke-[1]" />
               <p className="font-bold text-zinc-400 dark:text-zinc-500">Tidak ada transaksi ditemukan</p>
+            </div>
+          </div>
+        )}
+        {pagination.total > 0 && (
+          <div className="border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30 px-4 py-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 text-center sm:text-left">
+              Menampilkan {((pagination.page - 1) * pagination.pageSize) + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} dari {pagination.total.toLocaleString('id-ID')} data
+            </p>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setPage(current => Math.max(1, current - 1))}
+                disabled={loading || pagination.page <= 1}
+                className="btn-clay-secondary h-10 px-3 flex-1 sm:flex-none flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" /> Sebelumnya
+              </button>
+              <span className="min-w-20 text-center text-xs font-black text-zinc-700 dark:text-zinc-200 tabular-nums">
+                {pagination.page} / {pagination.totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(current => Math.min(pagination.totalPages, current + 1))}
+                disabled={loading || pagination.page >= pagination.totalPages}
+                className="btn-clay-secondary h-10 px-3 flex-1 sm:flex-none flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Berikutnya <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}
@@ -620,15 +760,18 @@ export default function AdminTransactions() {
               <div className="p-6 md:p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
                 <div className="flex items-center gap-4">
                   <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center ${
-                    selectedTx.status === 'success' || selectedTx.status === 'paid' ? 'bg-blue-500 text-white' :
-                    selectedTx.status === 'processing' || selectedTx.status === 'pending' ? 'bg-amber-500 text-white' :
-                    'bg-red-500 text-white'
+                    classifyTransactionStatus(selectedTx.status) === 'settled' ? 'bg-blue-500 text-white' :
+                    classifyTransactionStatus(selectedTx.status) === 'pending' ? 'bg-amber-500 text-white' :
+                    classifyTransactionStatus(selectedTx.status) === 'failed' ? 'bg-red-500 text-white' :
+                    'bg-zinc-500 text-white'
                   }`}>
                     <Receipt className="w-5 h-5 md:w-6 md:h-6" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Detail Transaksi</h2>
+                      <h2 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+                        {selectedTx.source === 'validation_attempt' ? 'Detail Percobaan Validasi' : 'Detail Transaksi'}
+                      </h2>
                       {selectedTx.metadata?.sariroti_confirmed && (
                         <span className="clay-badge bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 text-[10px]">
                           Sariroti Dikonfirmasi
@@ -636,6 +779,9 @@ export default function AdminTransactions() {
                       )}
                     </div>
                     <p className="text-[10px] md:text-xs text-zinc-400 dark:text-zinc-500 font-mono tracking-wider truncate max-w-[150px] md:max-w-none">{selectedTx.id}</p>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mt-1">
+                      {selectedTx.source === 'validation_attempt' ? 'Sumber: validasi bukti gagal' : 'Sumber: transaksi'}
+                    </p>
                   </div>
                 </div>
                 <button onClick={() => setSelectedTx(null)} className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center justify-center transition-colors">
@@ -658,40 +804,33 @@ export default function AdminTransactions() {
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Waktu</span>
                         <span className="font-bold text-zinc-900 dark:text-white text-right">
-                          {format(new Date(selectedTx.created_at), 'dd MMM yyyy, HH:mm', { locale: id })}
+                          {isValid(new Date(selectedTx.created_at)) ? format(new Date(selectedTx.created_at), 'dd MMM yyyy, HH:mm', { locale: id }) : 'Waktu tidak valid'}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Status</span>
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                          selectedTx.status === 'success' || selectedTx.status === 'paid' ? 'bg-blue-500 text-white' :
-                          selectedTx.status === 'processing' || selectedTx.status === 'pending' ? 'bg-amber-500 text-white' :
-                          'bg-red-500 text-white'
-                        }`}>
-                          {selectedTx.status === 'success' ? 'Selesai' :
-                           selectedTx.status === 'paid' ? 'Dibayar' :
-                           selectedTx.status === 'processing' ? 'Proses' :
-                           selectedTx.status === 'pending' ? 'Menunggu' : 'Gagal'}
-                        </span>
+                        <TransactionStatusBadge status={selectedTx.status} />
                       </div>
-                      {activeTab === 'failed' && (
+                      {selectedTx.reason && (
                         <div className="pt-6 border-t border-zinc-200/60 dark:border-zinc-700/50">
                           <span className="text-[10px] font-black text-red-400 uppercase tracking-widest block mb-2">Alasan Penolakan</span>
                           <p className="text-red-700 dark:text-red-300 font-bold text-sm bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800/30">{selectedTx.reason}</p>
                         </div>
                       )}
                       <div className="pt-8 border-t border-zinc-200/60 dark:border-zinc-700/50 flex flex-col md:flex-row md:justify-between md:items-end gap-2">
-                        <span className="text-xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Total Bayar</span>
+                        <span className="text-xs font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                          {selectedTx.source === 'validation_attempt' ? 'Nilai Percobaan' : 'Nilai Transaksi'}
+                        </span>
                         <span className={`text-3xl md:text-4xl font-black tracking-tighter ${
-                          selectedTx.status === 'success' || selectedTx.status === 'paid' ? 'text-blue-600 dark:text-blue-400' :
+                          classifyTransactionStatus(selectedTx.status) === 'settled' ? 'text-blue-600 dark:text-blue-400' :
                           'text-zinc-900 dark:text-white'
                         }`}>
-                          {formatRupiah(selectedTx.total_amount || selectedTx.attempted_amount || 0)}
+                          {formatRupiah(Number(selectedTx.amount || 0))}
                         </span>
                       </div>
                     </div>
 
-                    {activeTab === 'success' && (
+                    {selectedTx.source === 'transaction' && (
                       <div className="space-y-4 md:space-y-6">
                         <h3 className="text-[10px] font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
                           <Package className="w-4 h-4 text-blue-500 dark:text-blue-400" /> Item Terbeli

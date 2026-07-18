@@ -1,5 +1,15 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
+import {
+  consumeReceiptValidationIssuance,
+  verifyReceiptValidationToken,
+} from "../utils/receiptValidationToken.js";
+import {
+  loadCanonicalTransactionItems,
+  normalizeTransactionCreationInput,
+  resolveOptionalAuthenticatedBuyerId,
+  sendTransactionValidationError,
+} from "../utils/transactionCreationValidation.js";
 
 export function registerTransactionRoutes(app, {
   supabase, sendNotification, sendWANotification,
@@ -369,19 +379,50 @@ app.get("/api/transactions/:id", async (req, res) => {
 app.post("/api/transactions/create", async (req, res) => {
   try {
     const {
-      buyer_name,
-      buyer_id,
       buyer_phone,
       buyer_email,
-      total_amount,
-      items,
       payment_method,
       status,
+      validation_token,
       receipt_image,
-    } = req.body;
+    } = req.body || {};
+
+    const authenticatedBuyerId = await resolveOptionalAuthenticatedBuyerId(
+      supabase,
+      req.headers.authorization,
+    );
+    const normalized = normalizeTransactionCreationInput(req.body, {
+      authenticatedBuyerId,
+      requireBuyerName: true,
+    });
+    const items = await loadCanonicalTransactionItems(supabase, normalized.items);
+    const buyer_name = normalized.buyerName;
+    const buyer_id = normalized.buyerId;
+    const total_amount = normalized.totalAmount;
+
+    const requestedStatus = String(status || "pending").trim().toLowerCase();
+    if (requestedStatus !== "pending" && requestedStatus !== "success") {
+      return res.status(400).json({ error: "Status awal transaksi tidak diizinkan." });
+    }
+    let receiptValidationPayload = null;
+    if (requestedStatus === "success") {
+      const validation = verifyReceiptValidationToken(validation_token, {
+        amount: total_amount,
+        imageBase64: receipt_image,
+        items,
+        buyerId: buyer_id,
+      });
+      if (!validation.valid) {
+        return res.status(403).json({
+          error: "Pengesahan bukti pembayaran tidak valid atau sudah kedaluwarsa. Validasi ulang bukti pembayaran.",
+          code: validation.reason,
+        });
+      }
+      receiptValidationPayload = validation.payload;
+    }
 
     // ─── Idempotency: cek duplikat pending/paid untuk buyer yg sama dalam 60 detik ───
-    if (buyer_id) {
+    if (requestedStatus === "pending" && buyer_id) {
       const sixtySecAgo = new Date(Date.now() - 60 * 1000).toISOString();
       const { data: recentTx } = await supabase
         .from("transactions")
@@ -435,13 +476,29 @@ app.post("/api/transactions/create", async (req, res) => {
       buyer_name,
       buyer_phone,
       total_amount: total_amount,
-      status: status || "pending",
+      status: requestedStatus,
       metadata: { fee_platform: feeAmount, net_seller_amount: netAmount }
     };
     if (buyer_id) txDataToInsert.buyer_id = buyer_id;
     if (payment_method) txDataToInsert.payment_method = payment_method;
     if (receipt_image) txDataToInsert.receipt_image = receipt_image;
     if (buyer_email) txDataToInsert.payment_details = { buyer_email };
+
+    // Claim dilakukan sedekat mungkin dengan INSERT transaksi. RPC memakai
+    // UPDATE ... WHERE consumed_at IS NULL sehingga request paralel hanya dapat
+    // memenangkan satu pengesahan.
+    if (receiptValidationPayload) {
+      const claim = await consumeReceiptValidationIssuance(supabase, receiptValidationPayload);
+      if (!claim.consumed) {
+        const ledgerUnavailable = claim.reason === 'validation_ledger_unavailable';
+        return res.status(ledgerUnavailable ? 503 : 409).json({
+          error: ledgerUnavailable
+            ? 'Ledger pengesahan pembayaran sedang tidak tersedia. Silakan coba lagi.'
+            : 'Pengesahan bukti pembayaran sudah pernah digunakan atau tidak terdaftar. Validasi ulang bukti pembayaran.',
+          code: claim.reason,
+        });
+      }
+    }
 
     const { data: txDataResult, error: txError } = await supabase
       .from("transactions")
@@ -550,108 +607,12 @@ app.post("/api/transactions/create", async (req, res) => {
     }
     res.json({ success: true, transaction: tx });
   } catch (error) {
+    if (sendTransactionValidationError(res, error)) return;
     console.error("Create transaction error:", error);
     res
       .status(500)
       .json({ error: error.message || "Failed to create transaction" });
   }
-});
-
-app.post("/api/transactions/pay", async (req, res) => {
-  try {
-    const { transaction_id } = req.body;
-    const { error: updateError } = await supabase
-      .from("transactions")
-      .update({ status: "paid" })
-      .eq("id", transaction_id);
-    if (updateError) throw updateError;
-    const { data: transaction, error: fetchError } = await supabase
-      .from("transactions")
-      .select("*, transaction_items(*)")
-      .eq("id", transaction_id)
-      .single();
-    if (fetchError) throw fetchError;
-    await processDigitalItems(transaction_id, transaction.transaction_items);
-    await triggerSarirotiEmail(
-      transaction_id,
-      transaction.buyer_name,
-      transaction.total_amount,
-    );
-    res.json({ success: true });
-  } catch (error) {
-    console.error("Pay transaction error:", error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to update transaction" });
-  }
-});
-
-// ─── Order tracking: status flow endpoints ──────────────────────────────────
-app.post("/api/transactions/:id/process", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { data: tx, error } = await supabase.from("transactions").select("*, transaction_items(*)").eq("id", id).single();
-    if (error || !tx) return res.status(404).json({ error: "Transaction not found" });
-    if (tx.status !== "paid" && tx.status !== "success") return res.status(400).json({ error: "Only paid or success orders can be processed" });
-    await supabase.from("transactions").update({
-      status: "processed",
-      processed_at: new Date().toISOString(),
-      metadata: { ...(tx.metadata || {}), processed_by: req.body?.user_id || null },
-    }).eq("id", id);
-    if (tx.buyer_id) {
-      await sendNotification(tx.buyer_id, {
-        type: "transaction", title: "📦 Pesanan Diproses",
-        message: `Pesanan #${id.slice(0,8)} sedang diproses oleh penjual.`,
-        path: `/kiosk/history?id=${id}`,
-      });
-      await sendWANotification(tx.buyer_id, 'order_processed', { transaction_id: id });
-    }
-    res.json({ success: true, status: "processed" });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post("/api/transactions/:id/ready", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { data: tx, error } = await supabase.from("transactions").select("*").eq("id", id).single();
-    if (error || !tx) return res.status(404).json({ error: "Transaction not found" });
-    if (tx.status !== "processed" && tx.status !== "paid" && tx.status !== "success") return res.status(400).json({ error: "Order must be processed or paid first" });
-    await supabase.from("transactions").update({
-      status: "ready",
-      ready_at: new Date().toISOString(),
-    }).eq("id", id);
-    if (tx.buyer_id) {
-      await sendNotification(tx.buyer_id, {
-        type: "transaction", title: "🟢 Pesanan Siap Diambil!",
-        message: `Pesanan #${id.slice(0,8)} sudah siap diambil.`,
-        path: `/kiosk/history?id=${id}`,
-      });
-      await sendWANotification(tx.buyer_id, 'order_ready', { transaction_id: id });
-    }
-    res.json({ success: true, status: "ready" });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post("/api/transactions/:id/complete", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { data: tx, error } = await supabase.from("transactions").select("*").eq("id", id).single();
-    if (error || !tx) return res.status(404).json({ error: "Transaction not found" });
-    if (tx.status !== "ready") return res.status(400).json({ error: "Order must be ready first" });
-    await supabase.from("transactions").update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
-    }).eq("id", id);
-    if (tx.buyer_id) {
-      await sendNotification(tx.buyer_id, {
-        type: "transaction", title: "🎉 Pesanan Selesai!",
-        message: `Pesanan #${id.slice(0,8)} telah selesai. Terima kasih!`,
-        path: `/kiosk/history?id=${id}`,
-      });
-      await sendWANotification(tx.buyer_id, 'order_completed', { transaction_id: id });
-    }
-    res.json({ success: true, status: "completed" });
-  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post("/api/transactions/cancel", async (req, res) => {
@@ -681,21 +642,26 @@ app.post("/api/transactions/cancel", async (req, res) => {
         .status(400)
         .json({ error: "Hanya pesanan pending yang dapat dibatalkan." });
     }
+    if (tx.buyer_id && !authenticatedBuyerId) {
+      return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan anggota." });
+    }
     // Jika terautentikasi, pastikan ini transaksi miliknya
     if (authenticatedBuyerId && tx.buyer_id && tx.buyer_id !== authenticatedBuyerId) {
       return res.status(403).json({ error: "Anda tidak berhak membatalkan pesanan ini." });
     }
     // Restore stock before cancelling
     await restoreTransactionStock(transaction_id);
-    // Update status ke 'cancelled' — JANGAN delete karena ada FK dari stock_adjustments
+    // Schema pembayaran hanya mengenal pending/success/failed/paid. Simpan
+    // pembatalan sebagai failed dan bedakan penyebabnya melalui metadata.
     const { error: updateError } = await supabase
       .from("transactions")
       .update({
-        status: "cancelled",
+        status: "failed",
         metadata: {
           ...(tx.metadata || {}),
           cancelled_at: new Date().toISOString(),
           cancelled_by: authenticatedBuyerId || "buyer",
+          cancel_reason: "Dibatalkan oleh pembeli",
         }
       })
       .eq("id", transaction_id);
@@ -723,7 +689,7 @@ app.get("/api/transactions/seller/:sellerId", async (req, res) => {
     // filter items that have non-null transactions
     const filteredItems = items?.filter((item) =>
       item.transactions !== null &&
-      ['paid', 'success', 'completed'].includes(item.transactions.status)
+      ['paid', 'success'].includes(item.transactions.status)
     ) || [];
 
     if (error) {

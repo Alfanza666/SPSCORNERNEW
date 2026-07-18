@@ -1,5 +1,82 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
+import { fetchAllByRange } from "./adminReporting.js";
+
+const SETTLED_STATUSES = ["paid", "success"];
+const ANALYTICS_FETCH_CHUNK = 500;
+const WITA_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function oneRelation(value) {
+  return Array.isArray(value) ? (value[0] || null) : (value || null);
+}
+
+function numeric(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isAtOrAfter(value, lowerBoundIso) {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) && timestamp >= Date.parse(lowerBoundIso);
+}
+
+function witaDateKey(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getTime() + WITA_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function witaPeriodStart(now, period) {
+  const shifted = new Date(now.getTime() + WITA_OFFSET_MS);
+  const year = shifted.getUTCFullYear();
+  const month = period === "year" ? 0 : shifted.getUTCMonth();
+  return new Date(Date.UTC(year, month, 1) - WITA_OFFSET_MS).toISOString();
+}
+
+function ensureResult(result, context) {
+  if (result?.error) throw new Error(`${context}: ${result.error.message || result.error.code || "query failed"}`);
+  return result;
+}
+
+function fetchAllRows(queryFactory) {
+  return fetchAllByRange(queryFactory, ANALYTICS_FETCH_CHUNK);
+}
+
+export function buildSellerAnalyticsData({ monthItems, last30DayItems, profile }) {
+  const monthRevenue = monthItems.reduce((sum, item) => sum + numeric(item.subtotal), 0);
+  const totalOrders = new Set(monthItems.map(item => item.transaction_id).filter(Boolean)).size;
+
+  const weeklyMap = {};
+  for (const item of last30DayItems) {
+    const transaction = oneRelation(item.transactions);
+    const day = transaction?.created_at ? witaDateKey(transaction.created_at) : null;
+    if (!day) continue;
+    weeklyMap[day] = (weeklyMap[day] || 0) + numeric(item.subtotal);
+  }
+  const weeklyBreakdown = Object.entries(weeklyMap)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([date, revenue]) => ({ date, revenue }));
+
+  const productPerformance = {};
+  for (const item of monthItems) {
+    const product = oneRelation(item.products);
+    const name = product?.name || "Unknown";
+    productPerformance[name] = (productPerformance[name] || 0) + numeric(item.quantity);
+  }
+  const productData = Object.entries(productPerformance)
+    .sort((left, right) => Number(right[1]) - Number(left[1]))
+    .slice(0, 10)
+    .map(([name, quantity]) => ({ name, quantity }));
+
+  return {
+    monthRevenue,
+    totalOrders,
+    balance: numeric(profile?.balance),
+    totalSales: numeric(profile?.total_sales),
+    weeklyBreakdown,
+    productData,
+  };
+}
 
 export function registerAnalyticsRoutes(app, { supabase }) {
 
@@ -16,58 +93,77 @@ export function registerAnalyticsRoutes(app, { supabase }) {
       }
 
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const startOfWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
+      const startOfMonth = witaPeriodStart(now, "month");
+      const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const startOfYear = witaPeriodStart(now, "year");
 
-      const [monthTx, totalTx, totalRevenue, sellerCount, productCount, dailyTx, topProducts, categorySales] = await Promise.all([
-        supabase.from("transactions").select("total_amount", { count: "exact" }).eq("status", "paid").gte("created_at", startOfMonth),
-        supabase.from("transactions").select("total_amount", { count: "exact" }).eq("status", "paid"),
-        supabase.from("transactions").select("total_amount").eq("status", "paid"),
-        supabase.from("profiles").select("id", { count: "exact" }).eq("role", "seller"),
-        supabase.from("products").select("id", { count: "exact" }).eq("is_active", true),
-        supabase.from("transactions").select("total_amount, created_at").eq("status", "paid").gte("created_at", startOfWeek),
-        supabase.from("transaction_items").select("products(name), quantity, price").gte("created_at", startOfMonth).order("created_at", { ascending: false }).limit(10),
-        supabase.from("transaction_items").select("products(category), quantity").gte("created_at", startOfYear),
+      const [settledTransactions, sellerCountRaw, productCountRaw, monthItems, yearItems] = await Promise.all([
+        fetchAllRows(() => supabase
+          .from("transactions")
+          .select("id,total_amount,created_at")
+          .in("status", SETTLED_STATUSES)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })),
+        supabase.from("profiles").select("id", { count: "exact", head: true }).eq("role", "seller"),
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("is_active", true),
+        fetchAllRows(() => supabase
+          .from("transaction_items")
+          .select("id,quantity,price,created_at,products(name),transactions!inner(status,created_at)")
+          .in("transactions.status", SETTLED_STATUSES)
+          .gte("transactions.created_at", startOfMonth)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })),
+        fetchAllRows(() => supabase
+          .from("transaction_items")
+          .select("id,quantity,created_at,products(category),transactions!inner(status,created_at)")
+          .in("transactions.status", SETTLED_STATUSES)
+          .gte("transactions.created_at", startOfYear)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })),
       ]);
+      const sellerCount = ensureResult(sellerCountRaw, "seller count");
+      const productCount = ensureResult(productCountRaw, "product count");
 
-      const monthRevenue = (monthTx.data || []).reduce((s, t) => s + Number(t.total_amount || 0), 0);
-      const totalRev = (totalRevenue.data || []).reduce((s, t) => s + Number(t.total_amount || 0), 0);
-      const dailyRev = (dailyTx.data || []).reduce((s, t) => s + Number(t.total_amount || 0), 0);
+      const monthTransactions = settledTransactions.filter(transaction => isAtOrAfter(transaction.created_at, startOfMonth));
+      const dailyTransactions = settledTransactions.filter(transaction => isAtOrAfter(transaction.created_at, startOfWeek));
+      const monthRevenue = monthTransactions.reduce((sum, transaction) => sum + numeric(transaction.total_amount), 0);
+      const totalRevenue = settledTransactions.reduce((sum, transaction) => sum + numeric(transaction.total_amount), 0);
+      const dailyRevenue = dailyTransactions.reduce((sum, transaction) => sum + numeric(transaction.total_amount), 0);
 
       // Daily breakdown
       const dailyMap = {};
-      for (const tx of (dailyTx.data || [])) {
-        const day = new Date(tx.created_at).toISOString().split('T')[0];
-        dailyMap[day] = (dailyMap[day] || 0) + Number(tx.total_amount || 0);
+      for (const tx of dailyTransactions) {
+        const day = witaDateKey(tx.created_at);
+        if (!day) continue;
+        dailyMap[day] = (dailyMap[day] || 0) + numeric(tx.total_amount);
       }
       const dailyBreakdown = Object.entries(dailyMap).sort(([a], [b]) => a.localeCompare(b)).map(([date, revenue]) => ({ date, revenue }));
 
       // Top products
-      const topProductsData = (topProducts.data || []).slice(0, 10).reduce((acc, item) => {
-        const name = item.products?.name || "Unknown";
+      const topProductsData = monthItems.reduce((acc, item) => {
+        const name = oneRelation(item.products)?.name || "Unknown";
         const existing = acc.find(p => p.name === name);
-        if (existing) { existing.quantity += (item.quantity || 0); existing.revenue += (item.quantity || 0) * (item.price || 0); }
-        else acc.push({ name, quantity: item.quantity || 0, revenue: (item.quantity || 0) * (item.price || 0) });
+        if (existing) { existing.quantity += numeric(item.quantity); existing.revenue += numeric(item.quantity) * numeric(item.price); }
+        else acc.push({ name, quantity: numeric(item.quantity), revenue: numeric(item.quantity) * numeric(item.price) });
         return acc;
       }, []).sort((a, b) => b.revenue - a.revenue);
 
       // Category breakdown
       const categoryMap = {};
-      for (const item of (categorySales.data || [])) {
-        const cat = item.products?.category || "Uncategorized";
-        categoryMap[cat] = (categoryMap[cat] || 0) + (item.quantity || 0);
+      for (const item of yearItems) {
+        const cat = oneRelation(item.products)?.category || "Uncategorized";
+        categoryMap[cat] = (categoryMap[cat] || 0) + numeric(item.quantity);
       }
       const categoryData = Object.entries(categoryMap).map(([name, value]) => ({ name, value }));
 
       res.json({
-        monthTx: monthTx.count || 0,
-        totalTx: totalTx.count || 0,
+        monthTx: monthTransactions.length,
+        totalTx: settledTransactions.length,
         monthRevenue,
-        totalRevenue: totalRev,
+        totalRevenue,
         sellerCount: sellerCount.count || 0,
         productCount: productCount.count || 0,
-        dailyRevenue: dailyRev,
+        dailyRevenue,
         dailyBreakdown,
         topProducts: topProductsData.slice(0, 5),
         categoryData,
@@ -89,48 +185,34 @@ export function registerAnalyticsRoutes(app, { supabase }) {
 
       const sellerId = profile.role === "seller" ? user.id : null;
       const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      let txQuery = supabase.from("transactions").select("total_amount, created_at, transaction_items(product_id, quantity, price, products(name))", { count: "exact" }).eq("status", "paid");
-      let countQuery = supabase.from("transactions").select("id", { count: "exact" }).eq("status", "paid");
-      if (sellerId) {
-        txQuery = txQuery.filter("transaction_items.seller_id", "eq", sellerId);
-        countQuery = countQuery.filter("transaction_items.seller_id", "eq", sellerId);
-      }
+      const startOfMonth = witaPeriodStart(now, "month");
+      const startOfLast30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const sellerItemsQuery = (startIso) => {
+        let query = supabase
+          .from("transaction_items")
+          .select("id,transaction_id,seller_id,quantity,subtotal,created_at,products(name),transactions!inner(id,status,created_at)")
+          .in("transactions.status", SETTLED_STATUSES)
+          .gte("transactions.created_at", startIso)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true });
+        if (sellerId) query = query.eq("seller_id", sellerId);
+        return query;
+      };
 
-      const [allTx, monthTx, allTime] = await Promise.all([
-        txQuery.gte("created_at", startOfMonth),
-        txQuery.gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+      // Each factory returns a fresh PostgREST builder. Reusing one builder would
+      // append both date filters to the same URL and silently mix the periods.
+      const [monthItems, last30DayItems, allTimeRaw] = await Promise.all([
+        fetchAllRows(() => sellerItemsQuery(startOfMonth)),
+        fetchAllRows(() => sellerItemsQuery(startOfLast30Days)),
         supabase.from("profiles").select("balance, total_sales").eq("id", user.id).single(),
       ]);
+      const allTime = ensureResult(allTimeRaw, "seller profile totals");
 
-      const monthRevenue = (allTx.data || []).reduce((s, t) => s + Number(t.total_amount || 0), 0);
-      const totalOrders = allTx.count || 0;
-
-      const weeklyTx = (monthTx.data || []).reduce((acc, tx) => {
-        const day = new Date(tx.created_at).toISOString().split('T')[0];
-        acc[day] = (acc[day] || 0) + Number(tx.total_amount || 0);
-        return acc;
-      }, {});
-      const weeklyBreakdown = Object.entries(weeklyTx).sort(([a], [b]) => a.localeCompare(b)).map(([date, revenue]) => ({ date, revenue }));
-
-      // Product performance
-      const productPerformance = {};
-      for (const tx of (allTx.data || [])) {
-        for (const item of (tx.transaction_items || [])) {
-          const name = item.products?.name || "Unknown";
-          productPerformance[name] = (productPerformance[name] || 0) + (item.quantity || 0);
-        }
-      }
-      const productData = Object.entries(productPerformance).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, quantity]) => ({ name, quantity }));
-
-      res.json({
-        monthRevenue,
-        totalOrders,
-        balance: (allTime.data?.balance || 0),
-        totalSales: (allTime.data?.total_sales || 0),
-        weeklyBreakdown,
-        productData,
-      });
+      res.json(buildSellerAnalyticsData({
+        monthItems,
+        last30DayItems,
+        profile: allTime.data,
+      }));
     } catch (e) { res.status(500).json({ error: e.message }); }
   }, "/api/analytics/seller"));
 }

@@ -1,16 +1,51 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
+import {
+  issueReceiptValidationAttestation,
+  recordReceiptValidationIssuance,
+} from "../utils/receiptValidationToken.js";
+import {
+  loadCanonicalTransactionItems,
+  normalizeTransactionCreationInput,
+  resolveOptionalAuthenticatedBuyerId,
+  sendTransactionValidationError,
+} from "../utils/transactionCreationValidation.js";
 
 export function registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal }) {
 
   app.post("/api/validate/receipt", async (req, res) => {
     try {
-      const { imageBase64, totalAmount, mimeType = 'image/jpeg' } = req.body;
+      const { imageBase64, totalAmount, items, buyer_id, mimeType = 'image/jpeg' } = req.body || {};
       if (!imageBase64 || !totalAmount) {
         return res.status(400).json({ error: 'Image and totalAmount required' });
       }
-      const amountNum = Number(totalAmount);
-      const amountFormatted = isNaN(amountNum) ? String(totalAmount) : amountNum.toLocaleString('id-ID');
+      // PWA lama belum mengirim snapshot keranjang. Jangan pernah menerbitkan
+      // pengesahan success tanpa cart digest; arahkan transaksi ke verifikasi manual.
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            valid: false,
+            fallbackToPending: true,
+            reason: 'Versi aplikasi ini belum dapat mengesahkan keranjang secara aman. Bukti akan diperiksa manual oleh Admin.',
+          },
+        });
+      }
+
+      const authenticatedBuyerId = await resolveOptionalAuthenticatedBuyerId(
+        supabase,
+        req.headers.authorization,
+      );
+      const normalized = normalizeTransactionCreationInput(
+        { totalAmount, items, buyer_id },
+        { authenticatedBuyerId, requireBuyerName: false },
+      );
+      const canonicalItems = await loadCanonicalTransactionItems(supabase, normalized.items);
+      const amountNum = normalized.totalAmount;
+      const amountFormatted = amountNum.toLocaleString('id-ID');
+      const safeMimeType = /^image\/[a-z0-9.+-]+$/i.test(String(mimeType))
+        ? String(mimeType)
+        : 'image/jpeg';
 
       const prompt = `
       Kamu adalah sistem verifikasi bukti pembayaran untuk toko kantin digital.
@@ -47,7 +82,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
             role: 'user',
             content: [
               { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+              { type: 'image_url', image_url: { url: `data:${safeMimeType};base64,${imageBase64}` } },
             ],
           },
         ],
@@ -66,8 +101,29 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
         parsed = { valid: false, reason: 'Sistem AI tidak dapat membaca gambar dengan jelas. Pastikan gambar bukti pembayaran terlihat jelas dan coba lagi.' };
       }
 
+      if (parsed.valid === true) {
+        try {
+          const attestation = issueReceiptValidationAttestation({
+            amount: amountNum,
+            imageBase64,
+            items: canonicalItems,
+            buyerId: normalized.buyerId,
+          });
+          await recordReceiptValidationIssuance(supabase, attestation.payload);
+          parsed.validationToken = attestation.token;
+        } catch (tokenError) {
+          console.error('[Validate] Failed to issue server attestation:', tokenError?.message || tokenError);
+          parsed = {
+            valid: false,
+            fallbackToPending: true,
+            reason: 'Validasi berhasil dibaca, tetapi server belum dapat mengesahkan hasilnya. Bukti akan diperiksa manual oleh Admin.',
+          };
+        }
+      }
+
       res.json({ success: true, data: parsed });
     } catch (error) {
+      if (sendTransactionValidationError(res, error)) return;
       console.error('[Validate] Receipt error:', error);
       // Fallback gracefully on Groq/network/timeout errors: let frontend allow manual verification
       res.json({

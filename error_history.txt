@@ -1,4 +1,11 @@
 Riwayat Error & Fix:
+- [FIXED] Transaksi gagal tampil di tab Sukses karena halaman mengambil semua status dan hanya mengganti tab visual; riwayat kini memakai endpoint canonical Berhasil/Menunggu/Gagal dengan filter server-side (v5.13.0).
+- [FIXED] Breakdown sumber pendapatan hanya menjumlahkan 1.000 `transaction_items` pertama akibat batas Data API, sehingga berbeda dari kartu total; reporting kini membaca seluruh halaman secara chunked dan merekonsiliasi breakdown ke GMV settled (v5.13.0).
+- [FIXED] Grafik berlabel tujuh hari hanya menghitung status `success` tanpa window waktu, sedangkan kartu memakai `paid` + `success`; grafik kini memakai kontrak settled yang sama dan tujuh tanggal kalender WITA (v5.13.0).
+- [FIXED] Fee dashboard berasal dari agregat profil mutable yang tidak identik dengan ledger transaksi; fee tercatat kini dihitung dari selisih gross transaksi settled dan subtotal item settled yang sama (v5.13.0).
+- [FIXED] Dashboard overview terlalu penuh oleh shortcut duplikat, banner/status hardcoded, editor QRIS, dan daftar sekunder; halaman kini memprioritaskan KPI, grafik, serta pusat tindakan dan memindahkan alat admin ke modal responsif (v5.13.0).
+- [FIXED] Browser dapat meminta transaksi baru langsung berstatus sukses; status sukses sekarang membutuhkan token validasi server yang terikat nominal, gambar bukti, dan masa berlaku (v5.13.0).
+- [FIXED] Route transaksi legacy dapat menulis status/kolom yang tidak ada di schema, dan route bayar tanpa autentikasi dapat mengubah status; dead routes dihapus dan cancel disimpan sebagai failed dengan metadata audit (v5.13.0).
 - [FIXED] Peserta keluarga sudah mengisi RSVP tetapi tidak tampil di Verifikasi RSVP karena default filter hanya `under_review`; halaman kini membuka Semua, mendukung `not_required`, filter program, dan pagination (v5.12.0).
 - [FIXED] Deadline RSVP program aktif tampak berhasil diubah tetapi kembali ke nilai lama akibat silent payload override; perubahan sekarang lewat endpoint/RPC terautentikasi dengan audit dan concurrency guard (v5.12.0).
 - [FIXED] Harga keluarga live Rp35.000 berbeda dari snapshot server Rp0 sehingga bukti pembayaran tidak pernah tercatat; portal kini memakai pricing authoritative dan server menolak client total stale (v5.12.0).

@@ -29,6 +29,9 @@ Jalankan checklist ini setiap ada rilis baru untuk memastikan zero regression.
 - [ ] Keranjang: floating bottom bar muncul
 - [ ] Checkout: payment method QRIS/Cash/Poin
 - [ ] Checkout: prevent double-click (mutex)
+- [ ] Bukti valid menghasilkan transaksi settled hanya dengan token server yang cocok nominal dan hash gambar
+- [ ] Request `status=success` tanpa token, token kedaluwarsa, nominal berubah, atau gambar berubah ditolak tanpa membuat transaksi
+- [ ] AI/token signer unavailable aman jatuh ke pending/manual review; cart tidak hilang sebelum transaksi berhasil dibuat
 - [ ] Payment iPaymu: redirect + callback success
 - [ ] Payment manual: upload receipt → AI verify
 - [ ] History: list transaksi, filter status/tanggal
@@ -39,15 +42,23 @@ Jalankan checklist ini setiap ada rilis baru untuk memastikan zero regression.
 
 ## Admin Dashboard
 
-- [ ] Dashboard: ringkasan statistik
-- [ ] Transaksi list: tab Sukses & Gagal
+- [ ] Dashboard: empat KPI utama tetap terbaca pada mobile, tablet, desktop tanpa overflow atau kartu terpotong
+- [ ] Omzet lunas = jumlah `total_amount` seluruh transaksi `paid` + `success`; `pending`/`failed` tidak berkontribusi
+- [ ] Fee tercatat = omzet lunas - subtotal item settled; nilai bersih = omzet lunas - fee tercatat
+- [ ] Jumlah seluruh sumber pada breakdown sama persis dengan omzet lunas, termasuk transaksi legacy/digital/belum teralokasi
+- [ ] Grafik menampilkan tepat tujuh hari kalender WITA dan hanya transaksi `paid` + `success`
+- [ ] Dataset dengan >1.000 transaksi/item tetap menghasilkan total, breakdown, count, dan pagination lengkap
+- [ ] Dashboard: modal Alat Admin dapat dibuka/ditutup, QRIS dan test email tetap bekerja, serta fokus/scroll mobile tidak terjebak
+- [ ] Transaksi list: tab Berhasil hanya `paid`/`success`, Menunggu hanya `pending`, dan Gagal hanya `failed`/percobaan validasi gagal
+- [ ] Count tab, jumlah halaman, filter penjual/metode/tanggal, pencarian UUID/nama, dan deep-link ID konsisten
+- [ ] Gagal dari tabel transaksi dan percobaan validasi dibedakan; detail item hanya diminta untuk sumber transaksi
 - [ ] Transaksi detail: status badge sesuai `tx.status` (bukan `activeTab`)
 - [ ] Transaksi detail: produk fisik status "Selesai" jika sudah paid
 - [ ] Seller management: tambah, edit, nonaktifkan
 - [ ] Produk: CRUD, upload gambar
 - [ ] Kategori: CRUD
 - [ ] Laporan: stok, transaksi, error reports
-- [ ] Export Excel: transaksi, laporan stok
+- [ ] Export Excel: seluruh halaman sesuai tab/filter ikut diekspor dan status `paid` tidak berubah menjadi Pending
 - [ ] Flash Sale: jadwal, aset, countdown
 - [ ] Announcements: buat, publish
 - [ ] Doorprize: spin wheel

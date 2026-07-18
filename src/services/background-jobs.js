@@ -186,19 +186,20 @@ async function dailyReport() {
           entry.itemRevenue += Number(item.subtotal || 0);
         }
         const txns = Array.from(txMap.values());
-        const totalCount = txns.length;
-        const totalRevenue = txns.reduce((s, t) => s + Number(t.total_amount || 0), 0);
+        const settledTxns = txns.filter(t => t.status === "paid" || t.status === "success");
+        const totalCount = settledTxns.length;
+        // Laporan penjual harus memakai nilai item milik penjual ini, bukan
+        // total order penuh yang dapat berisi item dari beberapa penjual.
+        const totalRevenue = settledTxns.reduce((s, t) => s + Number(t.itemRevenue || 0), 0);
         const pendingCount = txns.filter(t => t.status === "pending").length;
-        const processedCount = txns.filter(t => t.status === "processed").length;
-        const readyCount = txns.filter(t => t.status === "ready_for_pickup" || t.status === "pending_pickup").length;
-        const completedCount = txns.filter(t => t.status === "completed" || t.status === "paid" || t.status === "success").length;
+        const failedCount = txns.filter(t => t.status === "failed").length;
 
         const revFormatted = totalRevenue.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
         if (sendNotif) {
           await sendNotif(seller.id, {
             type: "system",
             title: "Laporan Harian",
-            message: `Ringkasan hari ini: ${totalCount} pesanan, Rp${revFormatted}. ${completedCount} selesai, ${pendingCount} pending, ${processedCount} diproses, ${readyCount} siap ambil.`,
+            message: `Ringkasan hari ini: ${totalCount} transaksi lunas, pendapatan bersih item Rp${revFormatted}. ${pendingCount} menunggu dan ${failedCount} gagal tidak dihitung.`,
             path: "/dashboard/seller/dashboard"
           });
         }
@@ -220,14 +221,23 @@ function scheduleDailyEmailReport() {
     const { data: recipients } = await supabaseInstance.from("profiles").select("id, name, email, role").in("role", ["seller", "admin", "superadmin"]);
     if (!recipients) { scheduleDailyEmailReport(); return; }
     for (const person of recipients) {
-      const query = supabaseInstance.from("transactions").select("total_amount, created_at").eq("status", "paid");
-      if (person.role === 'seller') query.eq("seller_id", person.id);
+      const query = supabaseInstance
+        .from("transactions")
+        .select("id, total_amount, created_at, transaction_items(seller_id, subtotal)")
+        .in("status", ["paid", "success"]);
       query.gte("created_at", today);
       const { data: txns } = await query;
-      const total = (txns || []).reduce((sum, t) => sum + Number(t.total_amount || 0), 0);
-      const count = (txns || []).length;
+      const scopedTxns = person.role === 'seller'
+        ? (txns || []).flatMap(t => {
+            const sellerItems = (t.transaction_items || []).filter(item => item.seller_id === person.id);
+            if (sellerItems.length === 0) return [];
+            return [{ ...t, sellerTotal: sellerItems.reduce((sum, item) => sum + Number(item.subtotal || 0), 0) }];
+          })
+        : (txns || []);
+      const total = scopedTxns.reduce((sum, t) => sum + Number(person.role === 'seller' ? t.sellerTotal : t.total_amount || 0), 0);
+      const count = scopedTxns.length;
       const subject = `📊 Laporan Harian SPS Corner - ${today}`;
-      const html = `<h2>Laporan Penjualan ${today}</h2><p>Total Transaksi: ${count}</p><p>Total Pendapatan: Rp ${total.toLocaleString("id-ID")}</p>`;
+      const html = `<h2>Laporan Penjualan Lunas ${today}</h2><p>Total Transaksi Lunas: ${count}</p><p>${person.role === 'seller' ? 'Pendapatan Bersih Item' : 'Omzet Lunas'}: Rp ${total.toLocaleString("id-ID")}</p><p>Transaksi pending dan gagal tidak dihitung.</p>`;
       if (person.email && sendSarirotiEmail) await sendSarirotiEmail(person.email, subject, html);
     }
     scheduleDailyEmailReport();

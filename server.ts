@@ -32,6 +32,7 @@ import { registerDiagnosticsRoutes } from "./src/routes/diagnostics.js";
 import { registerDigitalRoutes } from "./src/routes/digital.js";
 import { registerTransactionRoutes } from "./src/routes/transactions.js";
 import { registerAdminRoutes } from "./src/routes/admin.js";
+import { registerAdminReportingRoutes } from "./src/routes/adminReporting.js";
 import { registerStockTraceRoutes } from "./src/routes/stock-trace.js";
 import { registerProgramRegistrationWorkflowRoutes } from "./src/routes/programRegistrationWorkflow.js";
 import { registerEventWorkflowRoutes } from "./src/routes/eventWorkflow.js";
@@ -280,6 +281,7 @@ registerDigitalRoutes(app, { supabase, sendNotification, crypto, axios: digiflaz
 
 registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, deductTransactionStock, atomicAdjustStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
 registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
+registerAdminReportingRoutes(app, { supabase });
 registerStockTraceRoutes(app, { supabase });
 
 
