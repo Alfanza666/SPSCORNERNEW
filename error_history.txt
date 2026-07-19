@@ -1,4 +1,6 @@
 Riwayat Error & Fix:
+- [FIXED] Tiga gap agregat saldo seller lama (total gross Rp62.500, net Rp62.300, fee Rp200) direkonsiliasi dengan source unik dan guard nilai profil (v5.14.6).
+- [FIXED] Satu transaksi gagal lama masih memiliki sale adjustment tanpa correction; stok dipulihkan satu unit dan ditandai idempoten (v5.14.6).
 - [FIXED] Auto-cleanup transaksi unpaid menandai failed walau restore stok tidak pernah claim karena JSON key NULL; 73 unit dari 43 transaksi gagal dipulihkan, 3 unit produk terhapus dicatat sebagai pengecualian, dan runtime kini menahan status pending bila restore gagal (v5.14.4).
 - [FIXED] Retry restore dapat menggandakan item yang sudah berhasil dipulihkan sebelum item lain gagal; guard correction per item ditambahkan (v5.14.4).
 - [FIXED] Enam transaksi iPaymu berstatus paid dan stok sudah terpotong, tetapi saldo seller belum tercatat karena guard `balances_updated` tidak pernah disimpan; rekonsiliasi atomik berbasis ledger sudah mengembalikan balance, total sales, dan fee tanpa duplikasi (v5.14.3).

@@ -1,3 +1,19 @@
+v5.14.6 - Legacy Seller Balance & Ghost Stock Reconciliation (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Tiga gap agregat lama pada profil seller belum tercatat sebagai settlement transaksi yang idempoten.
+- Satu transaksi gagal lama masih memiliki log sale tanpa pasangan correction, sehingga satu unit stok tertahan.
+
+### Perbaikan:
+- Menambahkan tabel rekonsiliasi legacy dengan source unik dan guard nilai profil sebelum koreksi; tidak dapat ter-credit dua kali.
+- Mengkredit Admin Sariroti Rp60.000, Hidayatullah Rp920 bersih, dan Muhammad Fauzan Rp1.380 bersih.
+- Memulihkan satu unit stok transaksi gagal dan menambahkan correction log.
+
+### QA:
+- Semua seller tidak memiliki gap gross/fee.
+- Orphan sale tanpa correction: 0; duplicate sale adjustment: 0; produk stok negatif: 0.
+- Adjustment sale invalid sejak patch: 0.
+
 v5.14.5 - Atomic Seller Settlement & Retry-Safe Stock (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:
