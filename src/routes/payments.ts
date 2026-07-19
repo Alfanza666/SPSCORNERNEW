@@ -227,11 +227,12 @@ export function registerPaymentRoutes(app, {
           "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid jelaskan alasannya."
         }
       `;
-      if (!process.env.GROQ_API_KEY) {
-        return res.status(500).json({ success: false, error: "GROQ_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
+      const visionModel = process.env.GROQ_VISION_MODEL?.trim();
+      if (!process.env.GROQ_API_KEY || !visionModel) {
+        throw new Error("GROQ_VISION_MODEL tidak tersedia; gunakan review manual");
       }
       const groqResponse = await groq.chat.completions.create({
-        model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
+        model: visionModel,
         messages: [
           {
             role: "user",

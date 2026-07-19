@@ -730,6 +730,18 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
     };
   }
 
+  const visionModel = process.env.GROQ_VISION_MODEL?.trim();
+  if (!visionModel) {
+    return {
+      attempted_at: attemptedAt,
+      provider: "groq",
+      source: "kiosk_receipt_validator",
+      valid: false,
+      fallback_to_manual: true,
+      reason: "Verifikasi gambar otomatis belum tersedia. Bukti disimpan untuk review admin.",
+    };
+  }
+
   try {
     const { buffer, mimeType } = await loadPaymentProofForKioskValidator(supabase, proofReference);
     if (buffer.length > 10 * 1024 * 1024) {
@@ -775,7 +787,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
     `;
 
     const result = await groq.chat.completions.create({
-      model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
+      model: visionModel,
       messages: [
         {
           role: "user",
@@ -799,7 +811,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
         attempted_at: attemptedAt,
         provider: "groq",
         source: "kiosk_receipt_validator",
-        model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
+        model: visionModel,
         valid: false,
         fallback_to_manual: true,
         reason: "AI belum mengembalikan hasil yang dapat dibaca. Bukti disimpan untuk review admin.",
@@ -811,7 +823,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
       attempted_at: attemptedAt,
       provider: "groq",
       source: "kiosk_receipt_validator",
-      model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
+      model: visionModel,
       valid: Boolean(parsed.valid),
       fallback_to_manual: Boolean(parsed.fallbackToPending || parsed.fallback_to_pending),
       reason: String(parsed.reason || (parsed.valid ? "Bukti pembayaran valid." : "Bukti pembayaran belum valid.")).slice(0, 500),
@@ -823,7 +835,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
       attempted_at: attemptedAt,
       provider: "groq",
       source: "kiosk_receipt_validator",
-      model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
+      model: visionModel,
       valid: false,
       fallback_to_manual: true,
       reason: "Layanan verifikasi otomatis sedang sibuk. Bukti pembayaran disimpan untuk review admin.",

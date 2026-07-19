@@ -1,3 +1,17 @@
+v5.14.8 - Safe Vision Fallback & Groq Model Separation (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Akun Groq production tidak menyediakan model vision yang dipakai aplikasi; request gambar gagal 404 `model_not_found`.
+- Model vision sebelumnya juga dipakai untuk pembuatan form teks, sehingga dua alur ikut gagal.
+
+### Perbaikan:
+- Verifikasi gambar kini hanya memakai `GROQ_VISION_MODEL` bila model memang dikonfigurasi; jika tidak, bukti disimpan dan langsung masuk review manual tanpa mengubah status paid, saldo, atau stok.
+- Pembuatan form memakai `GROQ_TEXT_MODEL` dengan default model teks yang tersedia.
+
+### QA:
+- Lint, 110 unit test, dan build produksi lulus.
+- Health endpoint VPS mengembalikan HTTP 200 setelah deploy.
+
 v5.14.6 - Legacy Seller Balance & Ghost Stock Reconciliation (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

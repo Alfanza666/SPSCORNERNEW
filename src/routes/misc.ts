@@ -75,8 +75,19 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
       }
     `;
 
+      const visionModel = process.env.GROQ_VISION_MODEL?.trim();
+      if (!groq || !process.env.GROQ_API_KEY || !visionModel) {
+        return res.json({
+          success: true,
+          data: {
+            valid: false,
+            fallbackToPending: true,
+            reason: 'Verifikasi gambar otomatis belum tersedia. Bukti tetap dapat dikirim untuk review manual oleh Admin.',
+          },
+        });
+      }
       const result = await groq.chat.completions.create({
-        model: process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-maverick-17b-128e-instruct',
+        model: visionModel,
         messages: [
           {
             role: 'user',
@@ -338,7 +349,7 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
 
       const callFormModel = async (requestMessages) => {
         const result = await groq.chat.completions.create({
-          model: process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-maverick-17b-128e-instruct',
+          model: process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile',
           messages: requestMessages,
           max_tokens: 4096,
           temperature: 0.25,
