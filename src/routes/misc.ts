@@ -638,4 +638,21 @@ return { id: index.toString(), raw: line, timestamp: new Date().toISOString() };
     }
   });
 
+  app.post('/api/notifications/admin-feedback', async (req, res) => {
+    try {
+      const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
+      if (!token) return res.status(401).json({ error: 'Unauthorized' });
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
+      const title = String(req.body?.title || '').slice(0, 120);
+      const message = String(req.body?.message || '').slice(0, 500);
+      const path = String(req.body?.path || '/dashboard/admin/pengaduan').slice(0, 200);
+      if (!title || !message) return res.status(400).json({ error: 'Judul dan pesan wajib diisi' });
+      const { data: admins, error } = await supabase.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+      if (error) throw error;
+      await Promise.all((admins || []).map(admin => sendNotification(admin.id, { type: 'system', title, message, path })));
+      res.json({ success: true, count: (admins || []).length });
+    } catch (error) { console.error('[admin-feedback-notification]', error); res.status(500).json({ error: 'Gagal mengirim notifikasi' }); }
+  });
+
 }

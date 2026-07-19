@@ -80,17 +80,7 @@ export default function PortalKritik() {
       
       // notifyAdmins
       try {
-        const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin', 'superadmin']);
-        if (admins) {
-            const notifications = admins.map(admin => ({
-                user_id: admin.id,
-                title: 'Kritik & Saran Baru',
-                message: `Terdapat kritik & saran baru dari ${user.name}`,
-                type: 'system',
-                path: '/dashboard/admin/kritik'
-            }));
-            await supabase.from('notifications').insert(notifications);
-        }
+        await fetch('/api/notifications/admin-feedback', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}` }, body: JSON.stringify({ title: 'Kritik & Saran Baru', message: `Terdapat kritik & saran baru dari ${user.name}`, path: '/dashboard/admin/kritik' }) });
       } catch (e) { console.error('Gagal mengirim notif admin', e); }
       // end notifyAdmins
 
