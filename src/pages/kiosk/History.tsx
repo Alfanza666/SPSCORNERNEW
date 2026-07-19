@@ -609,7 +609,15 @@ Sistem SPS Corner`);
                          tx.status === 'processing' ? 'Diproses Sistem' : 
                          tx.status === 'pending' ? 'Menunggu Pembayaran' : 'Pesanan Gagal'}
                       </div>
-                      <span className="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Metode: {tx.payment_method?.toUpperCase() || 'QRIS'}</span>
+                       <span className="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                        Metode: {
+                          tx.payment_method === 'manual_qris' ? 'QRIS (MANUAL)' :
+                          tx.payment_method === 'qris' ? 'QRIS (OTOMATIS)' :
+                          tx.payment_method === 'transfer_koperasi' ? 'TRANSFER KOPERASI' :
+                          tx.payment_method === 'point' || tx.payment_method === 'points' ? 'POTONG SALDO (POIN)' :
+                          tx.payment_method?.toUpperCase() || 'QRIS (OTOMATIS)'
+                        }
+                      </span>
                     </div>
                     
                     <div className="flex items-center gap-4">

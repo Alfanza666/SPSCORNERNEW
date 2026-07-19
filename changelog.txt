@@ -1,3 +1,10 @@
+v5.15.0 - Clarify QRIS Manual vs QRIS Otomatis Payment Methods (MINOR)
+------------------------------------------------------------------------
+### Deskripsi:
+- Menambahkan parameter `payment_method` saat membuat transaksi baru (`handleDirectPayment`, `handleManualQris`, `handlePayment`) untuk membedakan asal pembayaran di database.
+- Memperjelas tampilan nama metode pembayaran di halaman Riwayat Transaksi (`History.tsx`) dan panel transaksi Admin (`AdminTransactions.tsx`) agar memisahkan antara "QRIS (MANUAL)" dan "QRIS (OTOMATIS)".
+- Menampilkan info metode pembayaran pada daftar transaksi desktop, kartu mobile, serta modal detail transaksi di halaman Admin.
+
 v5.14.10 - Fix Manual QRIS Stock Leak & Return/Restock Silent Failure (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

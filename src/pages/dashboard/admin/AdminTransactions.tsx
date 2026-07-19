@@ -584,16 +584,32 @@ export default function AdminTransactions() {
                   >
                     <td className="p-4 lg:p-6">
                       <div className="flex flex-col gap-1">
-                        <span className="flex items-center gap-1.5 font-mono text-xs font-bold text-zinc-900 dark:text-white">
-                          <Receipt className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
-                          {tx.id.slice(0, 8)}...
+                        <span className="flex flex-wrap items-center gap-1.5 font-mono text-xs font-bold text-zinc-900 dark:text-white">
+                      <Receipt className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
+                      {tx.id.slice(0, 8)}...
+                      {tx.payment_method && (
+                        <span className="clay-badge bg-zinc-100 dark:bg-zinc-800 text-[8px] font-bold text-zinc-500">
+                          {tx.payment_method === 'manual_qris' ? 'QRIS MANUAL' :
+                           tx.payment_method === 'qris' ? 'QRIS OTOMATIS' :
+                           tx.payment_method === 'transfer_koperasi' ? 'TF KOP' :
+                           tx.payment_method === 'point' || tx.payment_method === 'points' ? 'SALDO' :
+                           tx.payment_method.toUpperCase()}
                         </span>
+                      )}
+                    </span>
                         <span className="flex items-center gap-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
                           <Calendar className="w-3.5 h-3.5" />
                           {isValid(new Date(tx.created_at)) ? format(new Date(tx.created_at), 'dd MMM yyyy, HH:mm:ss', { locale: id }) : 'Waktu tidak valid'}
                         </span>
                         <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                           {tx.source === 'validation_attempt' ? 'Percobaan validasi' : 'Transaksi'}
+                          {tx.payment_method && ` • ${
+                            tx.payment_method === 'manual_qris' ? 'QRIS MANUAL' :
+                            tx.payment_method === 'qris' ? 'QRIS OTOMATIS' :
+                            tx.payment_method === 'transfer_koperasi' ? 'TF KOP' :
+                            tx.payment_method === 'point' || tx.payment_method === 'points' ? 'POTONG SALDO' :
+                            tx.payment_method.toUpperCase()
+                          }`}
                         </span>
                       </div>
                     </td>
@@ -805,6 +821,16 @@ export default function AdminTransactions() {
                         <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Waktu</span>
                         <span className="font-bold text-zinc-900 dark:text-white text-right">
                           {isValid(new Date(selectedTx.created_at)) ? format(new Date(selectedTx.created_at), 'dd MMM yyyy, HH:mm', { locale: id }) : 'Waktu tidak valid'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Metode Bayar</span>
+                        <span className="font-bold text-zinc-900 dark:text-white">
+                          {selectedTx.payment_method === 'manual_qris' ? 'QRIS (MANUAL)' :
+                           selectedTx.payment_method === 'qris' ? 'QRIS (OTOMATIS)' :
+                           selectedTx.payment_method === 'transfer_koperasi' ? 'TRANSFER KOPERASI' :
+                           selectedTx.payment_method === 'point' || selectedTx.payment_method === 'points' ? 'POTONG SALDO (POIN)' :
+                           selectedTx.payment_method?.toUpperCase() || '-'}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">

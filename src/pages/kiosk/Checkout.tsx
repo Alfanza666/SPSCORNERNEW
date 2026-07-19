@@ -225,6 +225,7 @@ export default function Checkout() {
         buyer_phone: user?.phone || guestPhone || null,
         buyer_email: user?.email || null,
         total_amount: grandTotal,
+        payment_method: method,
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -348,6 +349,7 @@ export default function Checkout() {
         buyer_email: user?.email || null,
         buyer_phone: user?.phone || guestPhone || null,  // [QA FIX] was missing buyer_phone
         total_amount: grandTotal, // Use same base amount for consistency
+        payment_method: 'manual_qris',
         items: items.map(item => ({
           id: item.id,
           name: item.name,
@@ -686,6 +688,7 @@ export default function Checkout() {
           buyer_id: user?.id || null,
 buyer_email: buyerEmail,
           total_amount: grandTotal,
+          payment_method: 'transfer_koperasi',
           items: items.map(item => ({
             id: item.id,
             name: item.name,
