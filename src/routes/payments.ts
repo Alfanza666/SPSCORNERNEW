@@ -227,9 +227,9 @@ export function registerPaymentRoutes(app, {
           "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid jelaskan alasannya."
         }
       `;
-      const visionModel = process.env.GROQ_VISION_MODEL?.trim();
-      if (!process.env.GROQ_API_KEY || !visionModel) {
-        throw new Error("GROQ_VISION_MODEL tidak tersedia; gunakan review manual");
+      const visionModel = process.env.GROQ_VISION_MODEL?.trim() || "qwen/qwen3.6-27b";
+      if (!process.env.GROQ_API_KEY) {
+        throw new Error("GROQ_API_KEY tidak tersedia; gunakan review manual");
       }
       const groqResponse = await groq.chat.completions.create({
         model: visionModel,

@@ -75,8 +75,8 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
       }
     `;
 
-      const visionModel = process.env.GROQ_VISION_MODEL?.trim();
-      if (!groq || !process.env.GROQ_API_KEY || !visionModel) {
+      const visionModel = process.env.GROQ_VISION_MODEL?.trim() || 'qwen/qwen3.6-27b';
+      if (!groq || !process.env.GROQ_API_KEY) {
         return res.json({
           success: true,
           data: {

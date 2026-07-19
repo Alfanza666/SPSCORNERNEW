@@ -1,3 +1,16 @@
+v5.14.9 - Active AI Vision Verification with Qwen (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Fallback sebelumnya menunggu konfigurasi model vision, sehingga akun tanpa override model langsung masuk review admin.
+
+### Perbaikan:
+- Verifikasi bukti kembali memakai AI vision sebagai jalur utama dengan `qwen/qwen3.6-27b`, model multimodal yang tersedia pada akun Groq production.
+- `GROQ_VISION_MODEL` tetap dapat digunakan sebagai override tanpa hardcode kredensial.
+- Review admin hanya menjadi fallback ketika provider AI benar-benar gagal.
+
+### QA:
+- Model Qwen terdeteksi pada daftar model akun production dan lulus uji request gambar langsung.
+
 v5.14.8 - Safe Vision Fallback & Groq Model Separation (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

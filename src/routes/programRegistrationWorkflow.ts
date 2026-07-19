@@ -730,17 +730,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
     };
   }
 
-  const visionModel = process.env.GROQ_VISION_MODEL?.trim();
-  if (!visionModel) {
-    return {
-      attempted_at: attemptedAt,
-      provider: "groq",
-      source: "kiosk_receipt_validator",
-      valid: false,
-      fallback_to_manual: true,
-      reason: "Verifikasi gambar otomatis belum tersedia. Bukti disimpan untuk review admin.",
-    };
-  }
+  const visionModel = process.env.GROQ_VISION_MODEL?.trim() || "qwen/qwen3.6-27b";
 
   try {
     const { buffer, mimeType } = await loadPaymentProofForKioskValidator(supabase, proofReference);
