@@ -175,6 +175,8 @@ export async function restoreTransactionStock(transactionId) {
 // ── Re-deduct stock (iPaymu success after auto-cleanup) ──────
 export async function deductTransactionStock(transactionId) {
   const errors = [];
+  let claimAcquired = false;
+  let claimMetadata = null;
   try {
     const { data: tx } = await supabaseInstance
       .from('transactions')
@@ -182,25 +184,40 @@ export async function deductTransactionStock(transactionId) {
       .eq('id', transactionId)
       .single();
     if (!tx?.metadata?.stock_deducted) return;
-    if (!tx?.metadata?.stock_restored) return;
+    if (!tx?.metadata?.stock_restored && !tx?.metadata?.stock_rededuct_pending) return;
 
-    // Atomic conditional update — hanya proceed jika stock_restored masih true (cegah TOCTOU)
-    const newMetadata = { ...(tx.metadata || {}), stock_restored: false };
+    // Claim the re-deduction once; item-level sale guards make retries safe.
+    claimMetadata = { ...(tx.metadata || {}), stock_restored: false, stock_rededuct_claimed: true };
     const { data: updatedTx, error: updateMetaError } = await supabaseInstance
       .from('transactions')
-      .update({ metadata: newMetadata })
+      .update({ metadata: claimMetadata })
       .eq('id', transactionId)
-      .filter('metadata->>stock_restored', 'eq', 'true')
+      .or('and(metadata->>stock_restored.eq.true,metadata->>stock_rededuct_claimed.is.null),and(metadata->>stock_restored.eq.true,metadata->>stock_rededuct_claimed.eq.false),and(metadata->>stock_rededuct_pending.eq.true,metadata->>stock_rededuct_claimed.is.null),and(metadata->>stock_rededuct_pending.eq.true,metadata->>stock_rededuct_claimed.eq.false)')
       .select('id');
     if (updateMetaError || !updatedTx || updatedTx.length === 0) {
       console.log(`[deductTransactionStock] Skipped ${transactionId}: stock_restored already changed by another process`);
       return;
     }
+    claimAcquired = true;
 
     const items = await getDeductedItems(tx);
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      await supabaseInstance.from('transactions').update({
+        metadata: { ...claimMetadata, stock_rededuct_claimed: false, stock_rededuct_pending: false }
+      }).eq('id', transactionId);
+      return;
+    }
 
     for (const { productId, quantity, sellerId } of items) {
+      const { data: existingSale, error: saleLookupError } = await supabaseInstance
+        .from('stock_adjustments')
+        .select('id')
+        .eq('transaction_id', transactionId)
+        .eq('product_id', productId)
+        .eq('adjustment_type', 'sale')
+        .limit(1);
+      if (saleLookupError) throw saleLookupError;
+      if (existingSale?.length) continue;
       const result = await atomicAdjustStock(
         productId, -quantity, sellerId || null, 'sale',
         `Stock re-deducted — transaction ${transactionId} paid after auto-cleanup`, 0, transactionId
@@ -227,32 +244,69 @@ export async function deductTransactionStock(transactionId) {
           });
         }
       }
+      throw new Error(`Stock re-deduct failed for ${errors.length} item(s)`);
+    }
+    if (claimAcquired) {
+      await supabaseInstance.from('transactions').update({
+        metadata: { ...claimMetadata, stock_rededuct_claimed: false, stock_rededuct_pending: false }
+      }).eq('id', transactionId);
     }
   } catch (e) {
+    if (claimAcquired) {
+      await supabaseInstance.from('transactions').update({
+        metadata: { ...(claimMetadata || {}), stock_rededuct_claimed: false, stock_rededuct_pending: true }
+      }).eq('id', transactionId);
+    }
     console.error(`deductTransactionStock error for ${transactionId}:`, e);
+    throw e;
   }
 }
 
 export async function commitTransactionStock(transactionId) {
+  let claimAcquired = false;
+  let claimMetadata = null;
   try {
     const { data: tx } = await supabaseInstance.from('transactions').select('id, metadata').eq('id', transactionId).single();
     if (!tx || tx.metadata?.stock_deducted === true) return { success: true, alreadyCommitted: true };
-    const metadata = { ...(tx.metadata || {}), stock_commit_claimed: true };
-    const { data: claimed } = await supabaseInstance.from('transactions').update({ metadata })
-      .eq('id', transactionId).filter('metadata->>stock_deducted', 'neq', 'true')
-      .or('metadata->>stock_commit_claimed.is.null,metadata->>stock_commit_claimed.eq.false').select('id');
+    claimMetadata = { ...(tx.metadata || {}), stock_commit_claimed: true };
+    const { data: claimed, error: claimError } = await supabaseInstance.from('transactions').update({ metadata: claimMetadata })
+      .eq('id', transactionId)
+      .or('and(metadata->>stock_deducted.is.null,metadata->>stock_commit_claimed.is.null),and(metadata->>stock_deducted.is.null,metadata->>stock_commit_claimed.eq.false),and(metadata->>stock_deducted.eq.false,metadata->>stock_commit_claimed.is.null),and(metadata->>stock_deducted.eq.false,metadata->>stock_commit_claimed.eq.false)')
+      .select('id');
+    if (claimError) throw claimError;
     if (!claimed?.length) return { success: true, alreadyCommitted: true };
+    claimAcquired = true;
     const { data: items } = await supabaseInstance.from('transaction_items').select('product_id, quantity, seller_id, metadata').eq('transaction_id', transactionId);
     const physical = (items || []).filter(i => i.product_id && !i.metadata?.is_digital);
     const deducted = {};
     for (const item of physical) {
+      const { data: existingSale, error: saleLookupError } = await supabaseInstance
+        .from('stock_adjustments')
+        .select('id')
+        .eq('transaction_id', transactionId)
+        .eq('product_id', item.product_id)
+        .eq('adjustment_type', 'sale')
+        .limit(1);
+      if (saleLookupError) throw saleLookupError;
+      if (existingSale?.length) {
+        deducted[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
+        continue;
+      }
       const result = await atomicAdjustStock(item.product_id, -item.quantity, item.seller_id || null, 'sale', `Stock committed for paid transaction ${transactionId}`, 0, transactionId);
       if (!result?.success) throw new Error(result?.error_message || 'Stock commit failed');
       deducted[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
     }
-    await supabaseInstance.from('transactions').update({ metadata: { ...metadata, stock_deducted: physical.length > 0, stock_commit_claimed: false, stock_restored: false, deducted_products: deducted } }).eq('id', transactionId);
+    await supabaseInstance.from('transactions').update({ metadata: { ...claimMetadata, stock_deducted: physical.length > 0, stock_commit_claimed: false, stock_restored: false, deducted_products: deducted } }).eq('id', transactionId);
     return { success: true, alreadyCommitted: false };
-  } catch (error) { console.error(`[commitTransactionStock] ${transactionId}:`, error); return { success: false, error: error?.message || 'Stock commit failed' }; }
+  } catch (error) {
+    if (claimAcquired) {
+      await supabaseInstance.from('transactions').update({
+        metadata: { ...(claimMetadata || {}), stock_commit_claimed: false }
+      }).eq('id', transactionId);
+    }
+    console.error(`[commitTransactionStock] ${transactionId}:`, error);
+    return { success: false, error: error?.message || 'Stock commit failed' };
+  }
 }
 
 // ── Export atomicAdjustStock untuk digunakan routes lain ──────

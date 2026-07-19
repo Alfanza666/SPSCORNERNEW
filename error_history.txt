@@ -3,7 +3,8 @@ Riwayat Error & Fix:
 - [FIXED] Retry restore dapat menggandakan item yang sudah berhasil dipulihkan sebelum item lain gagal; guard correction per item ditambahkan (v5.14.4).
 - [FIXED] Enam transaksi iPaymu berstatus paid dan stok sudah terpotong, tetapi saldo seller belum tercatat karena guard `balances_updated` tidak pernah disimpan; rekonsiliasi atomik berbasis ledger sudah mengembalikan balance, total sales, dan fee tanpa duplikasi (v5.14.3).
 - [FIXED] Rekonsiliasi saldo dapat berisiko dijalankan ulang tanpa batas; skrip pemulihan kini memakai advisory lock, marker sumber, dan kondisi idempoten (v5.14.3).
-- [OPEN] Fungsi runtime `updateSellerBalances` masih memakai pola read-modify-write dan menelan error; perlu dipindahkan ke operasi SQL atomik sebelum security/payment patch diproduksi.
+- [FIXED] Fungsi runtime `updateSellerBalances` kini memakai RPC SQL atomik dengan ledger unik dan error tidak lagi ditelan; callback berulang tidak menggandakan saldo (v5.14.5).
+- [FIXED] Commit/re-deduct stok kini memiliki claim dan guard per item; kegagalan parsial dapat di-retry tanpa restock atau potong stok ganda (v5.14.5).
 - [FIXED] Transaksi gagal tampil di tab Sukses karena halaman mengambil semua status dan hanya mengganti tab visual; riwayat kini memakai endpoint canonical Berhasil/Menunggu/Gagal dengan filter server-side (v5.13.0).
 - [FIXED] Breakdown sumber pendapatan hanya menjumlahkan 1.000 `transaction_items` pertama akibat batas Data API, sehingga berbeda dari kartu total; reporting kini membaca seluruh halaman secara chunked dan merekonsiliasi breakdown ke GMV settled (v5.13.0).
 - [FIXED] Grafik berlabel tujuh hari hanya menghitung status `success` tanpa window waktu, sedangkan kartu memakai `paid` + `success`; grafik kini memakai kontrak settled yang sama dan tujuh tanggal kalender WITA (v5.13.0).

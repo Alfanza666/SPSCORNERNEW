@@ -9,6 +9,44 @@ export function registerPaymentRoutes(app, {
   sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock, commitTransactionStock,
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
 }) {
+  const gatewayStatusIsPaid = (payload: any) => {
+    const paidStatuses = new Set(['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement']);
+    const values: string[] = [];
+    const visit = (value: any, key = '') => {
+      if (!value || typeof value !== 'object') {
+        if (key.toLowerCase().includes('status') && typeof value === 'string') values.push(value.toLowerCase().trim());
+        return;
+      }
+      for (const [childKey, childValue] of Object.entries(value)) visit(childValue, childKey);
+    };
+    visit(payload);
+    return values.some(value => paidStatuses.has(value));
+  };
+
+  const verifyGatewayCallback = async (req: any, referenceId: string, body: any) => {
+    const headerSignature = String(req.headers.signature || req.headers['x-ipaymu-signature'] || '').trim();
+    const bodySignature = String(body.signature || body.Signature || '').trim();
+    const receivedSignature = headerSignature || bodySignature;
+    if (receivedSignature && IPAYMU_API_KEY) {
+      const signatureBody = { ...body };
+      delete signatureBody.signature;
+      delete signatureBody.Signature;
+      if (IpaymuSignature.verify(signatureBody, receivedSignature, IPAYMU_API_KEY)) return true;
+    }
+
+    // Legacy callback modes may omit a signature. Confirm directly with iPaymu
+    // instead of trusting an unsigned callback to settle a payment.
+    try {
+      const statusResponse = await ipaymuClient.getTransactionStatus(referenceId);
+      const callbackStatus = String(body.status || body.Status || body.payment_status || '').toLowerCase();
+      const callbackIsPaid = ['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement'].includes(callbackStatus);
+      return gatewayStatusIsPaid(statusResponse) || !callbackIsPaid;
+    } catch (error) {
+      console.error(`[iPaymu] Unable to verify callback for ${referenceId}:`, error);
+      return false;
+    }
+  };
+
   if (process.env.NODE_ENV !== "production") {
     app.get("/api/payment/ipaymu/debug", (req, res) => {
       res.json({
@@ -597,6 +635,11 @@ export function registerPaymentRoutes(app, {
       const refId = reference_id || transaction_id;
       if (!refId) {
         return res.status(400).json({ error: "Missing reference_id" });
+      }
+
+      if (!(await verifyGatewayCallback(req, refId, body))) {
+        console.warn(`[iPaymu] Unverified callback rejected for ${refId}`);
+        return res.status(202).json({ success: false, pending: true, message: 'Callback menunggu verifikasi gateway' });
       }
 
       const statusLower = String(statusRaw).toLowerCase().trim();

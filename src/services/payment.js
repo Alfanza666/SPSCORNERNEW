@@ -6,46 +6,24 @@ export function initPaymentService(supabase) {
 }
 
 export async function updateSellerBalances(items, transactionId) {
-  try {
-    if (transactionId) {
-      const { data: tx } = await supabaseInstance
-        .from("transactions")
-        .select("metadata")
-        .eq("id", transactionId)
-        .single();
-      if (tx?.metadata?.balances_updated) {
-        console.log(`[Idempotent] Seller balances already updated for tx ${transactionId}, skipping`);
-        return { skipped: true };
-      }
-    }
-    for (const item of items) {
-      if (!item.seller_id) continue;
-      const sellerAmount = Number(item.subtotal) || 0;
-      if (sellerAmount <= 0) continue;
-      const grossAmount = Number(item.price) * Number(item.quantity);
-      const { data: seller } = await supabaseInstance.from("profiles").select("balance, total_sales, total_fee_paid").eq("id", item.seller_id).single();
-      if (seller) {
-        await supabaseInstance.from("profiles").update({
-          balance: (Number(seller.balance) || 0) + sellerAmount,
-          total_sales: (Number(seller.total_sales) || 0) + grossAmount,
-          total_fee_paid: (Number(seller.total_fee_paid) || 0) + (grossAmount - sellerAmount),
-        }).eq("id", item.seller_id);
-      }
-    }
-    if (transactionId) {
-      const { data: currentTx } = await supabaseInstance
-        .from("transactions")
-        .select("metadata")
-        .eq("id", transactionId)
-        .single();
-      if (currentTx) {
-        await supabaseInstance
-          .from("transactions")
-          .update({ metadata: { ...(currentTx.metadata || {}), balances_updated: true } })
-          .eq("id", transactionId);
-      }
-    }
-  } catch (e) { console.error("updateSellerBalances error:", e); }
+  if (!transactionId) throw new Error("transactionId is required for seller balance settlement");
+
+  const { data, error } = await supabaseInstance.rpc(
+    "apply_seller_balance_for_transaction",
+    { p_transaction_id: transactionId },
+  );
+  if (error) {
+    console.error(`[SellerBalance] Atomic settlement failed for ${transactionId}:`, error);
+    throw error;
+  }
+
+  const result = Array.isArray(data) ? data[0] : data;
+  if (result?.success) {
+    console.log(`[SellerBalance] Settled ${result.seller_count || 0} seller(s) for ${transactionId}`);
+  } else {
+    console.log(`[SellerBalance] Already settled or not eligible for ${transactionId}`);
+  }
+  return result || { success: false };
 }
 
 export async function updateBuyerPoints(tx_id, buyer_id, total_amount) {

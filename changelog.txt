@@ -1,3 +1,19 @@
+v5.14.5 - Atomic Seller Settlement & Retry-Safe Stock (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Callback dan cleanup dapat memanggil settlement saldo atau perubahan stok lebih dari sekali; update profil langsung tidak memiliki ledger unik per transaksi.
+- Callback pembayaran tanpa signature yang valid dapat dipercaya hanya dari payload browser.
+
+### Perbaikan:
+- Settlement seller sekarang memakai RPC SQL atomik dengan ledger unik `(transaction_id, seller_id)`; transaksi contoh yang tertinggal sudah dikreditkan tepat satu kali.
+- Commit, restore, dan re-deduct stok memakai claim serta guard per item sehingga retry tidak menggandakan perubahan; retry re-deduct yang gagal dapat dilanjutkan.
+- RPC penyesuaian stok dan settlement dibatasi ke `service_role`; reserve/release tetap tersedia untuk checkout namun input dan masa berlaku dibatasi.
+- Callback iPaymu diverifikasi melalui signature atau status transaksi gateway sebelum status paid diproses.
+
+### QA:
+- Verifikasi production menunjukkan ledger transaksi bermasalah tepat 1 baris dan saldo seller sesuai (balance Rp90.920, total sales Rp1.251.000, fee Rp100.080).
+- Lint, test, dan build dijalankan sebelum push.
+
 v5.14.4 - Failed Payment Stock Restore Guard (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:
