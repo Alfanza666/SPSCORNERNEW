@@ -76,7 +76,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
     `;
 
       const result = await groq.chat.completions.create({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        model: process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-maverick-17b-128e-instruct',
         messages: [
           {
             role: 'user',
@@ -338,7 +338,7 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
 
       const callFormModel = async (requestMessages) => {
         const result = await groq.chat.completions.create({
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          model: process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-maverick-17b-128e-instruct',
           messages: requestMessages,
           max_tokens: 4096,
           temperature: 0.25,

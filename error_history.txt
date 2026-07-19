@@ -1,4 +1,5 @@
 Riwayat Error & Fix:
+- [FIXED] Upload bukti pembayaran menampilkan HTTP 404 karena model Groq Scout dihentikan; diganti ke model vision aktif dan fallback manual diperbaiki (v5.14.7).
 - [FIXED] Tiga gap agregat saldo seller lama (total gross Rp62.500, net Rp62.300, fee Rp200) direkonsiliasi dengan source unik dan guard nilai profil (v5.14.6).
 - [FIXED] Satu transaksi gagal lama masih memiliki sale adjustment tanpa correction; stok dipulihkan satu unit dan ditandai idempoten (v5.14.6).
 - [FIXED] Auto-cleanup transaksi unpaid menandai failed walau restore stok tidak pernah claim karena JSON key NULL; 73 unit dari 43 transaksi gagal dipulihkan, 3 unit produk terhapus dicatat sebagai pengecualian, dan runtime kini menahan status pending bila restore gagal (v5.14.4).

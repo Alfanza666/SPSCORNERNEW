@@ -143,8 +143,12 @@ export function registerPaymentRoutes(app, {
   });
 
   app.post("/api/payment/manual/verify", async (req, res) => {
+    let transaction_id: string | undefined;
+    let receipt_image: string | undefined;
+    let expected_amount: number | undefined;
+    let receiptUrl: string | undefined;
     try {
-      const { transaction_id, receipt_image, expected_amount } = req.body;
+      ({ transaction_id, receipt_image, expected_amount } = req.body || {});
       if (!transaction_id || !receipt_image) {
         return res
           .status(400)
@@ -156,7 +160,7 @@ export function registerPaymentRoutes(app, {
         receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || "image/jpeg";
       const fileExt = mimeType.split("/")[1] || "jpg";
       const fileName = `receipts/${transaction_id}_${Date.now()}.${fileExt}`;
-      let receiptUrl = receipt_image;
+      receiptUrl = receipt_image;
       try {
         const { error: uploadError } = await supabase.storage
           .from("products")
@@ -227,7 +231,7 @@ export function registerPaymentRoutes(app, {
         return res.status(500).json({ success: false, error: "GROQ_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
       }
       const groqResponse = await groq.chat.completions.create({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        model: process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-maverick-17b-128e-instruct",
         messages: [
           {
             role: "user",

@@ -981,3 +981,16 @@ v5.14.2 - Manual production backup tooling (PATCH)
 - Menambahkan skrip backup Supabase berbasis REST dengan pagination.
 - Backup terakhir mencakup 57 tabel, 63.324 baris, dan 181 user Auth tanpa password/hash.
 - Menambahkan snapshot kode committed dan patch working tree untuk rollback manual.
+v5.14.7 - Groq Vision Model Migration & Manual Payment Fallback (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Groq menghentikan model `meta-llama/llama-4-scout-17b-16e-instruct`, sehingga upload bukti pembayaran karyawan gagal dengan HTTP 404.
+- Fallback manual ikut gagal karena variabel `transaction_id` dan `receiptUrl` hanya berada di dalam blok `try`.
+
+### Perbaikan:
+- Migrasi ke model vision `meta-llama/llama-4-maverick-17b-128e-instruct` dengan override aman melalui `GROQ_VISION_MODEL`.
+- Jika AI gagal, bukti tetap disimpan, transaksi tetap pending, dan admin menerima notifikasi review manual.
+
+### QA:
+- Lint, 110 test, dan production build lulus.
+- Tidak mengubah saldo seller, stok, pendapatan aplikasi, atau transaksi existing.
