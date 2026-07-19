@@ -1,3 +1,35 @@
+v5.14.4 - Failed Payment Stock Restore Guard (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Cleanup transaksi expired menganggap restore stok berhasil walau metadata `stock_restored` masih NULL; filter `neq` tidak pernah cocok dengan NULL, sehingga transaksi gagal tetap mengurangi stok.
+
+### Perbaikan:
+- Restore sekarang memakai claim yang menangani NULL, marker `stock_restore_claimed`, dan item-level guard untuk retry aman.
+- Status transaksi hanya diubah menjadi `failed` setelah restore sukses; bila gagal, transaksi tetap pending untuk dicoba ulang.
+- Memulihkan 43 transaksi gagal production (73 unit pada produk yang masih ada); 3 unit dari produk yang sudah dihapus dicatat sebagai pengecualian audit. Tiga permintaan restock yang timbul dari bug tersebut ditutup.
+
+### QA:
+- Pemulihan dijalankan ulang tanpa penambahan stok kedua.
+- Lint, unit/integration test, dan production build dijalankan setelah patch.
+
+v5.14.3 - Seller Balance Reconciliation Audit & Idempotent Recovery (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Enam transaksi berstatus `paid` memiliki item ledger dan stok sudah diproses, tetapi penanda `balances_updated` belum tersimpan sehingga saldo seller tertinggal.
+- Pembacaan profil dan update saldo berlangsung di alur aplikasi, sehingga pemulihan harus dilakukan dengan lock transaksi dan guard idempotensi agar tidak menggandakan saldo.
+
+### Perbaikan:
+- Menyelaraskan saldo, total penjualan, dan fee tiga transaksi pertama serta tiga transaksi follow-up berdasarkan `transaction_items` yang settled.
+- Menambahkan skrip follow-up SQL atomik dengan advisory lock dan marker sumber rekonsiliasi; eksekusi ulang terbukti tidak menambah saldo.
+- Menambahkan audit ledger-vs-profile untuk memastikan selisih saldo/penjualan/fee menjadi nol.
+- Tidak mengubah stok, pendapatan aplikasi, status pembayaran, tiket, kupon, atau data peserta.
+
+### QA:
+- `npm run lint` berhasil.
+- `npm test` berhasil: 19 file / 110 test.
+- `npm run build` berhasil.
+- Audit production: 10 transaksi settled sejak 18 Juli 2026, 0 transaksi dengan flag saldo tertinggal; enam transaksi rekonsiliasi tercatat dan seluruh selisih ledger seller = 0.
+
 v5.13.0 - Canonical Transaction Reporting & Compact Admin Overview (MINOR)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:
@@ -902,4 +934,18 @@ v5.14.0 - Portal Notification Popup (MINOR)
 - Transaksi pending tidak lagi melakukan pengurangan stok permanen; stok dikomit saat pembayaran terverifikasi melalui handler idempotent.
 - Callback pembayaran menggunakan commit stok terpusat untuk mencegah pengurangan ganda.
 - Memperbaiki Loyalty Point agar status aktif tersimpan dan terbaca kembali saat menu dibuka.
+- Menambahkan migration security stage 1 untuk menutup insert publik pada failed_transactions dan notifications.
+- Menambahkan migration security stage 2 untuk menutup update transaksi publik dan akses langsung reservation stok.
+- Menambahkan rate limit endpoint notifikasi untuk mengurangi risiko spam dan abuse.
 - Memisahkan Pengaturan Umum dari Metode Pembayaran dan menambahkan upload QRIS Statis.
+v5.14.1 - Security staging & local verification (PATCH)
+- Memperketat insert `failed_transactions` menjadi service-role-only; endpoint backend tetap menjadi satu-satunya jalur pencatatan.
+- Menjadikan migrasi keamanan tahap 1 idempotent untuk re-run aman; migrasi disimpan di `supabase/migrations/`.
+- Verifikasi RLS lokal: transaksi hanya terbaca pemilik; insert log gagal dari klien ditolak.
+- Menambahkan capability token untuk detail transaksi guest agar checkout tetap berjalan tanpa membuka transaksi hanya bermodal ID.
+- Verifikasi lanjutan: insert notifikasi klien dan akses stock reservation klien ditolak; backend service-role tetap dapat menulis audit log.
+- Lint, 110 unit/integration tests, dan production build lulus.
+v5.14.2 - Manual production backup tooling (PATCH)
+- Menambahkan skrip backup Supabase berbasis REST dengan pagination.
+- Backup terakhir mencakup 57 tabel, 63.324 baris, dan 181 user Auth tanpa password/hash.
+- Menambahkan snapshot kode committed dan patch working tree untuk rollback manual.

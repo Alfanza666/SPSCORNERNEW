@@ -41,26 +41,9 @@ export default function SellerTransactions() {
 
   const handleMarkReady = async (item: any) => {
     try {
-      // 1. Update metadata di transaction_items
-      const newMetadata = { ...item.metadata, status: 'ready' };
-      const { error: updateError } = await supabase
-        .from('transaction_items')
-        .update({ metadata: newMetadata })
-        .eq('id', item.id);
-
-      if (updateError) throw updateError;
-
-      // 2. Kirim notifikasi ke pembeli
-      if (item.transactions?.buyer_id) {
-        const productName = item.products?.name || item.metadata?.product_name || 'Produk';
-        await supabase.from('notifications').insert({
-          user_id: item.transactions.buyer_id,
-          type: 'transaction',
-          title: '🍞 Pesanan Siap Diambil',
-          message: `Pesanan ${productName} Anda sudah siap. Silahkan ambil di Koperasi/Kantin.`,
-          path: `/kiosk/history?id=${item.transaction_id}`
-        });
-      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`/api/transactions/items/${item.id}/ready`, { method: 'POST', headers: { Authorization: `Bearer ${session?.access_token || ''}` } });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Gagal memperbarui item');
 
       toast.success('Berhasil mengirim notifikasi ke pembeli!');
       fetchTransactions();

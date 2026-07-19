@@ -20,6 +20,26 @@ export function registerTransactionRoutes(app, {
   getDigiflazzBalance,
 }) {
 
+app.post('/api/transactions/items/:itemId/ready', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (!['seller', 'admin', 'superadmin'].includes(profile?.role)) return res.status(403).json({ error: 'Akses seller/admin diperlukan' });
+    const { data: item, error: itemError } = await supabase.from('transaction_items').select('id, seller_id, metadata, transaction_id, transactions(buyer_id)').eq('id', req.params.itemId).single();
+    if (itemError || !item) return res.status(404).json({ error: 'Item transaksi tidak ditemukan' });
+    if (profile.role === 'seller' && item.seller_id !== user.id) return res.status(403).json({ error: 'Item bukan milik seller ini' });
+    const metadata = { ...(item.metadata || {}), status: 'ready', ready_at: new Date().toISOString(), ready_by: user.id };
+    const { error: updateError } = await supabase.from('transaction_items').update({ metadata }).eq('id', item.id);
+    if (updateError) throw updateError;
+    const buyerId = item.transactions?.buyer_id;
+    if (buyerId) await sendNotification(buyerId, { type: 'transaction', title: 'Pesanan Siap Diambil', message: 'Pesanan Anda sudah siap diambil.', path: `/kiosk/history?id=${item.transaction_id}` });
+    res.json({ success: true });
+  } catch (error) { console.error('[transaction-item-ready]', error); res.status(500).json({ error: 'Gagal menandai pesanan siap diambil' }); }
+});
+
 app.post("/api/admin/transactions/approve", async (req, res) => {
   try {
     const { transaction_id } = req.body;
@@ -333,6 +353,9 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
       return res.json({ success: true, count: 0 });
     }
     for (const tx of expired) {
+      // Restore stock first. If this fails, do not mark the transaction failed;
+      // leaving it pending allows a later cleanup retry without stock loss.
+      await restoreTransactionStock(tx.id);
       const { error: updateError } = await supabase
         .from("transactions")
         .update({
@@ -341,7 +364,6 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
         })
         .eq("id", tx.id);
       if (updateError) throw updateError;
-      await restoreTransactionStock(tx.id);
     }
     res.json({ success: true, count: expired.length });
   } catch (error) {
@@ -575,8 +597,6 @@ app.post("/api/transactions/create", async (req, res) => {
       stock_deducted: hasDeducted,
       ...(hasDeducted ? { deducted_products: deductedProducts } : {})
     };
-
-
     if (tx.status === "paid" || tx.status === "success") {
       if (insertedItems && insertedItems.length > 0) {
         await processDigitalItems(tx.id, insertedItems);

@@ -118,7 +118,15 @@ async function autoCleanup() {
 
       // Restore stock DULU, baru update status.
       // Urutan ini penting: kalau restore gagal, status tetap "pending" → retry 3 menit berikutnya
-      if (restoreStock) await restoreStock(tx.id);
+      if (restoreStock) {
+        try {
+          await restoreStock(tx.id);
+        } catch (restoreError) {
+          // Keep the transaction pending so the next cleanup cycle can retry.
+          console.error(`[AutoCleanup] Stock restore failed for ${tx.id}; keeping transaction pending`, restoreError);
+          continue;
+        }
+      }
 
       await supabaseInstance
         .from("transactions")

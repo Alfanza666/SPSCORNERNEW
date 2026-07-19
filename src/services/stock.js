@@ -93,6 +93,8 @@ async function atomicAdjustStock(productId, delta, userId, adjType, notes, minSt
 
 // ── Restore stock untuk transaction ──────────────────────────
 export async function restoreTransactionStock(transactionId) {
+  let claimAcquired = false;
+  let claimMetadata = null;
   try {
     const { data: tx } = await supabaseInstance
       .from('transactions')
@@ -105,19 +107,43 @@ export async function restoreTransactionStock(transactionId) {
 
     // Atomic conditional update — claim the restore slot (cegah TOCTOU double-restore)
     // neq uses IS DISTINCT FROM, which treats NULL as comparable: null IS DISTINCT FROM 'true' = TRUE ✓
-    const { data: claimed } = await supabaseInstance
+    claimMetadata = { ...(tx.metadata || {}), stock_restore_claimed: true };
+    const { data: claimed, error: claimError } = await supabaseInstance
       .from('transactions')
-      .update({ metadata: { ...(tx.metadata || {}), stock_restored: true } })
+      .update({ metadata: claimMetadata })
       .eq('id', transactionId)
-      .filter('metadata->>stock_restored', 'neq', 'true')
+      // `neq` alone does not match a missing JSON key (NULL). Include both
+      // NULL and non-true values so the first restore is actually claimed.
+      .or('and(metadata->>stock_restored.is.null,metadata->>stock_restore_claimed.is.null),and(metadata->>stock_restored.is.null,metadata->>stock_restore_claimed.eq.false),and(metadata->>stock_restored.neq.true,metadata->>stock_restore_claimed.is.null),and(metadata->>stock_restored.neq.true,metadata->>stock_restore_claimed.eq.false)')
       .select('id');
+    if (claimError) throw claimError;
     if (!claimed || claimed.length === 0) return;
+    claimAcquired = true;
 
     const items = await getDeductedItems(tx);
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      await supabaseInstance.from('transactions').update({
+        metadata: { ...claimMetadata, stock_restored: true, stock_restore_claimed: false }
+      }).eq('id', transactionId);
+      return { success: true, restored: 0 };
+    }
 
     const results = [];
     for (const { productId, quantity, sellerId } of items) {
+      // Item-level guard: if a prior attempt restored this item but failed on
+      // a later item, retry only the missing items.
+      const { data: existingCorrection, error: correctionLookupError } = await supabaseInstance
+        .from('stock_adjustments')
+        .select('id')
+        .eq('transaction_id', transactionId)
+        .eq('product_id', productId)
+        .eq('adjustment_type', 'correction')
+        .limit(1);
+      if (correctionLookupError) throw correctionLookupError;
+      if (existingCorrection?.length) {
+        results.push({ success: true, skipped: true });
+        continue;
+      }
       const result = await atomicAdjustStock(
         productId, +quantity, sellerId || null, 'correction',
         `Stock restored — transaction ${transactionId} cancelled/failed`, null, transactionId
@@ -128,9 +154,21 @@ export async function restoreTransactionStock(transactionId) {
     const failed = results.filter(r => r && !r.success);
     if (failed.length > 0) {
       console.error(`[restoreTransactionStock] ${failed.length} item(s) failed for ${transactionId}:`, failed);
+      throw new Error(`Stock restore failed for ${failed.length} item(s)`);
     }
+    await supabaseInstance.from('transactions').update({
+      metadata: { ...claimMetadata, stock_restored: true, stock_restore_claimed: false }
+    }).eq('id', transactionId);
+    return { success: true, restored: results.length };
   } catch (e) {
+    if (claimAcquired) {
+      await supabaseInstance.from('transactions').update({
+        metadata: { ...(claimMetadata || {}), stock_restore_claimed: false }
+      }).eq('id', transactionId)
+        .or('metadata->>stock_restored.is.null,metadata->>stock_restored.neq.true');
+    }
     console.error(`restoreTransactionStock error for ${transactionId}:`, e);
+    throw e;
   }
 }
 
@@ -202,7 +240,7 @@ export async function commitTransactionStock(transactionId) {
     const metadata = { ...(tx.metadata || {}), stock_commit_claimed: true };
     const { data: claimed } = await supabaseInstance.from('transactions').update({ metadata })
       .eq('id', transactionId).filter('metadata->>stock_deducted', 'neq', 'true')
-      .filter('metadata->>stock_commit_claimed', 'neq', 'true').select('id');
+      .or('metadata->>stock_commit_claimed.is.null,metadata->>stock_commit_claimed.eq.false').select('id');
     if (!claimed?.length) return { success: true, alreadyCommitted: true };
     const { data: items } = await supabaseInstance.from('transaction_items').select('product_id, quantity, seller_id, metadata').eq('transaction_id', transactionId);
     const physical = (items || []).filter(i => i.product_id && !i.metadata?.is_digital);
