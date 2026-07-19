@@ -1,4 +1,6 @@
 Riwayat Error & Fix:
+- [FIXED] Pembayaran QRIS Manual yang terlambat diverifikasi tidak memotong kembali stok karena verifikasi manual menggunakan commitTransactionStock tanpa memeriksa status restorasi; diperbaiki dengan memanggil deductTransactionStock jika metadata.stock_restored = true (v5.14.10).
+- [FIXED] Penyetujuan retur dan restock dapat memicu silent failure jika atomicAdjustStock gagal karena status request diupdate sebelum stok berubah; perbaikan urutan eksekusi dan validasi ditambahkan (v5.14.10).
 - [FIXED] Verifikasi bukti berhenti di review admin karena tidak ada default model vision; default production kini `qwen/qwen3.6-27b` (v5.14.9).
 - [FIXED] Akun Groq production tidak memiliki model vision aktif; verifikasi gambar kini aman fallback ke review admin dan model teks dipisahkan (v5.14.8).
 - [FIXED] Upload bukti pembayaran menampilkan HTTP 404 karena model Groq Scout dihentikan; diganti ke model vision aktif dan fallback manual diperbaiki (v5.14.7).

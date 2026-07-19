@@ -41,8 +41,6 @@ export function registerStockRoutes(app: any, deps: { supabase: any; sendNotific
       const { data: request } = await supabase.from("stock_requests").select("*").eq("id", id).single();
       if (!request) return res.status(404).json({ error: "Request not found" });
 
-      await supabase.from("stock_requests").update({ status, admin_id: user.id, updated_at: new Date().toISOString() }).eq("id", id);
-
       if (status === "approved") {
         const result = await atomicAdjustStock(
           request.product_id, +request.requested_quantity,
@@ -50,9 +48,11 @@ export function registerStockRoutes(app: any, deps: { supabase: any; sendNotific
           `Restock disetujui dari request ID: ${id}`, null
         );
         if (!result || !result.success) {
-          console.error(`[Restock] Atomic adjust failed for product ${request.product_id}:`, result?.error_message);
+          return res.status(400).json({ error: result?.error_message || "Gagal melakukan penambahan stok" });
         }
       }
+
+      await supabase.from("stock_requests").update({ status, admin_id: user.id, updated_at: new Date().toISOString() }).eq("id", id);
 
       const statusLabels: Record<string, string> = { approved: "disetujui", rejected: "ditolak" };
       await sendNotification(request.seller_id, {

@@ -105,8 +105,6 @@ export function registerProductReturnRoutes(app: any, deps: { supabase: any; sen
       const { data: returnReq } = await supabase.from("product_returns").select("*").eq("id", id).single();
       if (!returnReq) return res.status(404).json({ error: "Return request not found" });
 
-      await supabase.from("product_returns").update({ status, admin_id: user.id, updated_at: new Date().toISOString() }).eq("id", id);
-
       if (status === "approved") {
         const result = await atomicAdjustStock(
           returnReq.product_id, -returnReq.quantity,
@@ -114,9 +112,11 @@ export function registerProductReturnRoutes(app: any, deps: { supabase: any; sen
           `Retur disetujui dari request ID: ${id}`, 0
         );
         if (!result || !result.success) {
-          console.error(`[Retur] Atomic adjust failed for product ${returnReq.product_id}:`, result?.error_message);
+          return res.status(400).json({ error: result?.error_message || "Stok tidak mencukupi untuk melakukan retur" });
         }
       }
+
+      await supabase.from("product_returns").update({ status, admin_id: user.id, updated_at: new Date().toISOString() }).eq("id", id);
 
       const statusLabels: Record<string, string> = { approved: "disetujui", rejected: "ditolak" };
       const recipientId = returnReq.initiated_by || returnReq.seller_id;

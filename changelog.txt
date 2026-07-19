@@ -1,3 +1,17 @@
+v5.14.10 - Fix Manual QRIS Stock Leak & Return/Restock Silent Failure (PATCH)
+------------------------------------------------------------------------
+### Root Cause Analysis:
+- Pembayaran QRIS Manual yang diverifikasi terlambat (setelah lewat 15 menit) gagal memotong kembali stok karena `/api/payment/manual/verify` memanggil `commitTransactionStock` yang mengabaikan pemotongan jika `stock_deducted` sudah true, tanpa mengecek `stock_restored`.
+- Persetujuan retur dan restock di route `/api/product-returns/process` dan `/api/stock-requests/process` mengupdate status request menjadi `approved` sebelum stok berhasil disesuaikan, memicu silent failure jika terjadi error (stok tidak cukup).
+
+### Perbaikan:
+- Menambahkan pemeriksaan `metadata.stock_restored` pada alur verifikasi pembayaran manual untuk melakukan re-deduct stok menggunakan `deductTransactionStock`.
+- Menyesuaikan alur persetujuan retur dan restock agar melakukan penyesuaian stok terlebih dahulu sebelum mengubah status data di database, serta mengembalikan error 400 jika pemotongan gagal.
+
+### QA:
+- Verifikasi manual transaksi QRIS Manual yang berstatus failed kini memotong kembali stok secara benar di database.
+- Request retur yang melebihi stok ditolak dengan error.
+
 v5.14.9 - Active AI Vision Verification with Qwen (PATCH)
 ------------------------------------------------------------------------
 ### Root Cause Analysis:

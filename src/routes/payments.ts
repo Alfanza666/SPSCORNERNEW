@@ -307,8 +307,12 @@ export function registerPaymentRoutes(app, {
           previousStatus !== "paid" &&
           previousStatus !== "success"
         ) {
-          const stockCommit = await commitTransactionStock(transaction_id);
-          if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
+          if (txData.metadata?.stock_restored && deductTransactionStock) {
+            await deductTransactionStock(transaction_id);
+          } else {
+            const stockCommit = await commitTransactionStock(transaction_id);
+            if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
+          }
           await updateSellerBalances(txData.transaction_items, transaction_id);
           await checkLowStockAndNotify(txData.transaction_items);
           await updateBuyerPoints(transaction_id, txData.buyer_id, txData.total_amount);
