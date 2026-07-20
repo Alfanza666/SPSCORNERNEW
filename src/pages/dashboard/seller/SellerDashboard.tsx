@@ -92,8 +92,25 @@ export default function SellerDashboard() {
         )
         .subscribe();
 
+      const productsSubscription = supabase
+        .channel('seller-products-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'products',
+            filter: `seller_id=eq.${user.id}`
+          },
+          () => {
+            fetchData(); // Refetch low stock products when products change
+          }
+        )
+        .subscribe();
+
       return () => {
         supabase.removeChannel(profileSubscription);
+        supabase.removeChannel(productsSubscription);
       };
     }
   }, [user]);

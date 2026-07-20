@@ -1051,3 +1051,10 @@ v5.15.2 - Memperbaiki sinkronisasi webhook iPaymu dan auto-cancel yang menyebabk
 v5.15.3 - Fix Real-time Seller Balance Update (PATCH)
 -----------------------------------------------------
 - [FIX] Saldo seller di dashboard dan halaman penarikan kini update secara real-time via Supabase subscriptions.
+
+v5.15.4 - Fix Union Program Targeting Logic (PATCH)
+-----------------------------------------------------
+- [FIX] Portal Program kini menyembunyikan program yang melewati target cutoff date.
+- [FIX] Portal Program kini menyembunyikan program Targeted jika NIK karyawan tidak terdaftar.
+- [FIX] Memperbaiki bug validasi target di dalam formulir RSVP yang sebelumnya dapat di-bypass via tautan program.
+

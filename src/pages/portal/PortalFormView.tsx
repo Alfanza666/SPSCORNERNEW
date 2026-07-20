@@ -91,8 +91,9 @@ export default function PortalFormView() {
   const [paymentVerified, setPaymentVerified] = useState<Record<string, boolean>>({});
   const [aiVerifying, setAiVerifying] = useState<Record<string, boolean>>({});
 
-  // Department targeting
+  // Department and cutoff targeting
   const [userDepartment, setUserDepartment] = useState<string>('');
+  const [userTanggalMasuk, setUserTanggalMasuk] = useState<string>('');
   const [premiumStatusLoading, setPremiumStatusLoading] = useState(false);
   const [premiumInitialAnswers, setPremiumInitialAnswers] = useState<Record<string, unknown>>({});
   const [premiumInitialResult, setPremiumInitialResult] = useState<PremiumFormSubmitResult | null>(null);
@@ -132,7 +133,7 @@ export default function PortalFormView() {
   useEffect(() => {
     if (formId) {
       fetchForm();
-      fetchUserDepartment();
+      fetchUserEmployeeData();
     }
   }, [formId]);
 
@@ -250,15 +251,18 @@ export default function PortalFormView() {
     return () => { cancelled = true; };
   }, [form?.experience_version, formId, programId, user?.id]);
 
-  const fetchUserDepartment = async () => {
+  const fetchUserEmployeeData = async () => {
     if (!user?.nik) return;
     try {
       const { data } = await supabase
         .from('employees')
-        .select('department')
+        .select('department, tanggal_masuk')
         .eq('nik', user.nik)
         .maybeSingle();
-      if (data?.department) setUserDepartment(data.department);
+      if (data) {
+          setUserDepartment(data.department || '');
+          setUserTanggalMasuk(data.tanggal_masuk || '');
+      }
     } catch {}
   };
 
@@ -965,10 +969,24 @@ export default function PortalFormView() {
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-blue-500" /></div>;
 
   // Check targeting
-  const isTargeted = Boolean(programId) || !form?.target_niks && !form?.target_departments || (
+  const isTargetedByNiksDepts = !form?.target_niks && !form?.target_departments || (
     form?.target_niks?.includes(user?.nik || '') ||
     (form?.target_departments?.length > 0 && userDepartment && form.target_departments.includes(userDepartment))
   );
+  
+  let isTargeted = isTargetedByNiksDepts;
+
+  // Check cutoff date if specified on the form
+  if (form?.target_cutoff_date && userTanggalMasuk) {
+      const cutoffDate = new Date(form.target_cutoff_date);
+      const userDate = new Date(userTanggalMasuk);
+      if (userDate > cutoffDate) {
+          isTargeted = false;
+      }
+  }
+
+  // NOTE: We no longer bypass targeting with Boolean(programId).
+  // The form itself (or the union program overriding it) must have its targeting checked.
 
   if (!isTargeted && form) {
     return (

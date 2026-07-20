@@ -184,12 +184,47 @@ export default function PortalProgram() {
     setLoading(true);
     setError(null);
     try {
-      const { data: activePrograms, error } = await supabase
+      let userEmployee: any = null;
+      if (user?.nik) {
+        const { data: empData } = await supabase
+          .from('employees')
+          .select('tanggal_masuk, department')
+          .eq('nik', user.nik)
+          .single();
+        userEmployee = empData;
+      }
+
+      const { data: activeProgramsRaw, error } = await supabase
         .from('union_programs')
-        .select('*')
+        .select('*, dynamic_forms(target_niks, target_departments)')
         .eq('is_active', true)
         .order('created_at', { ascending: false });
       if (error) throw error;
+
+      const activePrograms = (activeProgramsRaw || []).filter(program => {
+        if (program.target_cutoff_date && userEmployee?.tanggal_masuk) {
+            const cutoffDate = new Date(program.target_cutoff_date);
+            const userDate = new Date(userEmployee.tanggal_masuk);
+            if (userDate > cutoffDate) return false;
+        }
+
+        if (program.is_targeted) {
+            const formTargets = program.dynamic_forms as any;
+            const draftTargets = program.metadata?.eligibility_draft;
+            const targetNiks = formTargets?.target_niks || draftTargets?.niks || [];
+            const targetDepts = formTargets?.target_departments || draftTargets?.departments || [];
+
+            if (targetNiks.length === 0 && targetDepts.length === 0) {
+               return false; 
+            }
+
+            const nikMatch = targetNiks.includes(user?.nik || '');
+            const deptMatch = targetDepts.length > 0 && userEmployee?.department && targetDepts.includes(userEmployee.department);
+            
+            if (!nikMatch && !deptMatch) return false;
+        }
+        return true;
+      });
 
       // Also fetch programs where user has coupons (for history)
       const { data: userCoupons } = await supabase
@@ -201,13 +236,13 @@ export default function PortalProgram() {
       let historyPrograms: any[] = [];
       if (userCoupons && userCoupons.length > 0) {
         const historyIds = [...new Set(userCoupons.map(c => c.program_id))];
-        const activeIds = new Set((activePrograms || []).map(p => p.id));
+        const activeIds = new Set(activePrograms.map(p => p.id));
         const inactiveIds = historyIds.filter(id => !activeIds.has(id));
         
         if (inactiveIds.length > 0) {
           const { data: histData } = await supabase
             .from('union_programs')
-            .select('*')
+            .select('*, dynamic_forms(target_niks, target_departments)')
             .in('id', inactiveIds)
             .order('created_at', { ascending: false });
           if (histData) historyPrograms = histData;
