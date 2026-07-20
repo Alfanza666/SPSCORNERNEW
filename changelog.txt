@@ -1,3 +1,8 @@
+v5.15.5 - Fix PO Koperasi Payment Bug (PATCH)
+------------------------------------------------------------------------
+### Deskripsi:
+- Memperbaiki logika deteksi item Koperasi di halaman Checkout agar produk PO dari seller lain (seperti kategori 'Kue') tidak dipaksa melakukan pembayaran via Transfer Koperasi.
+
 v5.15.0 - Clarify QRIS Manual vs QRIS Otomatis Payment Methods (MINOR)
 ------------------------------------------------------------------------
 ### Deskripsi:
