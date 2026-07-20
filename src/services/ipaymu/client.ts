@@ -165,8 +165,8 @@ export class IpaymuClient {
   /**
    * Check transaction status
    */
-  async getTransactionStatus(referenceId: string): Promise<any> {
-    const body = { reference_id: referenceId };
+  async getTransactionStatus(transactionId: string): Promise<any> {
+    const body = { transactionId: transactionId };
     const { signature, timestamp, jsonBody } = IpaymuSignature.generate(
       this.va,
       body,
@@ -175,7 +175,7 @@ export class IpaymuClient {
     );
 
     try {
-      const response = await this.axiosInstance.post(`${this.baseUrl}/transaction/details`, JSON.parse(jsonBody), {
+      const response = await this.axiosInstance.post(`${this.baseUrl}/transaction`, JSON.parse(jsonBody), {
         ...this.axiosConfig,
         headers: {
           'Accept': 'application/json',

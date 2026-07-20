@@ -37,7 +37,8 @@ export function registerPaymentRoutes(app, {
     // Legacy callback modes may omit a signature. Confirm directly with iPaymu
     // instead of trusting an unsigned callback to settle a payment.
     try {
-      const statusResponse = await ipaymuClient.getTransactionStatus(referenceId);
+      const ipaymuTrxId = body.transaction_id || body.transactionId || body.trx_id || body.trxId || referenceId;
+      const statusResponse = await ipaymuClient.getTransactionStatus(ipaymuTrxId);
       const callbackStatus = String(body.status || body.Status || body.payment_status || '').toLowerCase();
       const callbackIsPaid = ['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement'].includes(callbackStatus);
       return gatewayStatusIsPaid(statusResponse) || !callbackIsPaid;
