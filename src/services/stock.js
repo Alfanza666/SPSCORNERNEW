@@ -220,7 +220,7 @@ export async function deductTransactionStock(transactionId) {
       if (existingSale?.length) continue;
       const result = await atomicAdjustStock(
         productId, -quantity, sellerId || null, 'sale',
-        `Stock re-deducted — transaction ${transactionId} paid after auto-cleanup`, 0, transactionId
+        `Stock re-deducted — transaction ${transactionId} paid after auto-cleanup`, null, transactionId
       );
       if (!result || !result.success) {
         errors.push({ productId, quantity, error: result?.error_message || 'Unknown' });
@@ -292,7 +292,7 @@ export async function commitTransactionStock(transactionId) {
         deducted[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
         continue;
       }
-      const result = await atomicAdjustStock(item.product_id, -item.quantity, item.seller_id || null, 'sale', `Stock committed for paid transaction ${transactionId}`, 0, transactionId);
+      const result = await atomicAdjustStock(item.product_id, -item.quantity, item.seller_id || null, 'sale', `Stock committed for paid transaction ${transactionId}`, null, transactionId);
       if (!result?.success) throw new Error(result?.error_message || 'Stock commit failed');
       deducted[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
     }

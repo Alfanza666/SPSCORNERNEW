@@ -1042,3 +1042,5 @@ v5.14.7 - Groq Vision Model Migration & Manual Payment Fallback (PATCH)
 ### QA:
 - Lint, 110 test, dan production build lulus.
 - Tidak mengubah saldo seller, stok, pendapatan aplikasi, atau transaksi existing.
+v5.15.1 - Memperbaiki filter query transaksi pending di Admin Dashboard agar transaksi kosong tanpa receipt tidak menumpuk dan mencegah duplikasi persetujuan (PATCH)
+v5.15.2 - Memperbaiki sinkronisasi webhook iPaymu dan auto-cancel yang menyebabkan saldo penjual gagal masuk. Memulihkan saldo penjual yang terdampak.

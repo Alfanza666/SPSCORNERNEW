@@ -466,7 +466,7 @@ export function buildOverviewData(input: {
 }) {
   const settledTransactions = [...input.settledTransactions].sort((left, right) => (
     (Date.parse(right.created_at) || 0) - (Date.parse(left.created_at) || 0)
-      || String(left.id || '').localeCompare(String(right.id || ''))
+    || String(left.id || '').localeCompare(String(right.id || ''))
   ));
   const grossSettled = money(settledTransactions.reduce(
     (total, transaction) => total + money(transaction.total_amount),
@@ -658,6 +658,7 @@ async function loadOverview(supabase: any) {
     .from('transactions')
     .select('id,buyer_name,buyer_id,total_amount,status,payment_method,receipt_image,created_at,metadata', { count: 'exact' })
     .eq('status', 'pending')
+    .in('payment_method', ['manual_qris', 'transfer_koperasi'])
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(10);

@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { __name } from "./route-utils.js";
 import { IpaymuSignature } from "../services/ipaymu/signature.js";
 
@@ -6,47 +6,9 @@ export function registerPaymentRoutes(app, {
   supabase, sendNotification, ipaymuClient, sendSarirotiEmailInternal,
   sendWANotification, processDigitalItems, updateSellerBalances,
   updateBuyerPoints, triggerSarirotiEmail, checkLowStockAndNotify,
-  sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock, commitTransactionStock,
+  sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock,
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
 }) {
-  const gatewayStatusIsPaid = (payload: any) => {
-    const paidStatuses = new Set(['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement']);
-    const values: string[] = [];
-    const visit = (value: any, key = '') => {
-      if (!value || typeof value !== 'object') {
-        if (key.toLowerCase().includes('status') && typeof value === 'string') values.push(value.toLowerCase().trim());
-        return;
-      }
-      for (const [childKey, childValue] of Object.entries(value)) visit(childValue, childKey);
-    };
-    visit(payload);
-    return values.some(value => paidStatuses.has(value));
-  };
-
-  const verifyGatewayCallback = async (req: any, referenceId: string, body: any) => {
-    const headerSignature = String(req.headers.signature || req.headers['x-ipaymu-signature'] || '').trim();
-    const bodySignature = String(body.signature || body.Signature || '').trim();
-    const receivedSignature = headerSignature || bodySignature;
-    if (receivedSignature && IPAYMU_API_KEY) {
-      const signatureBody = { ...body };
-      delete signatureBody.signature;
-      delete signatureBody.Signature;
-      if (IpaymuSignature.verify(signatureBody, receivedSignature, IPAYMU_API_KEY)) return true;
-    }
-
-    // Legacy callback modes may omit a signature. Confirm directly with iPaymu
-    // instead of trusting an unsigned callback to settle a payment.
-    try {
-      const statusResponse = await ipaymuClient.getTransactionStatus(referenceId);
-      const callbackStatus = String(body.status || body.Status || body.payment_status || '').toLowerCase();
-      const callbackIsPaid = ['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement'].includes(callbackStatus);
-      return gatewayStatusIsPaid(statusResponse) || !callbackIsPaid;
-    } catch (error) {
-      console.error(`[iPaymu] Unable to verify callback for ${referenceId}:`, error);
-      return false;
-    }
-  };
-
   if (process.env.NODE_ENV !== "production") {
     app.get("/api/payment/ipaymu/debug", (req, res) => {
       res.json({
@@ -143,12 +105,8 @@ export function registerPaymentRoutes(app, {
   });
 
   app.post("/api/payment/manual/verify", async (req, res) => {
-    let transaction_id: string | undefined;
-    let receipt_image: string | undefined;
-    let expected_amount: number | undefined;
-    let receiptUrl: string | undefined;
     try {
-      ({ transaction_id, receipt_image, expected_amount } = req.body || {});
+      const { transaction_id, receipt_image, expected_amount } = req.body;
       if (!transaction_id || !receipt_image) {
         return res
           .status(400)
@@ -160,7 +118,7 @@ export function registerPaymentRoutes(app, {
         receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || "image/jpeg";
       const fileExt = mimeType.split("/")[1] || "jpg";
       const fileName = `receipts/${transaction_id}_${Date.now()}.${fileExt}`;
-      receiptUrl = receipt_image;
+      let receiptUrl = receipt_image;
       try {
         const { error: uploadError } = await supabase.storage
           .from("products")
@@ -203,7 +161,7 @@ export function registerPaymentRoutes(app, {
         - Gambar bisa berupa screenshot panjang dari aplikasi mobile banking, QRIS, GoPay, OVO, DANA, ShopeePay, atau aplikasi transfer lainnya.
         - JANGAN tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.
         - Fokus mencari bukti pembayaran di MANA PUN lokasinya dalam gambar.
-        - Cari teks nominal seperti: "${expected_amount}", "Rp ${Number(expected_amount).toLocaleString('id-ID')}", atau angka yang mendekati ±5%.
+        - Cari teks nominal seperti: "${expected_amount}", "Rp ${Number(expected_amount).toLocaleString('id-ID')}", atau angka yang mendekati ┬▒5%.
         - Cari indikator keberhasilan: "Berhasil", "Sukses", "Success", "Selesai", tanda centang hijau, atau teks serupa.
         - Cari nama pengirim, nama penerima, atau nama bank/dompet digital sebagai konteks pendukung.
 
@@ -227,12 +185,11 @@ export function registerPaymentRoutes(app, {
           "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid jelaskan alasannya."
         }
       `;
-      const visionModel = process.env.GROQ_VISION_MODEL?.trim() || "qwen/qwen3.6-27b";
       if (!process.env.GROQ_API_KEY) {
-        throw new Error("GROQ_API_KEY tidak tersedia; gunakan review manual");
+        return res.status(500).json({ success: false, error: "GROQ_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
       }
       const groqResponse = await groq.chat.completions.create({
-        model: visionModel,
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: [
           {
             role: "user",
@@ -307,12 +264,6 @@ export function registerPaymentRoutes(app, {
           previousStatus !== "paid" &&
           previousStatus !== "success"
         ) {
-          if (txData.metadata?.stock_restored && deductTransactionStock) {
-            await deductTransactionStock(transaction_id);
-          } else {
-            const stockCommit = await commitTransactionStock(transaction_id);
-            if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
-          }
           await updateSellerBalances(txData.transaction_items, transaction_id);
           await checkLowStockAndNotify(txData.transaction_items);
           await updateBuyerPoints(transaction_id, txData.buyer_id, txData.total_amount);
@@ -326,7 +277,7 @@ export function registerPaymentRoutes(app, {
       }
       res.json({ success: true, message: "Payment verified successfully" });
     } catch (error) {
-      console.error("❌ Manual Verification Error:", error);
+      console.error("Γ¥î Manual Verification Error:", error);
       try {
         if (transaction_id && receiptUrl) {
           const { data: currentTx } = await supabase
@@ -362,7 +313,7 @@ export function registerPaymentRoutes(app, {
               for (const admin of admins) {
                 await sendNotification(admin.id, {
                   type: "transaction",
-                  title: "🔔 Verifikasi Manual Baru",
+                  title: "≡ƒöö Verifikasi Manual Baru",
                   message: `Bukti pembayaran baru diunggah untuk pesanan #${transaction_id.slice(0, 8)} (AI sedang offline).`,
                   path: `/dashboard/admin/transactions?id=${transaction_id}`,
                 });
@@ -379,7 +330,7 @@ export function registerPaymentRoutes(app, {
           });
         }
       } catch (dbErr) {
-        console.error("❌ Failed to save fallback receipt info to DB:", dbErr);
+        console.error("Γ¥î Failed to save fallback receipt info to DB:", dbErr);
       }
       res.status(500).json({ success: false, error: error.message });
     }
@@ -417,7 +368,7 @@ export function registerPaymentRoutes(app, {
         throw new Error(`Points tidak mencukupi. Point: ${profile?.loyalty_points || 0}, Tagihan: ${tx.total_amount}`);
       }
 
-      // Deduct points atomically — cegah double-spend dengan .gte()
+      // Deduct points atomically ΓÇö cegah double-spend dengan .gte()
       const { data: deductData, error: deductError } = await supabase
         .from("profiles")
         .update({ loyalty_points: profile.loyalty_points - tx.total_amount })
@@ -449,8 +400,6 @@ export function registerPaymentRoutes(app, {
       if (updateTx) throw updateTx;
 
       // Run post processes
-      const stockCommit = await commitTransactionStock(transaction_id);
-      if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
       await updateSellerBalances(tx.transaction_items, transaction_id);
       await checkLowStockAndNotify(tx.transaction_items);
       await processDigitalItems(transaction_id, tx.transaction_items);
@@ -500,7 +449,7 @@ export function registerPaymentRoutes(app, {
         throw new Error(`Points tidak mencukupi. Point: ${profile?.loyalty_points || 0}, Dibutuhkan: ${pointsToUse}`);
       }
 
-      // Deduct points atomically — cegah double-spend dengan .gte()
+      // Deduct points atomically ΓÇö cegah double-spend dengan .gte()
       const { data: deductData, error: deductError } = await supabase
         .from("profiles")
         .update({ loyalty_points: (profile.loyalty_points || 0) - pointsToUse })
@@ -520,7 +469,7 @@ export function registerPaymentRoutes(app, {
         description: `Pembayaran parsial Rp ${pointsToUse.toLocaleString()} dari Rp ${tx.total_amount.toLocaleString()}`,
       });
 
-      // Update transaction metadata — JANGAN ubah total_amount agar laporan tetap akurat
+      // Update transaction metadata ΓÇö JANGAN ubah total_amount agar laporan tetap akurat
       const remainingAmount = tx.total_amount - pointsToUse;
       const { error: updateTx } = await supabase
         .from("transactions")
@@ -623,7 +572,7 @@ export function registerPaymentRoutes(app, {
     try {
       const body = req.body || {};
       
-      // ─── Verifikasi HMAC Signature iPaymu ─────────────────────────
+      // ΓöÇΓöÇΓöÇ Verifikasi HMAC Signature iPaymu ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
       const receivedSignature = body.signature || body.Signature || '';
       if (receivedSignature) {
         const isValid = IpaymuSignature.verify(body, receivedSignature, IPAYMU_API_KEY);
@@ -632,7 +581,7 @@ export function registerPaymentRoutes(app, {
           return res.status(401).json({ error: 'Invalid signature' });
         }
       } else {
-        console.warn('[iPaymu] No signature in callback — skipping verification');
+        console.warn('[iPaymu] No signature in callback ΓÇö skipping verification');
       }
       
       const statusRaw = body.status || body.Status || body.payment_status || '';
@@ -644,11 +593,6 @@ export function registerPaymentRoutes(app, {
       const refId = reference_id || transaction_id;
       if (!refId) {
         return res.status(400).json({ error: "Missing reference_id" });
-      }
-
-      if (!(await verifyGatewayCallback(req, refId, body))) {
-        console.warn(`[iPaymu] Unverified callback rejected for ${refId}`);
-        return res.status(202).json({ success: false, pending: true, message: 'Callback menunggu verifikasi gateway' });
       }
 
       const statusLower = String(statusRaw).toLowerCase().trim();
@@ -692,22 +636,22 @@ export function registerPaymentRoutes(app, {
         return res.status(404).json({ error: "Transaction not found" });
       }
 
-      // ─── Guard: jangan timpa transaksi yg sudah berhasil/dibayar dengan status gagal/pending ───
-      if ((txStatus === "failed" || txStatus === "pending") && (transaction.status === "paid" || transaction.status === "success")) {
-        console.log(`[iPaymu] Skip overwrite tx ${refId}: already ${transaction.status}, ignoring "${txStatus}" callback`);
+      // ΓöÇΓöÇΓöÇ Guard: jangan timpa transaksi yg sudah berhasil/dibayar dengan status gagal ΓöÇΓöÇΓöÇ
+      if (txStatus === "failed" && (transaction.status === "paid" || transaction.status === "success")) {
+        console.log(`[iPaymu] Skip overwrite tx ${refId}: already ${transaction.status}, ignoring "gagal" callback`);
         return res.json({ success: true, message: "Ignored: transaction already paid/success" });
       }
 
-      // ─── Failed flow: restore stock DULU, baru update status ───
+      // ΓöÇΓöÇΓöÇ Failed flow: restore stock DULU, baru update status ΓöÇΓöÇΓöÇ
       // Urutan ini penting: kalau restoreTransactionStock error (uncaught),
-      // status tetap "pending" → callback bisa di-retry. Jangan update
+      // status tetap "pending" ΓåÆ callback bisa di-retry. Jangan update
       // status dulu karena setelah "failed" tidak ada mekanisme retry.
       if (txStatus === "failed") {
         const hasDeliveredDigital = (transaction.transaction_items || []).some(
           item => item.metadata?.is_digital && item.metadata?.status === 'delivered'
         );
         if (hasDeliveredDigital) {
-          console.log(`[iPaymu] Tx ${refId} has delivered digital items — reverting status to "paid" instead of "failed"`);
+          console.log(`[iPaymu] Tx ${refId} has delivered digital items ΓÇö reverting status to "paid" instead of "failed"`);
           await supabase
             .from("transactions")
             .update({
@@ -724,13 +668,13 @@ export function registerPaymentRoutes(app, {
           if (transaction.buyer_id) {
             await sendNotification(transaction.buyer_id, {
               type: "transaction",
-              title: "✅ Pembayaran Berhasil!",
+              title: "Γ£à Pembayaran Berhasil!",
               message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
               path: `/kiosk/history?id=${refId}`,
             });
           }
         } else {
-          // Restore stock DULU — jika restore gagal, status tetap "pending" untuk retry
+          // Restore stock DULU ΓÇö jika restore gagal, status tetap "pending" untuk retry
           await restoreTransactionStock(refId);
           await supabase
             .from("transactions")
@@ -757,7 +701,7 @@ export function registerPaymentRoutes(app, {
         return res.json({ success: true });
       }
 
-      // ─── Paid/Pending flow: update status dulu (order existing) ───
+      // ΓöÇΓöÇΓöÇ Paid/Pending flow: update status dulu (order existing) ΓöÇΓöÇΓöÇ
       const { error: updateError } = await supabase
         .from("transactions")
         .update({
@@ -773,13 +717,9 @@ export function registerPaymentRoutes(app, {
         .eq("id", refId);
       if (updateError) throw updateError;
 
-      // ─── Stock re-deduction: jika auto-cleanup sudah restore stock, deduct kembali ───
-      if (txStatus === "paid") {
-        if (transaction.metadata?.stock_restored && deductTransactionStock) await deductTransactionStock(refId);
-        else {
-          const stockCommit = await commitTransactionStock(refId);
-          if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
-        }
+      // ΓöÇΓöÇΓöÇ Stock re-deduction: jika auto-cleanup sudah restore stock, deduct kembali ΓöÇΓöÇΓöÇ
+      if (txStatus === "paid" && transaction.metadata?.stock_restored && deductTransactionStock) {
+        await deductTransactionStock(refId);
       }
 
       if (
@@ -800,7 +740,7 @@ export function registerPaymentRoutes(app, {
         if (transaction.buyer_id) {
           await sendNotification(transaction.buyer_id, {
             type: "transaction",
-            title: "✅ Pembayaran Berhasil!",
+            title: "Γ£à Pembayaran Berhasil!",
             message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
             path: `/kiosk/history?id=${refId}`,
           });
@@ -813,7 +753,7 @@ export function registerPaymentRoutes(app, {
           if (sellerId) {
             await sendNotification(sellerId, {
               type: 'transaction',
-              title: '💰 Pesanan Baru Masuk!',
+              title: '≡ƒÆ░ Pesanan Baru Masuk!',
               message: `Ada pesanan baru #${refId.slice(0, 8)} dari ${transaction.buyer_name} yang perlu Anda proses.`,
               path: `/dashboard/seller/transactions?id=${refId}`,
             });
@@ -828,7 +768,7 @@ export function registerPaymentRoutes(app, {
             for (const admin of admins) {
               await sendNotification(admin.id, {
                 type: 'transaction',
-                title: '🛒 Pesanan Koperasi Baru',
+                title: '≡ƒ¢Æ Pesanan Koperasi Baru',
                 message: `Ada pesanan baru #${refId.slice(0, 8)} dari ${transaction.buyer_name}.`,
                 path: `/dashboard/admin/transactions?id=${refId}`
               });

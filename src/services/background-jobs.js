@@ -128,11 +128,18 @@ async function autoCleanup() {
         }
       }
 
+      // Ambil metadata terbaru karena restoreStock mungkin telah memodifikasinya (misal: stock_restored: true)
+      const { data: latestTx } = await supabaseInstance
+        .from("transactions")
+        .select("metadata")
+        .eq("id", tx.id)
+        .single();
+
       await supabaseInstance
         .from("transactions")
         .update({
           status: "failed",
-          metadata: { ...(tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 15 menit" },
+          metadata: { ...(latestTx?.metadata || tx.metadata || {}), cancel_reason: "Auto-cancelled: Unpaid > 15 menit" },
         })
         .eq("id", tx.id);
       if (tx.buyer_id && sendNotif) {
