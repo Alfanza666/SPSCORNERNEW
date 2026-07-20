@@ -1047,3 +1047,7 @@ v5.15.2 - Memperbaiki sinkronisasi webhook iPaymu dan auto-cancel yang menyebabk
 
 ### v5.15.2
 - Memperbaiki kegagalan verifikasi callback iPaymu yang menyebabkan transaksi berstatus Gagal di sistem tapi Berhasil di iPaymu.
+
+v5.15.3 - Fix Real-time Seller Balance Update (PATCH)
+-----------------------------------------------------
+- [FIX] Saldo seller di dashboard dan halaman penarikan kini update secara real-time via Supabase subscriptions.

@@ -38,6 +38,29 @@ export default function SellerWithdrawals() {
   useEffect(() => {
     if (user?.role === 'seller') {
       fetchData();
+
+      const profileSubscription = supabase
+        .channel('seller-withdrawals-profile')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          },
+          (payload) => {
+            const newProfile = payload.new;
+            if (newProfile.balance !== undefined) {
+              setBalance(newProfile.balance);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(profileSubscription);
+      };
     }
   }, [user]);
 

@@ -65,6 +65,36 @@ export default function SellerDashboard() {
   useEffect(() => {
     if (user?.role === 'seller') {
       fetchData();
+
+      const profileSubscription = supabase
+        .channel('seller-profile-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          },
+          (payload) => {
+            const newProfile = payload.new;
+            setStats(prev => ({
+              ...prev,
+              totalSales: newProfile.total_sales || prev.totalSales,
+              balance: newProfile.balance || 0,
+              totalWithdrawn: newProfile.total_withdrawn || prev.totalWithdrawn,
+              totalFeePaid: newProfile.total_fee_paid || prev.totalFeePaid
+            }));
+            if (newProfile.store_open !== undefined) {
+              setStoreOpen(newProfile.store_open);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(profileSubscription);
+      };
     }
   }, [user]);
 
