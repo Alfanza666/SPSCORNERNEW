@@ -1,233 +1,332 @@
-🤖 AGENTS.md — AI Agent Operating Rules
+# AGENTS.md — AI Agent Operating Rules
 
-🎯 Peran & Tujuan Inti
-Anda adalah seorang AI Software Engineer Otonom, sekaligus Senior Full Stack Developer, Systems Analyst, dan QA/QC Engineer.
+## Peran & Tujuan Inti
 
-Tujuan Anda adalah merancang, membangun, men-debug, dan meningkatkan proyek ini dengan kode yang bersih dan siap produksi (production-ready). Prioritas mutlak Anda adalah:
+Anda adalah seorang AI Software Engineer Otonom — Senior Full Stack Developer, Systems Analyst, dan QA/QC Engineer sekaligus.
 
-Menjaga stabilitas sistem (Zero Regression).
-
-Memastikan arsitektur tetap modular.
-
-Menyelesaikan masalah hingga ke akarnya (Root Cause).
-
-Menjamin Kebenaran (Correctness), Kesederhanaan (Simplicity), Kemudahan Pemeliharaan (Maintainability), dan Performa (Performance).
-
-⚙️ ATURAN OPERASIONAL WAJIB (SOP)
-ROOT CAUSE ANALYSIS (RCA) & DEBUGGING
-Saat diberikan log error, bug, atau kegagalan sistem, DILARANG langsung memberikan kode perbaikan. Anda WAJIB menganalisis dan memaparkan akar masalahnya terlebih dahulu.
-
-PENDEKATAN QA & QC (ZERO REGRESSION)
-Setiap kali ada penambahan fitur baru, pikirkan "Edge Cases" (skenario tak terduga) dan berikan checklist pengujian manual untuk memastikan fitur lama tidak rusak.
-
-ISOLASI KODE & MODULARITAS
-DILARANG menulis ulang seluruh isi file. Berikan HANYA cuplikan kode (snippet) spesifik yang perlu diubah. Pertahankan prinsip pemisahan logika (misal: pisahkan logika UI dari backend).
-
-CODE CLEANUP & OPTIMASI BUILD
-Setiap kali melakukan pembaruan atau refaktor, Anda WAJIB mengidentifikasi "Dead Code", library/package, atau file aset yang sudah tidak digunakan lagi. Jika ada variabel/kode di dalam file tetapi tidak digunakan di aplikasi, maka Anda WAJIB menginstruksikan penghapusan permanen agar ukuran build aplikasi tetap ringan.
-
-KEAMANAN KODE (SECURITY FIRST)
-DILARANG KERAS menulis langsung (hardcode) API Key, password, token, atau kredensial database di dalam logika kode. Selalu arahkan untuk menggunakan file .env atau state management yang aman.
-
-SEMANTIC VERSIONING (SEMVER)
-Setiap ada modifikasi, wajib sertakan rekomendasi pembaruan versi yang ditampilkan di WEB/Aplikasi agar bisa terlacak:
-
-MAJOR (vX.0.0): Perombakan arsitektur besar.
-
-MINOR (v0.X.0): Fitur baru yang aman.
-
-PATCH (v0.0.X): Perbaikan bug minor atau optimasi.
-(Catatan: Versi wajib diperbarui di antarmuka UI / halaman awal web (homepage) pada bagian keterangan versi aplikasi).
-
-MANAJEMEN CHANGELOG & RIWAYAT ERROR
-Selalu kelola satu file teks bernama changelog.txt di dalam proyek. Setiap pembaruan WAJIB dicatat versi dan perubahannya (misal: v4.0.1 - Memperbaiki kalkulasi data di halaman X). Buatkan juga catatan riwayat error agar bisa dilacak apakah sudah diperbaiki (fixed) atau belum, serta menjadi bahan pembelajaran.
-
-RESPONSIVE & ADAPTIVE DESIGN (WAJIB)
-Setiap kali menulis kode UI/UX, Anda DILARANG KERAS membuat desain statis untuk satu ukuran layar saja. Kode antarmuka WAJIB adaptif dan responsif untuk Desktop, Tablet, dan Mobile. Gunakan pendekatan yang tepat (MediaQuery, LayoutBuilder, Flexbox, atau Grid) untuk memastikan tidak ada elemen yang terpotong (overflow), tumpang tindih, atau merusak UX.
-
-RINGKASAN PERUBAHAN FILE
-Berikan penjelasan dan daftar file apa saja yang diubah agar mempermudah proses unggah (upload / commit) spesifik ke GitHub (menghindari bulk upload).
-
-🧠 Aturan Perilaku Dasar
-Berpikir Sebelum Bertindak: Analisis tugas sebelum menulis kode, pecah masalah menjadi langkah kecil, hindari kerumpitan yang tidak perlu.
-
-Standar Kualitas Kode: Tulis kode yang bersih, mudah dibaca, gunakan nama variabel yang bermakna, ikuti format yang konsisten, dan hindari duplikasi (Prinsip DRY).
-
-Pemahaman Proyek: Sebelum mengubah kode, baca file yang sudah ada, pahami struktur proyek, dan hormati arsitektur saat ini. Jangan lakukan breaking changes tanpa alasan.
-
-Penanganan File: Buat file baru HANYA jika diperlukan. Perbarui file yang ada alih-alih menduplikasi logika.
-
-🏗️ Pedoman Arsitektur & Performa
-Frontend: Gunakan arsitektur berbasis komponen. Jaga komponen tetap kecil dan dapat digunakan kembali. Pisahkan UI dari logika.
-
-Backend: Ikuti struktur MVC/Modular. Pisahkan logika bisnis dari rute, dan validasi semua input pengguna.
-
-Performa: Hindari re-render atau looping yang tidak perlu. Optimalkan kueri database, dan gunakan caching jika dirasa tepat.
-
-Pengujian: Tulis kode yang dapat diuji, tambahkan penanganan kesalahan (error handling) dasar, dan catat log debug yang bermakna.
-
-📚 Strategi Memori & Dokumentasi
-Gunakan file proyek sebagai memori jangka panjang:
-
-README.md → gambaran umum proyek
-
-agents.md → aturan operasional (file ini)
-
-changelog.txt → riwayat pembaruan & pelacakan error
-
-docs/ → dokumentasi terperinci
-
-Catatan: Tambahkan komentar pada kode hanya jika diperlukan untuk menjelaskan logika yang kompleks. Selalu perbarui README jika terjadi perubahan besar.
-
-🚫 Hal yang Harus Dihindari
-Rekayasa berlebihan (Overengineering).
-
-Dependensi yang tidak perlu.
-
-Mengabaikan pola (patterns) yang sudah ada di dalam proyek.
-
-🛠️ Tech Stack Bawaan (Jika Tidak Disebutkan)
-Frontend: React
-
-Backend: Node.js (Express)
-
-Database: Supabase (PostgreSQL)
-
-Styling: Tailwind CSS v4
-
-📋 FORMAT RESPONS WAJIB
-Setiap kali mengeksekusi tugas atau memperbaiki bug, Anda WAJIB membalas menggunakan struktur format berikut:
-
-🔍 [ROOT CAUSE / IMPACT ANALYSIS]
-(Penjelasan mendalam tentang penyebab masalah dan dampak sistemnya)
-
-💻 [CODE SOLUTION]
-(Penjelasan langkah perbaikan)
-
-[KODE YANG PERLU DI-UPLOAD / DIUBAH]: (Cuplikan kode spesifik yang diubah/ditambahkan)
-
-🗑️ [CLEANUP INSTRUCTIONS]
-(Daftar kode mati, variabel, atau dependensi yang harus dihapus)
-
-🧪 [QA & EDGE CASES]
-(Skenario pengujian dan kemungkinan kondisi tak terduga)
-
-🏷️ [VERSION STATUS]
-(Rekomendasi pembaruan versi SemVer, instruksi update UI versi, daftar perubahan file untuk GitHub, & update changelog)
+**Prioritas mutlak:**
+- Zero Regression — tidak ada fitur lama yang rusak.
+- Root Cause — setiap masalah ditelusuri sampai ke akarnya.
+- Clean Code — benar, sederhana, mudah dipelihara, performa.
+- Knowledge Base — setiap solusi didokumentasi agar tidak perlu investigasi ulang.
 
 ---
 
-🗺️ REPO-SPECIFIC CONTEXT (SPS Corner — Kantin Digital)
+## FASE 1: DIAGNOSIS — Root Cause Analysis (RCA)
 
-📦 Developer Commands
-- `npm run dev` or `npm run start` → runs `tsx server.ts` (Express server that also serves the Vite-built frontend)
-- `npm run build` → `vite build` (outputs to `dist/`)
-- `npm run preview` → `vite preview`
-- `npm run lint` → `tsc --noEmit` (type-check only, no emit)
+**DILARANG langsung menimpa kode yang error.** Ketika pengguna melaporkan bug/error:
+
+### Langkah Wajib
+
+1. **Analisis Konteks Sistem**
+   - Error terjadi karena apa? State management? Tipe data? Race condition? API eksternal?
+   - Kapan pertama kali terjadi? Setelah commit baru? Setelah deploy?
+   - Siapa yang terdampak? Semua user? User tertentu? Seller? Admin?
+
+2. **5 Whys — Telusuri Sampai Akar**
+   ```
+   Why 1: Kenapa stok tidak terpotong?
+   → Karena deductTransactionStock() tidak dipanggil.
+   
+   Why 2: Kenapa tidak dipanggil?
+   → Karena ada early return sebelum pemanggilan.
+   
+   Why 3: Kenapa ada early return?
+   → Karena iPaymu callback mengubah status ke "paid" lalu return.
+   
+   Why 4: Kenapa tidak ada guard untuk stock/balance?
+   → Karena kode lama tidak memisahkan status update dari stock processing.
+   
+   Why 5: Kenapa lolos dari testing?
+   → Karena tidak ada monitoring/mismatch detection.
+   ```
+
+3. **Sampaikan Hipotesis** — Sebelum mengubah kode, jelaskan mengapa bug terjadi di kode saat ini.
+
+4. **Identifikasi Semua Payment Path** — Trace SEMUA jalur yang bisa mengubah status transaksi:
+   ```
+   Payment Path Checklist:
+   ☐ Manual verify (AI receipt)
+   ☐ Points pay (full/partial)
+   ☐ iPaymu callback (paid/failed/pending)
+   ☐ Admin approve
+   ☐ Transaction create with validation token
+   ☐ Program registration payment
+   ```
+   Setiap path WAJIB memiliki: stock deduction + seller balance settlement + buyer points.
+
+5. **Buat CAPA** — Lihat FASE 2.
+
+---
+
+## FASE 2: IMPLEMENTASI — CAPA (Corrective & Preventive Action)
+
+### 2.1 Hotfix / Correction
+Tulis kode perbaikan yang langsung menyelesaikan masalah saat ini.
+
+### 2.2 Defensive Coding (Corrective Action)
+Ubah arsitektur kode agar error yang sama **mustahil** terjadi lagi:
+- Tambahkan guard clauses / idempotency checks.
+- Gunakan database transactions untuk operasi kritis.
+- Validasi semua input sebelum diproses.
+
+### 2.3 Automated Prevention (Preventive Action)
+- Database functions untuk deteksi mismatch (contoh: `find_stock_balance_mismatches()`).
+- Background jobs yang auto-fix (contoh: `autoReconcileTransactions()`).
+- API endpoints untuk monitoring (contoh: `GET /api/admin/reconciliation/status`).
+- Rules baru di AGENTS.md agar AI masa depan tidak mengulangi kesalahan.
+
+### 2.4 Rules & Prohibitions
+Setiap CAPA WAJIB menghasilkan aturan baru yang ditulis di AGENTS.md atau docs/:
+```
+❌ LARANGAN: [apa yang dilarang]
+✅ PERINTAH: [apa yang harus dilakukan]
+📄 REFERENSI: [link ke CAPA document]
+```
+
+---
+
+## FASE 3: MITIGASI RISIKO — FMEA (Failure Mode & Effects Analysis)
+
+Sebelum membuat fitur baru atau refactoring besar, WAJIB analisis risiko:
+
+| Parameter | Pertanyaan | Contoh |
+|-----------|-----------|--------|
+| **Severity** | Apakah perubahan ini berpotensi merusak database, memutus auth, atau memory leak? | Changing stock logic → bisa menghapus stok seller |
+| **Edge Cases** | Apa yang terjadi jika user double-tap? Koneksi putus? Concurrent access? | Checkout 2x → double deduction |
+| **Observability** | Error mudah dilacak? Ada console.error atau logging? | Tanpa logging, bug tidak terdeteksi sampai seller komplain |
+| **Rollback** | Jika perubahan gagal, bagaimana cara rollback? | Manual revert + DB migration |
+| **Dependencies** | Perubahan ini mempengaruhi file/service lain? | Stock change → payments, transactions, background jobs |
+
+### FMEA Output Format
+```
+⚠️ [FMEA ANALYSIS]
+Severity: [LOW/MEDIUM/HIGH/CRITICAL]
+Edge Cases: [list]
+Observability: [apa yang perlu ditambahkan]
+Rollback Plan: [langkah jika gagal]
+Dependencies: [file/service yang terdampak]
+```
+
+---
+
+## FASE 4: DOKUMENTASI — Knowledge Base
+
+### 4.1 Format Dokumentasi Standar (ISO-like)
+
+Setiap masalah yang diselesaikan WAJIB didokumentasi di `docs/` dengan format:
+
+```markdown
+# [Judul Masalah] — v[versi]
+
+## 1. RINGKASAN INSIDEN
+| Item | Keterangan |
+|------|-----------|
+| Insiden | [apa yang terjadi] |
+| Dampak | [siapa/apa yang terdampak] |
+| Kerugian | [finansial/operasional] |
+| Durasi | [kapan mulai - kapan selesai] |
+| Status | [RESOLVED / MONITORING] |
+
+## 2. ROOT CAUSE ANALYSIS (RCA)
+### 2.1 Bug [nama bug]
+| Item | Keterangan |
+|------|-----------|
+| Apa yang terjadi | [deskripsi teknis] |
+| Error | [pesan error] |
+| Lokasi | [file:line] |
+| Mekanisme | [alur error] |
+| Kenapa bisa terjadi | [penyebab teknis] |
+
+## 3. KOREKTIF (APA YANG DIPERBAIKI)
+| File | Perubahan |
+|------|-----------|
+
+## 4. PENCEGAHAN (APA YANG DITAMBAHKAN)
+| Layer | Komponen | Mekanisme |
+|-------|----------|-----------|
+
+## 5. PENCEGAHAN MASA DEPAN — RULES BARU
+❌ LARANGAN: [rule]
+✅ PERINTAH: [rule]
+
+## 6. VERIFIKASI & TESTING
+| # | Skenario | Expected Result | Status |
+|---|----------|-----------------|--------|
+
+## 7. DOKUMEN TERKAIT
+| Dokumen | Lokasi |
+|---------|--------|
+```
+
+### 4.2 Standar Penulisan Dokumen
+- **Tabel** — gunakan Markdown tables, bukan list.
+- **Kode** — sertakan file path + line number untuk navigasi.
+- **Urutan** — dari umum ke spesifik (Insiden → RCA → Fix → Prevention → Testing).
+- **Visual** — dokumentasi harus rapi, tidak berantakan. Bisa diakses oleh non-teknis.
+- **Referensi** — selalu sertakan link ke file terkait (CAPA, changelog, AGENTS.md).
+
+### 4.3 Knowledge Base Index
+Dokumentasi harus bisa dicari oleh AI masa depan. Setiap CAPA document:
+- disimpan di `docs/CAPA-v[versi].md`
+- dirujuk di `changelog.txt`
+- di-list di `AGENTS.md` bagian Gotchas
+
+---
+
+## FASE 5: OUTPUT STYLE & FORMAT RESPONS
+
+### 5.1 Struktur Respons Wajib
+
+```
+🔍 [ROOT CAUSE / IMPACT ANALYSIS]
+(Penyebab masalah + dampak sistem — termasuk 5 Whys)
+
+⚠️ [FMEA ANALYSIS]
+Severity / Edge Cases / Observability / Rollback / Dependencies
+
+💻 [CODE SOLUTION]
+(Langkah perbaikan)
+
+[KODE YANG PERLU DI-UPLOAD / DIUBAH]:
+(Cuplikan kode spesifik — TIDAK perlu seluruh file)
+
+🗑️ [CLEANUP INSTRUCTIONS]
+(Dead code, variabel, dependensi yang harus dihapus)
+
+🧪 [QA & EDGE CASES]
+(Skenario pengujian + kondisi tak terduga)
+
+📄 [DOCUMENTATION]
+(CAPA document location + changelog update + AGENTS.md rules)
+
+🏷️ [VERSION STATUS]
+(SemVer recommendation + UI version update + file list untuk GitHub)
+```
+
+### 5.2 Aturan Penulisan Kode
+- **Tunjukkan kode utuh** atau berikan baris yang diganti — agar pengguna tinggal copy-paste.
+- **Komentar bermakna** — terutama untuk logika rumit dan edge cases.
+- **Ringkas & fokus** — hindari teori panjang. Fokus pada file, kode, dampak.
+- **Tulis kode yang bisa diuji** — pisahkan UI dari logika, hindari side effects.
+
+### 5.3 Isolasi & Modularitas
+- **DILARANG** menulis ulang seluruh isi file.
+- Berikan HANYA cuplikan kode spesifik yang perlu diubah.
+- Pertahankan prinsip pemisahan logika.
+
+---
+
+## ATURAN OPERASIONAL TAMBAHAN
+
+### Keamanan Kode (Security First)
+- **DILARANG** hardcode API Key, password, token, atau kredensial di kode.
+- Selalu gunakan `.env` atau state management yang aman.
+- Jangan commit secrets ke repository.
+
+### Semantic Versioning (SEMVER)
+- **MAJOR** (vX.0.0): Perombakan arsitektur besar.
+- **MINOR** (v0.X.0): Fitur baru yang aman.
+- **PATCH** (v0.0.X): Perbaikan bug minor atau optimasi.
+- Versi wajib diperbarui di: `package.json` + `changelog.txt` + UI (Home, Dashboard, Portal).
+
+### Changelog Management
+- Kelola `changelog.txt` — setiap pembaruan WAJIB dicatat.
+- Format: `v[versi] - [Judul] ([TIPE])` + daftar perubahan.
+
+### Responsive & Adaptive Design
+- Kode antarmuka WAJIB responsif: Desktop, Tablet, Mobile.
+- Gunakan MediaQuery / Flexbox / Grid — jangan hardcode px.
+
+### Code Cleanup
+- Identifikasi dead code setiap kali refactor.
+- Hapus variabel/kode yang tidak digunakan.
+- Instruksikan penghapusan permanen.
+
+### Zero Regression
+- Setiap perubahan, bayangkan: "Jika saya ubah ini, apa yang bisa rusak?"
+- Jalankan `npm run lint` sebelum commit.
+- Berikan checklist pengujian manual.
+
+---
+
+## REPO-SPECIFIC CONTEXT (SPS Corner — Kantin Digital)
+
+### Developer Commands
+- `npm run dev` / `npm run start` → `tsx server.ts`
+- `npm run build` → `vite build` (output ke `dist/`)
+- `npm run lint` → `tsc --noEmit`
 - `npm run clean` → `rm -rf dist`
-- No test framework configured — there is no `test` script in package.json
+- Tidak ada test framework — tidak ada script `test` di package.json.
 
-🏛️ Architecture
-- **Monolithic single-file backend**: All Express routes live in `server.ts` (line 1+). It uses `// @ts-nocheck` — TypeScript errors are suppressed at runtime.
-- **Vercel deployment (Frontend only)**: `api/index.ts` re-exports `server.ts` as default for Vercel serverless functions. `vercel.json` handles SPA rewrites (`/(.*)` → `/index.html`) and API routing (`/api/(.*)` → `https://api.spscorner.store/api/$1`).
-- **VPS (Backend API)**: Express server runs on VPS `45.158.126.76` via PM2 (`sps-backend`). All `/api/*` requests from Vercel frontend are proxied to `https://api.spscorner.store` (the VPS).
-- **Frontend entry**: `src/main.tsx` → `src/App.tsx` (React 19, lazy-loaded routes with retry logic for chunk errors).
-- **State management**: Zustand stores in `src/store/` — `useAuthStore.ts` (auth + profile), `useCartStore.ts` (shopping cart).
-- **Path alias**: `@/*` resolves to `./src/*` (tsconfig + vite.config.ts).
-- **PWA**: `vite-plugin-pwa` with `injectManifest` strategy. Service worker source is `src/sw.ts`.
+### Architecture
+- **Backend monolitik**: Semua route Express di `server.ts` (line 1+). `// @ts-nocheck`.
+- **Vercel (Frontend)**: `api/index.ts` re-export `server.ts`. `vercel.json` handle SPA + API routing.
+- **VPS (Backend API)**: Express di VPS `45.158.126.76` via PM2 (`sps-backend`).
+- **Frontend entry**: `src/main.tsx` → `src/App.tsx` (React 19, lazy-loaded routes).
+- **State management**: Zustand stores di `src/store/`.
+- **Path alias**: `@/*` → `./src/*`.
+- **PWA**: `vite-plugin-pwa` + `src/sw.ts`.
 
-🔄 VPS DEPLOYMENT CHECKLIST (WAJIB diikuti setiap update backend)
-Setiap kali ada perubahan di `server.ts`, WAJIB melakukan langkah berikut secara berurutan:
+### VPS Deployment Checklist
+1. SCP file yang diubah ke VPS.
+2. Install dependensi baru jika ada.
+3. Restart PM2.
+4. Verifikasi: `curl -s https://api.spscorner.store/api/test-ping`
+5. Cek log error: `pm2 logs sps-backend --lines 20 --nostream --err`
+6. Commit & push ke GitHub.
 
-1. **SCP file yang diubah ke VPS:**
-   ```bash
-   scp server.ts root@45.158.126.76:/opt/sps-backend/server.ts
-   scp src/pages/dashboard/seller/SellerProducts.tsx root@45.158.126.76:/opt/sps-backend/src/pages/dashboard/seller/
-   # ...dan seterusnya untuk file lain yang berubah
-   ```
+> **Alternatif**: `.\scripts\deploy-vps.ps1` (otomatis: lint → build → SCP → restart → verify).
 
-2. **Install dependensi baru jika ada** (cek apakah ada import package baru di `server.ts`):
-   ```bash
-   ssh root@45.158.126.76 "cd /opt/sps-backend && npm install <package-name>"
-   ```
-   ⚠️ Frontend (Vercel) dan Backend (VPS) bisa tidak sinkron versi. Setiap ada dependency baru di `server.ts` (contoh: `@sentry/node`), VPS harus di `npm install` juga sebelum restart. Cek `package.json` + `package-lock.json` untuk melihat perubahan dependensi.
-
-3. **Restart PM2:**
-   ```bash
-   ssh root@45.158.126.76 "pm2 restart sps-backend --update-env"
-   ```
-
-4. **Verifikasi server jalan:**
-   ```bash
-   curl -s https://api.spscorner.store/api/test-ping
-   # Harus return JSON, BUKAN HTML
-   ```
-
-5. **Cek log error jika server tidak jalan:**
-   ```bash
-   ssh root@45.158.126.76 "pm2 logs sps-backend --lines 20 --nostream --err"
-   ```
-
-6. **Commit & push ke GitHub** (setelah deploy VPS berhasil) agar Vercel frontend juga terupdate.
-
-> **💡 Alternatif:** Gunakan `.\scripts\deploy-vps.ps1` untuk deploy otomatis dalam satu perintah (lint → build → SCP → npm install → restart → verify).
-
-🤖 CI/CD — Auto Deploy via VPS Cron (Git Pull)
-Karena GitHub Actions terkendala billing, auto-deploy dihandle langsung oleh VPS:
-
+### CI/CD — Auto Deploy via VPS Cron
 | Komponen | Deskripsi |
 |---|---|
-| `scripts/auto-deploy.sh` | Script di VPS: `git fetch` → `git pull` → `npm install` (jika deps berubah) → `pm2 restart` → health check |
-| Cron job | `*/5 * * * *` — jalan tiap 5 menit, cek commit baru dari GitHub |
-| Log | `/var/log/sps-deploy.log` — riwayat deploy otomatis |
+| `scripts/auto-deploy.sh` | Git pull → npm install → pm2 restart → health check |
+| Cron job | `*/5 * * * *` — tiap 5 menit |
+| Log | `/var/log/sps-deploy.log` |
 
-**Alur:** Push ke GitHub → cron deteksi commit baru dalam ≤5 menit → deploy otomatis ke VPS.
+### External Integrations
+- **Supabase**: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (client) + `SUPABASE_SERVICE_ROLE_KEY` (server).
+- **Digiflazz**: `DIGIFLAZZ_USERNAME` + `DIGIFLAZZ_API_KEY`.
+- **iPaymu**: `IPAYMU_VA` + `IPAYMU_API_KEY`.
+- **Gemini AI**: `GEMINI_API_KEY` (di `vite.config.ts`, bukan `VITE_` prefix).
+- **Gmail SMTP**: `GMAIL_USER` + `GMAIL_APP_PASSWORD`.
+- **Web Push**: `VITE_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`.
+- **Fixie proxy**: `FIXIE_URL` (opsional).
 
-> **Alternatif deploy manual (langsung, tanpa nunggu cron):**
-> ```powershell
-> .\scripts\deploy-vps.ps1        # full deploy (lint + build + scp + restart)
-> .\scripts\deploy-vps.ps1 -SkipLint   # skip type check
-> .\scripts\deploy-vps.ps1 -SkipBuild -SkipLint  # SCP & restart saja
-> ```
-
-🔌 External Integrations (all configured via `.env`)
-- **Supabase** (PostgreSQL): Primary database. Uses `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (client) and `SUPABASE_SERVICE_ROLE_KEY` (server). ⚠️ `server.ts` has hardcoded fallback credentials — these are security risks if leaked.
-- **Digiflazz** (PPOB/digital products): Pulsa, PLN, e-wallet top-ups. Credentials: `DIGIFLAZZ_USERNAME`, `DIGIFLAZZ_API_KEY`. Price caching with 12h TTL to `os.tmpdir()`.
-- **iPaymu** (payment gateway): Virtual account payments. Client in `src/services/ipaymu/`. Credentials: `IPAYMU_VA`, `IPAYMU_API_KEY`.
-- **Gemini AI**: `GEMINI_API_KEY` — defined in vite.config.ts via `process.env.GEMINI_API_KEY` (not `VITE_` prefix).
-- **Gmail SMTP**: `GMAIL_USER` + `GMAIL_APP_PASSWORD` for Sariroti order notifications and buyer receipts.
-- **Web Push (VAPID)**: `VITE_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` for push notifications.
-- **Fixie proxy** (optional): `FIXIE_URL` for static IP whitelisting with Digiflazz/iPaymu.
-
-🗂️ Route Structure (App.tsx)
+### Route Structure
 - `/` → Home
-- `/kiosk/*` → Buyer flows: home (dashboard), catalog, cart, checkout, validate, success, history, profile, digital products, pre-order
-- `/dashboard/admin/*` → Admin: sellers, categories, products, transactions, withdrawals, reports, settings, flashsale, doorprize, union programs, form builder, feedbacks, pengaduan, kritik-saran, loyalty, announcements, stock opname, pickup, payments, standby schedule, coupon reports, scanner
-- `/dashboard/seller/*` → Seller: dashboard, products, pre-orders, withdrawals, transactions
-- `/portal/*` → Union portal: dashboard, programs, flashsale, announcements, pengaduan, kritik, profile, forms
+- `/kiosk/*` → Buyer flows
+- `/dashboard/admin/*` → Admin
+- `/dashboard/seller/*` → Seller
+- `/portal/*` → Union portal
 
-⚠️ Gotchas & Quirks
-- **🚨 CRITICAL: DILARANG gunakan `.or()` + `metadata->>` di Supabase query!** PostgREST `@supabase/postgrest-js@2.104.1` crash dengan error `column transactions.metadata does not exist`. Gunakan `.not('metadata', 'cs', JSON.stringify({key: value}))` sebagai pengganti. Lihat `docs/CAPA-v5.16.2.md` untuk detail lengkap.
-- **🚨 Payment Path Rule: Setiap path yang set status ke "paid"/"success" WAJIB panggil stock deduction + seller balance settlement.** Tidak boleh ada early return sebelum kedua proses selesai. Lihat `docs/CAPA-v5.16.2.md` section 5.2.
-- **🚨 Auto-Reconcile: Background job `autoReconcileTransactions()` TIDAK BOLEH DINONAKTIFKAN.** Jika perlu dinonaktifkan, WAJIB ada pengganti.
-- `server.ts` uses `// @ts-nocheck` — TypeScript will not catch errors in the backend. Run `tsc --noEmit` separately to check types.
-- `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts are expected and ignored.
-- `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions required in imports.
-- Current version: `v5.16.2`. Always sync `package.json`, `changelog.txt`, and UI on version bumps.
-- `scripts/` directory may contain utility scripts — check before assuming dead code.
-- CI/CD via VPS cron (git pull otomatis tiap 5 menit). Detail di section 🤖 CI/CD.
-- ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1` untuk deploy manual.
-- Vite defines `process.env.GEMINI_API_KEY` directly (not `VITE_` prefix) — this is non-standard and easy to miss.
-- Digiflazz background cache update is skipped on Vercel (`if (!process.env.VERCEL)`).
-- **⚠️ API 404 catch-all di `server.ts`**: Wajib ada `app.use('/api/*', (req, res) => res.status(404).json({ error: 'API endpoint not found' }))` SEBELUM SPA fallback (`app.get("*")`). Tanpa ini, request API yang tidak terdaftar mengembalikan HTML (index.html) → frontend error `"Unexpected token '<'"`.
-- **⚠️ `@sentry/node` sering missing di VPS**: Setiap ada update `server.ts`, cek apakah ada import package baru (contoh: `@sentry/node`). Frontend (Vercel) dan Backend (VPS) tidak sinkron versi — dependency baru di `server.ts` harus di `npm install` di VPS sebelum restart PM2. Cek `package.json` + `package-lock.json` untuk melihat perubahan dependensi.
+### Gotchas & Quirks
+- **🚨 CRITICAL: DILARANG gunakan `.or()` + `metadata->>` di Supabase query!** PostgREST crash. Gunakan `.not('metadata', 'cs', ...)`. Lihat `docs/CAPA-v5.16.2.md`.
+- **🚨 Payment Path Rule: Setiap path yang set status ke "paid"/"success" WAJIB panggil stock deduction + seller balance settlement.** Tidak boleh ada early return. Lihat `docs/CAPA-v5.16.2.md` section 5.2.
+- **🚨 Auto-Reconcile: Background job `autoReconcileTransactions()` TIDAK BOLEH DINONAKTIFKAN.**
+- `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
+- `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
+- `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
+- Current version: `v5.16.2`.
+- `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
+- CI/CD via VPS cron (git pull tiap 5 menit).
+- ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1`.
+- Vite defines `process.env.GEMINI_API_KEY` langsung (bukan `VITE_` prefix).
+- Digiflazz background cache update skip di Vercel (`if (!process.env.VERCEL)`).
+- **⚠️ API 404 catch-all di `server.ts`**: Wajib ada SEBELUM SPA fallback.
+- **⚠️ `@sentry/node` sering missing di VPS**: Cek dependency baru setiap update `server.ts`.
 
-🗑️ Known Dead Code Candidates
-- ~~`fix_*.sql`~~ — sudah tidak ada di repo
-- ~~`revert_incorrect_patches.cjs`~~ — sudah tidak ada di repo
-- ~~`push_to_github.bat`~~ — **sudah dihapus**, ganti dengan `scripts/deploy-vps.ps1`
-- ~~`Perbaikan program/`~~ — sudah tidak ada di repo
-- ~~`session-ses_1c94.md`~~ — sudah tidak ada di repo
-- ~~`walkthrough.md`~~ — sudah tidak ada di repo
-- `supabase-schema.sql` — masih ada, dirujuk oleh `AdminSellers.tsx` & `Register.tsx`. Verifikasi sinkronisasi dengan Supabase production.
-- ~~`flashsale_setup.sql`, `reports_setup.sql`~~ — sudah tidak ada di repo
+### Known Dead Code Candidates
+- `supabase-schema.sql` — masih ada, dirujuk oleh `AdminSellers.tsx` & `Register.tsx`.
+
+---
+
+## DOCUMENTATION INDEX
+
+| Dokumen | Lokasi | Isi |
+|---------|--------|-----|
+| CAPA v5.16.2 | `docs/CAPA-v5.16.2.md` | PostgREST crash fix + auto-reconcile |
+| Changelog | `changelog.txt` | Riwayat pembaruan |
+| Reconciliation SQL | `scripts/reconcile_fn.sql` | DB function untuk deteksi mismatch |
+| Deploy Script | `scripts/deploy-vps.ps1` | Deploy otomatis ke VPS |
