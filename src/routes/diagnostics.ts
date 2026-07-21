@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 
 export function registerDiagnosticsRoutes(app, { supabase }) {
   app.get("/api/health", (req, res) => {
