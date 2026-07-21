@@ -107,4 +107,45 @@ export function registerDiagnosticsRoutes(app, { supabase }) {
       } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
     });
   }
+
+  // ── Reconciliation status endpoint (admin only) ──────────────────
+  app.get("/api/admin/reconciliation/status", requireAuth, requireRole(['admin', 'superadmin']), async (req, res) => {
+    try {
+      const { data: mismatches, error } = await supabase.rpc('find_stock_balance_mismatches');
+      if (error) throw error;
+
+      const totalMismatches = mismatches?.length || 0;
+      const missingStock = mismatches?.filter(m => !m.stock_deducted).length || 0;
+      const missingBalance = mismatches?.filter(m => !m.balances_updated).length || 0;
+
+      // Also check stock drift
+      const { data: products } = await supabase.from('products').select('id, name, stock').eq('is_active', true);
+      const { data: adjustments } = await supabase.from('stock_adjustments').select('product_id, new_stock').order('created_at', { ascending: false });
+
+      let stockDrifts = 0;
+      if (products && adjustments) {
+        const latestStock = {};
+        for (const adj of adjustments) {
+          if (!latestStock[adj.product_id]) latestStock[adj.product_id] = adj.new_stock;
+        }
+        for (const p of products) {
+          if (latestStock[p.id] !== undefined && latestStock[p.id] !== p.stock) {
+            stockDrifts++;
+          }
+        }
+      }
+
+      res.json({
+        status: totalMismatches === 0 && stockDrifts === 0 ? 'healthy' : 'warning',
+        mismatches: totalMismatches,
+        missing_stock: missingStock,
+        missing_balance: missingBalance,
+        stock_drifts: stockDrifts,
+        details: mismatches?.slice(0, 20) || [],
+        checked_at: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      res.status(500).json({ status: 'error', error: err.message });
+    }
+  });
 }

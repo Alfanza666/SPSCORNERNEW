@@ -4,13 +4,17 @@ let sendNotif = null;
 let restoreStock = null;
 let sendSarirotiEmail = null;
 let reconcileStock = null;
+let commitStock = null;
+let deductStock = null;
 
-export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn) {
+export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn, commitTransactionStockFn, deductTransactionStockFn) {
   supabaseInstance = supabase;
   sendNotif = sendNotification;
   restoreStock = restoreTransactionStock;
   sendSarirotiEmail = sendSarirotiEmailInternal;
   reconcileStock = reconcileStockFn;
+  commitStock = commitTransactionStockFn;
+  deductStock = deductTransactionStockFn;
 
   if (typeof process !== 'undefined' && process.env && process.env.VERCEL) return;
 
@@ -24,6 +28,10 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   // ── Stock reconciliation every 30 minutes ──────────────────────────
   runReconciliation();
   setInterval(runReconciliation, 30 * 60 * 1e3);
+
+  // ── Auto-reconcile broken transactions every 5 minutes ──────────────
+  autoReconcileTransactions();
+  setInterval(autoReconcileTransactions, 5 * 60 * 1e3);
 
   // ── Program start notifications every 30 seconds ─────────────────────
   checkProgramStartNotifications();
@@ -66,6 +74,76 @@ async function runReconciliation() {
     }
   } catch (e) {
     console.error('[Reconciliation] Error:', e);
+  }
+}
+
+// ── Auto-reconcile: fix paid transactions with missing stock/balance ──
+let lastReconcileLog = null;
+
+async function autoReconcileTransactions() {
+  if (!supabaseInstance) return;
+  try {
+    const { data: mismatches, error } = await supabaseInstance
+      .rpc('find_stock_balance_mismatches');
+    if (error || !mismatches || mismatches.length === 0) return;
+
+    let fixedCount = 0;
+    let failedCount = 0;
+
+    for (const tx of mismatches) {
+      try {
+        // Fix stock if not deducted
+        if (!tx.stock_deducted && commitStock) {
+          const stockResult = await commitStock(tx.transaction_id);
+          if (stockResult?.success) {
+            fixedCount++;
+            console.log(`[AutoReconcile] Stock fixed for tx ${tx.transaction_id.slice(0, 8)}`);
+          } else {
+            console.warn(`[AutoReconcile] Stock fix failed for tx ${tx.transaction_id.slice(0, 8)}:`, stockResult?.error);
+            failedCount++;
+          }
+        }
+
+        // Fix balance if not settled
+        if (!tx.balances_updated) {
+          const { error: balErr } = await supabaseInstance
+            .rpc('apply_seller_balance_for_transaction', { p_transaction_id: tx.transaction_id });
+          if (!balErr) {
+            fixedCount++;
+            console.log(`[AutoReconcile] Balance fixed for tx ${tx.transaction_id.slice(0, 8)}`);
+          } else {
+            console.warn(`[AutoReconcile] Balance fix failed for tx ${tx.transaction_id.slice(0, 8)}:`, balErr.message);
+            failedCount++;
+          }
+        }
+      } catch (fixErr) {
+        console.error(`[AutoReconcile] Error fixing tx ${tx.transaction_id.slice(0, 8)}:`, fixErr);
+        failedCount++;
+      }
+    }
+
+    const logKey = `${mismatches.length}:${fixedCount}:${failedCount}`;
+    if (logKey !== lastReconcileLog) {
+      console.log(`[AutoReconcile] Processed ${mismatches.length} mismatches: ${fixedCount} fixed, ${failedCount} failed`);
+      lastReconcileLog = logKey;
+    }
+
+    // Notify admins of persistent failures
+    if (failedCount > 0 && sendNotif) {
+      const { data: admins } = await supabaseInstance.from('profiles').select('id').in('role', ['admin', 'superadmin']);
+      if (admins) {
+        for (const admin of admins) {
+          await sendNotif(admin.id, {
+            type: 'system',
+            title: `⚠️ ${failedCount} Transaksi Gagal Auto-Reconcile`,
+            message: `${failedCount} transaksi tidak bisa diperbaiki otomatis. Silakan cek manual.`,
+            path: '/dashboard/admin/transactions',
+          });
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[AutoReconcile] Error:', e);
   }
 }
 

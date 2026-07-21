@@ -207,10 +207,13 @@ Karena GitHub Actions terkendala billing, auto-deploy dihandle langsung oleh VPS
 - `/portal/*` → Union portal: dashboard, programs, flashsale, announcements, pengaduan, kritik, profile, forms
 
 ⚠️ Gotchas & Quirks
+- **🚨 CRITICAL: DILARANG gunakan `.or()` + `metadata->>` di Supabase query!** PostgREST `@supabase/postgrest-js@2.104.1` crash dengan error `column transactions.metadata does not exist`. Gunakan `.not('metadata', 'cs', JSON.stringify({key: value}))` sebagai pengganti. Lihat `docs/CAPA-v5.16.2.md` untuk detail lengkap.
+- **🚨 Payment Path Rule: Setiap path yang set status ke "paid"/"success" WAJIB panggil stock deduction + seller balance settlement.** Tidak boleh ada early return sebelum kedua proses selesai. Lihat `docs/CAPA-v5.16.2.md` section 5.2.
+- **🚨 Auto-Reconcile: Background job `autoReconcileTransactions()` TIDAK BOLEH DINONAKTIFKAN.** Jika perlu dinonaktifkan, WAJIB ada pengganti.
 - `server.ts` uses `// @ts-nocheck` — TypeScript will not catch errors in the backend. Run `tsc --noEmit` separately to check types.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts are expected and ignored.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions required in imports.
-- Current version: `v4.19.0`. Always sync `package.json`, `changelog.txt`, and UI on version bumps.
+- Current version: `v5.16.2`. Always sync `package.json`, `changelog.txt`, and UI on version bumps.
 - `scripts/` directory may contain utility scripts — check before assuming dead code.
 - CI/CD via VPS cron (git pull otomatis tiap 5 menit). Detail di section 🤖 CI/CD.
 - ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1` untuk deploy manual.

@@ -1,4 +1,4 @@
-v5.16.2 - Fix Lengkap: Stock Deduction, Seller Balance, iPaymu Callback (PATCH)
+v5.16.2 - Fix Lengkap: Stock Deduction, Seller Balance, iPaymu Callback + Auto-Reconcile (MINOR)
 --------------------------------------------------------------------------------
 ### Root Cause Analysis (RCA):
 - Fix crash `.or()` syntax di Supabase PostgREST pada `restoreTransactionStock`, `deductTransactionStock`, dan `commitTransactionStock` — menyebabkan stock tidak pernah di-deduct atau di-restore.
@@ -8,6 +8,14 @@ v5.16.2 - Fix Lengkap: Stock Deduction, Seller Balance, iPaymu Callback (PATCH)
 - Tambahkan fallback `buyer_id` dan admin UUID untuk `stock_adjustments.user_id` (constraint NOT NULL) pada item koperasi.
 - Sembunyikan tombol "Upload Ulang Bukti TF" untuk pembayaran QRIS Otomatis di halaman Riwayat.
 - Tambahkan `commitTransactionStock` ke admin approve flow sebagai fallback jika stock belum pernah di-deduct.
+
+### Defense-in-Depth (Auto-Reconcile):
+- DB function `find_stock_balance_mismatches()` — mendeteksi transaksi paid/success yang lolos tanpa stock/balance.
+- Background job `autoReconcileTransactions()` — fix otomatis mismatch tiap 5 menit tanpa intervensi manual.
+- API endpoint `GET /api/admin/reconciliation/status` — monitoring dashboard untuk admin.
+- Reconciliasi 88 transaksi historis: 86 flag metadata fix + 2 transaksi settlement (Rp 8.260).
+- Rule baru di AGENTS.md: DILARANG gunakan `.or()` + `metadata->>` di Supabase query.
+- CAPA lengkap: `docs/CAPA-v5.16.2.md`
 v5.15.5 - Fix PO Koperasi Payment Bug (PATCH)
 ------------------------------------------------------------------------
 ### Deskripsi:
