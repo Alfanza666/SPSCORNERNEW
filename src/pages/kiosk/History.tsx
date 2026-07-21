@@ -622,7 +622,7 @@ Sistem SPS Corner`);
                     
                     <div className="flex items-center gap-4">
                       
-                      {(tx.status === 'failed' || tx.status === 'pending') && (
+                      {(tx.status === 'failed' || tx.status === 'pending') && (tx.payment_method === 'manual_qris' || tx.payment_method === 'transfer_koperasi') && (
                         <div className="relative">
                           <input 
                             type="file" 

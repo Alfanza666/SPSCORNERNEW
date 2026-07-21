@@ -14,7 +14,7 @@ import {
 export function registerTransactionRoutes(app, {
   supabase, sendNotification, sendWANotification,
   sendSarirotiEmailInternal, sendBuyerReceiptEmail,
-  restoreTransactionStock, deductTransactionStock, atomicAdjustStock, checkLowStockAndNotify,
+  restoreTransactionStock, deductTransactionStock, commitTransactionStock, atomicAdjustStock, checkLowStockAndNotify,
   updateSellerBalances, updateBuyerPoints,
   processDigitalItems, triggerSarirotiEmail,
   getDigiflazzBalance,
@@ -76,9 +76,12 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       .eq("id", transaction_id);
     if (updateError) throw updateError;
 
-    // Re-deduct stock if auto-cleanup had restored it
-    if (transaction.metadata?.stock_restored && deductTransactionStock) {
+    // Re-deduct stock if auto-cleanup had restored it, or commit if it was never deducted
+    if (transaction.metadata?.stock_deducted && transaction.metadata?.stock_restored && deductTransactionStock) {
       await deductTransactionStock(transaction_id);
+    } else if (!transaction.metadata?.stock_deducted && commitTransactionStock) {
+      const stockCommit = await commitTransactionStock(transaction_id);
+      if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah persetujuan admin');
     }
 
     await updateSellerBalances(transaction.transaction_items, transaction_id);

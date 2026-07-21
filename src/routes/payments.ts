@@ -308,7 +308,7 @@ export function registerPaymentRoutes(app, {
           previousStatus !== "paid" &&
           previousStatus !== "success"
         ) {
-          if (txData.metadata?.stock_restored && deductTransactionStock) {
+          if (txData.metadata?.stock_deducted && txData.metadata?.stock_restored && deductTransactionStock) {
             await deductTransactionStock(transaction_id);
           } else {
             const stockCommit = await commitTransactionStock(transaction_id);
@@ -653,16 +653,12 @@ export function registerPaymentRoutes(app, {
       }
 
       const statusLower = String(statusRaw).toLowerCase().trim();
-      const txStatus =
-        statusLower === "berhasil"
+      let txStatus =
+        statusLower === "berhasil" || statusLower === "success" || statusLower === "sukses" || statusLower === "completed" || statusLower === "settlement"
           ? "paid"
-          : statusLower === "gagal"
+          : statusLower === "gagal" || statusLower === "fail" || statusLower === "expired" || statusLower === "deny" || statusLower === "cancel"
             ? "failed"
-            : statusLower === "success" || statusLower === "sukses" || statusLower === "completed" || statusLower === "settlement"
-              ? "paid"
-              : statusLower === "fail" || statusLower === "expired" || statusLower === "deny" || statusLower === "cancel"
-                ? "failed"
-                : "pending";
+            : "pending";
 
       let transaction;
       let fetchError;
@@ -709,27 +705,7 @@ export function registerPaymentRoutes(app, {
         );
         if (hasDeliveredDigital) {
           console.log(`[iPaymu] Tx ${refId} has delivered digital items — reverting status to "paid" instead of "failed"`);
-          await supabase
-            .from("transactions")
-            .update({
-              status: "paid",
-              payment_details: {
-                ...(transaction.payment_details || {}),
-                ipaymu_trx_id: trx_id || transaction_id,
-                ipaymu_sid: sid,
-                ipaymu_status: statusRaw,
-                paid_at: new Date().toISOString(),
-              },
-            })
-            .eq("id", refId);
-          if (transaction.buyer_id) {
-            await sendNotification(transaction.buyer_id, {
-              type: "transaction",
-              title: "✅ Pembayaran Berhasil!",
-              message: `Transaksi #${refId.slice(0, 8)} sebesar Rp ${Number(transaction.total_amount).toLocaleString("id-ID")} telah dikonfirmasi.`,
-              path: `/kiosk/history?id=${refId}`,
-            });
-          }
+          txStatus = "paid";
         } else {
           // Restore stock DULU — jika restore gagal, status tetap "pending" untuk retry
           await restoreTransactionStock(refId);
@@ -776,7 +752,7 @@ export function registerPaymentRoutes(app, {
 
       // ─── Stock re-deduction: jika auto-cleanup sudah restore stock, deduct kembali ───
       if (txStatus === "paid") {
-        if (transaction.metadata?.stock_restored && deductTransactionStock) await deductTransactionStock(refId);
+        if (transaction.metadata?.stock_deducted && transaction.metadata?.stock_restored && deductTransactionStock) await deductTransactionStock(refId);
         else {
           const stockCommit = await commitTransactionStock(refId);
           if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');

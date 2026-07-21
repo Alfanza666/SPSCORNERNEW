@@ -1,3 +1,13 @@
+v5.16.2 - Fix Lengkap: Stock Deduction, Seller Balance, iPaymu Callback (PATCH)
+--------------------------------------------------------------------------------
+### Root Cause Analysis (RCA):
+- Fix crash `.or()` syntax di Supabase PostgREST pada `restoreTransactionStock`, `deductTransactionStock`, dan `commitTransactionStock` — menyebabkan stock tidak pernah di-deduct atau di-restore.
+- Fix race condition QRIS Otomatis: guard `stock_deducted` ditambahkan sebelum pemanggilan `deductTransactionStock` untuk mencegah double-deduct pada transaksi yang stock-nya belum pernah dipotong.
+- Fix early return di path digital items pada iPaymu callback — transaksi digital yang gagal sekarang tetap memanggil `updateSellerBalances()`.
+- Kembalikan pemetaan status "berhasil"/"gagal" di callback iPaymu yang sebelumnya dihapus.
+- Tambahkan fallback `buyer_id` dan admin UUID untuk `stock_adjustments.user_id` (constraint NOT NULL) pada item koperasi.
+- Sembunyikan tombol "Upload Ulang Bukti TF" untuk pembayaran QRIS Otomatis di halaman Riwayat.
+- Tambahkan `commitTransactionStock` ke admin approve flow sebagai fallback jika stock belum pernah di-deduct.
 v5.15.5 - Fix PO Koperasi Payment Bug (PATCH)
 ------------------------------------------------------------------------
 ### Deskripsi:

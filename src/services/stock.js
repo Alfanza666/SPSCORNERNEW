@@ -113,8 +113,7 @@ export async function restoreTransactionStock(transactionId) {
       .update({ metadata: claimMetadata })
       .eq('id', transactionId)
       // `neq` alone does not match a missing JSON key (NULL). Include both
-      // NULL and non-true values so the first restore is actually claimed.
-      .or('and(metadata->>stock_restored.is.null,metadata->>stock_restore_claimed.is.null),and(metadata->>stock_restored.is.null,metadata->>stock_restore_claimed.eq.false),and(metadata->>stock_restored.neq.true,metadata->>stock_restore_claimed.is.null),and(metadata->>stock_restored.neq.true,metadata->>stock_restore_claimed.eq.false)')
+      .not('metadata', 'cs', JSON.stringify({stock_restore_claimed: true}))
       .select('id');
     if (claimError) throw claimError;
     if (!claimed || claimed.length === 0) return;
@@ -165,7 +164,7 @@ export async function restoreTransactionStock(transactionId) {
       await supabaseInstance.from('transactions').update({
         metadata: { ...(claimMetadata || {}), stock_restore_claimed: false }
       }).eq('id', transactionId)
-        .or('metadata->>stock_restored.is.null,metadata->>stock_restored.neq.true');
+        .not('metadata', 'cs', JSON.stringify({stock_restored: true}));
     }
     console.error(`restoreTransactionStock error for ${transactionId}:`, e);
     throw e;
@@ -192,7 +191,7 @@ export async function deductTransactionStock(transactionId) {
       .from('transactions')
       .update({ metadata: claimMetadata })
       .eq('id', transactionId)
-      .or('and(metadata->>stock_restored.eq.true,metadata->>stock_rededuct_claimed.is.null),and(metadata->>stock_restored.eq.true,metadata->>stock_rededuct_claimed.eq.false),and(metadata->>stock_rededuct_pending.eq.true,metadata->>stock_rededuct_claimed.is.null),and(metadata->>stock_rededuct_pending.eq.true,metadata->>stock_rededuct_claimed.eq.false)')
+      .not('metadata', 'cs', JSON.stringify({stock_rededuct_claimed: true}))
       .select('id');
     if (updateMetaError || !updatedTx || updatedTx.length === 0) {
       console.log(`[deductTransactionStock] Skipped ${transactionId}: stock_restored already changed by another process`);
@@ -266,18 +265,25 @@ export async function commitTransactionStock(transactionId) {
   let claimAcquired = false;
   let claimMetadata = null;
   try {
-    const { data: tx } = await supabaseInstance.from('transactions').select('id, metadata').eq('id', transactionId).single();
+    const { data: tx } = await supabaseInstance.from('transactions').select('id, metadata, buyer_id').eq('id', transactionId).single();
     if (!tx || tx.metadata?.stock_deducted === true) return { success: true, alreadyCommitted: true };
     claimMetadata = { ...(tx.metadata || {}), stock_commit_claimed: true };
     const { data: claimed, error: claimError } = await supabaseInstance.from('transactions').update({ metadata: claimMetadata })
       .eq('id', transactionId)
-      .or('and(metadata->>stock_deducted.is.null,metadata->>stock_commit_claimed.is.null),and(metadata->>stock_deducted.is.null,metadata->>stock_commit_claimed.eq.false),and(metadata->>stock_deducted.eq.false,metadata->>stock_commit_claimed.is.null),and(metadata->>stock_deducted.eq.false,metadata->>stock_commit_claimed.eq.false)')
+      .not('metadata', 'cs', JSON.stringify({stock_commit_claimed: true}))
       .select('id');
     if (claimError) throw claimError;
     if (!claimed?.length) return { success: true, alreadyCommitted: true };
     claimAcquired = true;
     const { data: items } = await supabaseInstance.from('transaction_items').select('product_id, quantity, seller_id, metadata').eq('transaction_id', transactionId);
     const physical = (items || []).filter(i => i.product_id && !i.metadata?.is_digital);
+
+    let fallbackUserId = tx.buyer_id;
+    if (!fallbackUserId) {
+      const { data: admin } = await supabaseInstance.from('profiles').select('id').in('role', ['admin', 'superadmin']).limit(1).single();
+      fallbackUserId = admin?.id || null;
+    }
+
     const deducted = {};
     for (const item of physical) {
       const { data: existingSale, error: saleLookupError } = await supabaseInstance
@@ -292,7 +298,7 @@ export async function commitTransactionStock(transactionId) {
         deducted[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
         continue;
       }
-      const result = await atomicAdjustStock(item.product_id, -item.quantity, item.seller_id || null, 'sale', `Stock committed for paid transaction ${transactionId}`, null, transactionId);
+      const result = await atomicAdjustStock(item.product_id, -item.quantity, item.seller_id || fallbackUserId || null, 'sale', `Stock committed for paid transaction ${transactionId}`, null, transactionId);
       if (!result?.success) throw new Error(result?.error_message || 'Stock commit failed');
       deducted[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
     }

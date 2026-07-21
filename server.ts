@@ -279,7 +279,7 @@ if (!process.env.VERCEL) {
 }
 registerDigitalRoutes(app, { supabase, sendNotification, crypto, axios: digiflazzAxios, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz });
 
-registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, deductTransactionStock, atomicAdjustStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
+registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, deductTransactionStock, commitTransactionStock, atomicAdjustStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
 registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
 registerAdminReportingRoutes(app, { supabase });
 registerStockTraceRoutes(app, { supabase });
