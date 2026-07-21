@@ -305,6 +305,9 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **🚨 CRITICAL: DILARANG gunakan `.or()` + `metadata->>` di Supabase query!** PostgREST crash. Gunakan `.not('metadata', 'cs', ...)`. Lihat `docs/CAPA-v5.16.2.md`.
 - **🚨 Payment Path Rule: Setiap path yang set status ke "paid"/"success" WAJIB panggil stock deduction + seller balance settlement.** Tidak boleh ada early return. Lihat `docs/CAPA-v5.16.2.md` section 5.2.
 - **🚨 Auto-Reconcile: Background job `autoReconcileTransactions()` TIDAK BOLEH DINONAKTIFKAN.**
+- **🚨 Auth Rule: Semua payment/transaction endpoints WAJIB punya auth middleware.** Lihat `docs/AUDIT-v5.16.2.md` temuan C04-C06.
+- **🚨 Atomic Ops: Read-then-update untuk balance/points TIDAK BOLEH — gunakan atomic increment.** Lihat `docs/AUDIT-v5.16.2.md` temuan C13.
+- **🚨 HTML Injection: Semua user-generated content yang di-render ke HTML WAJIB di-sanitize.** Lihat `docs/AUDIT-v5.16.2.md` temuan C02, C14.
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
