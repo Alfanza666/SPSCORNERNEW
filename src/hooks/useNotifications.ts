@@ -264,6 +264,7 @@ export function useNotifications() {
         body: JSON.stringify({ user_id: user.id, subscription })
       });
 
+      setPushSubscribed(true);
       console.log('[Push] Subscribed successfully!');
     } catch (error) {
       console.error('[Push] Subscription failed:', error);

@@ -418,18 +418,30 @@ export default function PortalLayout() {
                 leaveFrom="transform opacity-100 scale-100 y-0"
                 leaveTo="transform opacity-0 scale-95 y-2"
               >
-                <Menu.Items className="fixed left-3 right-3 top-[4.5rem] z-50 max-h-[calc(100dvh-5.5rem)] overflow-hidden rounded-[1.5rem] border border-zinc-100 bg-white shadow-2xl focus:outline-none sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-4 sm:w-96 sm:rounded-[2rem] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black">
-                  <div className="p-4 sm:p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
-                    <h3 className="font-black text-zinc-900 dark:text-white">Notifikasi</h3>
+                <Menu.Items className="fixed left-3 right-3 bottom-20 sm:bottom-auto top-[4.5rem] sm:top-auto z-50 max-h-[calc(100dvh-10rem)] sm:max-h-[calc(100dvh-5.5rem)] overflow-hidden rounded-[1.5rem] border border-zinc-100 bg-white shadow-2xl focus:outline-none sm:absolute sm:left-auto sm:right-0 sm:mt-4 sm:w-96 sm:rounded-[2rem] sm:bottom-auto dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black">
+                  <div className="p-3 sm:p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
+                    <h3 className="font-black text-sm sm:text-base text-zinc-900 dark:text-white">Notifikasi</h3>
                     {unreadCount > 0 && (
-                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full shadow-sm">
-                        {unreadCount} Baru
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full shadow-sm">
+                          {unreadCount} Baru
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            markAllAsRead();
+                          }}
+                          className="text-[10px] font-black text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors whitespace-nowrap"
+                        >
+                          Clear
+                        </button>
+                      </div>
                     )}
                   </div>
                   {'Notification' in window && Notification.permission === 'default' && (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
-                      <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Nyalakan push notifikasi untuk update</p>
+                    <div className="p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-2">
+                      <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-400 font-medium">Nyalakan push notifikasi</p>
                       <button 
                         onClick={(e) => {
                           e.preventDefault();
@@ -437,41 +449,41 @@ export default function PortalLayout() {
                             if (Notification.permission === 'granted') window.location.reload();
                           });
                         }}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                        className="px-2 py-1 sm:px-3 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0 shadow-sm"
                       >
                         Aktifkan
                       </button>
                     </div>
                   )}
                   {'Notification' in window && Notification.permission === 'granted' && pushSubscribed && (
-                    <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800 flex items-center justify-between gap-3">
-                      <p className="text-xs text-red-700 dark:text-red-400 font-medium">Push notifikasi aktif</p>
+                    <div className="p-2 sm:p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800 flex items-center justify-between gap-2">
+                      <p className="text-[10px] sm:text-xs text-red-700 dark:text-red-400 font-medium">Push aktif</p>
                       <button 
                         onClick={(e) => {
                           e.preventDefault();
                           unsubscribeFromWebPush && unsubscribeFromWebPush();
                         }}
-                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                        className="px-2 py-1 sm:px-3 sm:py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0 shadow-sm"
                       >
                         Nonaktifkan
                       </button>
                     </div>
                   )}
                   {'Notification' in window && Notification.permission === 'granted' && !pushSubscribed && (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-3">
-                      <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">Izinkan push notifikasi untuk update</p>
+                    <div className="p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex items-center justify-between gap-2">
+                      <p className="text-[10px] sm:text-xs text-blue-700 dark:text-blue-400 font-medium">Izinkan push notifikasi</p>
                       <button 
                         onClick={(e) => {
                           e.preventDefault();
                           subscribeToWebPush && subscribeToWebPush(true);
                         }}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shrink-0 shadow-sm"
+                        className="px-2 py-1 sm:px-3 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0 shadow-sm"
                       >
                         Aktifkan
                       </button>
                     </div>
                   )}
-                  <div className="max-h-[calc(100dvh-13rem)] overflow-y-auto custom-scrollbar sm:max-h-[32rem]">
+                  <div className="max-h-[calc(100dvh-16rem)] sm:max-h-[calc(100dvh-13rem)] overflow-y-auto custom-scrollbar sm:max-h-[32rem]">
                     {notifications.filter(n => !n.isRead).length === 0 ? (
                       <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">
                         <Bell className="w-8 h-8 mx-auto mb-3 opacity-20" />
@@ -482,7 +494,7 @@ export default function PortalLayout() {
                         <Menu.Item key={notif.id}>
                           {({ active }) => (
                             <div
-                              className={`m-3 p-4 sm:p-5 rounded-2xl cursor-pointer group transition-all shadow-sm ${
+                              className={`m-2 sm:m-3 p-3 sm:p-5 rounded-xl sm:rounded-2xl cursor-pointer group transition-all shadow-sm ${
                                 active ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900' : ''
                               } bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700`}
                               onClick={() => {
@@ -490,20 +502,20 @@ export default function PortalLayout() {
                                 navigate(notif.path);
                               }}
                             >
-                              <div className="flex gap-3 sm:gap-4">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 group-hover:scale-105 transition-transform shadow-sm">
-                                  <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+                              <div className="flex gap-2 sm:gap-4">
+                                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg sm:rounded-2xl flex items-center justify-center flex-shrink-0 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 group-hover:scale-105 transition-transform shadow-sm">
+                                  <Bell className="w-4 h-4 sm:w-6 sm:h-6" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start justify-between gap-2">
-                                    <p className="text-sm font-black text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                    <p className="text-xs sm:text-sm font-black text-zinc-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                       {notif.title}
                                     </p>
                                     {!notif.isRead && (
-                                      <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 mt-1.5 shadow-sm" />
+                                      <span className="w-2 h-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 mt-1 shadow-sm" />
                                     )}
                                   </div>
-                                  <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-300 mt-1 sm:mt-1.5 leading-relaxed font-medium">{notif.message}</p>
+                                  <p className="text-[10px] sm:text-sm text-zinc-600 dark:text-zinc-300 mt-0.5 sm:mt-1.5 leading-relaxed font-medium line-clamp-2">{notif.message}</p>
                                 </div>
                               </div>
                             </div>
@@ -513,11 +525,11 @@ export default function PortalLayout() {
                     )}
                   </div>
                   {unreadCount > 0 && (
-                    <div className="p-4 border-t border-zinc-100 dark:border-zinc-800 text-center bg-zinc-50/30 dark:bg-zinc-800/30">
+                    <div className="p-2 sm:p-4 border-t border-zinc-100 dark:border-zinc-800 text-center bg-zinc-50/30 dark:bg-zinc-800/30">
                       <Menu.Item>
                         <button
                           onClick={markAllAsRead}
-                          className="text-xs font-black text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 uppercase tracking-widest outline-none w-full text-center"
+                          className="text-[10px] sm:text-xs font-black text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 uppercase tracking-widest outline-none w-full text-center"
                         >
                           Tandai semua dibaca
                         </button>
