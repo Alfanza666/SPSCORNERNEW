@@ -3,19 +3,22 @@ import CryptoJS from 'crypto-js';
 /**
  * Generate Ipaymu HMAC-SHA256 Signature
  * 
- * Format String-to-Sign: VA:SHA256(body):METHOD:TIMESTAMP
- * HMAC Key: API_KEY
+ * API Request Signature (for creating payments, checking transactions):
+ *   Format: METHOD:VA:SHA256(JSON_BODY):API_KEY
+ *   HMAC Key: API_KEY
  * 
- * Referensi: https://documenter.getpostman.com/view/40296808/2sB3WtseBT
+ * Callback Signature (for receiving notifications):
+ *   Sort keys A-Z → normalize types → JSON.stringify → escape "/" → HMAC-SHA256
+ *   HMAC Key: VA_NUMBER (NOT API_KEY)
  * 
- * PERBAIKAN KRITIS: Format sebelumnya SALAH: "METHOD:VA:BODY_HASH:APIKEY"
- * Format yang BENAR per sample resmi iPaymu: "VA:BODY_HASH:METHOD:TIMESTAMP"
- * (lihat file ipaymu_direct_payment.js - line 25)
+ * Referensi:
+ *   - Signature: https://docs.ipaymu.com/id/docs/signature
+ *   - Callback:  https://docs.ipaymu.com/id/docs/callback
  */
 export class IpaymuSignature {
   /**
    * Generate signature untuk API request
-   * Format: VA:SHA256(BODY):METHOD:TIMESTAMP
+   * Format: METHOD:VA:SHA256(BODY):API_KEY
    * HMAC Key: API_KEY
    */
   static generate(
@@ -33,11 +36,7 @@ export class IpaymuSignature {
     // 3. Generate timestamp format YYYYMMDDHHmmss
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
 
-    // 4. String to sign
-    // PERBAIKAN: Menurut Sample resmi dan dokumentasi iPaymu terbaru
-    // Tidak semua stringToSign adalah "POST:VA:BODY_HASH:APIKEY"
-    // Beberapa environment bisa jadi membutuhkan format berbeda, namun kita tetap fall-back ke standard.
-    // Standard Ipaymu V2 adalah METHOD + ":" + VA + ":" + BODY_HASH + ":" + APIKEY
+    // 4. String to sign: METHOD:VA:SHA256(BODY):API_KEY
     const stringtosign = `${method}:${va}:${bodyEncrypt}:${apiKey}`;
 
     // 5. Generate HMAC-SHA256 signature using API_KEY as the HMAC key
@@ -48,28 +47,65 @@ export class IpaymuSignature {
 
   /**
    * Verify callback signature dari Ipaymu
+   * 
+   * PER iPaymu OFFICIAL DOCS:
+   * - Secret key = VA Number (NOT API Key)
+   * - Normalize types: trx_id/status_code/transaction_status_code/paid_off → int, is_escrow → bool, additional_info → []
+   * - Sort keys A-Z (case-sensitive, localeCompare)
+   * - JSON.stringify → escape "/" → "\/"
+   * - HMAC-SHA256(sortedJSON, VA_NUMBER)
+   * 
+   * Referensi: https://docs.ipaymu.com/id/docs/callback
    */
   static verify(
     callbackData: Record<string, any>,
     receivedSignature: string,
-    apiKey: string
+    vaNumber: string
   ): boolean {
-    // 1. Copy data and remove signature
-    const data = { ...callbackData };
+    // 1. Copy data and remove signature fields
+    const data: Record<string, any> = { ...callbackData };
     delete data.signature;
+    delete data.Signature;
 
-    // 2. Sort keys ascending (like ksort in PHP)
-    const sortedKeys = Object.keys(data).sort();
+    // 2. Normalize type data (per iPaymu docs)
+    const INT_KEYS = ['trx_id', 'status_code', 'transaction_status_code', 'paid_off'];
+    const BOOL_KEYS = ['is_escrow', 'is_refund'];
+    const result: Record<string, any> = {};
+    for (const key in data) {
+      let val = data[key];
+      if (INT_KEYS.includes(key)) {
+        result[key] = parseInt(val, 10);
+      } else if (BOOL_KEYS.includes(key)) {
+        result[key] = (val === 'true' || val === '1' || val === 1);
+      } else if (key === 'additional_info') {
+        if (val === '[]' || val === undefined || val === null) {
+          result[key] = [];
+        } else {
+          result[key] = val;
+        }
+      } else {
+        result[key] = String(val);
+      }
+    }
+    // Ensure additional_info always exists
+    if (!result.hasOwnProperty('additional_info')) {
+      result['additional_info'] = [];
+    }
+
+    // 3. Sort keys ascending A-Z (case-sensitive, per iPaymu docs)
+    const sortedKeys = Object.keys(result).sort((a, b) => a.localeCompare(b));
     const sortedData: Record<string, any> = {};
     sortedKeys.forEach(key => {
-      sortedData[key] = data[key];
+      sortedData[key] = result[key];
     });
 
-    // 3. Generate Signature
-    const jsonBody = JSON.stringify(sortedData);
-    const expectedSignature = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA256(jsonBody, apiKey)).toLowerCase();
-    const isValid = receivedSignature === expectedSignature;
+    // 4. JSON stringify + escape slash (per iPaymu docs: "/" → "\/")
+    let jsonBody = JSON.stringify(sortedData);
+    jsonBody = jsonBody.replace(/\//g, '\\/');
 
-    return isValid;
+    // 5. HMAC-SHA256 with VA Number as secret key (NOT API Key)
+    const expectedSignature = CryptoJS.enc.Hex.stringify(CryptoJS.HmacSHA256(jsonBody, vaNumber)).toLowerCase();
+
+    return receivedSignature === expectedSignature;
   }
 }

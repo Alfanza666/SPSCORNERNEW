@@ -24,14 +24,14 @@ export function registerPaymentRoutes(app, {
   };
 
   const verifyGatewayCallback = async (req: any, referenceId: string, body: any) => {
-    const headerSignature = String(req.headers.signature || req.headers['x-ipaymu-signature'] || '').trim();
+    const headerSignature = String(req.headers['x-signature'] || req.headers.signature || req.headers['x-ipaymu-signature'] || '').trim();
     const bodySignature = String(body.signature || body.Signature || '').trim();
     const receivedSignature = headerSignature || bodySignature;
-    if (receivedSignature && IPAYMU_API_KEY) {
+    if (receivedSignature && IPAYMU_VA) {
       const signatureBody = { ...body };
       delete signatureBody.signature;
       delete signatureBody.Signature;
-      if (IpaymuSignature.verify(signatureBody, receivedSignature, IPAYMU_API_KEY)) return true;
+      if (IpaymuSignature.verify(signatureBody, receivedSignature, IPAYMU_VA)) return true;
     }
 
     // Legacy callback modes may omit a signature. Confirm directly with iPaymu
@@ -643,9 +643,10 @@ export function registerPaymentRoutes(app, {
       const body = req.body || {};
       
       // ─── Verifikasi HMAC Signature iPaymu ─────────────────────────
-      const receivedSignature = body.signature || body.Signature || '';
+      // iPaymu sends signature in HEADER (X-Signature), NOT in body
+      const receivedSignature = String(req.headers['x-signature'] || req.headers.signature || '').trim();
       if (receivedSignature) {
-        const isValid = IpaymuSignature.verify(body, receivedSignature, IPAYMU_API_KEY);
+        const isValid = IpaymuSignature.verify(body, receivedSignature, IPAYMU_VA);
         if (!isValid) {
           console.error('[iPaymu] Invalid callback signature! Possible fraud attempt.');
           return res.status(401).json({ error: 'Invalid signature' });
