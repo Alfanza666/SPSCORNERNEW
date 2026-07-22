@@ -93,6 +93,7 @@ export function registerPaymentRoutes(app, {
           });
       }
       const appUrl = process.env.APP_URL || "https://spscorner.store";
+      const apiUrl = process.env.API_URL || "https://api.spscorner.store";
       let cleanName = (buyer_name || "Customer")
         .replace(/[^a-zA-Z\s]/g, "")
         .trim();
@@ -107,7 +108,7 @@ export function registerPaymentRoutes(app, {
         amount: Math.round(Number(amount)).toString(),
         returnUrl: `${appUrl}/kiosk/success?id=${transaction_id}`,
         cancelUrl: `${appUrl}/kiosk/cart`,
-        notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
+        notifyUrl: `${apiUrl}/api/payment/ipaymu/callback`,
         referenceId: String(transaction_id),
         buyerName: cleanName,
         buyerPhone:
@@ -577,6 +578,7 @@ export function registerPaymentRoutes(app, {
           .json({ success: false, error: "Ipaymu not configured" });
       }
       const appUrl = process.env.APP_URL || "https://spscorner.store";
+      const apiUrl = process.env.API_URL || "https://api.spscorner.store";
       let method = (payment_method || "qris").toLowerCase();
       let channel = (payment_channel || "qris").toLowerCase();
       if (method === "qris") {
@@ -599,7 +601,7 @@ export function registerPaymentRoutes(app, {
           `${cleanName.replace(/\s+/g, "").toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1e3)}@gmail.com`,
         amount: Math.round(Number(amount)),
         comments: `Payment for transaction ${transaction_id}`,
-        notifyUrl: `${appUrl}/api/payment/ipaymu/callback`,
+        notifyUrl: `${apiUrl}/api/payment/ipaymu/callback`,
         referenceId: String(transaction_id),
         paymentMethod: method,
         paymentChannel: channel,
@@ -609,6 +611,22 @@ export function registerPaymentRoutes(app, {
         payment_channel: channel,
       });
       const response = await ipaymuClient.createDirectPayment(directPaymentData);
+
+      // Simpan ipaymu_trx_id ke transaction agar callback bisa mencari
+      if (response.Data?.TransactionId) {
+        await supabase
+          .from('transactions')
+          .update({
+            payment_details: {
+              ipaymu_trx_id: response.Data.TransactionId,
+              ipaymu_sid: response.Data.SessionId || null,
+              ipaymu_status: 'created',
+            },
+          })
+          .eq('id', transaction_id);
+        console.log(`[iPaymu] Saved ipaymu_trx_id=${response.Data.TransactionId} for tx ${transaction_id}`);
+      }
+
       res.json({
         success: true,
         data: response.Data,

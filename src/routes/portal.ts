@@ -489,7 +489,7 @@ export function registerPortalRoutes(app, { supabase, sendNotification, ipaymuCl
         email: userEmail || 'user@sps.store',
         amount: totalAmount,
         comments: `Pembayaran Keluarga Gathering - ${familyCount} Orang`,
-        notifyUrl: `${process.env.APP_URL}/api/payment/ipaymu/callback`,
+        notifyUrl: `${process.env.API_URL || 'https://api.spscorner.store'}/api/payment/ipaymu/callback`,
         referenceId: newCoupon.id,
         paymentMethod: 'QRIS',
         paymentChannel: 'qris' 
