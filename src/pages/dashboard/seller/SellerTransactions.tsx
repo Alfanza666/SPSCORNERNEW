@@ -25,7 +25,10 @@ export default function SellerTransactions() {
     try {
       setLoading(true);
       if (!user?.id) return;
-      const res = await fetch(`/api/transactions/seller/${user.id}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      const res = await fetch(`/api/transactions/seller/${user.id}`, { headers });
       const responseText = await res.text();
       let data;
       try { data = JSON.parse(responseText); } catch { throw new Error('Server returned unexpected response'); }
