@@ -144,9 +144,12 @@ export default function History() {
       reader.onloadend = async () => {
         const base64data = reader.result as string;
         try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
           const response = await fetch('/api/payment/manual/verify', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
               transaction_id: tx.id,
               receipt_image: base64data,

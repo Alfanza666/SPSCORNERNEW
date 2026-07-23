@@ -172,8 +172,8 @@ export function registerPaymentRoutes(app, {
     let expected_amount: number | undefined;
     let receiptUrl: string | undefined;
     try {
+      // Auth optional — guest checkout juga pakai endpoint ini
       const buyerId = await requireUser(req);
-      if (!buyerId) return res.status(401).json({ success: false, error: "Unauthorized" });
       ({ transaction_id, receipt_image, expected_amount } = req.body || {});
       if (!transaction_id || !receipt_image) {
         return res
