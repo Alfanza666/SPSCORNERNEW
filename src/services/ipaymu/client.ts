@@ -164,9 +164,10 @@ export class IpaymuClient {
 
   /**
    * Check transaction status
+   * Per docs: https://docs.ipaymu.com/id/docs/transaction/check-transaction
    */
   async getTransactionStatus(transactionId: string): Promise<any> {
-    const body = { transactionId: transactionId };
+    const body = { transactionId: transactionId, account: this.va };
     const { signature, timestamp, jsonBody } = IpaymuSignature.generate(
       this.va,
       body,
@@ -190,6 +191,55 @@ export class IpaymuClient {
       return responseData;
     } catch (error: any) {
       throw new Error(`Status Check Error: ${error.response?.data?.Message || error.message}`);
+    }
+  }
+
+  /**
+   * Get transaction history
+   * Per docs: https://docs.ipaymu.com/id/docs/transaction/history-transaction
+   */
+  async getTransactionHistory(filters: {
+    status?: string;
+    date?: string;
+    startdate?: string;
+    enddate?: string;
+    page?: number;
+    limit?: number;
+    orderBy?: string;
+    order?: string;
+  } = {}): Promise<any> {
+    const body: Record<string, any> = {};
+    if (filters.status) body.status = filters.status;
+    if (filters.date) body.date = filters.date;
+    if (filters.startdate) body.startdate = filters.startdate;
+    if (filters.enddate) body.enddate = filters.enddate;
+    if (filters.page) body.page = filters.page;
+    if (filters.limit) body.limit = Math.min(filters.limit, 20);
+    if (filters.orderBy) body.orderBy = filters.orderBy;
+    if (filters.order) body.order = filters.order;
+
+    const { signature, timestamp, jsonBody } = IpaymuSignature.generate(
+      this.va,
+      body,
+      'POST',
+      this.apiKey
+    );
+
+    try {
+      const response = await this.axiosInstance.post(`${this.baseUrl}/history`, JSON.parse(jsonBody), {
+        ...this.axiosConfig,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'va': this.va,
+          'signature': signature,
+          'timestamp': timestamp,
+        }
+      });
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(`History Error: ${error.response?.data?.Message || error.message}`);
     }
   }
 
