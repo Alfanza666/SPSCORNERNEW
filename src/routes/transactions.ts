@@ -702,6 +702,21 @@ app.post("/api/transactions/cancel", async (req, res) => {
 app.get("/api/transactions/seller/:sellerId", async (req, res) => {
   try {
     const { sellerId } = req.params;
+
+    // Auth check: must be logged in
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+    // Authorization: only the seller themselves or admin/superadmin can access
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (user.id !== sellerId && profile?.role !== "admin" && profile?.role !== "superadmin") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     const { data: items, error } = await supabase
       .from('transaction_items')
       .select(`

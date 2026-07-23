@@ -59,12 +59,22 @@ export function registerWithdrawalRoutes(app: any, deps: { supabase: any; sendNo
 
       if (status === "rejected") {
         const { data: profile } = await supabase.from("profiles").select("balance").eq("id", withdrawal.seller_id).single();
-        if (profile) await supabase.from("profiles").update({ balance: (profile.balance || 0) + withdrawal.amount }).eq("id", withdrawal.seller_id);
+        if (profile) {
+          const { error: balErr } = await supabase.from("profiles").update({ balance: (profile.balance || 0) + withdrawal.amount }).eq("id", withdrawal.seller_id);
+          if (balErr) console.error("[Withdrawal] Balance restore failed:", balErr.message);
+        } else {
+          console.error("[Withdrawal] Seller profile not found for balance restore:", withdrawal.seller_id);
+        }
       }
 
       if (status === "paid") {
         const { data: profile } = await supabase.from("profiles").select("total_withdrawn, total_fee_paid").eq("id", withdrawal.seller_id).single();
-        if (profile) await supabase.from("profiles").update({ total_withdrawn: (profile.total_withdrawn || 0) + withdrawal.amount }).eq("id", withdrawal.seller_id);
+        if (profile) {
+          const { error: paidErr } = await supabase.from("profiles").update({ total_withdrawn: (profile.total_withdrawn || 0) + withdrawal.amount }).eq("id", withdrawal.seller_id);
+          if (paidErr) console.error("[Withdrawal] total_withdrawn update failed:", paidErr.message);
+        } else {
+          console.error("[Withdrawal] Seller profile not found for paid update:", withdrawal.seller_id);
+        }
       }
 
       await supabase.from("withdrawals").update({ status }).eq("id", id);

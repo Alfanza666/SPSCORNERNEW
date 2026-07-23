@@ -74,7 +74,7 @@ export default function KioskLayout() {
           } catch {}
         }
       })
-      .catch(() => {});
+      .catch((err) => { console.warn('[KioskLayout] Pending tx check failed:', err?.message); });
   }, []);
 
   const { notifications, unreadCount, markAllAsRead, markOneAsRead } = useNotifications();

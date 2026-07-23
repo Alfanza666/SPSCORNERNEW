@@ -255,11 +255,9 @@ const ipaymuClient = new IpaymuClient(
 );
 console.log("\u{1F4B3} Ipaymu Config:", {
   va: IPAYMU_VA ? "\u2713 Set" : "\u2717 Not Set",
-  apiKey: IPAYMU_API_KEY ? "\u2713 Set" : "\u2717 Not Set",
+  apiKey: IPAYMU_API_KEY ? "\u2713 Set (hidden)" : "\u2717 Not Set",
   production: IPAYMU_PRODUCTION,
-  baseUrl: IPAYMU_PRODUCTION
-    ? "https://my.ipaymu.com"
-    : "https://sandbox.ipaymu.com",
+  baseUrl: IPAYMU_PRODUCTION ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.com",
 });
 // Health check
 app.get("/api/test-ping", (req, res) => {

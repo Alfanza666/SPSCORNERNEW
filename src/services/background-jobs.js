@@ -22,8 +22,8 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   autoCleanup();
   setInterval(autoCleanup, 3 * 60 * 1e3);
 
-  // ── Daily report (push notification) every 60 seconds ─────────────────
-  setInterval(dailyReport, 60 * 1e3);
+  // ── Daily report (push notification) every 10 minutes ────────────────
+  setInterval(dailyReport, 10 * 60 * 1e3);
 
   // ── Stock reconciliation every 30 minutes ──────────────────────────
   runReconciliation();

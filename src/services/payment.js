@@ -29,7 +29,9 @@ export async function updateSellerBalances(items, transactionId) {
 export async function updateBuyerPoints(tx_id, buyer_id, total_amount) {
   try {
     if (!buyer_id) return;
-    const pointsEarned = Math.floor(Number(total_amount) * 0.008);
+    const numAmount = Number(total_amount);
+    if (isNaN(numAmount) || numAmount <= 0) return;
+    const pointsEarned = Math.floor(numAmount * 0.008);
     if (pointsEarned < 1) return;
     // Atomic increment — no read-then-write
     const { error: incrErr } = await supabaseInstance.rpc('increment_loyalty_points', {

@@ -11,7 +11,11 @@ export function registerStockRoutes(app: any, deps: { supabase: any; sendNotific
       const { product_id, requested_quantity, notes } = req.body;
       if (requested_quantity <= 0) return res.status(400).json({ error: "Quantity must be > 0" });
 
-      await supabase.from("stock_requests").insert({ product_id, seller_id: user.id, requested_quantity: Number(requested_quantity), notes, status: "pending" });
+      const { error: insertErr } = await supabase.from("stock_requests").insert({ product_id, seller_id: user.id, requested_quantity: Number(requested_quantity), notes, status: "pending" });
+      if (insertErr) {
+        console.error("[StockRequest] Insert failed:", insertErr.message);
+        return res.status(500).json({ error: "Gagal membuat permintaan restock" });
+      }
 
       const adminIds = await getAdminIds();
       await Promise.allSettled(adminIds.map((id: string) => sendNotification(id, {

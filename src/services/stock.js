@@ -45,8 +45,8 @@ async function atomicAdjustStock(productId, delta, userId, adjType, notes, minSt
     if (error && error.code !== 'PGRST202') {
       console.error(`[atomicAdjustStock] RPC error for ${productId}:`, error);
     }
-  } catch (_) {
-    // RPC not available — fallback to optimistic locking
+  } catch (rpcErr) {
+    console.warn(`[atomicAdjustStock] RPC fallback for ${productId}:`, rpcErr?.message);
   }
 
   // Priority 2: optimistic locking + retry
