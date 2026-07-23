@@ -710,8 +710,7 @@ app.post("/api/digital/callback", async (req, res) => {
         crypto.createHmac("sha1", secretToUse).update(bodyString).digest("hex");
       if (hubSignature !== expectedHubSignature) {
         console.error(
-          "\u274C Invalid X-Hub-Signature. Expected:",
-          expectedHubSignature,
+          "\u274C Invalid X-Hub-Signature.",
           "Got:",
           hubSignature,
         );
@@ -725,8 +724,7 @@ app.post("/api/digital/callback", async (req, res) => {
         .digest("hex");
       if (signature !== expectedSignature) {
         console.error(
-          "\u274C Invalid Digiflazz Callback Signature. Expected:",
-          expectedSignature,
+          "\u274C Invalid Digiflazz Callback Signature.",
           "Got:",
           signature,
         );

@@ -23,12 +23,14 @@ export async function sendSarirotiEmailInternal(to, subject, html) {
     return { success: false, error: "GMAIL_USER atau GMAIL_APP_PASSWORD belum diatur." };
   }
   try {
-    const transport = nodemailerInstance.createTransport({
-      service: "gmail",
-      auth: { user: gmailUser, pass: gmailPass },
-      connectionTimeout: 5e3, greetingTimeout: 5e3, socketTimeout: 5e3,
-    });
-    const info = await transport.sendMail({ from: `"SPS Corner" <${gmailUser}>`, to, subject, html });
+    if (!transporter) {
+      transporter = nodemailerInstance.createTransport({
+        service: "gmail",
+        auth: { user: gmailUser, pass: gmailPass },
+        connectionTimeout: 5e3, greetingTimeout: 5e3, socketTimeout: 5e3,
+      });
+    }
+    const info = await transporter.sendMail({ from: `"SPS Corner" <${gmailUser}>`, to, subject, html });
     return { success: true, data: info };
   } catch (error) {
     console.error("Email error:", error);

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import WhatsAppShare from '../../components/ui/WhatsAppShare';
 import GatheringVoting from '../../components/portal/GatheringVoting';
 import GatheringSurveys from '../../components/portal/GatheringSurveys';
+import { sanitizeRichTextHtml } from '../../utils/richText';
 
 interface Announcement {
   id: string;
@@ -345,7 +346,7 @@ export default function PortalPengumuman() {
                   {/* Content */}
                   <div
                     className="text-sm md:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed prose prose-sm dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: selectedAnnouncement.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(selectedAnnouncement.content) }}
                   />
 
                   {/* ═══════════════════════════════════════ */}

@@ -132,14 +132,14 @@ async function autoReconcileTransactions() {
     if (failedCount > 0 && sendNotif) {
       const { data: admins } = await supabaseInstance.from('profiles').select('id').in('role', ['admin', 'superadmin']);
       if (admins) {
-        for (const admin of admins) {
-          await sendNotif(admin.id, {
+        await Promise.all(admins.map(admin =>
+          sendNotif(admin.id, {
             type: 'system',
             title: `⚠️ ${failedCount} Transaksi Gagal Auto-Reconcile`,
             message: `${failedCount} transaksi tidak bisa diperbaiki otomatis. Silakan cek manual.`,
             path: '/dashboard/admin/transactions',
-          });
-        }
+          })
+        ));
       }
     }
   } catch (e) {
@@ -258,15 +258,25 @@ async function dailyReport() {
 
     const dayStart = new Date(Date.UTC(wita.getUTCFullYear(), wita.getUTCMonth(), wita.getUTCDate(), 0, 0, 0) - witaOffset * 60 * 1000).toISOString();
 
+    // Batch: fetch ALL items for ALL sellers in one query
+    const sellerIds = sellers.map(s => s.id);
+    const { data: allItems } = await supabaseInstance
+      .from("transaction_items")
+      .select("seller_id, transaction_id, quantity, subtotal, transactions!inner(id, total_amount, status, created_at)")
+      .in("seller_id", sellerIds)
+      .gte("transactions.created_at", dayStart);
+
+    // Group by seller
+    const itemsBySeller = new Map();
+    for (const item of (allItems || [])) {
+      if (!itemsBySeller.has(item.seller_id)) itemsBySeller.set(item.seller_id, []);
+      itemsBySeller.get(item.seller_id).push(item);
+    }
+
     for (const seller of sellers) {
       try {
-        const { data: items } = await supabaseInstance
-          .from("transaction_items")
-          .select("id, transaction_id, quantity, subtotal, transactions!inner(id, total_amount, status, created_at)")
-          .eq("seller_id", seller.id)
-          .gte("transactions.created_at", dayStart);
-
-        if (!items || items.length === 0) continue;
+        const items = itemsBySeller.get(seller.id) || [];
+        if (items.length === 0) continue;
 
         const txMap = new Map();
         for (const item of items) {
@@ -281,8 +291,6 @@ async function dailyReport() {
         const txns = Array.from(txMap.values());
         const settledTxns = txns.filter(t => t.status === "paid" || t.status === "success");
         const totalCount = settledTxns.length;
-        // Laporan penjual harus memakai nilai item milik penjual ini, bukan
-        // total order penuh yang dapat berisi item dari beberapa penjual.
         const totalRevenue = settledTxns.reduce((s, t) => s + Number(t.itemRevenue || 0), 0);
         const pendingCount = txns.filter(t => t.status === "pending").length;
         const failedCount = txns.filter(t => t.status === "failed").length;
@@ -337,10 +345,16 @@ function scheduleDailyEmailReport() {
   }, target - new Date());
 }
 
-let notifiedProgramStarts = new Set();
+let notifiedProgramStarts = new Map(); // key: programId, value: timestamp
 
 async function checkProgramStartNotifications() {
   try {
+    // TTL: cleanup entries older than 24 hours
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    for (const [key, ts] of notifiedProgramStarts) {
+      if (ts < cutoff) notifiedProgramStarts.delete(key);
+    }
+
     const now = new Date().toISOString();
     const { data: programs } = await supabaseInstance
       .from("union_programs")
@@ -352,7 +366,7 @@ async function checkProgramStartNotifications() {
     if (!programs || programs.length === 0) return;
     for (const prog of programs) {
       if (notifiedProgramStarts.has(prog.id)) continue;
-      notifiedProgramStarts.add(prog.id);
+      notifiedProgramStarts.set(prog.id, Date.now());
       const { data: couponHolders } = await supabaseInstance
         .from("program_coupons")
         .select("user_id")

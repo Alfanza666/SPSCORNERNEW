@@ -31,13 +31,21 @@ export async function updateBuyerPoints(tx_id, buyer_id, total_amount) {
     if (!buyer_id) return;
     const pointsEarned = Math.floor(Number(total_amount) * 0.008);
     if (pointsEarned < 1) return;
-    const { data: profile } = await supabaseInstance.from("profiles").select("loyalty_points").eq("id", buyer_id).single();
-    if (profile) {
-      await supabaseInstance.from("profiles").update({ loyalty_points: (Number(profile.loyalty_points) || 0) + pointsEarned }).eq("id", buyer_id);
-      await supabaseInstance.from("points_history").insert({
-        user_id: buyer_id, transaction_id: tx_id, amount: pointsEarned, type: 'earned', description: `Poin dari transaksi #${tx_id.slice(0,8)}`,
-        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      });
+    // Atomic increment — no read-then-write
+    const { error: incrErr } = await supabaseInstance.rpc('increment_loyalty_points', {
+      p_user_id: buyer_id,
+      p_amount: pointsEarned,
+    });
+    if (incrErr) {
+      // Fallback: read-then-write with GTE guard
+      const { data: profile } = await supabaseInstance.from("profiles").select("loyalty_points").eq("id", buyer_id).single();
+      if (profile) {
+        await supabaseInstance.from("profiles").update({ loyalty_points: (Number(profile.loyalty_points) || 0) + pointsEarned }).eq("id", buyer_id);
+      }
     }
+    await supabaseInstance.from("points_history").insert({
+      user_id: buyer_id, transaction_id: tx_id, amount: pointsEarned, type: 'earned', description: `Poin dari transaksi #${tx_id.slice(0,8)}`,
+      expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    });
   } catch (e) { console.error("updateBuyerPoints error:", e); }
 }

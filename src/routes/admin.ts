@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
+import crypto from "crypto";
 
 export function registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal }) {
 
@@ -49,7 +50,7 @@ app.post("/api/admin/password-resets/complete", async (req, res) => {
       return res.status(404).json({ error: "Permintaan reset password tidak ditemukan." });
     }
 
-    const tempPassword = Math.random().toString(36).slice(-8) + "A1!";
+    const tempPassword = crypto.randomBytes(4).toString('hex') + "A1!";
     const { error: updateAuthError } = await supabase.auth.admin.updateUserById(request.user_id, {
       password: tempPassword
     });

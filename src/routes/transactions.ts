@@ -641,16 +641,19 @@ app.post("/api/transactions/create", async (req, res) => {
 app.post("/api/transactions/cancel", async (req, res) => {
   try {
     const { transaction_id } = req.body;
-    // Jika user terautentikasi, verifikasi kepemilikan transaksi
     const authHeader = req.headers.authorization;
-    let authenticatedBuyerId = null;
-    if (authHeader) {
-      const token = authHeader.split(" ")[1];
-      if (token) {
-        const { data: { user } } = await supabase.auth.getUser(token);
-        if (user) authenticatedBuyerId = user.id;
-      }
+    if (!authHeader) {
+      return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan." });
     }
+    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan." });
+    }
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan." });
+    }
+    const authenticatedBuyerId = user.id;
 
     const { data: tx, error: fetchError } = await supabase
       .from("transactions")

@@ -458,7 +458,16 @@ export function registerPortalRoutes(app, { supabase, sendNotification, ipaymuCl
   app.post("/api/portal/programs/:programId/checkout-family", async (req, res) => {
     try {
       const { programId } = req.params;
-      const { userId, familyCount, totalAmount, userEmail, userName, userPhone } = req.body;
+      const { familyCount, totalAmount, userEmail, userName, userPhone } = req.body;
+
+      // Auth: get userId from token, not from req.body
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+      const token = authHeader.split(" ")[1];
+      if (!token) return res.status(401).json({ error: "Unauthorized" });
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+      const userId = user.id;
 
       if (!familyCount || familyCount < 1 || !totalAmount) return res.status(400).json({ error: "Invalid data" });
 

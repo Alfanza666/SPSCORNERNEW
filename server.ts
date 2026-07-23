@@ -13,6 +13,7 @@ import nodemailer from "nodemailer";
 import webpush from "web-push";
 import helmet from "helmet";
 import cors from "cors";
+import compression from "compression";
 import rateLimit from "express-rate-limit";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import * as Sentry from "@sentry/node";
@@ -66,7 +67,7 @@ const supabaseServiceKey =
     : (() => { throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set"); })();
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 import Groq from "groq-sdk";
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "", dangerouslyAllowBrowser: true });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "" });
 
 const app = express();
 
@@ -124,6 +125,12 @@ app.use(cors({
   ].filter(Boolean),
   credentials: true,
 }));
+
+// Compression — kurangi response size 70-80%
+app.use(compression({ filter: (req, res) => {
+  if (req.headers['x-no-compression']) return false;
+  return compression.filter(req, res);
+}}));
 
 // Rate limiting — cegah spam/brute force
 const paymentLimiter = rateLimit({
@@ -319,9 +326,9 @@ if (!process.env.VERCEL) {
         if (!config) return next();
 
         const product = config.products;
-        const title = `${product.name} - Pre-Order SPS Corner`;
-        const description = product.description || `Pre-Order ${product.name} - SPS Corner`;
-        const imageUrl = product.image_url || "https://spscorner.store/og-default.jpg";
+        const title = `${(product.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')} - Pre-Order SPS Corner`;
+        const description = (product.description || `Pre-Order ${product.name} - SPS Corner`).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const imageUrl = (product.image_url || "https://spscorner.store/og-default.jpg").replace(/&/g, '&amp;').replace(/"/g, '&quot;');
         const pageUrl = `https://spscorner.store/kiosk/pre-order/${req.params.id}`;
 
         res.send(`<!DOCTYPE html>
@@ -329,21 +336,21 @@ if (!process.env.VERCEL) {
 <head>
   <meta charset="UTF-8" />
   <title>${title}</title>
-  <meta name="description" content="${description.replace(/"/g, '&quot;')}" />
-  <meta property="og:title" content="${product.name.replace(/"/g, '&quot;')}" />
-  <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
+  <meta name="description" content="${description}" />
+  <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${description}" />
   <meta property="og:image" content="${imageUrl}" />
   <meta property="og:url" content="${pageUrl}" />
   <meta property="og:type" content="product" />
   <meta property="og:site_name" content="SPS Corner" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${product.name.replace(/"/g, '&quot;')}" />
-  <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
+  <meta name="twitter:title" content="${title}" />
+  <meta name="twitter:description" content="${description}" />
   <meta name="twitter:image" content="${imageUrl}" />
   <script>location.replace("${pageUrl}");</script>
 </head>
 <body>
-  <h1>${product.name}</h1>
+  <h1>${title}</h1>
   <p>${description}</p>
 </body>
 </html>`);

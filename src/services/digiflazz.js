@@ -56,9 +56,9 @@ export function getDigiflazzAxiosConfig() {
   };
 }
 
-export function saveCacheToFile() {
+export async function saveCacheToFile() {
   try {
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(priceCache), "utf-8");
+    await fs.promises.writeFile(CACHE_FILE, JSON.stringify(priceCache), "utf-8");
   } catch (err) {
     console.error("Failed to save Digiflazz cache to file:", err);
   }

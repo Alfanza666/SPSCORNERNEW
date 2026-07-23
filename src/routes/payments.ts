@@ -9,6 +9,17 @@ export function registerPaymentRoutes(app, {
   sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock, commitTransactionStock,
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
 }) {
+  // Auth helper — returns buyer_id or null
+  async function requireUser(req) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return null;
+    const token = authHeader.split(" ")[1];
+    if (!token) return null;
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user.id;
+  }
+
   const gatewayStatusIsPaid = (payload: any) => {
     const paidStatuses = new Set(['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement']);
     const values: string[] = [];
@@ -70,6 +81,8 @@ export function registerPaymentRoutes(app, {
 
   app.post("/api/payment/ipaymu/create", async (req, res) => {
     try {
+      const buyerId = await requireUser(req);
+      if (!buyerId) return res.status(401).json({ success: false, error: "Unauthorized" });
       const {
         transaction_id,
         amount,
@@ -159,6 +172,8 @@ export function registerPaymentRoutes(app, {
     let expected_amount: number | undefined;
     let receiptUrl: string | undefined;
     try {
+      const buyerId = await requireUser(req);
+      if (!buyerId) return res.status(401).json({ success: false, error: "Unauthorized" });
       ({ transaction_id, receipt_image, expected_amount } = req.body || {});
       if (!transaction_id || !receipt_image) {
         return res
@@ -398,6 +413,8 @@ export function registerPaymentRoutes(app, {
 
   app.post("/api/payment/points/pay", async (req, res) => {
     try {
+      const buyerId = await requireUser(req);
+      if (!buyerId) return res.status(401).json({ success: false, error: "Unauthorized" });
       const { transaction_id } = req.body;
       if (!transaction_id) throw new Error("Transaction ID is required");
 
@@ -477,6 +494,8 @@ export function registerPaymentRoutes(app, {
   // Partial payment with points (split payment: points + remainder via other method)
   app.post("/api/payment/points/partial-pay", async (req, res) => {
     try {
+      const buyerId = await requireUser(req);
+      if (!buyerId) return res.status(401).json({ success: false, error: "Unauthorized" });
       const { transaction_id, points_to_use } = req.body;
       if (!transaction_id || !points_to_use) throw new Error("transaction_id and points_to_use required");
 
@@ -561,6 +580,8 @@ export function registerPaymentRoutes(app, {
 
   app.post("/api/payment/ipaymu/direct", async (req, res) => {
     try {
+      const buyerId = await requireUser(req);
+      if (!buyerId) return res.status(401).json({ success: false, error: "Unauthorized" });
       const {
         transaction_id,
         amount,
