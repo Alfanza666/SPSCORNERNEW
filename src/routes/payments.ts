@@ -887,4 +887,65 @@ export function registerPaymentRoutes(app, {
       res.status(500).json({ success: false, error: error.message });
     }
   });
+
+  // ─── Admin Integration Routes ───────────────────────────────────────
+
+  app.get("/api/admin/ipaymu/history", async (req, res) => {
+    try {
+      if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+        return res.status(500).json({ success: false, error: "iPaymu not configured" });
+      }
+      const { status = '1', startdate, enddate, page = '1', limit: limitStr = '20' } = req.query;
+      const result = await ipaymuClient.getTransactionHistory({
+        status: String(status),
+        startdate: startdate ? String(startdate) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        enddate: enddate ? String(enddate) : new Date().toISOString().slice(0, 10),
+        page: Number(page),
+        limit: Math.min(Number(limitStr), 20),
+        orderBy: 'id',
+        order: 'DESC',
+      });
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[Admin] iPaymu history error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get("/api/admin/ipaymu/status/:transactionId", async (req, res) => {
+    try {
+      if (!IPAYMU_VA || !IPAYMU_API_KEY) {
+        return res.status(500).json({ success: false, error: "iPaymu not configured" });
+      }
+      const { transactionId } = req.params;
+      const result = await ipaymuClient.getTransactionStatus(transactionId);
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      console.error("[Admin] iPaymu status check error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get("/api/admin/ipaymu/callbacks", async (req, res) => {
+    try {
+      const { limit: limitStr = '50', offset: offsetStr = '0' } = req.query;
+      const limit = Math.min(Number(limitStr), 100);
+      const offset = Number(offsetStr);
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('id, status, total_amount, buyer_name, payment_method, payment_details, created_at')
+        .not('payment_details->>ipaymu_trx_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      if (error) throw error;
+      const { count } = await supabase
+        .from('transactions')
+        .select('id', { count: 'exact', head: true })
+        .not('payment_details->>ipaymu_trx_id', 'is', null);
+      res.json({ success: true, data, total: count });
+    } catch (error: any) {
+      console.error("[Admin] Callbacks error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
 }

@@ -79,6 +79,7 @@ const SellerPreOrders = lazyWithRetry(() => import('./pages/dashboard/seller/Sel
 const SellerWithdrawals = lazyWithRetry(() => import('./pages/dashboard/seller/SellerWithdrawals'));
 const SellerTransactions = lazyWithRetry(() => import('./pages/dashboard/seller/SellerTransactions'));
 const AdminAnalytics = lazyWithRetry(() => import('./pages/dashboard/admin/AdminAnalytics'));
+const AdminIntegrasi = lazyWithRetry(() => import('./pages/dashboard/admin/AdminIntegrasi'));
 const SellerAnalytics = lazyWithRetry(() => import('./pages/dashboard/seller/SellerAnalytics'));
 
 // ==========================================
@@ -326,6 +327,8 @@ export default function App() {
               <Route path="admin/employees/" element={<AdminEmployees />} />
               <Route path="admin/analytics" element={<AdminAnalytics />} />
               <Route path="admin/analytics/" element={<AdminAnalytics />} />
+              <Route path="admin/integrasi" element={<AdminIntegrasi />} />
+              <Route path="admin/integrasi/" element={<AdminIntegrasi />} />
 
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/" element={<SellerDashboard />} />

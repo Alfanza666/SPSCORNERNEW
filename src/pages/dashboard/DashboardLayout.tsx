@@ -39,7 +39,8 @@ import {
   Ticket,
   Gift,
   BarChart3,
-  QrCode
+  QrCode,
+  Plug
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -349,6 +350,7 @@ export default function DashboardLayout() {
         icon: Settings,
         items: [
           { to: "/dashboard/admin/settings", icon: Settings, label: "Pengaturan Umum" },
+          { to: "/dashboard/admin/integrasi", icon: Plug, label: "Integrasi iPaymu" },
           { to: "/dashboard/admin/payments", icon: CreditCard, label: "Metode Pembayaran & Loyalty" },
           { to: "/dashboard/admin/loyalty", icon: Tag, label: "Loyalty Point" },
           { to: "/dashboard/admin/standby-schedule", icon: Clock, label: "Jadwal Standby" }
