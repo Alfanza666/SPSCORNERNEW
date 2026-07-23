@@ -623,7 +623,7 @@ export default function DashboardLayout() {
       </Transition.Root>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <main className="flex-1 flex flex-col min-w-0 overflow-clip relative">
         {/* Top Header */}
         <header className="h-16 sm:h-20 lg:h-24 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-3 sm:px-6 md:px-12 sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-colors duration-300">
           <div className="flex min-w-0 items-center gap-2 sm:gap-6">
