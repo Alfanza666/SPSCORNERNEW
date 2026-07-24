@@ -1,5 +1,4 @@
-# CAPA — Corrective & Preventive Action
-## SPS Corner v5.16.2 | 2026-07-21
+ SPS Corner v5.16.2 | 2026-07-21
 
 ---
 

@@ -58,8 +58,11 @@ export default function Checkout() {
   const hasKoperasiItems = items.some(item => {
     const name = (item.name || '').toLowerCase();
     const cat = (item.category || '').toLowerCase();
-    return name.includes('sariroti') || name.includes('sari roti') || cat.includes('sariroti')
-      || cat.includes('sari roti') ;
+    return cat.includes('sariroti') || cat.includes('sari roti')
+      || name.includes('sariroti') || name.includes('sari roti')
+      || cat.includes('roti tawar') || cat.includes('roti manis')
+      || cat.includes('kue') || cat.includes('sandwich')
+      || name.includes('sari choco') || name.includes('dorayaki') || name.includes('cake');
   });
 
   const buyerName = user?.name || (() => { try { return sessionStorage.getItem('buyerName'); } catch { return ''; } })();
