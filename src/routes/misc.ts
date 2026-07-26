@@ -11,7 +11,7 @@ import {
   sendTransactionValidationError,
 } from "../utils/transactionCreationValidation.js";
 
-export function registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal }) {
+export function registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal, buildTestEmail }) {
 
   app.post("/api/validate/receipt", async (req, res) => {
     try {
@@ -486,19 +486,7 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
           );
         }
       }
-      const emailHtml = `
-        <div style="font-family: sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #0056b3;">Test Email Sariroti</h2>
-          <p>Halo Admin,</p>
-          <p>Ini adalah email percobaan untuk memastikan sistem notifikasi Sariroti berfungsi dengan baik.</p>
-          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Status:</strong> Aktif</p>
-            <p><strong>Waktu:</strong> ${new Date().toLocaleString("id-ID")}</p>
-            <p><strong>Target:</strong> ${targetEmail}</p>
-          </div>
-          <p>Jika Anda menerima email ini, berarti konfigurasi Gmail Nodemailer sudah benar.</p>
-        </div>
-      `;
+      const emailHtml = buildTestEmail(targetEmail);
       const result = await sendSarirotiEmailInternal(
         targetEmail,
         "Test Email Sariroti - Berhasil",

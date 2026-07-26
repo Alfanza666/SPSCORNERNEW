@@ -27,6 +27,7 @@ function createApp(modelResponses: unknown[]) {
     groq: { chat: { completions: { create } } },
     sendNotification: vi.fn(),
     sendSarirotiEmailInternal: vi.fn(),
+    buildTestEmail: vi.fn(),
   });
 
   return { app, create };

@@ -2,7 +2,7 @@
 import { __name } from "./route-utils.js";
 import crypto from "crypto";
 
-export function registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal }) {
+export function registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal, buildTempPasswordEmail }) {
 
 app.get("/api/admin/password-resets", async (req, res) => {
   try {
@@ -62,18 +62,13 @@ app.post("/api/admin/password-resets/complete", async (req, res) => {
       .update({ status: 'completed' })
       .eq('id', id);
 
-    const { data: userProfile } = await supabase.from('profiles').select('email').eq('id', request.user_id).single();
+    const { data: userProfile } = await supabase.from('profiles').select('email, name').eq('id', request.user_id).single();
     if (userProfile?.email) {
+      const emailHtml = buildTempPasswordEmail(request.user_name || userProfile.name || 'User', tempPassword);
       sendSarirotiEmailInternal(
         userProfile.email,
         'Password Baru - SPS Corner',
-        `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
-          <h2>Password Anda Telah DiReset</h2>
-          <p>Berikut password sementara Anda:</p>
-          <div style="background:#f3f4f6;padding:16px;border-radius:8px;text-align:center;font-size:24px;font-family:monospace;letter-spacing:4px;margin:16px 0;">${tempPassword}</div>
-          <p style="color:#ef4444;font-weight:bold;">Segera ganti password Anda setelah login.</p>
-          <p style="color:#6b7280;font-size:12px;">Abaikan email ini jika Anda tidak meminta reset password.</p>
-        </div>`
+        emailHtml
       ).catch(e => console.warn("[Email] Gagal kirim password reset:", e.message));
     }
 

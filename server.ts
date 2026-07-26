@@ -39,7 +39,7 @@ import { registerProgramRegistrationWorkflowRoutes } from "./src/routes/programR
 import { registerEventWorkflowRoutes } from "./src/routes/eventWorkflow.js";
 import { initNotificationService, sendNotification, sendPushToUser, sendPushToAdmins } from "./src/services/notification.js";
 import { initStockService, restoreTransactionStock, deductTransactionStock, commitTransactionStock, atomicAdjustStock, reconcileStock, checkLowStockAndNotify } from "./src/services/stock.js";
-import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail } from "./src/services/email.js";
+import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail, buildBuyerConfirmationEmail, buildPasswordResetEmail, buildTempPasswordEmail, buildTestEmail, buildDailyReportEmail } from "./src/services/email.js";
 import { initPaymentService, updateSellerBalances, updateBuyerPoints } from "./src/services/payment.js";
 import { initBackgroundJobs } from "./src/services/background-jobs.js";
 import { processDigitalItems, updateDigiflazzCache, getDigiflazzBalance, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, digiflazzAxios } from "./src/services/digiflazz.js";
@@ -79,7 +79,7 @@ initNotificationService(supabase, webpush);
 initStockService(supabase, sendNotification, sendWANotification);
 initEmailService(supabase, nodemailer);
 initPaymentService(supabase);
-initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStock, commitTransactionStock, deductTransactionStock);
+initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStock, commitTransactionStock, deductTransactionStock, buildDailyReportEmail);
 initWANotification(supabase);
 
 
@@ -284,8 +284,8 @@ if (!process.env.VERCEL) {
 }
 registerDigitalRoutes(app, { supabase, sendNotification, crypto, axios: digiflazzAxios, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz });
 
-registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, restoreTransactionStock, deductTransactionStock, commitTransactionStock, atomicAdjustStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
-registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
+registerTransactionRoutes(app, { supabase, sendNotification, sendWANotification, sendSarirotiEmailInternal, sendBuyerReceiptEmail, buildBuyerConfirmationEmail, restoreTransactionStock, deductTransactionStock, commitTransactionStock, atomicAdjustStock, checkLowStockAndNotify, updateSellerBalances, updateBuyerPoints, processDigitalItems, triggerSarirotiEmail, getDigiflazzBalance });
+registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal, buildTempPasswordEmail });
 registerAdminReportingRoutes(app, { supabase });
 registerStockTraceRoutes(app, { supabase });
 
@@ -293,8 +293,8 @@ registerStockTraceRoutes(app, { supabase });
 
 
 registerAnalyticsRoutes(app, { supabase });
-registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal });
-registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal });
+registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal, buildTestEmail });
+registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal, buildPasswordResetEmail });
 registerPortalRoutes(app, { supabase, sendNotification, ipaymuClient });
 registerProgramRegistrationWorkflowRoutes(app, { supabase, sendNotification, groq });
 registerEventWorkflowRoutes(app, { supabase, sendNotification });

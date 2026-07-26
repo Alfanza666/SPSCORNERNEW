@@ -2,7 +2,7 @@
 import crypto from "crypto";
 import { __name } from "./route-utils.js";
 
-export function registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal }) {
+export function registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal, buildPasswordResetEmail }) {
 
   app.post("/api/auth/reset-password-request", async (req, res) => {
     try {
@@ -152,26 +152,11 @@ export function registerAuthRoutes(app, { supabase, sendNotification, sendSariro
 
       // Kirim email dengan link reset
       const resetLink = `https://spscorner.store/reset-password?token=${token}`;
-      const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #2563eb;">🔐 Reset Password SPS Corner</h1>
-        </div>
-        <p style="font-size: 16px; color: #333;">Halo <strong>${userName}</strong>,</p>
-        <p style="font-size: 14px; color: #666;">Anda meminta reset password untuk akun SPS Corner Anda.</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetLink}" style="background: #2563eb; color: white; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-            Reset Password
-          </a>
-        </div>
-        <p style="font-size: 12px; color: #999;">Link ini berlaku selama 1 jam. Jika Anda tidak meminta reset password, abaikan email ini.</p>
-        <p style="font-size: 12px; color: #999; margin-top: 20px;">SPS Corner - Platformbelanja Karyawan</p>
-      </div>
-    `;
+      const htmlContent = buildPasswordResetEmail(userName, resetLink);
 
       const emailResult = await sendSarirotiEmailInternal(
         userEmail,
-        "🔐 Reset Password SPS Corner",
+        "Reset Password SPS Corner",
         htmlContent
       );
 

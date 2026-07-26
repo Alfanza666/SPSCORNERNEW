@@ -13,6 +13,7 @@ describe('legacy receipt validator compatibility', () => {
       sendNotification: vi.fn(),
       groq: { chat: { completions: { create: groqCreate } } },
       sendSarirotiEmailInternal: vi.fn(),
+      buildTestEmail: vi.fn(),
     });
 
     const response = await request(app)

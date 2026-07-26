@@ -1,3 +1,36 @@
+v5.16.3 - Fix: Notification Button + Email Template System + Sariroti Email Reliability (PATCH)
+--------------------------------------------------------------------------------
+### Notification Button Fix:
+- Fix tombol notifikasi tidak bisa diklik di Dashboard & Portal — root cause: `overflow-clip`/`overflow-hidden` pada `<main>` memotong dropdown notifikasi karena `backdrop-blur-xl` pada header membuat `position: fixed` pada dropdown terperangkap dalam containing block.
+- DashboardLayout:hapus `overflow-clip` dari `<main>`.
+- PortalLayout: hapus `overflow-hidden` dari `<main>`.
+
+### Unified Email Template System:
+- Buat shared template helper di `email.js`: `emailTemplate()`, `buildItemTable()`, `buildInfoRows()`.
+- Semua 7 email sekarang pakai template konsisten: gradient header, badge, responsive table, CTA button, footer.
+- Template responsive: `max-width: 620px` + `border-radius: 16px` — tampil bagus di mobile & desktop.
+- Update: `sendBuyerReceiptEmail` (was unstyled `border="1"`), buyer confirmation, password reset, temp password, test email, daily report.
+
+### Sariroti Email Reliability Fix:
+- Perluas filter produk: tambah keyword `"bakery"`, `"bread"`, `"sari roti"` — sebelumnya hanya cek `"roti"`, `"sariroti"`, `"koperasi"`.
+- Tambah seller-based fallback: jika tidak ada keyword match, cek apakah sellernya adalah koperasi (nama seller mengandung keyword).
+- Validasi target email sebelum kirim — log error jelas jika `SARIROTI_ADMIN_EMAIL` atau `settings.sariroti_email` belum di-set.
+- Tambah auto-retry 1x dengan delay 3 detik jika email gagal.
+- Logging lebih detail dengan prefix `[SarirotiEmail]` untuk semua case.
+
+### Files Changed:
+- `src/services/email.js` — rewrite `triggerSarirotiEmail`, add shared template helpers
+- `src/pages/dashboard/DashboardLayout.tsx` — remove `overflow-clip`
+- `src/pages/dashboard/PortalLayout.tsx` — remove `overflow-hidden`
+- `src/routes/transactions.ts` — use `buildBuyerConfirmationEmail`
+- `src/routes/auth.ts` — use `buildPasswordResetEmail`
+- `src/routes/admin.ts` — use `buildTempPasswordEmail`
+- `src/routes/misc.ts` — use `buildTestEmail`
+- `src/services/background-jobs.js` — use `buildDailyReportEmail`
+- `server.ts` — wire new email builders to routes
+- `src/test/receiptValidationRoute.test.ts` — add `buildTestEmail` mock
+- `test/api/ai-form.test.ts` — add `buildTestEmail` mock
+
 v5.16.2 - Fix Lengkap: Stock Deduction, Seller Balance, iPaymu Callback + Auto-Reconcile (MINOR)
 --------------------------------------------------------------------------------
 ### Root Cause Analysis (RCA):

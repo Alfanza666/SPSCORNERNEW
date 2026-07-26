@@ -6,8 +6,9 @@ let sendSarirotiEmail = null;
 let reconcileStock = null;
 let commitStock = null;
 let deductStock = null;
+let buildDailyReportEmailFn = null;
 
-export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn, commitTransactionStockFn, deductTransactionStockFn) {
+export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn, commitTransactionStockFn, deductTransactionStockFn, buildDailyReportEmail) {
   supabaseInstance = supabase;
   sendNotif = sendNotification;
   restoreStock = restoreTransactionStock;
@@ -15,6 +16,7 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   reconcileStock = reconcileStockFn;
   commitStock = commitTransactionStockFn;
   deductStock = deductTransactionStockFn;
+  buildDailyReportEmailFn = buildDailyReportEmail || null;
 
   if (typeof process !== 'undefined' && process.env && process.env.VERCEL) return;
 
@@ -337,8 +339,10 @@ function scheduleDailyEmailReport() {
         : (txns || []);
       const total = scopedTxns.reduce((sum, t) => sum + Number(person.role === 'seller' ? t.sellerTotal : t.total_amount || 0), 0);
       const count = scopedTxns.length;
-      const subject = `📊 Laporan Harian SPS Corner - ${today}`;
-      const html = `<h2>Laporan Penjualan Lunas ${today}</h2><p>Total Transaksi Lunas: ${count}</p><p>${person.role === 'seller' ? 'Pendapatan Bersih Item' : 'Omzet Lunas'}: Rp ${total.toLocaleString("id-ID")}</p><p>Transaksi pending dan gagal tidak dihitung.</p>`;
+      const subject = `Laporan Harian SPS Corner - ${today}`;
+      const html = buildDailyReportEmailFn
+        ? buildDailyReportEmailFn(today, count, total, person.role)
+        : `<h2>Laporan Penjualan Lunas ${today}</h2><p>Total Transaksi Lunas: ${count}</p><p>${person.role === 'seller' ? 'Pendapatan Bersih Item' : 'Omzet Lunas'}: Rp ${total.toLocaleString("id-ID")}</p><p>Transaksi pending dan gagal tidak dihitung.</p>`;
       if (person.email && sendSarirotiEmail) await sendSarirotiEmail(person.email, subject, html);
     }
     scheduleDailyEmailReport();
