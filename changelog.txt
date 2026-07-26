@@ -1,3 +1,20 @@
+v5.16.4 - Monitoring: Stale Pending Transactions + Supabase Settings + VPS Verification (PATCH)
+--------------------------------------------------------------------------------
+### Background Job:
+- Tambah `scanStalePendingTransactions()` — scan tiap 10 menit, notifikasi admin untuk transaksi pending >1 jam.
+- Dedup: hanya notifikasi 1x per jam per transaksi.
+
+### Supabase Settings:
+- Insert `settings.sariroti_email = Sales.Adm.bjm@sariroti.com` ke database (fallback jika env var tidak ada).
+
+### VPS Verification:
+- Gmail SMTP test: OK (surat masuk ke spscornerstore@gmail.com).
+- SARIROTI_ADMIN_EMAIL env var: OK.
+- Health check: OK.
+
+### Files Changed:
+- `src/services/background-jobs.js` — add `scanStalePendingTransactions()`, register 10 min interval
+
 v5.16.3 - Fix: Notification Button + Email Template System + Sariroti Email Reliability (PATCH)
 --------------------------------------------------------------------------------
 ### Notification Button Fix:
