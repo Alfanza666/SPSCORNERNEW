@@ -41,6 +41,10 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
 
   // ── Email-based daily report (scheduled) ─────────────────────────────
   scheduleDailyEmailReport();
+
+  // ── Stale pending transactions scan every 10 minutes ───────────────
+  scanStalePendingTransactions();
+  setInterval(scanStalePendingTransactions, 10 * 60 * 1e3);
 }
 
 let lastReconNotif = null; // deduplikasi notifikasi gap yang sama
@@ -392,5 +396,57 @@ async function checkProgramStartNotifications() {
     }
   } catch (e) {
     console.error("[ProgramStartNotif] Error:", e);
+  }
+}
+
+// ── Stale pending transactions: notify admins every 10 min ──────────
+const STALE_PENDING_THRESHOLD_MS = 60 * 60 * 1000; // 1 jam
+let lastStaleNotif = new Map(); // tx_id → timestamp (dedup 1 jam sekali)
+
+async function scanStalePendingTransactions() {
+  if (!supabaseInstance) return;
+  try {
+    const threshold = new Date(Date.now() - STALE_PENDING_THRESHOLD_MS).toISOString();
+    const { data: staleTxns, error } = await supabaseInstance
+      .from("transactions")
+      .select("id, buyer_id, total_amount, created_at, receipt_image, payment_details")
+      .in("status", ["pending"])
+      .lt("created_at", threshold);
+    if (error || !staleTxns || staleTxns.length === 0) return;
+
+    const now = Date.now();
+    const staleIds = staleTxns
+      .filter(tx => {
+        const lastNotif = lastStaleNotif.get(tx.id) || 0;
+        return now - lastNotif > 60 * 60 * 1000; // dedup 1 jam
+      });
+    if (staleIds.length === 0) return;
+
+    const { data: admins } = await supabaseInstance
+      .from("profiles").select("id").in("role", ["admin", "superadmin"]);
+    if (!admins || admins.length === 0) return;
+
+    const summaryLines = staleIds.map(tx => {
+      const age = Math.round((now - new Date(tx.created_at).getTime()) / 60000);
+      const hasReceipt = tx.receipt_image ? "Ada bukti" : "Tanpa bukti";
+      return `#${tx.id.slice(0, 8)} — Rp${Number(tx.total_amount || 0).toLocaleString("id-ID")} — ${age}m — ${hasReceipt}`;
+    });
+
+    for (const tx of staleIds) {
+      lastStaleNotif.set(tx.id, now);
+    }
+
+    const msg = `${staleIds.length} transaksi pending >1 jam:\n${summaryLines.slice(0, 10).join("\n")}${staleIds.length > 10 ? `\n...dan ${staleIds.length - 10} lainnya` : ""}`;
+    for (const admin of admins) {
+      await sendNotif(admin.id, {
+        type: "system",
+        title: `⏳ ${staleIds.length} Transaksi Pending >1 Jam`,
+        message: msg,
+        path: "/dashboard/admin/transactions",
+      });
+    }
+    console.log(`[StalePending] Notified admins of ${staleIds.length} stale pending transaction(s)`);
+  } catch (e) {
+    console.error("[StalePending] Error:", e);
   }
 }
