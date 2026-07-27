@@ -1,6 +1,6 @@
 # Gangguan Intermiten Auth, iPaymu, Failover API, dan Notifikasi Mobile — v5.16.5
 
-> **Status dokumen:** IMPLEMENTED — MENUNGGU VERIFIKASI DEPLOYMENT
+> **Status dokumen:** IMPLEMENTED DAN DEPLOYED — MONITORING
 > **Tanggal audit:** 28 Juli 2026 (WITA)
 > **Scope:** Hotfix runtime tanpa migration database dan tanpa perubahan settlement stock/balance/points.
 
@@ -12,7 +12,7 @@
 | Dampak | Pembayaran dapat gagal atau meninggalkan transaksi pending; dashboard dapat menampilkan data sebagian lalu gagal pada endpoint ber-auth; pengguna harus login ulang; notifikasi mobile tidak dapat dibuka |
 | Kerugian | Belum dihitung. Ada risiko operasional berupa transaksi pending/orphan dan risiko pembayaran ganda bila pengguna melakukan retry tanpa rekonsiliasi |
 | Durasi | Intermiten; bukti log dan laporan pengguna ditemukan pada periode audit 27–28 Juli 2026 |
-| Status | **LOCAL QA PASSED / DEPLOYMENT PENDING** |
+| Status | **DEPLOYED / MONITORING** |
 | Outage total | Tidak. VPS dan Vercel sama-sama merespons HTTP 200 saat audit |
 
 ### 1.1 Arti “intermittent failure / degraded service”
@@ -161,8 +161,8 @@ Temuan utama bukan “ada dua server” dan bukan karena failover belum diaktifk
 
 | Bukti | Hasil |
 |-------|-------|
-| Health VPS | `https://api.spscorner.store/api/test-ping` → HTTP 200 |
-| Health Vercel | `https://www.spscorner.store/api/test-ping` → HTTP 200, header `Server: Vercel` |
+| Health VPS | `https://api.spscorner.store/api/test-ping` → HTTP 200, runtime `vps`, iPaymu transport `direct` |
+| Health Vercel | `https://spscorner.store/api/test-ping` → HTTP 200, runtime `vercel`, iPaymu transport `fixie` |
 | PM2 | `sps-backend` online; uptime sekitar 17 jam saat audit |
 | VPS uptime | Sekitar 65 hari |
 | Supabase connectivity | Beberapa `ConnectTimeoutError` ke endpoint Supabase Auth, timeout 10 detik |
@@ -285,6 +285,12 @@ Sebelum implementasi dinyatakan selesai, setiap path harus diverifikasi:
 | 14 | `npm run lint` | Lulus | PASS |
 | 15 | `npm run test` | Seluruh regression suite lulus | PASS — 23 files / 119 tests |
 | 16 | `npm run build` | Lulus | PASS — warning bundle/CSS existing dicatat |
+| 17 | Health VPS produksi | Runtime `vps`, transport `direct` | PASS — HTTP 200 |
+| 18 | Health Vercel produksi | Runtime `vercel`, transport `fixie` | PASS — HTTP 200 |
+| 19 | Auth guard kedua backend | Request payment tanpa token berhenti sebelum gateway | PASS — VPS 401, Vercel 401 |
+| 20 | Bundle Home produksi | Versi UI v5.16.5 tersedia pada origin | PASS — `Home-17RO0bJK.js` |
+| 21 | Bundle Dashboard/Portal produksi | Fix bell mobile dan ARIA tersedia pada origin | PASS — kedua chunk memuat `sm:backdrop-blur-xl` dan `Buka notifikasi` |
+| 22 | Bundle Checkout produksi | Ambiguous payment tidak membuka blind retry | PASS — chunk memuat `PRIMARY_API_REQUEST_UNCERTAIN` |
 
 ### 8.1 Traceability matrix
 
@@ -299,7 +305,19 @@ Sebelum implementasi dinyatakan selesai, setiap path harus diverifikasi:
 | TR-07 | Bell desktop normal, mobile tidak bereaksi | `backdrop-filter` header membuat containing block; dropdown mobile hanya sekitar 2 px | `src/pages/dashboard/DashboardLayout.tsx:628`; `src/pages/dashboard/PortalLayout.tsx:383` | Browser viewport 301×663 dan desktop | PASS — mobile sekitar 499 px; desktop sekitar 627 px |
 | TR-08 | PWA/push notification berisiko tidak konsisten | Startup meng-unregister setiap service worker bernama `sw.js`, termasuk worker aktif | `src/main.tsx` | Production build menghasilkan `dist/sw.js` | PASS — unregister loop dihapus |
 | TR-09 | Secret tidak boleh berada di repository | Fixie credential pernah hardcoded pada utility test | `test-proxy.ts`; `test-proxy.js` | Working-tree secret scan | PASS — tidak ada credential Fixie plaintext; contoh placeholder dokumentasi bukan secret; credential lama wajib dirotasi |
-| TR-10 | Zero regression | Perubahan menyentuh routing, payment, auth, dan responsive UI | Seluruh scope v5.16.5 | `lint`; 23 test files / 119 tests; build; authenticated browser QA | PASS lokal; produksi pending |
+| TR-10 | Zero regression | Perubahan menyentuh routing, payment, auth, dan responsive UI | Seluruh scope v5.16.5 | `lint`; 23 test files / 119 tests; build; authenticated browser QA; production smoke test | PASS lokal dan produksi |
+
+### 8.2 Bukti deployment
+
+| Item | Hasil |
+|------|-------|
+| Commit runtime | `4c6556955045baa37784227b481cb06cdcd2d9b2` |
+| GitHub/Vercel status | `success` |
+| VPS Git/PM2 | HEAD sesuai commit runtime, worktree bersih, `sps-backend` online |
+| Warm-up | Health pertama sesaat setelah restart menangkap HTTP 502; health berikutnya dari localhost dan domain publik lulus HTTP 200 |
+| VPS rollback artifact | `/opt/backups/sps-backend-pre-v5.16.5-20260728-033909.*` + `stash@{0}` |
+| Browser cache observation | Tab lama sempat menampilkan v5.16.2, sedangkan asset origin sudah v5.16.5; ini cache/service-worker lama, bukan kegagalan build baru |
+| Payment eksternal | Tidak dibuat pada smoke test agar tidak menciptakan transaksi iPaymu riil; transport dan guard diverifikasi tanpa side effect |
 
 ## 9. ROLLBACK PLAN
 
@@ -343,7 +361,7 @@ Sebelum implementasi dinyatakan selesai, setiap path harus diverifikasi:
 |------|--------|
 | Versi runtime/repo saat diagnosis | v5.16.4 |
 | Versi implementasi | v5.16.5 PATCH |
-| Status v5.16.5 | Implementasi dan QA lokal selesai; deployment pending |
+| Status v5.16.5 | Deployed; local QA dan production smoke test lulus; monitoring user flow berjalan |
 | Update package/UI | `package.json`, lockfile, Home, Dashboard, dan Portal sudah v5.16.5 |
 
 ## 13. DOKUMEN TERKAIT

@@ -1,6 +1,6 @@
 # Implementation Plan v5.16.5 — Safe Failover, iPaymu, Auth, dan Notifikasi Mobile
 
-> **Status:** APPROVED AND EXECUTED — LOCAL QA PASSED, DEPLOYMENT PENDING
+> **Status:** APPROVED, EXECUTED, AND DEPLOYED — MONITORING
 > **Runtime change:** Implementasi mengikuti scope minimum; tidak ada migration atau dependency baru
 > **Target version setelah seluruh gate lulus:** v5.16.5 PATCH
 > **Prinsip:** Perbaiki hanya yang terbukti perlu. Tidak melakukan refactor besar.
@@ -352,7 +352,12 @@ Setelah rollback:
 | Health lokal source terbaru | `status=ok`, runtime `vps`, transport `direct`; unauthenticated payment POST ditolak 401 |
 | Backup VPS | `/opt/backups/sps-backend-pre-v5.16.5-20260728-033909.*` terverifikasi checksum; drift juga disimpan di `stash@{0}` |
 | Rekonsiliasi VPS | 12 modified files identik dengan Git setelah normalisasi CRLF/LF; tidak ada hotfix unik yang dibuang |
-| Deployment | Pending sampai commit/push, restart PM2, dan production smoke test selesai |
+| Runtime commit | `4c6556955045baa37784227b481cb06cdcd2d9b2` |
+| Deployment VPS | Fast-forward tanpa reset; PM2 online; health publik dan localhost lulus |
+| Deployment Vercel | GitHub status success; runtime `vercel`, iPaymu transport `fixie` |
+| Production auth guard | Payment POST tanpa token ditolak 401 pada VPS dan Vercel |
+| Production bundle | Home v5.16.5, bell mobile Dashboard/Portal, dan Checkout ambiguous guard terverifikasi pada asset origin |
+| Deployment | Selesai; status operasional `MONITORING` karena transaksi iPaymu riil sengaja tidak dibuat saat smoke test |
 
 ## 13. DEVIASI DARI PLAN DAN ALASAN
 
