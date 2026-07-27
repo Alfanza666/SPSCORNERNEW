@@ -231,8 +231,11 @@ const FIXIE_URL =
   !process.env.FIXIE_URL.includes("YOUR_FIXIE_PROXY_URL")
     ? process.env.FIXIE_URL
     : null;
+const IPAYMU_RUNTIME = process.env.VERCEL ? "vercel" : "vps";
+const IPAYMU_REQUIRE_STATIC_EGRESS = IPAYMU_RUNTIME === "vercel";
 const getIpaymuAxiosConfig = __name(() => {
-  // Priority 1: No proxy, but force IPv4 so it uses the whitelisted IP (45.158.126.76). Fixie fallback remains Priority 2.
+  if (IPAYMU_REQUIRE_STATIC_EGRESS) return {};
+  // VPS menggunakan IPv4 publik yang sudah di-whitelist; Fixie tetap fallback.
   return {
     httpsAgent: new https.Agent({ family: 4 })
   };
@@ -251,17 +254,25 @@ const ipaymuClient = new IpaymuClient(
   IPAYMU_API_KEY,
   IPAYMU_PRODUCTION,
   getIpaymuAxiosConfig(),
-  FIXIE_URL
+  FIXIE_URL,
+  IPAYMU_REQUIRE_STATIC_EGRESS
 );
 console.log("\u{1F4B3} Ipaymu Config:", {
   va: IPAYMU_VA ? "\u2713 Set" : "\u2717 Not Set",
   apiKey: IPAYMU_API_KEY ? "\u2713 Set (hidden)" : "\u2717 Not Set",
   production: IPAYMU_PRODUCTION,
   baseUrl: IPAYMU_PRODUCTION ? "https://my.ipaymu.com" : "https://sandbox.ipaymu.com",
+  runtime: IPAYMU_RUNTIME,
+  transport: ipaymuClient.getTransportMode(),
 });
 // Health check
 app.get("/api/test-ping", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    runtime: IPAYMU_RUNTIME,
+    ipaymuTransport: ipaymuClient.getTransportMode(),
+  });
 });
 
 // Register modular route groups

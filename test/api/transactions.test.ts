@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+// @vitest-environment node
+
 import request from 'supertest';
 import app from '../../server.js';
 

@@ -10,14 +10,142 @@ export function registerPaymentRoutes(app, {
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
 }) {
   // Auth helper — returns buyer_id or null
+  function routeError(statusCode, code, message, ambiguous = false) {
+    const error: any = new Error(message);
+    error.statusCode = statusCode;
+    error.code = code;
+    error.ambiguous = ambiguous;
+    return error;
+  }
+
+  function isAuthUpstreamFailure(error) {
+    const message = String(error?.message || error?.cause?.message || "").toLowerCase();
+    return Number(error?.status) >= 500
+      || message.includes("fetch failed")
+      || message.includes("timeout")
+      || message.includes("econn")
+      || message.includes("und_err");
+  }
+
   async function requireUser(req) {
     const authHeader = req.headers.authorization;
     if (!authHeader) return null;
     const token = authHeader.split(" ")[1];
     if (!token) return null;
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
-    return user.id;
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      if (error && isAuthUpstreamFailure(error)) {
+        throw routeError(503, "AUTH_UPSTREAM_UNAVAILABLE", "Layanan autentikasi sementara tidak tersedia.");
+      }
+      if (error || !user) return null;
+      return user.id;
+    } catch (error) {
+      if (error?.statusCode) throw error;
+      if (isAuthUpstreamFailure(error)) {
+        throw routeError(503, "AUTH_UPSTREAM_UNAVAILABLE", "Layanan autentikasi sementara tidak tersedia.");
+      }
+      throw error;
+    }
+  }
+
+  async function loadPayableTransaction(transactionId, buyerId) {
+    const { data: transaction, error } = await supabase
+      .from("transactions")
+      .select(`
+        id,
+        buyer_id,
+        buyer_name,
+        buyer_phone,
+        total_amount,
+        status,
+        payment_method,
+        payment_details,
+        transaction_items(quantity, price, metadata, products(name))
+      `)
+      .eq("id", transactionId)
+      .single();
+
+    if (error || !transaction) {
+      if (error?.code === "PGRST116") {
+        throw routeError(404, "TRANSACTION_NOT_FOUND", "Transaksi tidak ditemukan.");
+      }
+      throw routeError(503, "TRANSACTION_LOOKUP_UNAVAILABLE", "Data transaksi sementara tidak dapat diperiksa.");
+    }
+    if (transaction.buyer_id !== buyerId) {
+      throw routeError(403, "TRANSACTION_FORBIDDEN", "Transaksi bukan milik pengguna ini.");
+    }
+    if (String(transaction.status).toLowerCase() !== "pending") {
+      throw routeError(409, "TRANSACTION_NOT_PENDING", "Transaksi sudah tidak berstatus pending.");
+    }
+
+    const paymentDetails = transaction.payment_details && typeof transaction.payment_details === "object"
+      ? transaction.payment_details
+      : {};
+    if (paymentDetails.ipaymu_trx_id || paymentDetails.ipaymu_sid) {
+      throw routeError(409, "IPAYMU_PAYMENT_ALREADY_CREATED", "Permintaan pembayaran iPaymu untuk transaksi ini sudah dibuat.");
+    }
+
+    return { ...transaction, payment_details: paymentDetails };
+  }
+
+  function paymentItemsFromTransaction(transaction) {
+    const items = Array.isArray(transaction.transaction_items)
+      ? transaction.transaction_items
+      : [];
+    if (!items.length) {
+      return {
+        product: ["Transaction"],
+        qty: ["1"],
+        price: [Math.round(Number(transaction.total_amount)).toString()],
+      };
+    }
+
+    return {
+      product: items.map((item) => {
+        const product = Array.isArray(item.products) ? item.products[0] : item.products;
+        return String(product?.name || item.metadata?.product_name || "Produk SPS Corner");
+      }),
+      qty: items.map((item) => String(item.quantity || 1)),
+      price: items.map((item) => String(Math.round(Number(item.price)))),
+    };
+  }
+
+  async function saveIpaymuReference(transaction, response) {
+    const transactionId = response.Data?.TransactionId || null;
+    const sessionId = response.Data?.SessionId || null;
+    if (!transactionId && !sessionId) return;
+
+    const { error } = await supabase
+      .from("transactions")
+      .update({
+        payment_details: {
+          ...transaction.payment_details,
+          ipaymu_trx_id: transactionId,
+          ipaymu_sid: sessionId,
+          ipaymu_status: "created",
+        },
+      })
+      .eq("id", transaction.id)
+      .eq("buyer_id", transaction.buyer_id);
+
+    if (error) {
+      throw routeError(
+        502,
+        "IPAYMU_REFERENCE_PERSIST_FAILED",
+        "Pembayaran mungkin sudah dibuat, tetapi referensinya belum tersimpan. Jangan ulangi pembayaran; periksa riwayat transaksi.",
+        true,
+      );
+    }
+  }
+
+  function sendRouteError(res, error, fallbackMessage) {
+    const statusCode = Number(error?.statusCode) || 500;
+    return res.status(statusCode).json({
+      success: false,
+      error: error?.message || fallbackMessage,
+      code: error?.code || "INTERNAL_ERROR",
+      ambiguous: Boolean(error?.ambiguous),
+    });
   }
 
   const gatewayStatusIsPaid = (payload: any) => {
@@ -85,26 +213,21 @@ export function registerPaymentRoutes(app, {
       if (!buyerId) return res.status(401).json({ success: false, error: "Unauthorized" });
       const {
         transaction_id,
-        amount,
-        buyer_name,
         buyer_email,
         buyer_phone,
-        items = [],
-      } = req.body;
-      if (
-        !buyer_name ||
-        !buyer_email ||
-        !buyer_phone ||
-        !amount ||
-        !transaction_id
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error:
-              "Missing required fields: buyer_name, buyer_email, buyer_phone, amount, transaction_id",
-          });
+      } = req.body || {};
+      if (!transaction_id) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required field: transaction_id",
+          code: "TRANSACTION_ID_REQUIRED",
+        });
+      }
+      const transaction = await loadPayableTransaction(transaction_id, buyerId);
+      const serverEmail = transaction.payment_details.buyer_email || buyer_email;
+      const serverPhone = transaction.buyer_phone || buyer_phone;
+      if (!serverEmail || !serverPhone) {
+        throw routeError(400, "BUYER_CONTACT_REQUIRED", "Email dan nomor telepon pembeli wajib tersedia.");
       }
       if (!IPAYMU_VA || !IPAYMU_API_KEY) {
         return res
@@ -116,45 +239,31 @@ export function registerPaymentRoutes(app, {
       }
       const appUrl = process.env.APP_URL || "https://spscorner.store";
       const apiUrl = process.env.API_URL || "https://api.spscorner.store";
-      let cleanName = (buyer_name || "Customer")
+      let cleanName = (transaction.buyer_name || "Customer")
         .replace(/[^a-zA-Z\s]/g, "")
         .trim();
       if (cleanName.length < 3 || cleanName.toLowerCase().includes("test")) {
         cleanName = "Pelanggan SPS Corner";
       }
       if (cleanName.length < 3) cleanName = "Pelanggan";
+      const canonicalItems = paymentItemsFromTransaction(transaction);
       const paymentData = {
-        product: [],
-        qty: [],
-        price: [],
-        amount: Math.round(Number(amount)).toString(),
+        ...canonicalItems,
+        amount: Math.round(Number(transaction.total_amount)).toString(),
         returnUrl: `${appUrl}/kiosk/success?id=${transaction_id}`,
         cancelUrl: `${appUrl}/kiosk/cart`,
         notifyUrl: `${apiUrl}/api/payment/ipaymu/callback`,
         referenceId: String(transaction_id),
         buyerName: cleanName,
-        buyerPhone:
-          buyer_phone ||
-          "0812" + Math.floor(1e7 + Math.random() * 9e7).toString(),
-        buyerEmail:
-          buyer_email ||
-          `${cleanName.replace(/\s+/g, "").toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1e3)}@gmail.com`,
+        buyerPhone: serverPhone,
+        buyerEmail: serverEmail,
       };
-      if (items && Array.isArray(items) && items.length > 0) {
-        paymentData.product = items.map((i) => String(i.name || i.product_name));
-        paymentData.qty = items.map((i) => String(i.quantity || 1));
-        paymentData.price = items.map((i) => String(Math.round(Number(i.price))));
-      } else {
-        paymentData.product = ["Transaction"];
-        paymentData.qty = ["1"];
-        paymentData.price = [Math.round(Number(amount)).toString()];
-      }
       console.log("\u{1F4DD} Payment Request:", {
         reference_id: transaction_id,
-        amount,
-        buyer_name,
+        amount: transaction.total_amount,
       });
       const response = await ipaymuClient.createPayment(paymentData);
+      await saveIpaymuReference(transaction, response);
       res.json({
         success: true,
         payment_url: response.Data?.Url,
@@ -162,7 +271,7 @@ export function registerPaymentRoutes(app, {
       });
     } catch (error) {
       console.error("\u274C Payment Creation Error:", error);
-      res.status(500).json({ success: false, error: error.message });
+      sendRouteError(res, error, "Gagal membuat pembayaran iPaymu.");
     }
   });
 
@@ -584,37 +693,43 @@ export function registerPaymentRoutes(app, {
       if (!buyerId) return res.status(401).json({ success: false, error: "Unauthorized" });
       const {
         transaction_id,
-        amount,
-        buyer_name,
         buyer_email,
         buyer_phone,
         payment_method = "qris",
         payment_channel = "qris",
       } = req.body || {};
-      if (
-        !buyer_name ||
-        !buyer_email ||
-        !buyer_phone ||
-        !amount ||
-        !transaction_id
-      ) {
-        return res
-          .status(400)
-          .json({ success: false, error: "Missing required fields" });
+      if (!transaction_id) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required field: transaction_id",
+          code: "TRANSACTION_ID_REQUIRED",
+        });
+      }
+      const transaction = await loadPayableTransaction(transaction_id, buyerId);
+      const serverEmail = transaction.payment_details.buyer_email || buyer_email;
+      const serverPhone = transaction.buyer_phone || buyer_phone;
+      if (!serverEmail || !serverPhone) {
+        throw routeError(400, "BUYER_CONTACT_REQUIRED", "Email dan nomor telepon pembeli wajib tersedia.");
       }
       if (!IPAYMU_VA || !IPAYMU_API_KEY) {
         return res
           .status(500)
           .json({ success: false, error: "Ipaymu not configured" });
       }
-      const appUrl = process.env.APP_URL || "https://spscorner.store";
       const apiUrl = process.env.API_URL || "https://api.spscorner.store";
-      let method = (payment_method || "qris").toLowerCase();
+      let method = String(transaction.payment_method || payment_method || "qris").toLowerCase();
       let channel = (payment_channel || "qris").toLowerCase();
       if (method === "qris") {
         channel = "mpm";
       }
-      let cleanName = (buyer_name || "Customer")
+      const allowedChannels = {
+        qris: ["mpm"],
+        va: ["bca", "mandiri"],
+      };
+      if (!allowedChannels[method]?.includes(channel)) {
+        throw routeError(400, "PAYMENT_CHANNEL_INVALID", "Metode atau kanal pembayaran tidak didukung.");
+      }
+      let cleanName = (transaction.buyer_name || "Customer")
         .replace(/[^a-zA-Z\s]/g, "")
         .trim();
       if (cleanName.length < 3 || cleanName.toLowerCase().includes("test")) {
@@ -623,13 +738,9 @@ export function registerPaymentRoutes(app, {
       if (cleanName.length < 3) cleanName = "Pelanggan";
       const directPaymentData = {
         name: cleanName,
-        phone:
-          buyer_phone ||
-          "0812" + Math.floor(1e7 + Math.random() * 9e7).toString(),
-        email:
-          buyer_email ||
-          `${cleanName.replace(/\s+/g, "").toLowerCase().substring(0, 10)}${Math.floor(Math.random() * 1e3)}@gmail.com`,
-        amount: Math.round(Number(amount)),
+        phone: serverPhone,
+        email: serverEmail,
+        amount: Math.round(Number(transaction.total_amount)),
         comments: `Payment for transaction ${transaction_id}`,
         notifyUrl: `${apiUrl}/api/payment/ipaymu/callback`,
         referenceId: String(transaction_id),
@@ -641,21 +752,7 @@ export function registerPaymentRoutes(app, {
         payment_channel: channel,
       });
       const response = await ipaymuClient.createDirectPayment(directPaymentData);
-
-      // Simpan ipaymu_trx_id ke transaction agar callback bisa mencari
-      if (response.Data?.TransactionId) {
-        await supabase
-          .from('transactions')
-          .update({
-            payment_details: {
-              ipaymu_trx_id: response.Data.TransactionId,
-              ipaymu_sid: response.Data.SessionId || null,
-              ipaymu_status: 'created',
-            },
-          })
-          .eq('id', transaction_id);
-        console.log(`[iPaymu] Saved ipaymu_trx_id=${response.Data.TransactionId} for tx ${transaction_id}`);
-      }
+      await saveIpaymuReference(transaction, response);
 
       res.json({
         success: true,
@@ -664,7 +761,7 @@ export function registerPaymentRoutes(app, {
       });
     } catch (error) {
       console.error("\u274C Direct Payment Error:", error);
-      res.status(500).json({ success: false, error: error.message });
+      sendRouteError(res, error, "Gagal membuat pembayaran langsung iPaymu.");
     }
   });
 

@@ -1,5 +1,6 @@
 import { IpaymuSignature } from './signature.js';
 import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 export interface RedirectPaymentData {
   product?: string[];
@@ -45,35 +46,74 @@ export class IpaymuClient {
   private axiosConfig: any;
   private fixieUrl: string | null;
   private axiosInstance: any;
+  private requireStaticEgress: boolean;
 
-  constructor(va: string, apiKey: string, production: boolean = false, axiosConfig: any = {}, fixieUrl: string | null = null) {
+  constructor(
+    va: string,
+    apiKey: string,
+    production: boolean = false,
+    axiosConfig: any = {},
+    fixieUrl: string | null = null,
+    requireStaticEgress: boolean = false,
+  ) {
     this.va = va.trim();
     this.apiKey = apiKey.trim();
     this.baseUrl = production
       ? 'https://my.ipaymu.com/api/v2'
       : 'https://sandbox.ipaymu.com/api/v2';
-    this.axiosConfig = axiosConfig;
     this.fixieUrl = fixieUrl;
-      
-    // Setup Axios Instance with Fallback Interceptor
-    this.axiosInstance = axios.create(this.axiosConfig);
-    this.axiosInstance.interceptors.response.use(
-      (response: any) => response,
-      async (error: any) => {
-        const originalRequest = error.config;
-        if (!originalRequest._retry && this.fixieUrl && (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 407 || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT')) {
-          originalRequest._retry = true;
-          console.log('⚠️ [iPaymu] Direct request failed, retrying via Fixie proxy...');
-          const { HttpsProxyAgent } = await import('https-proxy-agent');
-          originalRequest.httpsAgent = new HttpsProxyAgent(this.fixieUrl);
-          originalRequest.proxy = false;
-          return this.axiosInstance(originalRequest);
+    this.requireStaticEgress = requireStaticEgress;
+    this.axiosConfig = requireStaticEgress && fixieUrl
+      ? {
+          ...axiosConfig,
+          httpsAgent: new HttpsProxyAgent(fixieUrl),
+          proxy: false,
         }
-        return Promise.reject(error);
-      }
-    );
+      : axiosConfig;
+      
+    // Transport dipilih sebelum request. Payment POST tidak boleh direplay
+    // melalui jalur kedua setelah request pertama sudah dikirim.
+    this.axiosInstance = axios.create(this.axiosConfig);
 
     console.log(`[Ipaymu] Mode: ${production ? 'PRODUCTION' : 'SANDBOX'}`);
+  }
+
+  getTransportMode(): 'direct' | 'fixie' | 'unavailable' {
+    if (this.requireStaticEgress) return this.fixieUrl ? 'fixie' : 'unavailable';
+    return 'direct';
+  }
+
+  private ensureTransportReady(): void {
+    if (!this.requireStaticEgress || this.fixieUrl) return;
+
+    const error: any = new Error('Static egress iPaymu belum tersedia pada runtime serverless.');
+    error.statusCode = 503;
+    error.code = 'IPAYMU_STATIC_EGRESS_UNAVAILABLE';
+    error.ambiguous = false;
+    throw error;
+  }
+
+  private createGatewayError(error: any, fallbackMessage: string): Error {
+    const upstreamMessage = error.response?.data?.Message
+      || error.response?.data?.message
+      || error.message
+      || fallbackMessage;
+    const unauthorized = error.response?.status === 401
+      || String(upstreamMessage).toLowerCase().includes('unauthorized');
+    const uncertain = Boolean(error.request && !error.response);
+    const gatewayError: any = new Error(
+      unauthorized
+        ? 'Konfigurasi jaringan iPaymu ditolak. Silakan hubungi Admin.'
+        : `Gagal memproses pembayaran iPaymu: ${upstreamMessage}`,
+    );
+    gatewayError.statusCode = 502;
+    gatewayError.code = unauthorized
+      ? 'IPAYMU_UPSTREAM_UNAUTHORIZED'
+      : uncertain
+        ? 'IPAYMU_REQUEST_UNCERTAIN'
+        : 'IPAYMU_UPSTREAM_ERROR';
+    gatewayError.ambiguous = uncertain;
+    return gatewayError;
   }
 
   /**
@@ -81,6 +121,7 @@ export class IpaymuClient {
    * User akan diarahkan ke payment page Ipaymu
    */
   async createPayment(data: RedirectPaymentData): Promise<IpaymuResponse> {
+    this.ensureTransportReady();
     const { signature, timestamp, jsonBody } = IpaymuSignature.generate(
       this.va,
       data,
@@ -111,11 +152,7 @@ export class IpaymuClient {
       }
     } catch (error: any) {
       console.error('❌ Payment Error:', error.response?.data || error.message);
-      let errMsg = error.response?.data?.Message || error.response?.data?.message || error.message;
-      if (error.response?.status === 401 || errMsg?.toLowerCase().includes('unauthorized')) {
-        errMsg = "Konfigurasi IPaymu belum sesuai atau Sandbox/Production tertukar. Silakan hubungi Admin.";
-      }
-      throw new Error(`Gagal memproses pembayaran IPaymu: ${errMsg}`);
+      throw this.createGatewayError(error, 'Payment creation failed');
     }
   }
 
@@ -124,6 +161,7 @@ export class IpaymuClient {
    * Payment langsung tanpa redirect ke Ipaymu
    */
   async createDirectPayment(data: DirectPaymentData): Promise<IpaymuResponse> {
+    this.ensureTransportReady();
     const { signature, timestamp, jsonBody } = IpaymuSignature.generate(
       this.va,
       data,
@@ -154,11 +192,7 @@ export class IpaymuClient {
       }
     } catch (error: any) {
       console.error('❌ Direct Payment Error:', error.response?.data || error.message);
-      let errMsg = error.response?.data?.Message || error.response?.data?.message || error.message;
-      if (error.response?.status === 401 || errMsg?.toLowerCase().includes('unauthorized')) {
-        errMsg = "Konfigurasi IPaymu API belum sesuai atau Sandbox/Production tertukar. Hubungi Admin.";
-      }
-      throw new Error(`Gagal memproses pembayaran IPaymu: ${errMsg}`);
+      throw this.createGatewayError(error, 'Direct payment failed');
     }
   }
 
@@ -167,6 +201,7 @@ export class IpaymuClient {
    * Per docs: https://docs.ipaymu.com/id/docs/transaction/check-transaction
    */
   async getTransactionStatus(transactionId: string): Promise<any> {
+    this.ensureTransportReady();
     const body = { transactionId: transactionId, account: this.va };
     const { signature, timestamp, jsonBody } = IpaymuSignature.generate(
       this.va,
@@ -208,6 +243,7 @@ export class IpaymuClient {
     orderBy?: string;
     order?: string;
   } = {}): Promise<any> {
+    this.ensureTransportReady();
     const body: Record<string, any> = {};
     if (filters.status) body.status = filters.status;
     if (filters.date) body.date = filters.date;
@@ -247,6 +283,7 @@ export class IpaymuClient {
    * Get available payment methods
    */
   async getPaymentMethods(): Promise<any> {
+    this.ensureTransportReady();
     try {
       const response = await this.axiosInstance.get(`${this.baseUrl}/payment-methods`, this.axiosConfig);
       const responseData = response.data;

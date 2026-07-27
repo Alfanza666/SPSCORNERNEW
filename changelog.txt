@@ -1,3 +1,23 @@
+v5.16.5 - Safe API Failover, iPaymu Integrity, Auth Sync, dan Mobile Notification (PATCH)
+--------------------------------------------------------------------------------
+### Payment & Failover:
+- GET/HEAD tetap dapat fallback VPS→Vercel; POST/PUT/PATCH/DELETE tidak lagi blind replay setelah primary sudah dicoba.
+- Vercel menggunakan Fixie sejak request iPaymu pertama dan fail-fast 503 bila static egress tidak tersedia.
+- Endpoint iPaymu memvalidasi owner, status pending, nominal, item, dan existing reference dari database.
+- Checkout membedakan definitive/ambiguous failure dan memakai transaksi existing untuk retry yang aman.
+
+### Auth & Notification:
+- Lifecycle Supabase Auth disinkronkan secara selektif; timeout upstream menjadi 503, bukan Unauthorized palsu.
+- Logout UI dibatasi ke sesi lokal.
+- Service worker aktif tidak lagi di-unregister pada setiap startup.
+- Root cause bell mobile diperbaiki: blur header dibatasi mulai breakpoint `sm`, sehingga dropdown fixed tidak terperangkap dalam containing block header.
+
+### Security, QA, dan Dokumentasi:
+- Kredensial Fixie hardcoded di `test-proxy.*` dihapus dan diganti `FIXIE_URL`.
+- Menambahkan regression test failover, auth classification, iPaymu transport, dan canonical payment data.
+- QA lulus: lint; 23 test files / 119 tests; production build; browser admin desktop/mobile 301×663.
+- Dokumentasi: `docs/CAPA-v5.16.5.md` dan `docs/IMPLEMENTATION-PLAN-v5.16.5.md`.
+
 v5.16.4 - Monitoring: Stale Pending Transactions + Supabase Settings + VPS Verification (PATCH)
 --------------------------------------------------------------------------------
 ### Background Job:

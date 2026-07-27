@@ -150,32 +150,52 @@ function LoadingFallback() {
 }
 
 export default function App() {
-  const { fetchProfile, setUser, user } = useAuthStore();
-  const isAuthInit = useRef(false);
+  const { fetchProfile, setUser } = useAuthStore();
+  const sessionUserId = useRef<string | null>(null);
+  const profileRequestUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) fetchProfile(session.user.id);
-      else setUser(null);
-      isAuthInit.current = true;
-    });
+    let active = true;
+    const syncSession = (event: string, session: any) => {
+      if (!active) return;
+      const userId = session?.user?.id || null;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // === NUCLEAR OPTION: BLOCK ALL FOCUS EVENTS ===
-      // Supabase calls this on every window focus to validate tokens.
-      // We completely ignore this event after the first load to prevent ANY re-renders.
-      if (isAuthInit.current) return;
-
-      // First time load only
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
+      if (event === 'SIGNED_OUT' || !userId) {
+        sessionUserId.current = null;
         setUser(null);
+        return;
       }
-      isAuthInit.current = true;
+
+      sessionUserId.current = userId;
+      const currentUser = useAuthStore.getState().user;
+      const shouldRefreshProfile = event === 'USER_UPDATED'
+        || currentUser?.id !== userId;
+      if (shouldRefreshProfile && profileRequestUserId.current !== userId) {
+        profileRequestUserId.current = userId;
+        void fetchProfile(userId)
+          .then(() => {
+            if (sessionUserId.current === null) setUser(null);
+          })
+          .finally(() => {
+            if (profileRequestUserId.current === userId) profileRequestUserId.current = null;
+          });
+      }
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncSession('INITIAL_SESSION', session);
+    }).catch((error) => {
+      console.error('Failed to restore auth session:', error);
     });
 
-    return () => subscription.unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      syncSession(event, session);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile, setUser]);
 
   useEffect(() => {

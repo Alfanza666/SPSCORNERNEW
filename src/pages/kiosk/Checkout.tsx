@@ -248,31 +248,37 @@ export default function Checkout() {
         headers['Authorization'] = `Bearer ${session.access_token}`;
       }
 
-      const createRes = await fetch('/api/transactions/create', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(txData)
-      });
+      let tx: any;
+      if (transactionId) {
+        tx = { id: transactionId };
+      } else {
+        const createRes = await fetch('/api/transactions/create', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(txData)
+        });
 
-      if (!createRes.ok) {
-        let errorMessage = 'Failed to create transaction';
-        try {
-          const text = await createRes.text();
+        if (!createRes.ok) {
+          let errorMessage = 'Failed to create transaction';
           try {
-            const errorData = JSON.parse(text);
-            errorMessage = errorData?.error || errorMessage;
+            const text = await createRes.text();
+            try {
+              const errorData = JSON.parse(text);
+              errorMessage = errorData?.error || errorMessage;
+            } catch (e) {
+              console.error('Non-JSON error response from create:', text);
+              errorMessage = `Server error (${createRes.status}): ${text.slice(0, 100)}`;
+            }
           } catch (e) {
-            console.error('Non-JSON error response from create:', text);
-            errorMessage = `Server error (${createRes.status}): ${text.slice(0, 100)}`;
+            console.error('Failed to read error response:', e);
           }
-        } catch (e) {
-          console.error('Failed to read error response:', e);
+          throw new Error(errorMessage);
         }
-        throw new Error(errorMessage);
+        ({ transaction: tx } = await createRes.json());
+        setTransactionId(tx.id);
+        txIdRef.current = tx.id;
+        saveGuestTransaction(tx.id);
       }
-      const { transaction: tx } = await createRes.json();
-      setTransactionId(tx.id);
-      saveGuestTransaction(tx.id);
       setPaymentLocked(true);
       sessionStorage.setItem('paymentLocked', 'true');
       setLoadingMessage('Menghubungkan ke gerbang pembayaran iPaymu...');
@@ -308,11 +314,13 @@ export default function Checkout() {
 
       if (!ipaymuRes.ok) {
         let errorMessage = 'Failed to create IPaymu direct payment';
+        let ambiguous = false;
         try {
           const text = await ipaymuRes.text();
           try {
             const errorData = JSON.parse(text);
             errorMessage = errorData?.error || errorMessage;
+            ambiguous = Boolean(errorData?.ambiguous);
           } catch (e) {
             console.error('Non-JSON error response from ipaymu direct:', text);
             errorMessage = `Server error (${ipaymuRes.status}): ${text.slice(0, 100)}`;
@@ -320,7 +328,9 @@ export default function Checkout() {
         } catch (e) {
           console.error('Failed to read error response:', e);
         }
-        throw new Error(errorMessage);
+        const paymentError: any = new Error(errorMessage);
+        paymentError.ambiguous = ambiguous;
+        throw paymentError;
       }
 
       const { data } = await ipaymuRes.json();
@@ -329,7 +339,14 @@ export default function Checkout() {
 
     } catch (error: any) {
       console.error('Direct Payment error:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+      const ambiguous = error?.ambiguous || error?.message === 'PRIMARY_API_REQUEST_UNCERTAIN';
+      if (ambiguous) {
+        toast.error('Status permintaan pembayaran belum dapat dipastikan. Jangan ulangi pembayaran; periksa riwayat transaksi.');
+      } else {
+        setPaymentLocked(false);
+        sessionStorage.removeItem('paymentLocked');
+        toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+      }
     } finally {
       setLoading(false);
       isCreatingTx.current = false;
@@ -755,6 +772,8 @@ buyer_email: buyerEmail,
       if (cleanName.length < 3) cleanName = "Pelanggan";
 
       // 2. Create IPaymu Payment
+      setPaymentLocked(true);
+      sessionStorage.setItem('paymentLocked', 'true');
       const ipaymuRes = await fetch('/api/payment/ipaymu/create', {
         method: 'POST',
         headers,
@@ -774,11 +793,13 @@ buyer_email: buyerEmail,
 
       if (!ipaymuRes.ok) {
         let errorMessage = 'Failed to create IPaymu payment';
+        let ambiguous = false;
         try {
           const text = await ipaymuRes.text();
           try {
             const errorData = JSON.parse(text);
             errorMessage = errorData?.error || errorMessage;
+            ambiguous = Boolean(errorData?.ambiguous);
           } catch (e) {
             console.error('Non-JSON error response from ipaymu:', text);
             errorMessage = `Server error (${ipaymuRes.status}): ${text.slice(0, 100)}`;
@@ -786,7 +807,9 @@ buyer_email: buyerEmail,
         } catch (e) {
           console.error('Failed to read error response:', e);
         }
-        throw new Error(errorMessage);
+        const paymentError: any = new Error(errorMessage);
+        paymentError.ambiguous = ambiguous;
+        throw paymentError;
       }
 
       const { payment_url } = await ipaymuRes.json();
@@ -798,7 +821,14 @@ buyer_email: buyerEmail,
       window.location.href = payment_url;
     } catch (error: any) {
       console.error('Payment error:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+      const ambiguous = error?.ambiguous || error?.message === 'PRIMARY_API_REQUEST_UNCERTAIN';
+      if (ambiguous) {
+        toast.error('Status permintaan pembayaran belum dapat dipastikan. Jangan ulangi pembayaran; periksa riwayat transaksi.');
+      } else {
+        setPaymentLocked(false);
+        sessionStorage.removeItem('paymentLocked');
+        toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+      }
       setLoading(false);
       isCreatingTx.current = false;
     }

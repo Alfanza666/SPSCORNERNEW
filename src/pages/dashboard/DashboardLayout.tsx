@@ -605,7 +605,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-3 text-center text-[8px] font-black uppercase tracking-[0.3em] text-zinc-300 dark:text-zinc-600">
-                      v5.16.2
+                      v5.16.5
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
@@ -625,7 +625,7 @@ export default function DashboardLayout() {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 relative">
         {/* Top Header */}
-        <header className="h-16 sm:h-20 lg:h-24 bg-white/85 dark:bg-zinc-900/85 backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-3 sm:px-6 md:px-12 sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-colors duration-300">
+        <header className="h-16 sm:h-20 lg:h-24 bg-white/85 dark:bg-zinc-900/85 sm:backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-3 sm:px-6 md:px-12 sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-colors duration-300">
           <div className="flex min-w-0 items-center gap-2 sm:gap-6">
             <button
               onClick={() => setIsSidebarOpen(true)}
@@ -645,7 +645,7 @@ export default function DashboardLayout() {
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3 md:gap-8">
             <Menu as="div" className="relative">
-              <Menu.Button className="relative clay-icon h-10 w-10 bg-white text-zinc-400 hover:text-blue-600 focus:outline-none sm:h-12 sm:w-12 dark:bg-zinc-800 dark:text-zinc-500 dark:hover:text-blue-400">
+              <Menu.Button type="button" aria-label="Buka notifikasi" className="relative clay-icon h-10 w-10 bg-white text-zinc-400 hover:text-blue-600 focus:outline-none sm:h-12 sm:w-12 dark:bg-zinc-800 dark:text-zinc-500 dark:hover:text-blue-400">
                 <Bell className="h-5 w-5 sm:h-6 sm:w-6" />
                 {unreadCount > 0 && (
                   <span className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500 shadow-sm sm:right-3 sm:top-3 dark:border-zinc-800" />
