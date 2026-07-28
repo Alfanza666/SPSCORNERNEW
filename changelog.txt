@@ -1,3 +1,14 @@
+v5.16.6 - Safari/WebKit Payment Upload Hotfix (PATCH)
+-----------------------------------------------------
+### Payment & Failover:
+- Mempertahankan body `RequestInit` asli saat routing request `/api/*` menuju VPS atau fallback Vercel.
+- Menghapus konversi body POST menjadi `Request`/`ReadableStream` yang ditolak Safari/WebKit.
+- Kebijakan aman v5.16.5 tetap berlaku: GET/HEAD boleh fallback, sedangkan mutating request tidak diulang setelah hasil primary tidak pasti.
+
+### QA & Prevention:
+- Menambahkan regression test untuk POST menuju primary dan fallback yang mensimulasikan error `ReadableStream uploading is not supported`.
+- Dokumentasi insiden dan pencegahan tersedia di `docs/CAPA-v5.16.6.md`.
+
 v5.16.5 - Safe API Failover, iPaymu Integrity, Auth Sync, dan Mobile Notification (PATCH)
 --------------------------------------------------------------------------------
 ### Payment & Failover:

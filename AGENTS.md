@@ -309,13 +309,14 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **🚨 Atomic Ops: Read-then-update untuk balance/points TIDAK BOLEH — gunakan atomic increment.** Lihat `docs/AUDIT-v5.16.2.md` temuan C13.
 - **🚨 HTML Injection: Semua user-generated content yang di-render ke HTML WAJIB di-sanitize.** Lihat `docs/AUDIT-v5.16.2.md` temuan C02, C14.
 - **🚨 API Failover Rule: VPS adalah primary dan Vercel + Fixie adalah fallback. GET/HEAD boleh auto-fallback, tetapi mutating request/payment DILARANG blind replay setelah timeout/5xx tanpa idempotency + status verification.** Lihat `docs/CAPA-v5.16.5.md`.
+- **🚨 Safari/WebKit Upload Rule: DILARANG membungkus ulang body mutating request menjadi `Request`/`ReadableStream` di global fetch failover. Pertahankan body `RequestInit` asli dan wajib uji jalur primary serta fallback dengan simulasi WebKit.** Lihat `docs/CAPA-v5.16.6.md`.
 - **🚨 iPaymu Egress Rule: Request iPaymu dari VPS boleh direct melalui IP tetap yang di-whitelist; request dari Vercel WAJIB melalui Fixie/static egress yang terverifikasi.**
 - **🚨 Auth State Rule: DILARANG mengabaikan seluruh event `onAuthStateChange` setelah startup. `TOKEN_REFRESHED`, `SIGNED_IN`, dan `SIGNED_OUT` harus ditangani secara selektif agar Zustand dan sesi Supabase tetap sinkron.**
 - **🚨 VPS Drift Rule: DILARANG `git reset --hard`, menghapus untracked files, atau menimpa worktree VPS yang drift sebelum backup + diff. Hotfix manual valid wajib dipindahkan ke Git.**
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
-- Current version: `v5.16.5`.
+- Current version: `v5.16.6`.
 - `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
 - CI/CD via VPS cron (git pull tiap 5 menit).
 - ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1`.
@@ -335,6 +336,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 |---------|--------|-----|
 | CAPA v5.16.2 | `docs/CAPA-v5.16.2.md` | PostgREST crash fix + auto-reconcile |
 | CAPA v5.16.5 | `docs/CAPA-v5.16.5.md` | Auth intermittent, safe failover VPS/Vercel/Fixie, payment integrity, notification mobile, deployment drift |
+| CAPA v5.16.6 | `docs/CAPA-v5.16.6.md` | Safari/WebKit payment upload hotfix dan pencegahan Request body stream |
 | Implementation Plan v5.16.5 | `docs/IMPLEMENTATION-PLAN-v5.16.5.md` | Approved scope, impact, QA gates, execution record, dan rollback |
 | Changelog | `changelog.txt` | Riwayat pembaruan |
 | Reconciliation SQL | `scripts/reconcile_fn.sql` | DB function untuk deteksi mismatch |

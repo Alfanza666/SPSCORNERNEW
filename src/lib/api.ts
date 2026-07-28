@@ -58,21 +58,21 @@ export function patchGlobalFetch(): (() => void) | undefined {
   void checkPrimary(orig);
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const req = input instanceof Request
-      ? new Request(input, init)
-      : new Request(new URL(String(input), window.location.origin), init);
-    const url = req.url;
-    const requestUrl = new URL(url, window.location.origin);
+    // Internal application calls use URL/string + RequestInit. Keep Request
+    // objects untouched because rebuilding their body turns it into a
+    // ReadableStream that Safari/WebKit cannot upload reliably.
+    if (input instanceof Request) return orig(input, init);
+
+    const requestUrl = new URL(String(input), window.location.origin);
 
     if (requestUrl.origin === window.location.origin && requestUrl.pathname.startsWith('/api/')) {
       const path = `${requestUrl.pathname}${requestUrl.search}`;
-      const readOnly = isReadOnlyRequest(req.method);
+      const readOnly = isReadOnlyRequest(init?.method);
       const alive = await checkPrimary(orig);
 
       if (alive) {
         try {
-          const primaryRequest = new Request(`${PRIMARY_API}${path}`, req.clone());
-          const res = await orig(primaryRequest);
+          const res = await orig(`${PRIMARY_API}${path}`, init);
           if (res.ok || res.status < 500) return res;
           usePrimary = false;
           if (!readOnly) return res;
@@ -82,11 +82,7 @@ export function patchGlobalFetch(): (() => void) | undefined {
         }
       }
 
-      const fallbackRequest = new Request(
-        `${window.location.origin}${path}`,
-        req.clone(),
-      );
-      return orig(fallbackRequest);
+      return orig(`${window.location.origin}${path}`, init);
     }
 
     return orig(input, init);
