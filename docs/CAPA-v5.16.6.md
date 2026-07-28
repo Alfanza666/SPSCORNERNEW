@@ -8,7 +8,7 @@
 | Dampak | Pengguna Safari/WebKit dapat gagal membuat transaksi atau membuka pembayaran otomatis; seluruh mutating request `/api/*` yang melalui global fetch wrapper berpotensi terdampak |
 | Kerugian | Nilai finansial belum dapat dipastikan; risiko operasional berupa checkout gagal dan pengguna menekan pembayaran berulang |
 | Durasi | Bukti pengguna diterima 29 Juli 2026; hotfix lokal selesai pada hari yang sama |
-| Status | MONITORING — implementasi dan QA lokal lulus; verifikasi produksi wajib dilakukan setelah deployment |
+| Status | MONITORING — hotfix produksi aktif, QA otomatis/lokal/production smoke lulus; menunggu verifikasi checkout pada iPhone pengguna |
 
 ## 2. ROOT CAUSE ANALYSIS (RCA)
 
@@ -124,7 +124,7 @@ return orig(`${window.location.origin}${path}`, init);
 | 10 | Mutating POST ketika primary healthy | Body JSON tetap `RequestInit`, dikirim sekali ke VPS | PASS — automated |
 | 11 | Mutating POST ketika preflight primary gagal | Body JSON tetap utuh, dikirim sekali ke Vercel | PASS — automated |
 | 12 | Mutating POST ketika hasil primary tidak pasti | Tidak ada blind replay | PASS — automated |
-| 13 | Health check dan log produksi | Endpoint sehat dan tidak ada error baru terkait deployment | PENDING DEPLOYMENT |
+| 13 | Health check produksi | VPS primary dan Vercel fallback merespons 200 dengan runtime/transport yang benar | PASS |
 | 14 | Safari/iPhone produksi | Tidak ada `ReadableStream uploading is not supported` pada checkout | PENDING USER/DEVICE VERIFICATION |
 
 ## 8. CLEANUP DAN BATAS SCOPE
@@ -147,7 +147,20 @@ return orig(`${window.location.origin}${path}`, init);
 | Changelog | `changelog.txt` |
 | Operating rules | `AGENTS.md` |
 
-## 10. VERSION STATUS
+## 10. DEPLOYMENT EVIDENCE
+
+| Item | Bukti |
+|------|-------|
+| Commit implementasi | `8ea145c` — `fix: preserve payment bodies on Safari WebKit` |
+| GitHub | `main` berhasil dipush pada 29 Juli 2026 |
+| Production main asset | `/assets/index-D9W8Q9Ff.js` |
+| Production Home asset | `/assets/Home-D2-1-XqE.js`, memuat `v5.16.6` |
+| Wrapper produksi | Memuat `PRIMARY_API_REQUEST_UNCERTAIN`; tidak memuat `.clone()` di sekitar global API wrapper |
+| VPS primary | `GET https://api.spscorner.store/api/test-ping` → 200, `runtime=vps`, `ipaymuTransport=direct` |
+| Vercel fallback | `GET https://spscorner.store/api/test-ping` → 200, `runtime=vercel`, `ipaymuTransport=fixie` |
+| PM2 error log | Tidak dibaca karena koneksi SSH ditutup VPS; backend tidak diubah atau direstart pada hotfix frontend ini |
+
+## 11. VERSION STATUS
 
 | Item | Nilai |
 |------|-------|
@@ -155,4 +168,4 @@ return orig(`${window.location.origin}${path}`, init);
 | UI version | Home, Dashboard, dan Portal diperbarui |
 | Database | Tidak berubah |
 | Backend business logic | Tidak berubah |
-| Deployment | PENDING |
+| Deployment | LIVE — production smoke PASS; monitoring perangkat Safari/iPhone |

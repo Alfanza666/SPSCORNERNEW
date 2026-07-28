@@ -7,6 +7,8 @@ v5.16.6 - Safari/WebKit Payment Upload Hotfix (PATCH)
 
 ### QA & Prevention:
 - Menambahkan regression test untuk POST menuju primary dan fallback yang mensimulasikan error `ReadableStream uploading is not supported`.
+- QA lulus: lint; 23 test files / 120 tests; production build; login admin lokal; dashboard dan notifikasi mobile 390×844.
+- Deployment terverifikasi: frontend v5.16.6 aktif; VPS primary dan Vercel fallback sama-sama merespons health check 200.
 - Dokumentasi insiden dan pencegahan tersedia di `docs/CAPA-v5.16.6.md`.
 
 v5.16.5 - Safe API Failover, iPaymu Integrity, Auth Sync, dan Mobile Notification (PATCH)
