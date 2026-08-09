@@ -1,6 +1,14 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
 import { IpaymuSignature } from "../services/ipaymu/signature.js";
+// FIX H: Valid points_history types (DB constraint enforced):
+//   'earned', 'spent', 'expired', 'refund', 'compensation'
+
+// ── iPaymu callback monitoring: count unverified callbacks per hour ──
+let unverifiedCallbackCount = 0;
+let unverifiedCallbackWindowStart = Date.now();
+const UNVERIFIED_ALERT_THRESHOLD = 5;
+const UNVERIFIED_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 export function registerPaymentRoutes(app, {
   supabase, sendNotification, ipaymuClient, sendSarirotiEmailInternal,
@@ -305,6 +313,18 @@ export function registerPaymentRoutes(app, {
           .status(400)
           .json({ success: false, error: "Missing required fields" });
       }
+
+      // FIX F: Atomic idempotency lock — klaim transaksi untuk diproses
+      const { data: claimed, error: claimError } = await supabase
+        .from("transactions")
+        .update({ status: "processing" })
+        .eq("id", transaction_id)
+        .eq("status", "pending")
+        .select()
+        .single();
+      if (!claimed || claimError) {
+        return res.status(409).json({ success: false, error: "Transaksi sedang diproses atau sudah tidak pending." });
+      }
       const base64Data = receipt_image.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
       const mimeType =
@@ -443,20 +463,8 @@ export function registerPaymentRoutes(app, {
             error: `Bukti transfer tidak valid: ${verificationResult.reason}`,
           });
       }
-      const { error: updateError } = await supabase
-        .from("transactions")
-        .update({
-          status: "paid",
-          receipt_image: receiptUrl,
-          payment_details: {
-            ...existingPaymentDetails,
-            receipt_uploaded: true,
-            manual_verify: true,
-            verified_at: new Date().toISOString(),
-          },
-        })
-        .eq("id", transaction_id);
-      if (updateError) throw updateError;
+      // ── Reorder (FIX B-1): commit stock SEBELUM update status "paid" ──
+      // Kalau stock commit gagal, status tetap "pending" → bisa di-retry.
       const previousStatus = txRecord?.status;
       const { data: txData, error: txFetchError } = await supabase
         .from("transactions")
@@ -474,9 +482,33 @@ export function registerPaymentRoutes(app, {
             const stockCommit = await commitTransactionStock(transaction_id);
             if (!stockCommit.success) throw new Error(stockCommit.error || 'Stok gagal dikunci setelah pembayaran');
           }
+        }
+      }
+      // Update status ke "paid" SETELAH stock berhasil di-commit
+      const { error: updateError } = await supabase
+        .from("transactions")
+        .update({
+          status: "paid",
+          receipt_image: receiptUrl,
+          payment_details: {
+            ...existingPaymentDetails,
+            receipt_uploaded: true,
+            manual_verify: true,
+            verified_at: new Date().toISOString(),
+          },
+        })
+        .eq("id", transaction_id);
+      if (updateError) throw updateError;
+      // Post-payment processing SETELAH status "paid"
+      if (!txFetchError && txData && txData.transaction_items) {
+        if (
+          previousStatus !== "paid" &&
+          previousStatus !== "success"
+        ) {
           await updateSellerBalances(txData.transaction_items, transaction_id);
           await checkLowStockAndNotify(txData.transaction_items);
-          await updateBuyerPoints(transaction_id, txData.buyer_id, txData.total_amount);
+          // FIX G: Points earned berdasarkan amount yang benar-benar dibayar
+          await updateBuyerPoints(transaction_id, txData.buyer_id, getChargeableAmount(txData));
         }
         await processDigitalItems(transaction_id, txData.transaction_items);
         await triggerSarirotiEmail(
@@ -488,6 +520,12 @@ export function registerPaymentRoutes(app, {
       res.json({ success: true, message: "Payment verified successfully" });
     } catch (error) {
       console.error("❌ Manual Verification Error:", error);
+      // FIX F: Rollback status ke 'pending' agar bisa dicoba ulang
+      try {
+        if (transaction_id) {
+          await supabase.from("transactions").update({ status: "pending" }).eq("id", transaction_id).eq("status", "processing");
+        }
+      } catch (rbErr) { console.error("[ManualVerify] Rollback failed:", rbErr); }
       try {
         if (transaction_id && receiptUrl) {
           const { data: currentTx } = await supabase
@@ -836,6 +874,16 @@ export function registerPaymentRoutes(app, {
         }
       } else {
         console.warn('[iPaymu] No signature in callback — skipping verification');
+        // ── Monitoring: track unverified callbacks ──
+        const now = Date.now();
+        if (now - unverifiedCallbackWindowStart > UNVERIFIED_WINDOW_MS) {
+          unverifiedCallbackCount = 0;
+          unverifiedCallbackWindowStart = now;
+        }
+        unverifiedCallbackCount++;
+        if (unverifiedCallbackCount > UNVERIFIED_ALERT_THRESHOLD) {
+          console.error(`[iPaymu ALERT] Suspicious: ${unverifiedCallbackCount} callbacks without signature in last 1 hour`);
+        }
       }
       
       const statusRaw = body.status || body.Status || body.payment_status || '';
@@ -893,6 +941,24 @@ export function registerPaymentRoutes(app, {
         return res.status(404).json({ error: "Transaction not found" });
       }
 
+      // ── Audit trail: flag callback without signature (non-blocking) ──
+      if (!receivedSignature) {
+        try {
+          await supabase
+            .from("transactions")
+            .update({
+              payment_details: {
+                ...(transaction.payment_details || {}),
+                unverified_callback: true,
+                unverified_at: new Date().toISOString(),
+              },
+            })
+            .eq("id", refId);
+        } catch (flagErr) {
+          console.warn(`[iPaymu] Failed to set unverified_callback flag for ${refId}:`, flagErr);
+        }
+      }
+
       // ─── Guard: jangan timpa transaksi yg sudah berhasil/dibayar dengan status gagal/pending ───
       if ((txStatus === "failed" || txStatus === "pending") && (transaction.status === "paid" || transaction.status === "success")) {
         console.log(`[iPaymu] Skip overwrite tx ${refId}: already ${transaction.status}, ignoring "${txStatus}" callback`);
@@ -942,7 +1008,22 @@ export function registerPaymentRoutes(app, {
         return res.json({ success: true });
       }
 
-      // ─── Paid/Pending flow: update status dulu (order existing) ───
+      // ─── Reorder (FIX B-2): stock commit SEBELUM update status "paid" ───
+      // Kalau stock commit gagal, status tetap "pending" → iPaymu bisa retry.
+      if (txStatus === "paid") {
+        if (transaction.metadata?.stock_deducted && transaction.metadata?.stock_restored && deductTransactionStock) {
+          await deductTransactionStock(refId);
+        } else {
+          const stockCommit = await commitTransactionStock(refId);
+          if (!stockCommit.success) {
+            console.error(`[iPaymu] WARNING: Stock commit failed for ${refId}: ${stockCommit.error}. Status kept pending for retry.`);
+            // Jangan update status — biarkan "pending" agar iPaymu retry
+            return res.json({ success: true, message: "Payment received, stock commit pending" });
+          }
+        }
+      }
+
+      // ─── Update status SETELAH stock berhasil di-commit ───
       const { error: updateError } = await supabase
         .from("transactions")
         .update({
@@ -958,26 +1039,36 @@ export function registerPaymentRoutes(app, {
         .eq("id", refId);
       if (updateError) throw updateError;
 
-      // ─── Stock re-deduction: jika auto-cleanup sudah restore stock, deduct kembali ───
-      if (txStatus === "paid") {
-        if (transaction.metadata?.stock_deducted && transaction.metadata?.stock_restored && deductTransactionStock) await deductTransactionStock(refId);
-        else {
-          const stockCommit = await commitTransactionStock(refId);
-          if (!stockCommit.success) {
-            console.error(`[iPaymu] WARNING: Stock commit failed for ${refId}: ${stockCommit.error}. Payment is confirmed — stock must be fixed manually.`);
-          }
-        }
-      }
-
       if (
         txStatus === "paid" &&
         transaction.status !== "paid" &&
         transaction.status !== "success" &&
         transaction.transaction_items
       ) {
-        try { await updateSellerBalances(transaction.transaction_items, refId); } catch (e) { console.error(`[iPaymu] Seller balance update failed for ${refId}:`, e); }
+        try {
+          await updateSellerBalances(transaction.transaction_items, refId);
+        } catch (e) {
+          console.error(`[iPaymu] Seller balance update failed for ${refId}:`, e);
+          // FIX C: save flag untuk retry di auto-reconcile
+          try {
+            await supabase.from('transactions').update({
+              payment_details: { ...(transaction.payment_details || {}), seller_balance_failed: true, seller_balance_error: String(e?.message || e) }
+            }).eq('id', refId);
+          } catch (_) { /* non-blocking */ }
+        }
         try { await checkLowStockAndNotify(transaction.transaction_items); } catch (e) { console.error(`[iPaymu] Low stock check failed for ${refId}:`, e); }
-        try { await updateBuyerPoints(refId, transaction.buyer_id, transaction.total_amount); } catch (e) { console.error(`[iPaymu] Buyer points update failed for ${refId}:`, e); }
+        try {
+          // FIX G: Points earned berdasarkan amount yang benar-benar dibayar
+          await updateBuyerPoints(refId, transaction.buyer_id, getChargeableAmount(transaction));
+        } catch (e) {
+          console.error(`[iPaymu] Buyer points update failed for ${refId}:`, e);
+          // FIX C: save flag untuk retry di auto-reconcile
+          try {
+            await supabase.from('transactions').update({
+              payment_details: { ...(transaction.payment_details || {}), buyer_points_failed: true }
+            }).eq('id', refId);
+          } catch (_) { /* non-blocking */ }
+        }
         try { await processDigitalItems(refId, transaction.transaction_items); } catch (e) { console.error(`[iPaymu] Digital items processing failed for ${refId}:`, e); }
         try {
           await triggerSarirotiEmail(

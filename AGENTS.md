@@ -316,10 +316,18 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **🚨 Loyalty Point Rule: Setiap payment endpoint WAJIB cek `metadata.remaining_amount` sebelum charge ke payment gateway. Gunakan helper `getChargeableAmount(transaction)`.** Lihat `docs/CAPA-v5.16.7.md`.
 - **🚨 Cancel Refund Rule: Setiap cancel path (buyer cancel, admin reject, iPaymu failed, auto-cleanup) WAJIB panggil `refundTransactionPoints(transactionId)` setelah stock restore.** Lihat `docs/CAPA-v5.16.7.md`.
 - **🚨 Points Pay Atomicity: Potong point dan update status transaksi WAJIB atomic atau ada kompensasi rollback. Cek `point_payment_processed` untuk idempotency.** Lihat `docs/CAPA-v5.16.7.md`.
+- **🚨 Stock-First Rule: `commitTransactionStock()` WAJIB dipanggil SEBELUM status update ke 'paid'/'success'. Jika stock gagal, status tetap pending.** Lihat `docs/CAPA-v5.16.7.md` section 8.2.
+- **🚨 iPaymu Callback Monitoring: Callback tanpa validasi signature wajib set `unverified_callback: true` di `payment_details`. Auto-reconcile retry gagal settlement.** Lihat `docs/CAPA-v5.16.7.md` section 8.1, 8.3.
+- **🚨 Settlement Failure Flags: Jika `updateSellerBalances()` atau `updateBuyerPoints()` gagal, simpan flag `seller_balance_failed`/`buyer_points_failed` di `payment_details` untuk retry oleh auto-reconcile.** Lihat `docs/CAPA-v5.16.7.md` section 8.3.
+- **🚨 Phantom History Prevention: `points_history` insert WAJIB dilakukan HANYA jika RPC/fallback points increment BERHASIL. Jangan insert history di luar success check.** Lihat `docs/CAPA-v5.16.7.md` section 8.4.
+- **🚨 Points Race Condition: Semua fallback read-then-write untuk loyalty_points WAJIB pakai `.gte()` guard untuk mencegah concurrent overwrite.** Lihat `docs/CAPA-v5.16.7.md` section 8.5.
+- **🚨 Idempotency Lock: Manual verify dan admin approve WAJIB pakai atomic status lock (`UPDATE WHERE status='pending'` / `'manual_verification'`) sebelum proses. Rollback ke status asal di catch block.** Lihat `docs/CAPA-v5.16.7.md` section 8.6.
+- **🚨 Point Earn Correct Amount: Points earned WAJIB dihitung dari `getChargeableAmount(transaction)`, bukan `total_amount`.** Lihat `docs/CAPA-v5.16.7.md` section 8.7.
+- **🚨 points_history Valid Types: HANYA `'earned'`, `'spent'`, `'expired'`, `'refund'`, `'compensation'` yang diizinkan DB CHECK constraint. DILARANG insert type lain.** Lihat `docs/CAPA-v5.16.7.md` section 8.8.
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
-- Current version: `v5.16.6`.
+- Current version: `v5.16.7`.
 - `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
 - CI/CD via VPS cron (git pull tiap 5 menit).
 - ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1`.

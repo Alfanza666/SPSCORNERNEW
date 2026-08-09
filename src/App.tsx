@@ -216,7 +216,15 @@ export default function App() {
       <BrowserRouter>
         <Tutorial />
         <PWAInstallPrompt />
-        <Toaster position="top-center" />
+        <Toaster
+          position="top-center"
+          gutter={12}
+          containerStyle={{ zIndex: 99999 }}
+          toastOptions={{
+            // Default duration untuk toast biasa (custom toast punya duration sendiri)
+            duration: 4000,
+          }}
+        />
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />

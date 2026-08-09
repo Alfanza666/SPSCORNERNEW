@@ -25,6 +25,17 @@ v5.16.7 - Critical Payment & Point Fix (PATCH)
 - QA lupos: lint; production build; login admin lokal.
 - Dokumentasi insiden dan pencegahan tersedia di `docs/CAPA-v5.16.7.md`.
 
+### Extended Fixes (AUDIT v5.16.6 Continued):
+- FIX A: iPaymu unverified callback monitoring — in-memory counter per hour + flag di `payment_details`.
+- FIX B: Stock commit reorder — `commitTransactionStock()` dipanggil SEBELUM status update; auto-reconcile buyer points.
+- FIX C: Seller balance & buyer points failure flags — flag `seller_balance_failed`/`buyer_points_failed` di `payment_details` + auto-reconcile retry.
+- FIX D: Phantom point history — `points_history` insert hanya dilakukan jika RPC/fallback berhasil.
+- FIX E: Points earning race condition — tambah `.gte()` guard di fallback read-then-write.
+- FIX F: Idempotency lock — atomic status lock (`UPDATE WHERE status='pending'`/`'manual_verification'`) + rollback di catch block.
+- FIX G: Point reward calculation — gunakan `getChargeableAmount()` / `getAutoReconcileChargeableAmount()` di semua `updateBuyerPoints()` calls.
+- FIX H: points_history type constraint documentation — komentar valid types di `payment.js` dan `payments.ts`.
+- 9 rules baru ditambahkan ke AGENTS.md Gotchas.
+
 v5.16.6 - Safari/WebKit Payment Upload Hotfix (PATCH)
 -----------------------------------------------------
 ### Payment & Failover:

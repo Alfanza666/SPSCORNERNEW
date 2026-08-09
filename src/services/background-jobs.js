@@ -8,8 +8,9 @@ let commitStock = null;
 let deductStock = null;
 let buildDailyReportEmailFn = null;
 let refundPointsFn = null;
+let updateBuyerPointsFn = null;
 
-export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn, commitTransactionStockFn, deductTransactionStockFn, buildDailyReportEmail, refundTransactionPointsFn) {
+export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn, commitTransactionStockFn, deductTransactionStockFn, buildDailyReportEmail, refundTransactionPointsFn, updateBuyerPointsFnParam) {
   supabaseInstance = supabase;
   sendNotif = sendNotification;
   restoreStock = restoreTransactionStock;
@@ -19,6 +20,7 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   deductStock = deductTransactionStockFn;
   buildDailyReportEmailFn = buildDailyReportEmail || null;
   refundPointsFn = refundTransactionPointsFn || null;
+  updateBuyerPointsFn = updateBuyerPointsFnParam || null;
 
   if (typeof process !== 'undefined' && process.env && process.env.VERCEL) return;
 
@@ -47,6 +49,15 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   // ── Stale pending transactions scan every 10 minutes ───────────────
   scanStalePendingTransactions();
   setInterval(scanStalePendingTransactions, 10 * 60 * 1e3);
+}
+
+// FIX G: Get correct chargeable amount for point calculation
+function getAutoReconcileChargeableAmount(tx) {
+  const pd = tx.payment_details || {};
+  if (pd.loyalty_points_used && pd.loyalty_points_used > 0) {
+    return Number(pd.paid_amount) || tx.total_amount;
+  }
+  return Number(tx.total_amount) || 0;
 }
 
 let lastReconNotif = null; // deduplikasi notifikasi gap yang sama
@@ -134,6 +145,79 @@ async function autoReconcileTransactions() {
     if (logKey !== lastReconcileLog) {
       console.log(`[AutoReconcile] Processed ${mismatches.length} mismatches: ${fixedCount} fixed, ${failedCount} failed`);
       lastReconcileLog = logKey;
+    }
+
+    // ── FIX C: Retry failed seller balance & buyer points (flag-based) ──
+    try {
+      const { data: flaggedTx } = await supabaseInstance
+        .from('transactions')
+        .select('id, buyer_id, total_amount, payment_details')
+        .eq('status', 'paid')
+        .or('payment_details->>seller_balance_failed.eq.true,payment_details->>buyer_points_failed.eq.true')
+        .limit(20);
+      if (flaggedTx && flaggedTx.length > 0) {
+        for (const ft of flaggedTx) {
+          const pd = ft.payment_details || {};
+          if (pd.seller_balance_failed) {
+            try {
+              const { error: retryErr } = await supabaseInstance.rpc('apply_seller_balance_for_transaction', { p_transaction_id: ft.id });
+              if (!retryErr) {
+                await supabaseInstance.from('transactions').update({
+                  payment_details: { ...pd, seller_balance_failed: false, seller_balance_error: null }
+                }).eq('id', ft.id);
+                fixedCount++;
+                console.log(`[AutoReconcile] Seller balance retry OK for ${ft.id.slice(0, 8)}`);
+              }
+            } catch (e) { console.warn(`[AutoReconcile] Seller balance retry fail for ${ft.id.slice(0, 8)}:`, e); }
+          }
+          if (pd.buyer_points_failed && updateBuyerPointsFn) {
+            try {
+              await updateBuyerPointsFn(ft.id, ft.buyer_id, getAutoReconcileChargeableAmount(ft));
+              const { data: freshTx } = await supabaseInstance.from('transactions').select('payment_details').eq('id', ft.id).single();
+              await supabaseInstance.from('transactions').update({
+                payment_details: { ...(freshTx?.payment_details || pd), buyer_points_failed: false }
+              }).eq('id', ft.id);
+              fixedCount++;
+              console.log(`[AutoReconcile] Buyer points retry OK for ${ft.id.slice(0, 8)}`);
+            } catch (e) { console.warn(`[AutoReconcile] Buyer points retry fail for ${ft.id.slice(0, 8)}:`, e); }
+          }
+        }
+      }
+    } catch (flagErr) {
+      console.error('[AutoReconcile] Error querying flagged transactions:', flagErr);
+    }
+
+    // ── FIX B-3: Fix missing buyer points ──
+    if (updateBuyerPointsFn) {
+      try {
+        const { data: missingPoints, error: mpErr } = await supabaseInstance
+          .from('transactions')
+          .select('id, buyer_id, total_amount, payment_details')
+          .eq('status', 'paid')
+          .not('buyer_id', 'is', null)
+          .limit(50);
+        if (!mpErr && missingPoints && missingPoints.length > 0) {
+          for (const tx of missingPoints) {
+            try {
+              // Check apakah sudah ada points_history untuk transaksi ini
+              const { data: existing } = await supabaseInstance
+                .from('points_history')
+                .select('id')
+                .eq('transaction_id', tx.id)
+                .eq('type', 'earned')
+                .limit(1);
+              if (existing && existing.length > 0) continue; // sudah ada, skip
+
+              await updateBuyerPointsFn(tx.id, tx.buyer_id, getAutoReconcileChargeableAmount(tx));
+              console.log(`[AutoReconcile] Fixed missing buyer points for tx ${tx.id.slice(0, 8)}`);
+            } catch (pointsErr) {
+              console.error(`[AutoReconcile] Points fix failed for tx ${tx.id.slice(0, 8)}:`, pointsErr);
+            }
+          }
+        }
+      } catch (pointsQueryErr) {
+        console.error('[AutoReconcile] Error querying missing buyer points:', pointsQueryErr);
+      }
     }
 
     // Notify admins of persistent failures

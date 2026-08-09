@@ -79,7 +79,7 @@ initNotificationService(supabase, webpush);
 initStockService(supabase, sendNotification, sendWANotification);
 initEmailService(supabase, nodemailer);
 initPaymentService(supabase);
-initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStock, commitTransactionStock, deductTransactionStock, buildDailyReportEmail, refundTransactionPoints);
+initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStock, commitTransactionStock, deductTransactionStock, buildDailyReportEmail, refundTransactionPoints, updateBuyerPoints);
 initWANotification(supabase);
 
 

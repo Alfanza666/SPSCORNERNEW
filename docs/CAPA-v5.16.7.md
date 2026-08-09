@@ -122,3 +122,87 @@
 | RESEARCH Stock Commit | `docs/RESEARCH-stock-commit-v5.16.6.md` |
 | Changelog | `changelog.txt` |
 | AGENTS.md | `AGENTS.md` |
+
+---
+
+## 8. EXTENDED FIXES (AUDIT v5.16.6 Continued)
+
+### 8.1 FIX A — iPaymu Unverified Callback Monitoring
+
+| Item | Keterangan |
+|------|-----------|
+| Masalah | Callback tanpa validasi signature hanya dilog tapi tidak ada alerting atau audit trail |
+| Dampak | Potensi payment bypass tidak terdeteksi sampai seller komplain |
+| Solusi | In-memory counter per hour + unverified flag disimpan ke `payment_details` |
+| File | `payments.ts:5-11,835-852,1000-1011` |
+| Mekanisme | Jika `receivedSignature !== validSignature`, counter += 1; jika counter > 5, log warning; flag `unverified_callback: true` + `unverified_at` disimpan ke DB |
+
+### 8.2 FIX B — Stock Commit Reorder + Buyer Points Auto-Reconcile
+
+| Item | Keterangan |
+|------|-----------|
+| Masalah | Seller balance + buyer points bisa terlewat jika `commitTransactionStock()` gagal sebelum status update |
+| Dampak | Seller tidak dapat bayaran; buyer tidak dapat poin |
+| Solusi | Pindahkan `commitTransactionStock()` SEBELUM status update; tambahkan auto-reconcile buyer points |
+| File | `payments.ts:501-509,1041-1055` + `background-jobs.js:141-153,183-215` |
+| Mekanisme | (1) Manual verify & iPaymu callback: stock diproses dulu, baru update status. (2) Auto-reconcile: query `transactions` where `status=paid` tanpa `points_history`, limit 50, periksa per tx apakah sudah ada points_history type='earned' |
+
+### 8.3 FIX C — Silent Failure: Seller Balance & Buyer Points Failure Flags
+
+| Item | Keterangan |
+|------|-----------|
+| Masalah | Jika `updateSellerBalances()` atau `updateBuyerPoints()` gagal, error di-log tapi tidak ada mekanisme retry |
+| Dampak | Seller balance atau buyer points hilang permanen |
+| Solusi | Simpan flag `seller_balance_failed`/`buyer_points_failed` di `payment_details`; auto-reconcile retry + clear flag |
+| File | `payments.ts:505-515,1051-1066` + `background-jobs.js:141-168` |
+| Mekanisme | Catch block di manual verify & iPaymu callback set flag di `payment_details`; auto-reconcile query flag-based dan retry, clear flag on success |
+
+### 8.4 FIX D — Phantom Point History
+
+| Item | Keterangan |
+|------|-----------|
+| Masalah | `points_history` insert dilakukan di luar success check — jika RPC & fallback gagal, phantom record terbuat |
+| Dampak | Point history tidak akurat; user lihat poin di history tapi tidak ada di saldo |
+| Solusi | Insert `points_history` hanya dilakukan JIKA RPC atau fallback berhasil (`source` variable) |
+| File | `payment.js:105-150` |
+| Mekanisme | Tambah variabel `source`; set ke `'rpc'` atau `'fallback'` hanya saat success; insert history di dalam `if (source)` block |
+
+### 8.5 FIX E — Points Earning Race Condition
+
+| Item | Keterangan |
+|------|-----------|
+| Masalah | Fallback read-then-write di `updateBuyerPoints()` dan `refundTransactionPoints()` tanpa `.gte()` guard |
+| Dampak | Concurrent update bisa overwrite — point duplikat atau hilang |
+| Solusi | Tambah `.gte('loyalty_points', currentPoints)` di semua fallback update |
+| File | `payment.js:38-51,118-126` |
+| Mekanisme | Baca `currentPoints`, lalu update dengan `.gte('loyalty_points', currentPoints)` — jika nilai berubah karena concurrent, update gagal |
+
+### 8.6 FIX F — Idempotency Lock: Manual Verify & Admin Approve
+
+| Item | Keterangan |
+|------|-----------|
+| Masalah | Double-click atau race condition bisa memicu proses ganda (double settlement) |
+| Dampak | Double seller balance, double buyer points, stock double-deducted |
+| Solusi | Atomic status lock: `UPDATE SET status='processing' WHERE status='pending'`; rollback ke asal di catch block |
+| File | `payments.ts:316-323` + `transactions.ts:64-75,155-161` |
+| Mekanisme | (1) Manual verify: `UPDATE status='processing' WHERE status='pending'` → jika gagal, return 409. (2) Admin approve: `UPDATE status='processing' WHERE status='manual_verification'` → jika gagal, return 409. (3) Catch block: rollback ke status asal |
+
+### 8.7 FIX G — Point Reward Calculation: Correct Amount
+
+| Item | Keterangan |
+|------|-----------|
+| Masalah | Points earned dihitung dari `total_amount` bukan `paid_amount` — user yang bayar parsial dapet poin berlebihan |
+| Dampak | Loyalty point inflated untuk partial payments |
+| Solusi | Gunakan `getChargeableAmount(transaction)` di semua `updateBuyerPoints()` calls |
+| File | `payments.ts:508,1059` + `background-jobs.js:60-67,166,211` |
+| Mekanisme | `getAutoReconcileChargeableAmount(tx)` cek `payment_details.loyalty_points_used`, return `paid_amount` jika pakai point |
+
+### 8.8 FIX H — points_history Type Constraint Documentation
+
+| Item | Keterangan |
+|------|-----------|
+| Masalah | Valid types tidak terdokumentasi di kode; developer bisa insert type yang ditolak DB |
+| Dampak | DB CHECK constraint error jika type invalid |
+| Solusi | Tambah komentar dokumentasi di `payment.js` dan `payments.ts` |
+| File | `payment.js:1-4`, `payments.ts:1-6` |
+| Valid Types | `'earned'`, `'spent'`, `'expired'`, `'refund'`, `'compensation'` |

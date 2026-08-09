@@ -61,6 +61,19 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       .single();
     if (profile?.role !== "admin" && profile?.role !== "superadmin")
       return res.status(403).json({ error: "Forbidden: Admin only" });
+
+    // FIX F: Atomic idempotency lock — klaim transaksi untuk diproses
+    const { data: claimed, error: claimError } = await supabase
+      .from("transactions")
+      .update({ status: "processing" })
+      .eq("id", transaction_id)
+      .eq("status", "manual_verification")
+      .select()
+      .single();
+    if (!claimed || claimError) {
+      return res.status(409).json({ error: "Transaksi sedang diproses atau sudah tidak manual_verification." });
+    }
+
     const { data: transaction, error: txError } = await supabase
       .from("transactions")
       .select("*, transaction_items(*)")
@@ -68,8 +81,6 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       .single();
     if (txError || !transaction)
       return res.status(404).json({ error: "Transaction not found" });
-    if (transaction.status === "success" || transaction.status === "paid")
-      return res.status(400).json({ error: "Transaction already processed" });
     const { error: updateError } = await supabase
       .from("transactions")
       .update({ status: "success" })
@@ -142,6 +153,12 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
     res.json({ success: true, message: "Transaction approved and processed" });
   } catch (error) {
     console.error("Error approving transaction:", error);
+    // FIX F: Rollback status ke 'manual_verification' agar bisa dicoba ulang
+    try {
+      if (transaction_id) {
+        await supabase.from("transactions").update({ status: "manual_verification" }).eq("id", transaction_id).eq("status", "processing");
+      }
+    } catch (rbErr) { console.error("[AdminApprove] Rollback failed:", rbErr); }
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
