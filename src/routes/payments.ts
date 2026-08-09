@@ -5,7 +5,7 @@ import { IpaymuSignature } from "../services/ipaymu/signature.js";
 export function registerPaymentRoutes(app, {
   supabase, sendNotification, ipaymuClient, sendSarirotiEmailInternal,
   sendWANotification, processDigitalItems, updateSellerBalances,
-  updateBuyerPoints, triggerSarirotiEmail, checkLowStockAndNotify,
+  updateBuyerPoints, refundTransactionPoints, triggerSarirotiEmail, checkLowStockAndNotify,
   sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock, commitTransactionStock,
   IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
 }) {
@@ -48,6 +48,20 @@ export function registerPaymentRoutes(app, {
     }
   }
 
+  /**
+   * Get the amount that should actually be charged to the payment gateway.
+   * If loyalty points were applied (partial-pay), remaining_amount is stored
+   * in metadata. Charge that instead of total_amount.
+   */
+  function getChargeableAmount(transaction) {
+    const meta = transaction.metadata || {};
+    const remaining = Number(meta.remaining_amount);
+    if (meta.point_payment && remaining > 0 && remaining < Number(transaction.total_amount)) {
+      return Math.round(remaining);
+    }
+    return Math.round(Number(transaction.total_amount));
+  }
+
   async function loadPayableTransaction(transactionId, buyerId) {
     const { data: transaction, error } = await supabase
       .from("transactions")
@@ -60,6 +74,7 @@ export function registerPaymentRoutes(app, {
         status,
         payment_method,
         payment_details,
+        metadata,
         transaction_items(quantity, price, metadata, products(name))
       `)
       .eq("id", transactionId)
@@ -247,9 +262,10 @@ export function registerPaymentRoutes(app, {
       }
       if (cleanName.length < 3) cleanName = "Pelanggan";
       const canonicalItems = paymentItemsFromTransaction(transaction);
+      const chargeableAmount = getChargeableAmount(transaction);
       const paymentData = {
         ...canonicalItems,
-        amount: Math.round(Number(transaction.total_amount)).toString(),
+        amount: chargeableAmount.toString(),
         returnUrl: `${appUrl}/kiosk/success?id=${transaction_id}`,
         cancelUrl: `${appUrl}/kiosk/cart`,
         notifyUrl: `${apiUrl}/api/payment/ipaymu/callback`,
@@ -260,7 +276,7 @@ export function registerPaymentRoutes(app, {
       };
       console.log("\u{1F4DD} Payment Request:", {
         reference_id: transaction_id,
-        amount: transaction.total_amount,
+        amount: chargeableAmount,
       });
       const response = await ipaymuClient.createPayment(paymentData);
       await saveIpaymuReference(transaction, response);
@@ -314,9 +330,19 @@ export function registerPaymentRoutes(app, {
       // Ambil data transaksi termasuk tanggal dibuat
       const { data: txRecord } = await supabase
         .from("transactions")
-        .select("created_at, status, payment_details")
+        .select("created_at, status, payment_details, total_amount, metadata")
         .eq("id", transaction_id)
         .single();
+
+      // Gunakan chargeable amount dari metadata (jika pakai points, bayar sisa saja)
+      const chargeableAmount = (() => {
+        const meta = txRecord?.metadata || {};
+        const remaining = Number(meta.remaining_amount);
+        if (meta.point_payment && remaining > 0 && remaining < Number(txRecord?.total_amount)) {
+          return Math.round(remaining);
+        }
+        return Number(expected_amount || txRecord?.total_amount || 0);
+      })();
 
       // Format tanggal transaksi ke bahasa Indonesia
       const txDate = txRecord?.created_at ? new Date(txRecord.created_at) : null;
@@ -331,14 +357,14 @@ export function registerPaymentRoutes(app, {
         Kamu adalah sistem verifikasi bukti pembayaran untuk toko kantin digital.
         Analisis gambar berikut dan tentukan apakah ini adalah bukti transfer/pembayaran yang valid.
 
-        Nominal transaksi yang harus dibayar: Rp ${Number(expected_amount).toLocaleString('id-ID')}
+        Nominal transaksi yang harus dibayar: Rp ${Number(chargeableAmount).toLocaleString('id-ID')}
         Tanggal transaksi dibuat: ${txDateFormatted || 'tidak diketahui'}${txDateShort ? ` (${txDateShort})` : ''}
 
         INSTRUKSI PENTING:
         - Gambar bisa berupa screenshot panjang dari aplikasi mobile banking, QRIS, GoPay, OVO, DANA, ShopeePay, atau aplikasi transfer lainnya.
         - JANGAN tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.
         - Fokus mencari bukti pembayaran di MANA PUN lokasinya dalam gambar.
-        - Cari teks nominal seperti: "${expected_amount}", "Rp ${Number(expected_amount).toLocaleString('id-ID')}", atau angka yang mendekati ±5%.
+        - Cari teks nominal seperti: "${chargeableAmount}", "Rp ${Number(chargeableAmount).toLocaleString('id-ID')}", atau angka yang mendekati ±5%.
         - Cari indikator keberhasilan: "Berhasil", "Sukses", "Success", "Selesai", tanda centang hijau, atau teks serupa.
         - Cari nama pengirim, nama penerima, atau nama bank/dompet digital sebagai konteks pendukung.
 
@@ -351,7 +377,7 @@ export function registerPaymentRoutes(app, {
 
         TOLAK hanya jika:
         - Gambar bukan bukti pembayaran sama sekali
-        - Nominal yang terlihat JELAS berbeda jauh dari Rp ${Number(expected_amount).toLocaleString('id-ID')}
+        - Nominal yang terlihat JELAS berbeda jauh dari Rp ${Number(chargeableAmount).toLocaleString('id-ID')}
         - Status transaksi JELAS menunjukkan gagal/pending/dibatalkan
         - Tanggal di nota JELAS berbeda lebih dari 1 hari dari tanggal transaksi
 
@@ -542,7 +568,14 @@ export function registerPaymentRoutes(app, {
 
       if (txError || !tx) throw new Error("Transaksi tidak ditemukan");
       if (!tx.buyer_id) throw new Error("Hanya karyawan terdaftar yang dapat menggunakan Points");
-      if (tx.status === "success" || tx.status === "paid") throw new Error("Transaksi sudah dibayar");
+
+      // Idempotency guard — jika sudah diproses, return success tanpa proses ulang
+      if (tx.status === "success" || tx.status === "paid") {
+        return res.json({ success: true, message: "Pembayaran sudah diproses sebelumnya" });
+      }
+      if (tx.metadata?.point_payment_processed) {
+        return res.json({ success: true, message: "Pembayaran poin sudah diproses sebelumnya" });
+      }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -574,16 +607,27 @@ export function registerPaymentRoutes(app, {
         description: `Bayar transaksi Rp ${tx.total_amount.toLocaleString()} dengan poin`,
       });
 
-      // Update transaction
+      // Update transaction — set point_payment_processed untuk idempotency
       const { error: updateTx } = await supabase
         .from("transactions")
         .update({ 
           status: "success", 
           payment_method: "points",
-          metadata: { ...tx.metadata, point_payment: true, points_used: tx.total_amount }
+          metadata: { ...tx.metadata, point_payment: true, points_used: tx.total_amount, point_payment_processed: true }
         })
         .eq("id", transaction_id);
-      if (updateTx) throw updateTx;
+      if (updateTx) {
+        // Rollback points jika status update gagal
+        try {
+          await supabase.rpc('increment_loyalty_points', {
+            p_user_id: tx.buyer_id,
+            p_amount: tx.total_amount,
+          });
+        } catch (rollbackErr) {
+          console.error(`[PointsPay] CRITICAL: Points rollback failed for ${transaction_id}:`, rollbackErr);
+        }
+        throw updateTx;
+      }
 
       // Run post processes
       const stockCommit = await commitTransactionStock(transaction_id);
@@ -624,6 +668,17 @@ export function registerPaymentRoutes(app, {
       if (txError || !tx) throw new Error("Transaksi tidak ditemukan");
       if (!tx.buyer_id) throw new Error("Hanya karyawan terdaftar yang dapat menggunakan Points");
       if (tx.status === "success" || tx.status === "paid") throw new Error("Transaksi sudah dibayar");
+
+      // Idempotency guard — jika points sudah dipakai, return success tanpa potong ulang
+      if (tx.metadata?.point_payment && Number(tx.metadata?.points_used) > 0) {
+        const remaining = tx.total_amount - Number(tx.metadata.points_used);
+        return res.json({
+          success: true,
+          message: `Poin sudah digunakan sebelumnya`,
+          remaining_amount: remaining,
+          points_used: Number(tx.metadata.points_used)
+        });
+      }
 
       const pointsToUse = parseInt(points_to_use) || 0;
       if (pointsToUse < 1000) throw new Error("Minimal 1.000 poin");
@@ -736,11 +791,12 @@ export function registerPaymentRoutes(app, {
         cleanName = "Pelanggan SPS Corner";
       }
       if (cleanName.length < 3) cleanName = "Pelanggan";
+      const chargeableAmount = getChargeableAmount(transaction);
       const directPaymentData = {
         name: cleanName,
         phone: serverPhone,
         email: serverEmail,
-        amount: Math.round(Number(transaction.total_amount)),
+        amount: chargeableAmount,
         comments: `Payment for transaction ${transaction_id}`,
         notifyUrl: `${apiUrl}/api/payment/ipaymu/callback`,
         referenceId: String(transaction_id),
@@ -857,6 +913,10 @@ export function registerPaymentRoutes(app, {
         } else {
           // Restore stock DULU — jika restore gagal, status tetap "pending" untuk retry
           await restoreTransactionStock(refId);
+          // Refund loyalty points jika transaction pakai points
+          if (refundTransactionPoints) {
+            try { await refundTransactionPoints(refId); } catch (e) { console.error(`[iPaymu] Points refund failed for ${refId}:`, e); }
+          }
           await supabase
             .from("transactions")
             .update({

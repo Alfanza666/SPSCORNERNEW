@@ -5,6 +5,82 @@ export function initPaymentService(supabase) {
   supabaseInstance = supabase;
 }
 
+/**
+ * Refund loyalty points when a transaction is cancelled/failed.
+ * Idempotent: checks metadata.point_refunded before processing.
+ * Returns { refunded: boolean, amount: number } or null on error.
+ */
+export async function refundTransactionPoints(transactionId) {
+  try {
+    const { data: tx, error: txError } = await supabaseInstance
+      .from('transactions')
+      .select('id, buyer_id, metadata')
+      .eq('id', transactionId)
+      .single();
+    if (txError || !tx) return null;
+
+    const meta = tx.metadata || {};
+    const pointsUsed = Number(meta.points_used) || 0;
+    const pointPayment = meta.point_payment;
+    const alreadyRefunded = meta.point_refunded;
+
+    // Skip jika tidak ada point yang dipakai atau sudah direfund
+    if (!pointPayment || pointsUsed <= 0 || alreadyRefunded) {
+      return { refunded: false, amount: 0 };
+    }
+    if (!tx.buyer_id) return { refunded: false, amount: 0 };
+
+    // Atomic increment — kembalikan point ke buyer
+    const { error: incrErr } = await supabaseInstance.rpc('increment_loyalty_points', {
+      p_user_id: tx.buyer_id,
+      p_amount: pointsUsed,
+    });
+    if (incrErr) {
+      // Fallback: read-then-write dengan GTE guard
+      const { data: profile } = await supabaseInstance
+        .from('profiles')
+        .select('loyalty_points')
+        .eq('id', tx.buyer_id)
+        .single();
+      if (profile) {
+        await supabaseInstance
+          .from('profiles')
+          .update({ loyalty_points: (Number(profile.loyalty_points) || 0) + pointsUsed })
+          .eq('id', tx.buyer_id);
+      }
+    }
+
+    // Record refund di points_history
+    await supabaseInstance.from('points_history').insert({
+      user_id: tx.buyer_id,
+      transaction_id: transactionId,
+      points: pointsUsed,
+      type: 'refund',
+      description: `Refund point dari transaksi #${transactionId.slice(0, 8)} yang dibatalkan`,
+    });
+
+    // Mark sebagai sudah direfund (idempotency)
+    await supabaseInstance
+      .from('transactions')
+      .update({
+        metadata: {
+          ...meta,
+          point_refunded: true,
+          point_refund_amount: pointsUsed,
+          point_refunded_at: new Date().toISOString(),
+        }
+      })
+      .eq('id', transactionId);
+
+    console.log(`[PointsRefund] Refunded ${pointsUsed} points for tx ${transactionId.slice(0, 8)}`);
+    return { refunded: true, amount: pointsUsed };
+  } catch (e) {
+    console.error(`[PointsRefund] Error refunding points for ${transactionId}:`, e);
+    // Jangan throw — cancel transaksi tetap jalan meski refund gagal
+    return null;
+  }
+}
+
 export async function updateSellerBalances(items, transactionId) {
   if (!transactionId) throw new Error("transactionId is required for seller balance settlement");
 

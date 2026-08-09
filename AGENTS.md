@@ -313,6 +313,9 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **🚨 iPaymu Egress Rule: Request iPaymu dari VPS boleh direct melalui IP tetap yang di-whitelist; request dari Vercel WAJIB melalui Fixie/static egress yang terverifikasi.**
 - **🚨 Auth State Rule: DILARANG mengabaikan seluruh event `onAuthStateChange` setelah startup. `TOKEN_REFRESHED`, `SIGNED_IN`, dan `SIGNED_OUT` harus ditangani secara selektif agar Zustand dan sesi Supabase tetap sinkron.**
 - **🚨 VPS Drift Rule: DILARANG `git reset --hard`, menghapus untracked files, atau menimpa worktree VPS yang drift sebelum backup + diff. Hotfix manual valid wajib dipindahkan ke Git.**
+- **🚨 Loyalty Point Rule: Setiap payment endpoint WAJIB cek `metadata.remaining_amount` sebelum charge ke payment gateway. Gunakan helper `getChargeableAmount(transaction)`.** Lihat `docs/CAPA-v5.16.7.md`.
+- **🚨 Cancel Refund Rule: Setiap cancel path (buyer cancel, admin reject, iPaymu failed, auto-cleanup) WAJIB panggil `refundTransactionPoints(transactionId)` setelah stock restore.** Lihat `docs/CAPA-v5.16.7.md`.
+- **🚨 Points Pay Atomicity: Potong point dan update status transaksi WAJIB atomic atau ada kompensasi rollback. Cek `point_payment_processed` untuk idempotency.** Lihat `docs/CAPA-v5.16.7.md`.
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
@@ -337,6 +340,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 | CAPA v5.16.2 | `docs/CAPA-v5.16.2.md` | PostgREST crash fix + auto-reconcile |
 | CAPA v5.16.5 | `docs/CAPA-v5.16.5.md` | Auth intermittent, safe failover VPS/Vercel/Fixie, payment integrity, notification mobile, deployment drift |
 | CAPA v5.16.6 | `docs/CAPA-v5.16.6.md` | Safari/WebKit payment upload hotfix dan pencegahan Request body stream |
+| CAPA v5.16.7 | `docs/CAPA-v5.16.7.md` | Critical payment & point fix — double payment loyalty point, point refund on cancel, points pay race condition |
 | Implementation Plan v5.16.5 | `docs/IMPLEMENTATION-PLAN-v5.16.5.md` | Approved scope, impact, QA gates, execution record, dan rollback |
 | Changelog | `changelog.txt` | Riwayat pembaruan |
 | Reconciliation SQL | `scripts/reconcile_fn.sql` | DB function untuk deteksi mismatch |

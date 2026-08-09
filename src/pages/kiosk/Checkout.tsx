@@ -303,7 +303,7 @@ export default function Checkout() {
         headers,
         body: JSON.stringify({
           transaction_id: tx.id,
-          amount: grandTotal,
+          amount: remainingTotal,
           buyer_name: cleanName,
           buyer_email: buyerEmail,
           buyer_phone: dummyPhone,
@@ -360,27 +360,6 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      // 1. Create transaction record via backend API
-      const txData: any = {
-        buyer_name: buyerName,
-        buyer_id: user?.id || null,
-        buyer_email: user?.email || null,
-        buyer_phone: user?.phone || guestPhone || null,  // [QA FIX] was missing buyer_phone
-        total_amount: grandTotal, // Use same base amount for consistency
-        payment_method: 'manual_qris',
-        items: items.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          is_digital: item.is_digital,
-          sku: item.sku,
-          target_number: item.target_number,
-          seller_id: item.seller_id,
-          metadata: item.metadata
-        }))
-      };
-
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -389,32 +368,58 @@ export default function Checkout() {
         headers['Authorization'] = `Bearer ${session.access_token}`;
       }
 
-      const txRes = await fetch('/api/transactions/create', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(txData)
-      });
+      let tx: any;
+      if (transactionId) {
+        tx = { id: transactionId };
+      } else {
+        // 1. Create transaction record via backend API
+        const txData: any = {
+          buyer_name: buyerName,
+          buyer_id: user?.id || null,
+          buyer_email: user?.email || null,
+          buyer_phone: user?.phone || guestPhone || null,
+          total_amount: grandTotal,
+          payment_method: 'manual_qris',
+          items: items.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            is_digital: item.is_digital,
+            sku: item.sku,
+            target_number: item.target_number,
+            seller_id: item.seller_id,
+            metadata: item.metadata
+          }))
+        };
 
-      if (!txRes.ok) {
-        let errorMessage = 'Failed to create transaction';
-        try {
-          const text = await txRes.text();
+        const txRes = await fetch('/api/transactions/create', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(txData)
+        });
+
+        if (!txRes.ok) {
+          let errorMessage = 'Failed to create transaction';
           try {
-            const errorData = JSON.parse(text);
-            errorMessage = errorData?.error || errorMessage;
+            const text = await txRes.text();
+            try {
+              const errorData = JSON.parse(text);
+              errorMessage = errorData?.error || errorMessage;
+            } catch (e) {
+              console.error('Non-JSON error response from create:', text);
+              errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`;
+            }
           } catch (e) {
-            console.error('Non-JSON error response from create:', text);
-            errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`;
+            console.error('Failed to read error response:', e);
           }
-        } catch (e) {
-          console.error('Failed to read error response:', e);
+          throw new Error(errorMessage);
         }
-        throw new Error(errorMessage);
-      }
 
-      const { transaction } = await txRes.json();
-      setTransactionId(transaction.id);
-      saveGuestTransaction(transaction.id);
+        ({ transaction: tx } = await txRes.json());
+        setTransactionId(tx.id);
+        saveGuestTransaction(tx.id);
+      }
       setPaymentLocked(true);
       sessionStorage.setItem('paymentLocked', 'true');
       setPaymentStep('manual_qris');
@@ -434,43 +439,49 @@ export default function Checkout() {
     isCreatingTx.current = true;
     setLoading(true);
     try {
-      const txData: any = {
-        buyer_name: buyerName,
-        buyer_id: user?.id || null,
-        buyer_email: user?.email || null,
-        buyer_phone: user?.phone || guestPhone || null,
-        total_amount: subtotal,
-        payment_method: 'transfer_koperasi',
-        items: items.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          is_digital: item.is_digital,
-          sku: item.sku,
-          target_number: item.target_number,
-          seller_id: item.seller_id,
-          metadata: item.metadata
-        }))
-      };
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-      const txRes = await fetch('/api/transactions/create', {
-        method: 'POST', headers, body: JSON.stringify(txData)
-      });
-      if (!txRes.ok) {
-        let errorMessage = 'Failed to create transaction';
-        try {
-          const text = await txRes.text();
-          try { const errorData = JSON.parse(text); errorMessage = errorData?.error || errorMessage; }
-          catch (e) { errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`; }
-        } catch (e) { console.error('Failed to read error response:', e); }
-        throw new Error(errorMessage);
+
+      let tx: any;
+      if (transactionId) {
+        tx = { id: transactionId };
+      } else {
+        const txData: any = {
+          buyer_name: buyerName,
+          buyer_id: user?.id || null,
+          buyer_email: user?.email || null,
+          buyer_phone: user?.phone || guestPhone || null,
+          total_amount: subtotal,
+          payment_method: 'transfer_koperasi',
+          items: items.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            is_digital: item.is_digital,
+            sku: item.sku,
+            target_number: item.target_number,
+            seller_id: item.seller_id,
+            metadata: item.metadata
+          }))
+        };
+        const txRes = await fetch('/api/transactions/create', {
+          method: 'POST', headers, body: JSON.stringify(txData)
+        });
+        if (!txRes.ok) {
+          let errorMessage = 'Failed to create transaction';
+          try {
+            const text = await txRes.text();
+            try { const errorData = JSON.parse(text); errorMessage = errorData?.error || errorMessage; }
+            catch (e) { errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`; }
+          } catch (e) { console.error('Failed to read error response:', e); }
+          throw new Error(errorMessage);
+        }
+        ({ transaction: tx } = await txRes.json());
+        setTransactionId(tx.id);
+        saveGuestTransaction(tx.id);
       }
-      const { transaction } = await txRes.json();
-      setTransactionId(transaction.id);
-      saveGuestTransaction(transaction.id);
       setPaymentLocked(true);
       sessionStorage.setItem('paymentLocked', 'true');
       setPaymentStep('transfer_koperasi');
@@ -658,7 +669,7 @@ export default function Checkout() {
         body: JSON.stringify({
           transaction_id: transactionId,
           receipt_image: receiptImage,
-          expected_amount: grandTotal  // [QA FIX] was getTotal(), should match what user actually paid
+          expected_amount: remainingTotal
         })
       });
 
@@ -779,7 +790,7 @@ buyer_email: buyerEmail,
         headers,
         body: JSON.stringify({
           transaction_id: tx.id,
-          amount: getTotal(),
+          amount: remainingTotal,
           buyer_name: cleanName,
           buyer_email: buyerEmail,
           buyer_phone: dummyPhone,

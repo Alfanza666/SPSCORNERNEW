@@ -7,8 +7,9 @@ let reconcileStock = null;
 let commitStock = null;
 let deductStock = null;
 let buildDailyReportEmailFn = null;
+let refundPointsFn = null;
 
-export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn, commitTransactionStockFn, deductTransactionStockFn, buildDailyReportEmail) {
+export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn, commitTransactionStockFn, deductTransactionStockFn, buildDailyReportEmail, refundTransactionPointsFn) {
   supabaseInstance = supabase;
   sendNotif = sendNotification;
   restoreStock = restoreTransactionStock;
@@ -17,6 +18,7 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   commitStock = commitTransactionStockFn;
   deductStock = deductTransactionStockFn;
   buildDailyReportEmailFn = buildDailyReportEmail || null;
+  refundPointsFn = refundTransactionPointsFn || null;
 
   if (typeof process !== 'undefined' && process.env && process.env.VERCEL) return;
 
@@ -210,6 +212,11 @@ async function autoCleanup() {
           console.error(`[AutoCleanup] Stock restore failed for ${tx.id}; keeping transaction pending`, restoreError);
           continue;
         }
+      }
+
+      // Refund loyalty points jika transaction pakai points
+      if (refundPointsFn) {
+        try { await refundPointsFn(tx.id); } catch (e) { console.error(`[AutoCleanup] Points refund failed for ${tx.id}:`, e); }
       }
 
       // Ambil metadata terbaru karena restoreStock mungkin telah memodifikasinya (misal: stock_restored: true)

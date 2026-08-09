@@ -1,3 +1,30 @@
+v5.16.7 - Critical Payment & Point Fix (PATCH)
+-----------------------------------------------
+### Loyalty Point Double Payment Fix:
+- Tambah `getChargeableAmount(transaction)` helper — return `remaining_amount` dari metadata jika ada, else `total_amount`.
+- Semua payment endpoint (ipaymu direct, ipaymu create, manual verify) sekarang gunakan `getChargeableAmount()` untuk amount yang di-charge.
+- Frontend: semua payment handler kirim `remainingTotal` bukan `grandTotal`.
+- `loadPayableTransaction` sekarang select `metadata` field.
+
+### Point Refund on Cancel:
+- Tambah `refundTransactionPoints(transactionId)` — atomic refund + idempotency via `point_refunded` flag.
+- Semua cancel path (buyer cancel, admin reject, iPaymu failed callback, auto-cleanup) sekarang panggil `refundTransactionPoints()`.
+- Points history type "refund" untuk audit trail.
+
+### Points Pay Race Condition Fix:
+- Idempotency guard: cek `point_payment_processed` sebelum proses.
+- Rollback mechanism: jika status update gagal setelah point dipotong, point di-rollback.
+- Partial pay idempotency: cek `metadata.point_payment` sebelum deduct point.
+- `handleManualQris` dan `handleTransferKoperasi` sekarang cek `transactionId` sebelum create baru (reuse existing transaction).
+
+### Research Reports:
+- `docs/RESEARCH-ipaymu-signature-v5.16.6.md` — Analisis callback signature bypass + rekomendasi.
+- `docs/RESEARCH-stock-commit-v5.16.6.md` — Analisis stock commit failure + rekomendasi.
+
+### QA & Prevention:
+- QA lupos: lint; production build; login admin lokal.
+- Dokumentasi insiden dan pencegahan tersedia di `docs/CAPA-v5.16.7.md`.
+
 v5.16.6 - Safari/WebKit Payment Upload Hotfix (PATCH)
 -----------------------------------------------------
 ### Payment & Failover:

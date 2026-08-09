@@ -39,6 +39,7 @@ function registerRoutes(transaction: any, ipaymuClient: any, savedUpdates: any[]
     processDigitalItems: vi.fn(),
     updateSellerBalances: vi.fn(),
     updateBuyerPoints: vi.fn(),
+    refundTransactionPoints: vi.fn(),
     triggerSarirotiEmail: vi.fn(),
     checkLowStockAndNotify: vi.fn(),
     sendBuyerReceiptEmail: vi.fn(),

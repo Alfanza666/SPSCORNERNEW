@@ -15,7 +15,7 @@ export function registerTransactionRoutes(app, {
   supabase, sendNotification, sendWANotification,
   sendSarirotiEmailInternal, sendBuyerReceiptEmail, buildBuyerConfirmationEmail,
   restoreTransactionStock, deductTransactionStock, commitTransactionStock, atomicAdjustStock, checkLowStockAndNotify,
-  updateSellerBalances, updateBuyerPoints,
+  updateSellerBalances, updateBuyerPoints, refundTransactionPoints,
   processDigitalItems, triggerSarirotiEmail,
   getDigiflazzBalance,
 }) {
@@ -171,6 +171,10 @@ app.post("/api/admin/transactions/reject", async (req, res) => {
 
     // Restore stock before marking as failed
     await restoreTransactionStock(transaction_id);
+    // Refund loyalty points jika transaction pakai points
+    if (refundTransactionPoints) {
+      try { await refundTransactionPoints(transaction_id); } catch (e) { console.error(`[AdminReject] Points refund failed for ${transaction_id}:`, e); }
+    }
 
     await supabase.from("transactions").update({ status: "failed" }).eq("id", transaction_id);
 
@@ -674,6 +678,10 @@ app.post("/api/transactions/cancel", async (req, res) => {
     }
     // Restore stock before cancelling
     await restoreTransactionStock(transaction_id);
+    // Refund loyalty points jika transaction pakai points
+    if (refundTransactionPoints) {
+      try { await refundTransactionPoints(transaction_id); } catch (e) { console.error(`[Cancel] Points refund failed for ${transaction_id}:`, e); }
+    }
     // Schema pembayaran hanya mengenal pending/success/failed/paid. Simpan
     // pembatalan sebagai failed dan bedakan penyebabnya melalui metadata.
     const { error: updateError } = await supabase
