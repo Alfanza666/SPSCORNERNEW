@@ -46,7 +46,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
 import LogoSidebar from '../../components/ui/logo-landscape.webp';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -203,11 +203,11 @@ export default function DashboardLayout() {
       // Refresh profile in auth store
       await fetchProfile(user!.id);
 
-      toast.success('Profil berhasil dilengkapi!');
+      appToast.success('Profil Dilengkapi', 'Profil berhasil dilengkapi!');
       setShowSellerProfileModal(false);
     } catch (err: any) {
       console.error('Seller profile save error:', err);
-      toast.error(err.message || 'Gagal menyimpan. Coba lagi.');
+      appToast.error('Gagal Menyimpan', err.message || 'Gagal menyimpan. Coba lagi.');
     } finally {
       setSellerSaving(false);
     }
@@ -605,7 +605,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-3 text-center text-[8px] font-black uppercase tracking-[0.3em] text-zinc-300 dark:text-zinc-600">
-                      v5.16.6
+                      v5.17.0
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"

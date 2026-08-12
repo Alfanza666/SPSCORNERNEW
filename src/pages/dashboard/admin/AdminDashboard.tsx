@@ -26,7 +26,7 @@ import {
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 type OverviewMetrics = {
   grossSettled: number;
@@ -163,10 +163,10 @@ export default function AdminDashboard() {
         .getPublicUrl(filePath);
 
       setNewQrisUrl(publicUrl);
-      toast.success('Gambar QRIS berhasil diunggah! Jangan lupa klik Simpan QRIS.');
+      appToast.success('Berhasil Diunggah', 'Gambar QRIS berhasil diunggah. Jangan lupa klik Simpan QRIS.');
     } catch (error: any) {
       console.error('Error uploading QRIS:', error);
-      toast.error(`Gagal mengunggah QRIS: ${error.message}`);
+      appToast.error('Gagal Unggah QRIS', error.message || 'Terjadi kesalahan saat mengunggah QRIS.');
     } finally {
       setUploadingQris(false);
     }
@@ -245,7 +245,7 @@ export default function AdminDashboard() {
       console.error('Error fetching admin data:', error);
       const message = error instanceof Error ? error.message : 'Gagal memuat ringkasan dashboard.';
       setDashboardError(message);
-      toast.error(message);
+      appToast.error('Gagal Memuat', message || 'Terjadi kesalahan saat memuat data.');
     } finally {
       setLoading(false);
     }
@@ -259,10 +259,10 @@ export default function AdminDashboard() {
         
       if (error) throw error;
       setQrisUrl(newQrisUrl);
-      toast.success('QRIS berhasil diperbarui');
+      appToast.success('QRIS Diperbarui', 'QRIS berhasil diperbarui.');
     } catch (error) {
       console.error('Error updating QRIS:', error);
-      toast.error('Gagal memperbarui QRIS');
+      appToast.error('Gagal Memperbarui QRIS', 'Terjadi kesalahan saat memperbarui QRIS.');
     }
   };
 
@@ -281,11 +281,11 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal memperbarui status');
       
-      toast.success('Permintaan ditandai selesai');
+      appToast.success('Selesai', 'Permintaan ditandai selesai.');
       fetchDashboardData();
     } catch (err: any) {
       console.error('Error completing reset:', err);
-      toast.error('Gagal memperbarui status permintaan');
+      appToast.error('Gagal Memperbarui', 'Terjadi kesalahan saat memperbarui status permintaan.');
     }
   };
 
@@ -310,12 +310,12 @@ export default function AdminDashboard() {
         throw new Error(errorData?.error || 'Gagal menyetujui transaksi');
       }
 
-      toast.success('Transaksi berhasil disetujui!');
+      appToast.success('Disetujui', 'Transaksi berhasil disetujui.');
       setPendingTransactions(prev => prev.filter(tx => tx.id !== txId));
       await fetchDashboardData();
     } catch (error: any) {
       console.error('Error approving transaction:', error);
-      toast.error(error.message);
+      appToast.error('Gagal Menyetujui', error.message || 'Terjadi kesalahan saat menyetujui transaksi.');
     }
   };
 
@@ -334,12 +334,12 @@ export default function AdminDashboard() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Gagal menolak transaksi');
 
-      toast.success('Transaksi ditolak');
+      appToast.success('Ditolak', 'Transaksi berhasil ditolak.');
       setPendingTransactions(prev => prev.filter(tx => tx.id !== txId));
       await fetchDashboardData();
     } catch (error: any) {
       console.error('Error rejecting transaction:', error);
-      toast.error('Gagal menolak transaksi');
+      appToast.error('Gagal Menolak', 'Terjadi kesalahan saat menolak transaksi.');
     }
   };
 
@@ -381,13 +381,13 @@ export default function AdminDashboard() {
 
       const data = await response.json();
       if (data.success) {
-        toast.success(`Email test berhasil dikirim ke ${targetEmail}!`);
+        appToast.success('Email Terkirim', `Email test berhasil dikirim ke ${targetEmail}.`);
       } else {
-        toast.error('Gagal kirim email: ' + (data.message || 'Unknown error'));
+        appToast.error('Gagal Kirim Email', data.message || 'Terjadi kesalahan saat mengirim email.');
       }
     } catch (error: any) {
       console.error('Error testing email:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat mencoba kirim email test');
+      appToast.error('Gagal Kirim Email', error.message || 'Terjadi kesalahan saat mencoba kirim email test.');
     }
   };
 

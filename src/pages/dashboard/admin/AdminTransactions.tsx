@@ -7,7 +7,7 @@ import { format, isValid } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { Download, CheckCircle2, XCircle, Eye, X, Receipt, Search, Filter, Calendar, User, Image as ImageIcon, ExternalLink, Clock, Package, Loader2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton, TableRowSkeleton, TransactionSkeleton } from '../../../components/ui/Skeleton';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import {
   classifyTransactionStatus,
   getTransactionStatusPresentation,
@@ -226,7 +226,7 @@ export default function AdminTransactions() {
       } catch (error: any) {
         if (error?.name !== 'AbortError') {
           console.error('Error fetching transaction history:', error);
-          toast.error(error?.message || 'Gagal memuat riwayat transaksi.', { id: 'transaction-history-load' });
+          appToast.error('Gagal Memuat', error?.message || 'Terjadi kesalahan saat memuat riwayat transaksi.', { id: 'transaction-history-load' });
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -254,7 +254,7 @@ export default function AdminTransactions() {
 
           const classifiedGroup = classifyTransactionStatus(transaction.status);
           if (classifiedGroup === 'unknown') {
-            toast.error('Transaksi ditemukan, tetapi statusnya tidak dikenal oleh sistem.');
+            appToast.error('Status Tidak Dikenal', 'Transaksi ditemukan, tetapi statusnya tidak dikenal oleh sistem.');
             return;
           }
 
@@ -265,9 +265,9 @@ export default function AdminTransactions() {
           setSearchParams({}, { replace: true });
           return;
         }
-        if (!cancelled) toast.error('Transaksi dari tautan tidak ditemukan.');
+        if (!cancelled) appToast.error('Tidak Ditemukan', 'Transaksi dari tautan tidak ditemukan.');
       } catch (error: any) {
-        if (!cancelled) toast.error(error?.message || 'Gagal membuka detail transaksi.');
+        if (!cancelled) appToast.error('Gagal Membuka', error?.message || 'Terjadi kesalahan saat membuka detail transaksi.');
       }
     };
 
@@ -294,7 +294,7 @@ export default function AdminTransactions() {
         dataToExport.push(...nextPage.data);
       }
       if (dataToExport.length === 0) {
-        toast.error('Tidak ada data yang sesuai filter untuk diekspor.');
+        appToast.error('Tidak Ada Data', 'Tidak ada data yang sesuai filter untuk diekspor.');
         return;
       }
 
@@ -311,7 +311,7 @@ export default function AdminTransactions() {
       ]);
       exportExcel(headers, rows, `laporan_transaksi_${activeTab}_${format(new Date(), 'yyyyMMdd')}`, 'Laporan Transaksi');
     } catch (error: any) {
-      toast.error(error?.message || 'Gagal mengekspor riwayat transaksi.');
+      appToast.error('Gagal Export', error?.message || 'Terjadi kesalahan saat mengekspor riwayat transaksi.');
     } finally {
       setExporting(false);
     }

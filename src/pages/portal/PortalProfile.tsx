@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import { 
   User, 
   Lock, 
@@ -65,13 +65,13 @@ export default function PortalProfile() {
 
     // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Ukuran file maksimal 2MB');
+      appToast.error('File Terlalu Besar', 'Ukuran file maksimal 2MB.');
       return;
     }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast.error('File harus berupa gambar');
+      appToast.error('Format Salah', 'File harus berupa gambar.');
       return;
     }
 
@@ -110,10 +110,10 @@ export default function PortalProfile() {
       if (updateError) throw updateError;
 
       await fetchProfile(user.id);
-      toast.success('Foto profil berhasil diperbarui!');
+      appToast.success('Berhasil!', 'Foto profil berhasil diperbarui.');
     } catch (err: any) {
       console.error('Avatar upload error:', err);
-      toast.error(err.message || 'Gagal mengunggah foto');
+      appToast.error('Gagal Unggah', err.message || 'Gagal mengunggah foto.');
     } finally {
       setUploadingAvatar(false);
     }
@@ -151,14 +151,14 @@ export default function PortalProfile() {
           data: { name: name.trim() }
         });
         if (authError) throw authError;
-        toast.success('Permintaan perubahan email dikirim ke email baru Anda.');
+        appToast.success('Email Dikirim', 'Permintaan perubahan email sudah dikirim.');
       }
 
       await fetchProfile(user.id);
-      toast.success('Profil berhasil diperbarui!');
+      appToast.success('Berhasil!', 'Profil berhasil diperbarui.');
     } catch (err: any) {
       console.error('Profile update error:', err);
-      toast.error(err.message || 'Gagal memperbarui profil');
+      appToast.error('Gagal Memperbarui', err.message || 'Terjadi kesalahan saat memperbarui profil.');
     } finally {
       setUpdatingProfile(false);
     }
@@ -171,13 +171,13 @@ export default function PortalProfile() {
     setUpdatingPassword(true);
 
     if (newPassword !== confirmPassword) {
-      toast.error('Password konfirmasi tidak cocok');
+      appToast.error('Password Tidak Cocok', 'Konfirmasi password tidak sesuai.');
       setUpdatingPassword(false);
       return;
     }
 
     if (newPassword.length < 6) {
-      toast.error('Password minimal 6 karakter');
+      appToast.error('Password Terlalu Pendek', 'Password minimal 6 karakter.');
       setUpdatingPassword(false);
       return;
     }
@@ -189,12 +189,12 @@ export default function PortalProfile() {
 
       if (error) throw error;
 
-      toast.success('Password berhasil diperbarui!');
+      appToast.success('Berhasil!', 'Password berhasil diperbarui.');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
       console.error('Password update error:', err);
-      toast.error(err.message || 'Gagal memperbarui password');
+      appToast.error('Gagal Update Password', err.message || 'Terjadi kesalahan saat memperbarui password.');
     } finally {
       setUpdatingPassword(false);
     }

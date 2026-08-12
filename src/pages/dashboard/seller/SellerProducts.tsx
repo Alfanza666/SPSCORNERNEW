@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
@@ -64,7 +64,7 @@ export default function SellerProducts() {
         const parsed = JSON.parse(savedDraft);
         if (parsed.name || parsed.price || parsed.stock) {
           setNewProduct(parsed);
-          toast.success('Ditemukan draft produk yang belum tersimpan');
+          appToast.success('Draft Ditemukan', 'Ada draft produk yang belum tersimpan dari sesi sebelumnya.');
         }
       } catch (e) {
         console.error('Error loading draft:', e);
@@ -105,7 +105,7 @@ export default function SellerProducts() {
           })).filter((p: any) => p.name && p.price > 0);
 
           if (productsToInsert.length === 0) {
-            toast.error('Tidak ada data valid yang ditemukan di file CSV. Pastikan ada kolom name, price, stock, category.');
+            appToast.error('CSV Tidak Valid', 'Tidak ada data valid ditemukan. Pastikan ada kolom name, price, stock, category.');
             setImportingCSV(false);
             return;
           }
@@ -113,11 +113,11 @@ export default function SellerProducts() {
           const { error } = await supabase.from('products').insert(productsToInsert);
           if (error) throw error;
 
-          toast.success(`Berhasil mengimpor ${productsToInsert.length} produk!`);
+          appToast.success('Impor Berhasil!', `${productsToInsert.length} produk berhasil diimpor.`);
           fetchProducts();
         } catch (error: any) {
           console.error('Error importing CSV:', error);
-          toast.error(`Gagal mengimpor CSV: ${error.message}`);
+          appToast.error('Gagal Impor CSV', error.message || 'Terjadi kesalahan saat mengimpor file CSV.');
         } finally {
           setImportingCSV(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -125,7 +125,7 @@ export default function SellerProducts() {
       },
       error: (error) => {
         console.error('Error parsing CSV:', error);
-        toast.error('Gagal membaca file CSV');
+        appToast.error('Gagal Membaca CSV', 'Terjadi kesalahan saat membaca file CSV.');
         setImportingCSV(false);
       }
     });
@@ -172,7 +172,7 @@ export default function SellerProducts() {
       }
     } catch (error: any) {
       console.error('Error uploading image:', error);
-      toast.error(`Gagal mengunggah gambar: ${error.message}`);
+      appToast.error('Gagal Unggah', error.message || 'Terjadi kesalahan saat mengunggah gambar.');
     } finally {
       setUploadingImage(false);
     }
@@ -259,7 +259,7 @@ export default function SellerProducts() {
       fetchProducts();
     } catch (error: any) {
       console.error('Error adding product:', error);
-      toast.error(`Gagal menambahkan produk: ${error.message}`);
+      appToast.error('Gagal Menambah', error.message || 'Terjadi kesalahan saat menambahkan produk.');
     } finally {
       setLoading(false);
     }
@@ -288,7 +288,7 @@ export default function SellerProducts() {
       fetchProducts();
     } catch (error: any) {
       console.error('Error updating product:', error);
-      toast.error(`Gagal memperbarui produk: ${error.message}`);
+      appToast.error('Gagal Memperbarui', error.message || 'Terjadi kesalahan saat memperbarui produk.');
     } finally {
       setLoading(false);
     }
@@ -300,7 +300,7 @@ export default function SellerProducts() {
 
     const quantity = Number(restockQuantity);
     if (quantity <= 0) {
-      toast.error('Jumlah restock harus lebih dari 0');
+      appToast.error('Jumlah Tidak Valid', 'Jumlah restock harus lebih dari 0.');
       return;
     }
 
@@ -320,13 +320,13 @@ export default function SellerProducts() {
       try { data = JSON.parse(responseText); } catch { throw new Error('Server returned unexpected response'); }
       if (!data.success) throw new Error(data.error || 'Unknown error');
 
-      toast.success('Permintaan restock berhasil dikirim ke Admin');
+      appToast.success('Terkirim!', 'Permintaan restock sudah dikirim ke Admin.');
       setRestockingProduct(null);
       setRestockQuantity('');
       setRestockNotes('');
     } catch (error: any) {
       console.error('Error requesting restock:', error);
-      toast.error(`Gagal mengirim permintaan restock: ${error.message}`);
+      appToast.error('Gagal Mengirim', error.message || 'Terjadi kesalahan saat mengirim permintaan restock.');
     } finally {
       setLoading(false);
     }
@@ -335,7 +335,7 @@ export default function SellerProducts() {
   const handleBulkRestock = async () => {
     if (!user?.id) return;
     const entries = Object.entries(bulkRestockItems).filter(([, qty]) => Number(qty) > 0);
-    if (entries.length === 0) { toast.error('Pilih minimal 1 produk dengan jumlah > 0'); return; }
+    if (entries.length === 0) { appToast.error('Belum Dipilih', 'Pilih minimal 1 produk dengan jumlah restock lebih dari 0.'); return; }
 
     setLoading(true);
     let success = 0;
@@ -357,8 +357,8 @@ export default function SellerProducts() {
       } catch { failed++; }
     }
 
-    if (success > 0) toast.success(`${success} permintaan restock berhasil dikirim`);
-    if (failed > 0) toast.error(`${failed} permintaan gagal`);
+    if (success > 0) appToast.success('Berhasil!', `${success} permintaan restock berhasil dikirim`);
+    if (failed > 0) appToast.error('Sebagian Gagal', `${failed} permintaan restock gagal dikirim.`);
     setShowBulkRestock(false);
     setBulkRestockItems({});
     setLoading(false);
@@ -370,7 +370,7 @@ export default function SellerProducts() {
 
     const quantity = Number(returnQuantity);
     if (quantity <= 0 || quantity > returningProduct.stock) {
-      toast.error(`Jumlah retur harus antara 1 dan ${returningProduct.stock}`);
+      appToast.error('Jumlah Tidak Valid', `Jumlah retur harus antara 1 dan ${returningProduct.stock}.`);
       return;
     }
 
@@ -388,13 +388,13 @@ export default function SellerProducts() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
 
-      toast.success('Permintaan retur berhasil dikirim ke Admin');
+      appToast.success('Terkirim!', 'Permintaan retur sudah dikirim ke Admin.');
       setReturningProduct(null);
       setReturnQuantity('');
       setReturnReason('');
     } catch (error: any) {
       console.error('Error requesting return:', error);
-      toast.error(`Gagal mengirim permintaan retur: ${error.message}`);
+      appToast.error('Gagal Mengirim', error.message || 'Terjadi kesalahan saat mengirim permintaan retur.');
     } finally {
       setLoading(false);
     }
@@ -411,7 +411,7 @@ export default function SellerProducts() {
       fetchProducts();
     } catch (error) {
       console.error('Error updating product status:', error);
-      toast.error('Gagal mengubah status produk');
+      appToast.error('Gagal Update', 'Terjadi kesalahan saat mengubah status produk.');
     }
   };
 
@@ -432,10 +432,10 @@ export default function SellerProducts() {
       }
 
       fetchProducts();
-      toast.success('Produk berhasil dihapus');
+      appToast.success('Terhapus!', 'Produk berhasil dihapus dari sistem.');
     } catch (error: any) {
       console.error('Error deleting product:', error);
-      toast.error(error.message || 'Gagal menghapus produk');
+      appToast.error('Gagal Menghapus', error.message || 'Terjadi kesalahan saat menghapus produk.');
     }
   };
 
@@ -906,7 +906,7 @@ export default function SellerProducts() {
                       <button 
                         onClick={() => {
                           if (!isStandbyActive) {
-                            toast.error('Gagal: Restock hanya bisa dilakukan saat ada Anggota Koperasi Standby sesuai jadwal.');
+                            appToast.error('Restock Tidak Tersedia', 'Restock hanya bisa dilakukan saat ada Anggota Koperasi Standby sesuai jadwal.');
                             return;
                           }
                           setRestockingProduct(product);

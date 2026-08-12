@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Gift, Volume2, VolumeX, RefreshCw, Loader2, Crown } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from './AppToast';
 
 interface SpinWheelProps {
   participants: Array<{ id: string; name: string; nik: string; couponCode: string }>;
@@ -97,7 +97,7 @@ export default function SpinWheel({ participants, onWinnerSelected, isSpinning, 
 
   const spin = () => {
     if (participants.length === 0) {
-      toast.error('Tidak ada peserta');
+      appToast.error('Tidak Ada Peserta', 'Tidak ada peserta yang terdaftar untuk diundi.');
       return;
     }
 

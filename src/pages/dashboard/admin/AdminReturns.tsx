@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Package, CheckCircle2, XCircle, Clock, Search, RotateCcw } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 export default function AdminReturns() {
   const { user } = useAuthStore();
@@ -30,7 +30,7 @@ export default function AdminReturns() {
       setReturns(data || []);
     } catch (error) {
       console.error('Error fetching returns:', error);
-      toast.error('Gagal memuat data retur');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat data retur.');
     } finally {
       setLoading(false);
     }
@@ -51,11 +51,11 @@ export default function AdminReturns() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
 
-      toast.success(`Permintaan retur berhasil di-${newStatus === 'approved' ? 'setujui' : 'tolak'}`);
+      appToast.success('Berhasil!', `Permintaan retur berhasil di-${newStatus === 'approved' ? 'setujui' : 'tolak'}.`);
       fetchReturns();
     } catch (error: any) {
       console.error('Error updating return:', error);
-      toast.error(`Gagal memperbarui status: ${error.message}`);
+      appToast.error('Gagal Memperbarui', error.message || 'Terjadi kesalahan saat memperbarui status.');
     } finally {
       setLoading(false);
     }

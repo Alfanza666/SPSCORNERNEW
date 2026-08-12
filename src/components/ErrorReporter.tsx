@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { Bug, X, Send, Loader2, CheckCircle2, Terminal, Info, Globe, Monitor } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from './ui/AppToast';
 
 /**
  * ErrorReporter — Enhanced Autonomous System:
@@ -149,13 +149,13 @@ export default function ErrorReporter() {
       if (error) throw error;
       setSent(true);
       setMessage('');
-      toast.success('Laporan terkirim! Terima kasih bantuannya.');
+      appToast.success('Laporan Terkirim', 'Terima kasih bantuannya!');
       setTimeout(() => {
         setShowForm(false);
         setSent(false);
       }, 2000);
     } catch (err: any) {
-      toast.error('Gagal kirim: ' + err.message);
+      appToast.error('Gagal Mengirim', err.message || 'Terjadi kesalahan saat mengirim laporan.');
     } finally {
       setSending(false);
     }

@@ -6,7 +6,7 @@ import {
   Search, Calendar, User, FileSpreadsheet, Eye, BarChart3, FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import * as XLSX from 'xlsx';
 
 interface Response {
@@ -119,7 +119,7 @@ export default function AdminFormResponses() {
 
       setResponses(enrichedResponses);
     } catch (error: any) {
-      toast.error('Gagal memuat data: ' + error.message);
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat data: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -167,9 +167,9 @@ export default function AdminFormResponses() {
       ws['!cols'] = cols;
 
       XLSX.writeFile(wb, `Respon_${form.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
-      toast.success('Export Excel berhasil!');
+      appToast.success('Berhasil!', 'Export Excel berhasil!');
     } catch (error: any) {
-      toast.error('Gagal export: ' + error.message);
+      appToast.error('Gagal Export', 'Terjadi kesalahan saat export: ' + error.message);
     }
   };
 
@@ -231,9 +231,9 @@ export default function AdminFormResponses() {
       });
 
       doc.save(`Respon_${form.title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-      toast.success('Export PDF berhasil!');
+      appToast.success('Berhasil!', 'Export PDF berhasil!');
     } catch (error: any) {
-      toast.error('Gagal export PDF: ' + error.message);
+      appToast.error('Gagal Export', 'Terjadi kesalahan saat export PDF: ' + error.message);
     }
   };
 

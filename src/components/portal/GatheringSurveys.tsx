@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../lib/supabase';
 import { ClipboardList, ExternalLink, Lock, ChevronRight, CheckCircle2, Send, Loader2, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../ui/AppToast';
 
 interface SurveyQuestion {
   id: string;
@@ -150,7 +150,7 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
     });
 
     if (missing.length > 0) {
-      toast.error(`Lengkapi pertanyaan wajib: ${missing.map(q => q.label || 'Pertanyaan').join(', ')}`);
+      appToast.error('Lengkapi Pertanyaan Wajib', `Belum diisi: ${missing.map(q => q.label || 'Pertanyaan').join(', ')}`);
       return;
     }
 
@@ -166,9 +166,9 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
         });
       if (error) throw error;
       setSubmitted(true);
-      toast.success('Survei berhasil dikirim!');
+      appToast.success('Survei Terkirim', 'Jawaban Anda berhasil disimpan.');
     } catch (error: any) {
-      toast.error('Gagal mengirim: ' + (error.message || ''));
+      appToast.error('Gagal Mengirim', error.message || 'Terjadi kesalahan saat mengirim survei.');
     } finally {
       setSubmitting(false);
     }

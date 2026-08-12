@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { CheckCircle2, XCircle, Clock, Download, Search, Filter, Wallet, ArrowRight, Loader2, User, Store } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
 
@@ -54,10 +54,10 @@ export default function AdminWithdrawals() {
         w.id === id ? { ...w, status: newStatus } : w
       ));
       
-      toast.success(`Status berhasil diubah menjadi ${newStatus}`);
+      appToast.success('Status Diubah', `Status berhasil diubah menjadi ${newStatus}.`);
     } catch (error) {
       console.error('Error updating withdrawal status:', error);
-      toast.error('Gagal mengubah status penarikan');
+      appToast.error('Gagal Mengubah Status', 'Terjadi kesalahan saat mengubah status penarikan.');
     }
   };
 

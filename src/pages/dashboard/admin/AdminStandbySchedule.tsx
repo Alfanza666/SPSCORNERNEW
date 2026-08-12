@@ -4,7 +4,7 @@ import { Clock, Plus, Trash2, RefreshCw, Calendar, AlertTriangle, CheckCircle2 }
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
@@ -35,7 +35,7 @@ export default function AdminStandbySchedule() {
 
   const handleSave = async () => {
     if (!form.officer_name.trim()) {
-      toast.error('Nama petugas wajib diisi');
+      appToast.error('Validasi', 'Nama petugas wajib diisi');
       return;
     }
     try {
@@ -50,12 +50,12 @@ export default function AdminStandbySchedule() {
         }));
         const { error } = await supabase.from('standby_schedules').insert(payloads);
       if (error) throw error;
-      toast.success('Jadwal berhasil ditambahkan');
+      appToast.success('Jadwal Ditambahkan');
       setShowForm(false);
       setForm({ days: ['Senin'], time_start: '07:00', time_end: '16:00', officer_name: '', notes: '' });
       fetchSchedules();
     } catch (err: any) {
-      toast.error('Gagal menyimpan: Pastikan tabel standby_schedules sudah ada di Supabase. ' + err.message);
+      appToast.error('Gagal Menyimpan', err.message);
     } finally {
       setSaving(false);
     }
@@ -67,9 +67,9 @@ export default function AdminStandbySchedule() {
       const { error } = await supabase.from('standby_schedules').delete().eq('id', id);
       if (error) throw error;
       setSchedules(prev => prev.filter(s => s.id !== id));
-      toast.success('Jadwal dihapus');
+      appToast.success('Jadwal Dihapus');
     } catch (err: any) {
-      toast.error('Gagal: ' + err.message);
+      appToast.error('Gagal', err.message);
     }
   };
 

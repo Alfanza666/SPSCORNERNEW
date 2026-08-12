@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Bug, X, Send, AlertTriangle, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuthStore } from '../store/useAuthStore';
-import toast from 'react-hot-toast';
+import { appToast } from './ui/AppToast';
 
 export default function FloatingReportButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,11 +31,11 @@ export default function FloatingReportButton() {
       
       if (!res.ok) throw new Error('Gagal mengirim laporan');
       
-      toast.success('Laporan berhasil dikirim. Terima kasih!');
+      appToast.success('Laporan Terkirim', 'Terima kasih atas laporannya!');
       setIsOpen(false);
       setMessage('');
     } catch (error) {
-      toast.error('Gagal mengirim laporan. Silakan coba lagi nanti.');
+      appToast.error('Gagal Mengirim', 'Silakan coba lagi nanti.');
     } finally {
       setLoading(false);
     }

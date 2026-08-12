@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Gift, Users, Trophy, Loader2, Play, Download, Upload, Plus, X, UserPlus, Clock, Image, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 
@@ -202,8 +202,8 @@ export default function AdminDoorprize() {
   };
 
   const addPrize = () => {
-    if (!prizeNameInput.trim()) { toast.error('Masukkan nama hadiah'); return; }
-    if (prizeQtyInput < 1) { toast.error('Jumlah minimal 1'); return; }
+    if (!prizeNameInput.trim()) { appToast.error('Nama Hadiah', 'Masukkan nama hadiah terlebih dahulu.'); return; }
+    if (prizeQtyInput < 1) { appToast.error('Jumlah Tidak Valid', 'Jumlah hadiah minimal 1.'); return; }
     setPrizes(prev => [...prev, { name: prizeNameInput.trim(), quantity: prizeQtyInput }]);
     setPrizeNameInput('');
     setPrizeQtyInput(1);
@@ -220,9 +220,9 @@ export default function AdminDoorprize() {
   };
 
   const addManualParticipant = () => {
-    if (!manualName.trim()) { toast.error('Masukkan nama'); return; }
-    if (!manualNik.trim()) { toast.error('Masukkan NIK'); return; }
-    if (allParticipants.some(p => p.nik === manualNik.trim())) { toast.error('NIK sudah ada'); return; }
+    if (!manualName.trim()) { appToast.error('Nama Kosong', 'Masukkan nama peserta.'); return; }
+    if (!manualNik.trim()) { appToast.error('NIK Kosong', 'Masukkan NIK peserta.'); return; }
+    if (allParticipants.some(p => p.nik === manualNik.trim())) { appToast.error('NIK Duplikat', 'NIK peserta sudah terdaftar.'); return; }
     const newP: Participant = { id: `manual_${Date.now()}`, name: manualName.trim(), nik: manualNik.trim() };
     setAllParticipants(prev => [...prev, newP]);
     setEligibleCount(prev => prev + 1);
@@ -249,13 +249,13 @@ export default function AdminDoorprize() {
           name: row.Name || row.name || row.NAMA || row.Nama || '',
           nik: String(row.NIK || row.Nik || row.nik || ''),
         })).filter(p => p.name && p.nik);
-        if (mapped.length === 0) { toast.error('Data tidak valid. Kolom: Name/NAMA + NIK'); return; }
+        if (mapped.length === 0) { appToast.error('Data Tidak Valid', 'Pastikan file memiliki kolom Name/NAMA dan NIK.'); return; }
         const existingNiks = new Set(allParticipants.map(p => p.nik));
         const newOnes = mapped.filter(p => !existingNiks.has(p.nik));
         setAllParticipants(prev => [...prev, ...newOnes]);
         setEligibleCount(prev => prev + newOnes.length);
-        toast.success(`${newOnes.length} peserta ditambahkan`);
-      } catch { toast.error('Gagal membaca Excel'); }
+        appToast.success('Peserta Ditambahkan!', `${newOnes.length} peserta berhasil ditambahkan dari Excel.`);
+      } catch { appToast.error('Gagal Membaca', 'Terjadi kesalahan saat membaca file Excel.'); }
     };
     reader.readAsArrayBuffer(file);
     e.target.value = '';
@@ -268,8 +268,8 @@ export default function AdminDoorprize() {
 
   const spinWheel = () => {
     const eligible = getEligible();
-    if (eligible.length === 0) { toast.error('Tidak ada peserta eligible'); return; }
-    if (prizes.length === 0) { toast.error('Tambahkan hadiah terlebih dahulu'); return; }
+    if (eligible.length === 0) { appToast.error('Tidak Ada Peserta', 'Tidak ada peserta yang eligible untuk undian.'); return; }
+    if (prizes.length === 0) { appToast.error('Belum Ada Hadiah', 'Tambahkan hadiah terlebih dahulu.'); return; }
     if (currentPrizeIndex >= prizes.length) { setDrawComplete(true); return; }
 
     setShowWinner(false);
@@ -346,11 +346,11 @@ export default function AdminDoorprize() {
       if (activeTab === 'program') fetchWinners();
       else setWinners(prev => [...prev, w]);
 
-      toast.success(`Selamat! ${w.winner_name} menang ${w.prize_name}!`);
+      appToast.success('Pemenang Ditentukan!', `${w.winner_name} memenangkan ${w.prize_name}!`);
 
       try { if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]); } catch {}
     } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan pemenang');
+      appToast.error('Gagal Menyimpan', err.message || 'Terjadi kesalahan saat menyimpan pemenang.');
     }
   };
 
@@ -363,12 +363,12 @@ export default function AdminDoorprize() {
       link.download = `pemenang_${latestWinner.winner_name.replace(/\s+/g, '_')}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-      toast.success('Gambar disimpan!');
-    } catch { toast.error('Gagal menyimpan gambar'); }
+      appToast.success('Tersimpan!', 'Gambar pemenang berhasil disimpan.');
+    } catch { appToast.error('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan gambar.'); }
   };
 
   const exportWinners = () => {
-    if (winners.length === 0) { toast.error('Belum ada pemenang'); return; }
+    if (winners.length === 0) { appToast.error('Belum Ada Pemenang', 'Belum ada pemenang untuk diekspor.'); return; }
     const data = winners.map((w, i) => ({
       'No': i + 1, 'Hadiah': w.prize_name, 'Nama': w.winner_name, 'NIK': w.winner_nik,
       'Waktu': format(new Date(w.drawn_at), 'dd MMM yyyy HH:mm:ss'),

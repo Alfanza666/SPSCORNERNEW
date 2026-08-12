@@ -6,7 +6,7 @@ import {
   Plug, RefreshCw, Search, CheckCircle2, XCircle, Clock, AlertTriangle,
   ChevronLeft, ChevronRight, ExternalLink, Loader2, Eye
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 type Tab = 'history' | 'callbacks' | 'lookup';
 
@@ -58,7 +58,7 @@ export default function AdminIntegrasi() {
         setHistoryData(data.data.Data.Transaction || []);
         setHistoryTotal(data.data.Data.Pagination?.total || 0);
       }
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { appToast.error('Gagal Memuat', e.message || 'Terjadi kesalahan saat memuat riwayat.'); }
     setLoading(false);
   };
 
@@ -71,7 +71,7 @@ export default function AdminIntegrasi() {
         setCallbackData(data.data || []);
         setCallbackTotal(data.total || 0);
       }
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { appToast.error('Gagal Memuat', e.message || 'Terjadi kesalahan saat memuat callback.'); }
     setLoading(false);
   };
 
@@ -83,8 +83,8 @@ export default function AdminIntegrasi() {
       const res = await fetch(`/api/admin/ipaymu/status/${lookupId.trim()}`, { headers: await headers() });
       const data = await res.json();
       if (data.success) setLookupResult(data.data);
-      else toast.error(data.error || 'Not found');
-    } catch (e: any) { toast.error(e.message); }
+      else appToast.error('Tidak Ditemukan', data.error || 'Transaksi tidak ditemukan.');
+    } catch (e: any) { appToast.error('Gagal Lookup', e.message || 'Terjadi kesalahan saat mencari transaksi.'); }
     setLoading(false);
   };
 

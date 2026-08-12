@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Zap, Tag, Loader2, CheckCircle, Shield, ChevronLeft, Clock, Calendar, Info, Cpu, Package, Fingerprint, ImageIcon, Eye } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import { motion, AnimatePresence } from 'motion/react';
 
 function CountdownTimer({ targetDate }: { targetDate: string }) {
@@ -99,10 +99,10 @@ export default function PortalFlashsale() {
         user_id: user.id
       });
       if (error) throw error;
-      toast.success('Berhasil Booking Aset! Tunggu info harga final dari Admin.');
+      appToast.success('Berhasil Booking!', 'Tunggu info harga final dari Admin.');
       fetchAssets();
     } catch (error: any) {
-      toast.error('Gagal. Anda sudah booking atau kuota penuh.');
+      appToast.error('Booking Gagal', 'Anda sudah booking atau kuota penuh.');
     } finally {
       setBookingId(null);
     }

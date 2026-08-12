@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import toast from 'react-hot-toast';
+import { appToast } from '../ui/AppToast';
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
 import type {
@@ -164,11 +165,11 @@ export function FieldSettingsPanel({
   const uploadFieldImageAsset = async (file: File | undefined, label: string, folder: string, filePrefix: string) => {
     if (!file) return null;
     if (!file.type.startsWith('image/')) {
-      toast.error('File harus berupa gambar.');
+      appToast.error('File Tidak Valid', 'File harus berupa gambar.');
       return null;
     }
     if (file.size > 8 * 1024 * 1024) {
-      toast.error('Ukuran gambar maksimal 8MB. Kompres atau pilih gambar yang lebih ringan.');
+      appToast.error('Ukuran Terlalu Besar', 'Ukuran gambar maksimal 8MB. Kompres atau pilih gambar yang lebih ringan.');
       return null;
     }
 
@@ -190,10 +191,10 @@ export function FieldSettingsPanel({
         .upload(filePath, uploadFile, { cacheControl: '3600', upsert: false });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('program-files').getPublicUrl(filePath);
-      toast.success(`${label} berhasil diunggah`, { id: toastId });
+      appToast.success('Berhasil Diunggah', `${label} berhasil diunggah.`, { id: toastId });
       return publicUrl;
     } catch (error: any) {
-      toast.error(error?.message || `Gagal mengunggah ${label.toLowerCase()}`, { id: toastId });
+      appToast.error('Gagal Mengunggah', error?.message || `Terjadi kesalahan saat mengunggah ${label.toLowerCase()}.`, { id: toastId });
       return null;
     }
   };

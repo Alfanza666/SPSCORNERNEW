@@ -25,7 +25,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
 
@@ -167,9 +167,9 @@ export default function SellerDashboard() {
         .eq('id', user.id);
       if (error) throw error;
       setStoreOpen(!storeOpen);
-      toast.success(storeOpen ? 'Kiosk ditutup' : 'Kiosk dibuka');
+      appToast.success(storeOpen ? 'Kiosk Ditutup' : 'Kiosk Dibuka');
     } catch (err: any) {
-      toast.error('Gagal mengubah status kiosk');
+      appToast.error('Gagal', 'Gagal mengubah status kiosk');
     } finally {
       setTogglingStore(false);
     }

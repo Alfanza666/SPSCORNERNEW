@@ -6,7 +6,7 @@ import {
   Calendar, ChevronLeft, CheckCircle, FileText, Loader2, 
   QrCode as QrCodeIcon, Salad, Gift, Users, X, Plus, Minus, CreditCard
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import { motion } from 'motion/react';
 import QRCode from 'react-qr-code';
 import { richTextToPlainText, sanitizeRichTextHtml } from '../../utils/richText';
@@ -254,7 +254,7 @@ export default function PortalProgram() {
     } catch (err: any) {
       console.error("Error fetching programs:", err);
       setError(err.message || "Gagal memuat program");
-      toast.error("Gagal memuat program");
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat program.');
     } finally {
       setLoading(false);
     }
@@ -294,14 +294,14 @@ export default function PortalProgram() {
   const handleConfirmAttendance = () => {
     setSubmitting(true);
     setTimeout(() => {
-        toast.success("Konfirmasi kehadiran dikirim! QR Kehadiran Aktif.");
+        appToast.success('Kehadiran Dikonfirmasi', 'QR Kehadiran sudah aktif.');
         setSubmitting(false);
     }, 1000);
   };
 
   const handleSubmitForm = () => {
     setSubmitting(true);
-    setTimeout(() => { toast.success("Data polling berhasil disimpan!"); setSubmitting(false); }, 1000);
+      setTimeout(() => { appToast.success('Tersimpan!', 'Data polling berhasil disimpan.'); setSubmitting(false); }, 1000);
   };
 
   const handlePayFamily = async () => {
@@ -334,12 +334,12 @@ export default function PortalProgram() {
         if (data.success) {
             setQrisImage(data.qris_string);
             setShowQrisModal(true);
-            toast.success("Silakan lakukan pembayaran via QRIS");
+            appToast.success('Pembayaran QRIS', 'Silakan lakukan pembayaran via QRIS.');
         } else {
             throw new Error(data.error || 'Gagal');
         }
     } catch (error: any) {
-        toast.error("Gagal: " + error.message);
+        appToast.error('Pembayaran Gagal', error.message || 'Terjadi kesalahan saat memproses pembayaran.');
     } finally {
         setPaymentLoading(false);
     }
@@ -347,7 +347,7 @@ export default function PortalProgram() {
 
   const handleConfirmPaid = () => {
     setShowQrisModal(false);
-    toast.success("Pembayaran dikonfirmasi!");
+    appToast.success('Pembayaran Dikonfirmasi', 'Pembayaran sudah berhasil.');
     if (selectedProgram) handleSelectProgram(selectedProgram);
   };
 

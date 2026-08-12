@@ -4,7 +4,7 @@ import {
   AlertTriangle, Shield, CheckCircle, Clock, Loader2, Search, XCircle, FileText, ChevronRight, MessageSquare
 } from 'lucide-react';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Profile {
@@ -80,7 +80,7 @@ export default function AdminPengaduan() {
       }
     } catch (error) {
       console.error('Error fetching feedbacks:', error);
-      toast.error('Gagal memuat daftar pengaduan');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat daftar pengaduan.');
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,7 @@ export default function AdminPengaduan() {
 
       if (error) throw error;
       
-      toast.success('Tanggapan berhasil disimpan');
+      appToast.success('Tersimpan!', 'Tanggapan berhasil disimpan.');
       
       // Update local state
       setFeedbacks(feedbacks.map(f => 
@@ -132,7 +132,7 @@ export default function AdminPengaduan() {
       setIsResponseModalOpen(false);
     } catch (error) {
       console.error('Error saving response:', error);
-      toast.error('Gagal menyimpan tanggapan');
+      appToast.error('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan tanggapan.');
     } finally {
       setSubmitting(false);
     }

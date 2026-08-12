@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { motion } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { Save, Plus, Trash2, Edit2, Check, X, ShieldAlert, Info } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 
@@ -141,7 +141,7 @@ export default function AdminSettings() {
       }
     } catch (error: any) {
       console.error('Error fetching settings:', error);
-      toast.error('Gagal memuat pengaturan');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat pengaturan.');
     } finally {
       setLoading(false);
     }
@@ -155,10 +155,10 @@ export default function AdminSettings() {
         .upsert({ key, value, updated_at: new Date().toISOString() });
 
       if (error) throw error;
-      toast.success('Pengaturan berhasil disimpan');
+      appToast.success('Tersimpan', 'Pengaturan berhasil disimpan.');
     } catch (error: any) {
       console.error('Error saving settings:', error);
-      toast.error('Gagal menyimpan pengaturan');
+      appToast.error('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan pengaturan.');
     } finally {
       setSaving(false);
     }
@@ -166,7 +166,7 @@ export default function AdminSettings() {
 
   const generateSellerLink = async () => {
     if (!user?.id) {
-      toast.error('Anda belum login');
+      appToast.error('Belum Login', 'Anda belum login.');
       return;
     }
     
@@ -194,11 +194,11 @@ export default function AdminSettings() {
 
       setGeneratedLink(result.link);
       setSellerLinkExpires(result.expiresAt);
-      toast.success('Link berhasil dibuat!');
+      appToast.success('Link Dibuat', 'Link pendaftaran seller berhasil dibuat.');
       
     } catch (error: any) {
       console.error('Error generating seller link:', error);
-      toast.error(error.message || 'Gagal generate link');
+      appToast.error('Gagal Generate Link', error.message || 'Terjadi kesalahan saat membuat link.');
     } finally {
       setGeneratingLink(false);
     }

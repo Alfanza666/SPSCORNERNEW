@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from './ui/AppToast';
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -47,7 +47,7 @@ export default function PWAInstallPrompt() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
-      toast.error('Install prompt tidak tersedia. Coba buka via HTTPS atau refresh halaman.');
+      appToast.error('Install Tidak Tersedia', 'Coba buka via HTTPS atau refresh halaman.');
       return;
     }
     

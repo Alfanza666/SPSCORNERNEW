@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import SPSLogo from '../../components/SPSLogo';
 
 export default function ResetPasswordPage() {
@@ -29,12 +29,12 @@ export default function ResetPasswordPage() {
     }
     
     if (password.length < 6) {
-      toast.error('Password minimal 6 karakter');
+      appToast.error('Password Terlalu Pendek', 'Password minimal 6 karakter');
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Password tidak cocok');
+      appToast.error('Password Tidak Cocok', 'Password tidak cocok');
       return;
     }
 

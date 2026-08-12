@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Phone, ShieldCheck, X } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from './ui/AppToast';
 
 interface PhonePromptModalProps {
   onClose: () => void;
@@ -18,7 +18,7 @@ export default function PhonePromptModal({ onClose }: PhonePromptModalProps) {
     e.preventDefault();
     const cleaned = phone.replace(/[^0-9]/g, '');
     if (cleaned.length < 9 || cleaned.length > 15) {
-      toast.error('Nomor HP tidak valid. Mohon masukkan nomor yang benar.');
+      appToast.error('Nomor HP Tidak Valid', 'Mohon masukkan nomor yang benar.');
       return;
     }
 
@@ -33,10 +33,10 @@ export default function PhonePromptModal({ onClose }: PhonePromptModalProps) {
 
       // Update local auth store
       setUser({ ...user!, phone: cleaned });
-      toast.success('Nomor HP berhasil disimpan!');
+      appToast.success('Tersimpan!', 'Nomor HP berhasil disimpan.');
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan nomor HP.');
+      appToast.error('Gagal Menyimpan', err.message || 'Terjadi kesalahan saat menyimpan nomor HP.');
     } finally {
       setLoading(false);
     }

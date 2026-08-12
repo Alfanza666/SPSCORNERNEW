@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { Plus, Trash2, Loader2, ListPlus, Users, Upload, FileText, X, GripVertical, Copy, Settings, Check, ChevronDown, ChevronUp, Download, ClipboardList, AlertCircle, Trophy, Info, Gift, Image, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { motion, AnimatePresence } from 'motion/react';
 import RichTextEditor from '../../../components/ui/RichTextEditor';
 import { richTextToPlainText } from '../../../utils/richText';
@@ -91,7 +92,7 @@ export default function AdminUnionPrograms() {
       setRegistrants(data || []);
     } catch (error) {
       console.error(error);
-      toast.error('Gagal memuat data pendaftar');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat data pendaftar.');
     } finally {
       setRegistrantsLoading(false);
     }
@@ -139,13 +140,13 @@ export default function AdminUnionPrograms() {
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Format harus JPG, PNG, atau WebP');
+      appToast.error('Format Salah', 'Format harus JPG, PNG, atau WebP.');
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Ukuran maksimal 5MB');
+      appToast.error('Ukuran Terlalu Besar', 'Ukuran maksimal 5MB.');
       return;
     }
 
@@ -176,7 +177,7 @@ export default function AdminUnionPrograms() {
       return publicUrl;
     } catch (error: any) {
       console.error('Banner upload error:', error);
-      toast.error('Gagal upload banner');
+      appToast.error('Gagal Upload', 'Terjadi kesalahan saat upload banner.');
       setUploadingBanner(false);
       return null;
     }
@@ -224,7 +225,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       if (error) throw error;
       if (data) setPrograms(data);
     } catch (error) {
-      toast.error('Gagal memuat program');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat program.');
     } finally {
       setLoading(false);
     }
@@ -372,7 +373,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
     if (!file) return;
 
     if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls') && !file.name.endsWith('.csv')) {
-      toast.error('Format file harus .xlsx, .xls, atau .csv');
+      appToast.error('Format Salah', 'Format file harus .xlsx, .xls, atau .csv.');
       return;
     }
 
@@ -382,7 +383,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       const lines = text.split('\n').filter(line => line.trim());
       
       if (lines.length < 2) {
-        toast.error('File terlalu pendek atau tidak valid');
+        appToast.error('File Tidak Valid', 'File terlalu pendek atau tidak valid.');
         return;
       }
 
@@ -390,7 +391,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       let nikIndex = header.includes('nik') ? 0 : -1;
       
       if (nikIndex === -1) {
-        toast.error('Kolom NIK tidak ditemukan. Pastikan file memiliki kolom NIK.');
+        appToast.error('Kolom NIK', 'Kolom NIK tidak ditemukan. Pastikan file memiliki kolom NIK.');
         return;
       }
 
@@ -401,9 +402,9 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
 
       setTargetNiks(niks.join(', '));
       setUploadedEligibleCount(niks.length);
-      toast.success(`Berhasil导入 ${niks.length} NIK dari file`);
+      appToast.success('NIK Dimuat!', `Berhasil memuat ${niks.length} NIK dari file.`);
     } catch (error: any) {
-      toast.error('Gagal membaca file: ' + error.message);
+      appToast.error('Gagal Membaca', error.message || 'Terjadi kesalahan saat membaca file.');
     }
   };
 
@@ -573,7 +574,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
           }
         }
 
-        toast.success(deadlineChanged ? 'Program dan deadline RSVP berhasil diperbarui' : 'Program berhasil diperbarui');
+        appToast.success('Program Diperbarui!', deadlineChanged ? 'Program dan deadline RSVP berhasil diperbarui.' : 'Program berhasil diperbarui.');
       } else {
         const { data, error } = await supabase
           .from('union_programs')
@@ -582,7 +583,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
           .single();
         if (error) throw error;
         programId = data.id;
-        toast.success('Program berhasil dibuat');
+        appToast.success('Program Dibuat!', 'Program berhasil dibuat.');
         if (programData.is_active) {
             supabase.auth.getSession().then(({ data: { session } }) => {
                 fetch('/api/admin/programs/notify', {
@@ -656,11 +657,11 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
              });
              if (genError) throw genError;
              if (count > 0) {
-               toast.success(`Berhasil membagikan ${count} kupon otomatis kepada peserta!`);
+               appToast.success('Kupon Dibagikan!', `Berhasil membagikan ${count} kupon otomatis kepada peserta!`);
              }
           } catch (genErr: any) {
              console.error("Auto generation failed", genErr);
-             toast.error("Program disimpan, tetapi distribusi kupon otomatis gagal.");
+             appToast.error('Distribusi Gagal', 'Program disimpan, tetapi distribusi kupon otomatis gagal.');
           }
         }
       }
@@ -668,7 +669,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       resetForm();
       fetchPrograms();
     } catch (error: any) {
-      toast.error(error.message || 'Gagal menyimpan program');
+      appToast.error('Gagal Menyimpan', error.message || 'Terjadi kesalahan saat menyimpan program.');
     } finally {
       setSaving(false);
     }
@@ -682,7 +683,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
         .eq('id', program.id);
       if (error) throw error;
       const newStatus = !program.is_active;
-      toast.success(`Program ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}`);
+      appToast.success('Status Diubah!', `Program berhasil ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}.`);
       if (newStatus) {
           supabase.auth.getSession().then(({ data: { session } }) => {
               fetch('/api/admin/programs/notify', {
@@ -697,7 +698,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       }
       fetchPrograms();
     } catch (error) {
-      toast.error('Gagal mengubah status');
+      appToast.error('Gagal Mengubah', 'Terjadi kesalahan saat mengubah status program.');
     }
   };
 
@@ -714,10 +715,10 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      toast.success('Program ditutup dan kupon di-expire');
+      appToast.success('Program Ditutup!', 'Program ditutup dan kupon berhasil di-expire.');
       fetchPrograms();
     } catch (error: any) {
-      toast.error('Gagal menutup program: ' + (error.message || ''));
+      appToast.error('Gagal Menutup', error.message || 'Terjadi kesalahan saat menutup program.');
     } finally {
       setSaving(false);
     }
@@ -730,29 +731,29 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       await supabase.from('program_eligibility').delete().eq('program_id', id);
       const { error } = await supabase.from('union_programs').delete().eq('id', id);
       if (error) throw error;
-      toast.success('Program dan seluruh kuponnya dihapus');
+      appToast.success('Dihapus!', 'Program dan seluruh kuponnya berhasil dihapus.');
       fetchPrograms();
     } catch (error) {
-      toast.error('Gagal menghapus program');
+      appToast.error('Gagal Menghapus', 'Terjadi kesalahan saat menghapus program.');
     }
   };
 
   const handlePublishV2 = async (program: any) => {
     if (program.publication_status === 'published' || program.published_at) {
-      return toast.success('Program sudah aktif di Workflow V2. Tidak perlu publish ulang.');
+      return appToast.success('Sudah Aktif', 'Program sudah aktif di Workflow V2. Tidak perlu publish ulang.');
     }
     const { count: registrationCount, error: registrationCountError } = await supabase
       .from('program_registrations')
       .select('id', { count: 'exact', head: true })
       .eq('program_id', program.id);
-    if (registrationCountError) return toast.error('Gagal memeriksa data RSVP: ' + registrationCountError.message);
+    if (registrationCountError) return appToast.error('Gagal Memeriksa', 'Gagal memeriksa data RSVP: ' + registrationCountError.message);
     if ((registrationCount || 0) > 0) {
-      return toast.error('Program sudah memiliki RSVP. Publish ulang diblokir; gunakan rekonsiliasi audit bila perlu mengubah snapshot.');
+      return appToast.error('RSVP Sudah Ada', 'Program sudah memiliki RSVP. Publish ulang diblokir; gunakan rekonsiliasi audit bila perlu mengubah snapshot.');
     }
-    if (!program.dynamic_form_id) return toast.error('Hubungkan formulir RSVP terlebih dahulu.');
-    if (!program.rsvp_deadline) return toast.error('Deadline RSVP wajib diisi.');
+    if (!program.dynamic_form_id) return appToast.error('Formulir Belum Terhubung', 'Hubungkan formulir RSVP terlebih dahulu.');
+    if (!program.rsvp_deadline) return appToast.error('Deadline Wajib', 'Deadline RSVP wajib diisi.');
     if (program.start_date && new Date(program.rsvp_deadline) > new Date(program.start_date)) {
-      return toast.error('Deadline RSVP tidak boleh melewati waktu mulai acara.');
+      return appToast.error('Deadline Tidak Valid', 'Deadline RSVP tidak boleh melewati waktu mulai acara.');
     }
     if (!confirm(`Publikasikan program "${program.name}"? Ini akan mem冻kan snapshot eligibilitas dan mengaktifkan alur kerja V2.`)) return;
     setSaving(true);
@@ -768,10 +769,10 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Publish failed');
-      toast.success(`Program dipublikasikan (V2). Config version: ${result.config_version}`);
+      appToast.success('Dipublikasikan!', `Program berhasil dipublikasikan (V2). Config version: ${result.config_version}`);
       fetchPrograms();
     } catch (error: any) {
-      toast.error('Gagal publish V2: ' + (error.message || ''));
+      appToast.error('Gagal Publish', error.message || 'Terjadi kesalahan saat publish V2.');
     } finally {
       setSaving(false);
     }

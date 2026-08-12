@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { MessageSquare, AlertTriangle, Shield, CheckCircle, XCircle, Send, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 interface Feedback {
   id: string;
@@ -57,17 +57,17 @@ export default function AdminFeedbacks() {
         .eq('id', feedbackId);
       
       if (error) throw error;
-      toast.success('Status diperbarui');
+      appToast.success('Status Diperbarui');
       fetchFeedbacks();
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Gagal update status');
+      appToast.error('Gagal', 'Gagal update status');
     }
   };
 
   const handleResponse = async () => {
     if (!selectedFeedback || !response.trim()) {
-      toast.error('Mohon isi respons');
+      appToast.error('Validasi', 'Mohon isi respons');
       return;
     }
 
@@ -84,13 +84,13 @@ export default function AdminFeedbacks() {
         .eq('id', selectedFeedback.id);
 
       if (error) throw error;
-      toast.success('Respons dikirim');
+      appToast.success('Respons Terkirim');
       setSelectedFeedback(null);
       setResponse('');
       fetchFeedbacks();
     } catch (error: any) {
       console.error('Error:', error);
-      toast.error('Gagal mengirim');
+      appToast.error('Gagal', 'Gagal mengirim');
     } finally {
       setResponding(false);
     }

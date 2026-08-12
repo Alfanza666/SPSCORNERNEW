@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { ClipboardList, Package, AlertTriangle, CheckCircle2, RefreshCw, TrendingDown } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatRupiah } from '../../../lib/utils';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 export default function AdminStockOpname() {
   const [products, setProducts] = useState<any[]>([]);
@@ -44,7 +44,7 @@ export default function AdminStockOpname() {
 
       setProducts(productsWithRelations);
     } catch (err: any) {
-      toast.error('Gagal memuat produk: ' + err.message);
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat produk: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -55,8 +55,8 @@ export default function AdminStockOpname() {
     try {
       setSaving(productId);
       const product = products.find(p => p.id === productId);
-      if (!product) { toast.error('Produk tidak ditemukan'); return; }
-      if (product.stock === newStock) { toast('Stok sudah sama, tidak ada perubahan'); setSaving(null); return; }
+      if (!product) { appToast.error('Tidak Ditemukan', 'Produk tidak ditemukan.'); return; }
+      if (product.stock === newStock) { appToast.info('Stok Sama', 'Stok sudah sama, tidak ada perubahan.'); setSaving(null); return; }
 
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id;
@@ -81,15 +81,15 @@ export default function AdminStockOpname() {
         .select('id');
       if (updateError) throw updateError;
       if (!updatedRows || updatedRows.length === 0) {
-        toast.error('Stok sudah berubah sejak dimuat. Silakan refresh dan coba lagi.');
+        appToast.error('Stok Berubah', 'Stok sudah berubah sejak dimuat. Silakan refresh dan coba lagi.');
         return;
       }
 
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
       setAdjustments(prev => { const n = { ...prev }; delete n[productId]; return n; });
-      toast.success('Stok berhasil diperbarui');
+      appToast.success('Stok Diperbarui!', 'Stok berhasil diperbarui.');
     } catch (err: any) {
-      toast.error('Gagal: ' + err.message);
+      appToast.error('Gagal', err.message || 'Terjadi kesalahan saat memperbarui stok.');
     } finally {
       setSaving(null);
     }

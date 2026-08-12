@@ -12,7 +12,7 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 
@@ -364,7 +364,7 @@ export default function AdminProgramRegistrationsV2() {
       if (error) throw error;
       setPrograms(data || []);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Daftar program belum dapat dimuat.');
+      appToast.error('Gagal Memuat', error instanceof Error ? error.message : 'Daftar program belum dapat dimuat.');
     } finally {
       setProgramsLoading(false);
     }
@@ -449,8 +449,8 @@ export default function AdminProgramRegistrationsV2() {
   const submitDecision = async () => {
     if (!selected || !decision) return;
     const payment = selected.payments?.[0];
-    if (!payment?.id) return toast.error('Data pembayaran tidak ditemukan.');
-    if (decision === 'reject' && decisionNote.trim().length < 3) return toast.error('Tuliskan alasan penolakan.');
+    if (!payment?.id) return appToast.error('Data Tidak Ditemukan', 'Data pembayaran tidak ditemukan.');
+    if (decision === 'reject' && decisionNote.trim().length < 3) return appToast.error('Alasan Penolakan', 'Tuliskan alasan penolakan.');
     setActionLoading(payment.id);
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token;
@@ -465,13 +465,13 @@ export default function AdminProgramRegistrationsV2() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || payload.message || 'Keputusan belum berhasil disimpan.');
-      toast.success(decision === 'approve' ? 'Pembayaran disetujui dan QR diterbitkan.' : 'Bukti pembayaran ditolak.');
+      appToast.success('Berhasil!', decision === 'approve' ? 'Pembayaran disetujui dan QR diterbitkan.' : 'Bukti pembayaran ditolak.');
       setSelected(null);
       setDecision(null);
       setDecisionNote('');
       await loadRegistrations();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Keputusan belum berhasil disimpan.');
+      appToast.error('Gagal', error instanceof Error ? error.message : 'Keputusan belum berhasil disimpan.');
     } finally {
       setActionLoading(null);
     }
@@ -490,12 +490,12 @@ export default function AdminProgramRegistrationsV2() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || payload.message || 'Rekonsiliasi tiket belum berhasil.');
-      toast.success(payload.message || 'Integritas tiket berhasil direkonsiliasi.');
+      appToast.success('Berhasil!', payload.message || 'Integritas tiket berhasil direkonsiliasi.');
       setSelected(null);
       setDecision(null);
       await loadRegistrations();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Rekonsiliasi tiket belum berhasil.');
+      appToast.error('Gagal Rekonsiliasi', error instanceof Error ? error.message : 'Rekonsiliasi tiket belum berhasil.');
     } finally {
       setActionLoading(null);
     }
@@ -515,10 +515,10 @@ export default function AdminProgramRegistrationsV2() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || payload.message || 'Registrasi belum dapat dibuka.');
-      toast.success('Registrasi dibuka kembali untuk diedit peserta.');
+      appToast.success('Berhasil!', 'Registrasi dibuka kembali untuk diedit peserta.');
       await loadRegistrations();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Registrasi belum dapat dibuka.');
+      appToast.error('Gagal Membuka', error instanceof Error ? error.message : 'Registrasi belum dapat dibuka.');
     } finally {
       setActionLoading(null);
     }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CreditCard, Upload, Loader2, Save } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 
@@ -23,8 +23,8 @@ export default function AdminPayments() {
     setLoyaltyEnabled(get('loyalty_enabled', false));
     setLoading(false);
   };
-  const save = async (key: string, value: string) => { setSaving(true); const { error } = await supabase.from('settings').upsert({ key, value, updated_at: new Date().toISOString() }); setSaving(false); if (error) toast.error('Gagal menyimpan'); else toast.success('Pengaturan disimpan'); };
-  const uploadQris = async (file?: File) => { if (!file || file.size > 2 * 1024 * 1024) return toast.error('File QRIS maksimal 2MB'); setUploading(true); try { const path = `settings/qris_${Date.now()}.${file.name.split('.').pop()}`; const { error } = await supabase.storage.from('products').upload(path, file, { upsert: false, cacheControl: '3600' }); if (error) throw error; const { data } = supabase.storage.from('products').getPublicUrl(path); setQrisUrl(data.publicUrl); await save('qris_image_url', data.publicUrl); } catch (e: any) { toast.error(e.message || 'Gagal mengunggah QRIS'); } finally { setUploading(false); } };
+  const save = async (key: string, value: string) => { setSaving(true); const { error } = await supabase.from('settings').upsert({ key, value, updated_at: new Date().toISOString() }); setSaving(false); if (error) appToast.error('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan pengaturan.'); else appToast.success('Tersimpan', 'Pengaturan berhasil disimpan.'); };
+  const uploadQris = async (file?: File) => { if (!file || file.size > 2 * 1024 * 1024) return appToast.error('File Terlalu Besar', 'File QRIS maksimal 2MB'); setUploading(true); try { const path = `settings/qris_${Date.now()}.${file.name.split('.').pop()}`; const { error } = await supabase.storage.from('products').upload(path, file, { upsert: false, cacheControl: '3600' }); if (error) throw error; const { data } = supabase.storage.from('products').getPublicUrl(path); setQrisUrl(data.publicUrl); await save('qris_image_url', data.publicUrl); } catch (e: any) { appToast.error('Gagal Unggah QRIS', e.message || 'Terjadi kesalahan saat mengunggah QRIS.'); } finally { setUploading(false); } };
   if (loading) return <div className="p-8 text-center">Memuat metode pembayaran...</div>;
   if (!isSuperadmin) return <div className="p-8 text-center text-red-600">Akses hanya untuk superadmin.</div>;
   const items = [['qrisDynamic','QRIS Dinamis','Pembayaran otomatis'],['qrisManual','QRIS Statis','Upload bukti pembayaran'],['vaBca','VA BCA','Virtual Account BCA'],['vaMandiri','VA Mandiri','Virtual Account Mandiri'],['redirect','iPaymu Redirect','Metode pembayaran lainnya']] as const;

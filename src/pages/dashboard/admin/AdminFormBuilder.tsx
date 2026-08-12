@@ -8,6 +8,7 @@ import {
   Wand2, PanelLeftOpen, BarChart3, ClipboardList, Sparkles, ArrowRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { motion, AnimatePresence } from 'motion/react';
 import { FormConfig, FormField, FieldType } from '../../../types/form';
 import FormCanvas from '../../../components/forms/FormCanvas';
@@ -189,10 +190,10 @@ export default function AdminFormBuilder() {
       setIsPreviewMode(false);
       setAiMessages(prev => [...prev, { role: 'ai', content: `${chatContent}\n\n✓ ${updatedForm.fields.length} pertanyaan diterapkan ke canvas.` }]);
       if (window.innerWidth < 1280) setIsMobileInspectorOpen(false);
-      toast.success(`Formulir diterapkan: ${updatedForm.fields.length} pertanyaan`);
+      appToast.success('Formulir Diterapkan!', `Formulir diterapkan: ${updatedForm.fields.length} pertanyaan.`);
     } catch (error: any) {
       const message = error?.message || 'Gagal menghubungi AI. Coba lagi.';
-      toast.error(message);
+      appToast.error('Gagal Menerapkan', message);
       setAiMessages(prev => [...prev, { role: 'ai', content: `Formulir belum dapat diterapkan: ${message}` }]);
     } finally {
       setAiChatLoading(false);
@@ -228,7 +229,7 @@ export default function AdminFormBuilder() {
   const fetchForms = async () => {
     setLoading(true);
     const { data, error } = await supabase.from('dynamic_forms').select('*').order('created_at', { ascending: false });
-    if (error) toast.error('Gagal memuat formulir: ' + error.message);
+    if (error) appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat formulir: ' + error.message);
     else setForms(data || []);
     setLoading(false);
   };
@@ -324,8 +325,8 @@ export default function AdminFormBuilder() {
 
   // ─── Save ─────────────────────────────────────────────────────────────────
   const handleSave = async (publish = false) => {
-    if (!editingForm.title) { toast.error('Judul formulir wajib diisi'); return; }
-    if (!editingForm.fields?.length) { toast.error('Tambahkan minimal satu pertanyaan'); return; }
+    if (!editingForm.title) { appToast.error('Judul Wajib', 'Judul formulir wajib diisi.'); return; }
+    if (!editingForm.fields?.length) { appToast.error('Pertanyaan Kosong', 'Tambahkan minimal satu pertanyaan.'); return; }
     const hasConfiguredCharge = editingForm.fields.some(field =>
       (field.options || []).some(option => Number(option.price || 0) > 0)
       || (field.items || []).some(item => Number(item.price || 0) > 0)
@@ -350,7 +351,7 @@ export default function AdminFormBuilder() {
       if (methods.length > 0
         && (methods.includes('bank_transfer') && !bankConfigured)
         && (methods.includes('manual_qris') && !qrisConfigured)) {
-        toast.error('Lengkapi rekening atau QRIS untuk metode pembayaran yang diaktifkan sebelum menerbitkan.');
+        appToast.error('Metode Pembayaran', 'Lengkapi rekening atau QRIS untuk metode pembayaran yang diaktifkan sebelum menerbitkan.');
         setActiveFieldId(paymentField.id);
         setInspectorTab('field');
         return;
@@ -388,12 +389,12 @@ export default function AdminFormBuilder() {
             'Program sudah memiliki RSVP. Jelaskan alasan perubahan workflow (minimal 5 karakter). RSVP lama tetap memakai snapshot sebelumnya.',
           );
           if (promptedReason === null) {
-            toast('Publikasi dibatalkan. Tidak ada perubahan yang disimpan.');
+            appToast.info('Dibatalkan', 'Publikasi dibatalkan. Tidak ada perubahan yang disimpan.');
             return;
           }
           workflowReconcileReason = promptedReason.trim();
           if (workflowReconcileReason.length < 5) {
-            toast.error('Alasan rekonsiliasi wajib diisi minimal 5 karakter.');
+            appToast.error('Alasan Rekonsiliasi', 'Alasan rekonsiliasi wajib diisi minimal 5 karakter.');
             return;
           }
           workflowSyncMode = 'reconcile';
@@ -490,7 +491,7 @@ export default function AdminFormBuilder() {
         if (!syncResponse.ok) throw new Error(syncResult.error || 'Gagal menyinkronkan formulir dengan program.');
       }
 
-      toast.success(workflowSyncMode === 'reconcile' && workflowPreservesHistoricalRsvps
+      appToast.success(workflowSyncMode === 'reconcile' && workflowPreservesHistoricalRsvps
         ? 'Formulir diterbitkan dengan workflow versi baru. RSVP lama tetap memakai snapshot sebelumnya.'
         : workflowSyncMode === 'reconcile'
           ? 'Formulir diterbitkan dan workflow program berhasil disinkronkan.'
@@ -504,14 +505,14 @@ export default function AdminFormBuilder() {
       setShowEditor(false);
       fetchForms();
     } catch (error: any) {
-      toast.error('Gagal menyimpan: ' + error.message);
+      appToast.error('Gagal Menyimpan', error.message || 'Terjadi kesalahan saat menyimpan formulir.');
     } finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Hapus formulir ini? Semua respon juga akan hilang.')) return;
     await supabase.from('dynamic_forms').delete().eq('id', id);
-    toast.success('Formulir dihapus');
+    appToast.success('Dihapus!', 'Formulir berhasil dihapus.');
     fetchForms();
   };
 
@@ -527,20 +528,20 @@ export default function AdminFormBuilder() {
         .limit(2);
       if (error) throw error;
       if (!data?.length) {
-        toast.error('Formulir belum terhubung ke gathering aktif yang sudah diterbitkan.');
+        appToast.error('Belum Terhubung', 'Formulir belum terhubung ke gathering aktif yang sudah diterbitkan.');
         return;
       }
       if (data.length > 1) {
-        toast.error('Formulir terhubung ke lebih dari satu gathering aktif. Perbaiki relasi program terlebih dahulu.');
+        appToast.error('Relasi Ganda', 'Formulir terhubung ke lebih dari satu gathering aktif. Perbaiki relasi program terlebih dahulu.');
         return;
       }
 
       const link = `${window.location.origin}/portal/forms/${encodeURIComponent(id)}?programId=${encodeURIComponent(data[0].id)}`;
       await navigator.clipboard.writeText(link);
-      toast.success('Link formulir program disalin!');
+      appToast.success('Link Disalin!', 'Link formulir program berhasil disalin!');
     } catch (error) {
       console.error('[FormBuilder] Copy form link:', error);
-      toast.error('Link formulir belum dapat disalin. Coba lagi.');
+      appToast.error('Gagal Menyalin', 'Link formulir belum dapat disalin. Coba lagi.');
     }
   };
 
@@ -784,7 +785,7 @@ export default function AdminFormBuilder() {
                   form={editingForm}
                   isGenerating={aiChatLoading}
                   onStart={() => undefined}
-                  onFinish={() => toast.success('Formulir dikirim (mode pratinjau)')}
+                    onFinish={() => appToast.success('Terkirim!', 'Formulir berhasil dikirim (mode pratinjau).')}
                   onFieldClick={(id: string) => { setActiveFieldId(id); setInspectorTab('field'); }}
                   activeFieldId={activeFieldId}
                 />

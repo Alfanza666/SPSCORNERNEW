@@ -7,7 +7,7 @@ import {
   CheckCircle2, AlertCircle, Calendar, Info, UploadCloud, X, Plus, Trash2, Star, Image, Lock, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import { FormConfig, FormField, AddonItem } from '../../types/form';
 import { calculateVisibleFormTotal, getVisibleFields } from '../../utils/formLogic';
 import {
@@ -355,7 +355,7 @@ export default function PortalFormView() {
       });
       setAnswers(initialAnswers);
     } catch (error: any) {
-      toast.error('Formulir tidak ditemukan');
+      appToast.error('Formulir Tidak Ditemukan', 'Formulir yang dicari tidak tersedia.');
       navigate('/portal/program');
     } finally {
       setLoading(false);
@@ -383,10 +383,10 @@ export default function PortalFormView() {
         .getPublicUrl(filePath);
 
       setFileUploads(prev => ({ ...prev, [fieldId]: publicUrl }));
-      toast.success('File berhasil diunggah');
+      appToast.success('Terkirim!', 'File berhasil diunggah.');
     } catch (error: any) {
       console.error(error);
-      toast.error('Gagal mengunggah file');
+      appToast.error('Gagal Unggah', 'Terjadi kesalahan saat mengunggah file.');
     }
   };
 
@@ -412,10 +412,10 @@ export default function PortalFormView() {
 
       setImageUploads(prev => ({ ...prev, [fieldId]: publicUrl }));
       setAnswers(prev => ({ ...prev, [fieldId]: publicUrl }));
-      toast.success('Gambar berhasil diunggah');
+      appToast.success('Terkirim!', 'Gambar berhasil diunggah.');
     } catch (error: any) {
       console.error(error);
-      toast.error('Gagal mengunggah gambar');
+      appToast.error('Gagal Unggah', 'Terjadi kesalahan saat mengunggah gambar.');
     }
   };
 
@@ -438,7 +438,7 @@ export default function PortalFormView() {
     });
 
     if (missingFields && missingFields.length > 0) {
-      toast.error(`Mohon lengkapi kolom wajib: ${missingFields.map(f => f.label).join(', ')}`);
+      appToast.error('Lengkapi Kolom Wajib', `Mohon lengkapi: ${missingFields.map(f => f.label).join(', ')}`);
       return;
     }
 
@@ -446,11 +446,11 @@ export default function PortalFormView() {
     const paymentFields = visibleFields.filter(f => f.type === 'payment_section');
     for (const pf of paymentFields) {
       if (!paymentProofs[pf.id]) {
-        toast.error('Upload bukti transfer terlebih dahulu');
+        appToast.error('Bukti Transfer', 'Upload bukti transfer terlebih dahulu.');
         return;
       }
       if (pf.verify_with_ai !== false && !paymentVerified[pf.id]) {
-        toast.error('Verifikasi pembayaran terlebih dahulu');
+        appToast.error('Verifikasi Diperlukan', 'Verifikasi pembayaran terlebih dahulu.');
         return;
       }
     }
@@ -500,9 +500,9 @@ export default function PortalFormView() {
       }
 
       setSubmitted(true);
-      toast.success('Formulir berhasil dikirim!');
+      appToast.success('Terkirim!', 'Formulir berhasil dikirim.');
     } catch (error: any) {
-      toast.error('Gagal mengirim formulir: ' + error.message);
+      appToast.error('Gagal Kirim', error.message || 'Terjadi kesalahan saat mengirim formulir.');
     } finally {
       setSubmitting(false);
     }
@@ -526,7 +526,7 @@ export default function PortalFormView() {
   const verifyPayment = async (fieldId: string, expectedAmount: number) => {
     const imageBase64 = paymentProofs[fieldId];
     if (!imageBase64) {
-      toast.error('Upload bukti transfer terlebih dahulu');
+      appToast.error('Bukti Transfer', 'Upload bukti transfer terlebih dahulu.');
       return;
     }
     setAiVerifying(prev => ({ ...prev, [fieldId]: true }));
@@ -540,13 +540,13 @@ export default function PortalFormView() {
       const json = await res.json();
       if (json.success && json.data?.valid) {
         setPaymentVerified(prev => ({ ...prev, [fieldId]: true }));
-        toast.success('Pembayaran terverifikasi!');
+        appToast.success('Terverifikasi!', 'Pembayaran berhasil diverifikasi.');
       } else {
         setPaymentVerified(prev => ({ ...prev, [fieldId]: false }));
-        toast.error('Bukti transfer tidak valid: ' + (json.data?.reason || 'Nominal tidak sesuai'));
+        appToast.error('Bukti Tidak Valid', json.data?.reason || 'Bukti transfer tidak valid.');
       }
     } catch {
-      toast.error('Gagal verifikasi. Coba lagi.');
+      appToast.error('Verifikasi Gagal', 'Gagal verifikasi. Coba lagi.');
     } finally {
       setAiVerifying(prev => ({ ...prev, [fieldId]: false }));
     }
@@ -583,9 +583,9 @@ export default function PortalFormView() {
 
       setPaymentProofs(prev => ({ ...prev, [fieldId]: base64 }));
       setAnswers(prev => ({ ...prev, [fieldId]: publicUrl }));
-      toast.success('Bukti transfer berhasil diunggah');
+      appToast.success('Terkirim!', 'Bukti transfer berhasil diunggah.');
     } catch (error: any) {
-      toast.error('Gagal mengunggah bukti transfer');
+      appToast.error('Gagal Unggah', 'Terjadi kesalahan saat mengunggah bukti transfer.');
     }
   };
 
@@ -606,7 +606,7 @@ export default function PortalFormView() {
   const handleNextCard = () => {
     if (currentCardIndex === 0) {
       if (visibleFields.length === 0) {
-        toast.error('Formulir ini belum memiliki pertanyaan yang dapat diisi.');
+        appToast.error('Formulir Kosong', 'Formulir ini belum memiliki pertanyaan yang dapat diisi.');
         return;
       }
       setCurrentCardIndex(1);
@@ -626,18 +626,18 @@ export default function PortalFormView() {
       else if (currentField.type === 'image' && !imageUploads[currentField.id]) hasError = true;
       else if (currentField.type === 'payment_section') {
         if (!paymentProofs[currentField.id]) {
-          toast.error('Silakan upload bukti transfer terlebih dahulu');
+          appToast.error('Bukti Transfer', 'Silakan upload bukti transfer terlebih dahulu.');
           return;
         }
         if (currentField.verify_with_ai !== false && !paymentVerified[currentField.id]) {
-          toast.error('Silakan lakukan verifikasi bukti bayar terlebih dahulu');
+          appToast.error('Verifikasi Diperlukan', 'Silakan lakukan verifikasi bukti bayar terlebih dahulu.');
           return;
         }
       }
       else if (answers[currentField.id] === undefined || answers[currentField.id] === null || answers[currentField.id] === '') hasError = true;
       
       if (hasError) {
-        toast.error(`Pertanyaan ini wajib diisi: ${currentField.label}`);
+        appToast.error('Wajib Diisi', `Pertanyaan "${currentField.label}" wajib diisi.`);
         return;
       }
     }

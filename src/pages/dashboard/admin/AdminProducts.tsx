@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { supabase } from '../../../lib/supabase';
 import { formatRupiah } from '../../../lib/utils';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -60,7 +60,7 @@ export default function AdminProducts() {
           })).filter((p: any) => p.name && p.price > 0);
 
           if (productsToInsert.length === 0) {
-            toast.error('Tidak ada data valid yang ditemukan di file CSV. Pastikan ada kolom name, price, stock, category.');
+            appToast.error('Data CSV Tidak Valid', 'Pastikan ada kolom name, price, stock, category.');
             setImportingCSV(false);
             return;
           }
@@ -68,11 +68,11 @@ export default function AdminProducts() {
           const { error } = await supabase.from('products').insert(productsToInsert);
           if (error) throw error;
 
-          toast.success(`Berhasil mengimpor ${productsToInsert.length} produk!`);
+          appToast.success('Import Berhasil', `${productsToInsert.length} produk berhasil diimpor.`);
           fetchProducts();
         } catch (error: any) {
           console.error('Error importing CSV:', error);
-          toast.error(`Gagal mengimpor CSV: ${error.message}`);
+          appToast.error('Gagal Import CSV', error.message || 'Terjadi kesalahan saat mengimpor data.');
         } finally {
           setImportingCSV(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -80,7 +80,7 @@ export default function AdminProducts() {
       },
       error: (error) => {
         console.error('Error parsing CSV:', error);
-        toast.error('Gagal membaca file CSV');
+        appToast.error('Gagal Membaca CSV', 'Terjadi kesalahan saat membaca file CSV.');
         setImportingCSV(false);
       }
     });
@@ -183,7 +183,7 @@ export default function AdminProducts() {
         .single();
 
       if (!sarirotiSeller) {
-        toast.error('Akun Seller Sariroti belum ditemukan. Silakan buat akun dengan nama mengandung "Sariroti" terlebih dahulu.');
+        appToast.error('Seller Tidak Ditemukan', 'Buat akun seller dengan nama mengandung "Sariroti" terlebih dahulu.');
         setLoading(false);
         return;
       }
@@ -205,7 +205,7 @@ export default function AdminProducts() {
         });
 
       if (productsToInsert.length === 0) {
-        toast.success('Semua produk Sariroti sudah ada di database.');
+        appToast.success('Sudah Lengkap', 'Semua produk Sariroti sudah ada di database.');
         setLoading(false);
         return;
       }
@@ -213,11 +213,11 @@ export default function AdminProducts() {
       const { error } = await supabase.from('products').insert(productsToInsert);
       if (error) throw error;
 
-      toast.success(`Berhasil menambahkan ${productsToInsert.length} produk Sariroti!`);
+      appToast.success('Produk Ditambahkan', `${productsToInsert.length} produk Sariroti berhasil ditambahkan.`);
       fetchProducts();
     } catch (error: any) {
       console.error('Error seeding products:', error);
-      toast.error(`Gagal menambahkan produk: ${error.message}`);
+      appToast.error('Gagal Menambah Produk', error.message || 'Terjadi kesalahan saat menyimpan produk.');
     } finally {
       setLoading(false);
     }
@@ -294,14 +294,14 @@ export default function AdminProducts() {
           .in('id', idsToDelete);
           
         if (deleteError) throw deleteError;
-        toast.success(`Berhasil menghapus ${idsToDelete.length} produk duplikat!`);
+        appToast.success('Duplikat Dihapus', `${idsToDelete.length} produk duplikat berhasil dihapus.`);
         fetchProducts();
       } else {
-        toast.success('Tidak ada produk duplikat ditemukan.');
+        appToast.success('Bersih', 'Tidak ada produk duplikat ditemukan.');
       }
     } catch (error: any) {
       console.error('Error cleaning up duplicates:', error);
-      toast.error(`Gagal membersihkan duplikat: ${error.message}`);
+      appToast.error('Gagal Membersihkan', error.message || 'Terjadi kesalahan saat menghapus duplikat.');
     } finally {
       setLoading(false);
     }
@@ -312,11 +312,11 @@ export default function AdminProducts() {
     if (!editingProduct) return;
 
     if (!editingProduct.name || !editingProduct.price || !editingProduct.category) {
-      toast.error('Mohon lengkapi semua field yang diperlukan (Nama, Harga, Kategori)');
+      appToast.error('Form Tidak Lengkap', 'Mohon lengkapi Nama, Harga, dan Kategori.');
       return;
     }
     if (!editingProduct.id && (editingProduct.stock === '' || editingProduct.stock === undefined)) {
-      toast.error('Mohon isi stok awal untuk produk baru');
+      appToast.error('Stok Wajib', 'Mohon isi stok awal untuk produk baru.');
       return;
     }
 
@@ -348,7 +348,7 @@ export default function AdminProducts() {
             seller_id: editingProduct.seller_id || user?.id
           });
         if (error) throw error;
-        toast.success(`Berhasil menambahkan produk: ${editingProduct.name}`);
+        appToast.success('Produk Ditambahkan', `Produk "${editingProduct.name}" berhasil ditambahkan.`);
       }
 
       
@@ -356,7 +356,7 @@ export default function AdminProducts() {
       fetchProducts();
     } catch (error: any) {
       console.error('Error updating product:', error);
-      toast.error(`Gagal memperbarui produk: ${error.message}`);
+      appToast.error('Gagal Memperbarui', error.message || 'Terjadi kesalahan saat memperbarui produk.');
     } finally {
       setLoading(false);
     }
@@ -446,10 +446,10 @@ export default function AdminProducts() {
       }
       
       fetchProducts();
-      toast.success('Produk berhasil dihapus');
+      appToast.success('Produk Dihapus', 'Produk berhasil dihapus dari database.');
     } catch (error: any) {
       console.error('Error deleting product:', error);
-      toast.error(`Gagal menghapus produk: ${error.message}`);
+      appToast.error('Gagal Menghapus', error.message || 'Terjadi kesalahan saat menghapus produk.');
     }
   };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Tag, Plus, Users, CheckCircle, Loader2, DollarSign, Upload, Image as ImageIcon, X, Trash2, Edit, Calendar, FileText, Download, Copy, FileSpreadsheet, Link as LinkIcon, Info } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import * as XLSX from 'xlsx';
 
 export default function AdminFlashsale() {
@@ -62,7 +62,7 @@ export default function AdminFlashsale() {
       }
     } catch (error: any) {
       console.error('Error fetching assets:', error);
-      toast.error('Gagal mengambil data aset');
+      appToast.error('Gagal Memuat', 'Gagal mengambil data aset');
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export default function AdminFlashsale() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Ukuran file terlalu besar (maksimal 5MB)');
+      appToast.error('File Terlalu Besar', 'Ukuran file terlalu besar (maksimal 5MB)');
       return;
     }
 
@@ -98,10 +98,10 @@ export default function AdminFlashsale() {
       } else {
         setNewAsset(prev => ({ ...prev, image_url: publicUrl }));
       }
-      toast.success('Gambar berhasil diunggah!');
+      appToast.success('Gambar Diunggah');
     } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error('Gagal mengunggah gambar: ' + error.message);
+      appToast.error('Gagal Upload', error.message);
     } finally {
       setUploading(false);
     }
@@ -110,7 +110,7 @@ export default function AdminFlashsale() {
   const handleAddAsset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAsset.image_url) {
-      toast.error('Mohon tentukan gambar aset (Upload atau Link)');
+      appToast.error('Validasi', 'Mohon tentukan gambar aset (Upload atau Link)');
       return;
     }
 
@@ -134,12 +134,12 @@ export default function AdminFlashsale() {
       
       if (error) throw error;
       
-      toast.success('Aset berhasil ditambahkan!');
+      appToast.success('Aset Ditambahkan');
       setIsAdding(false);
       setNewAsset(initialAssetState);
       fetchAssets();
     } catch (error: any) {
-      toast.error('Gagal menambah aset: ' + error.message);
+      appToast.error('Gagal Menambah', error.message);
     } finally {
       setLoading(false);
     }
@@ -177,7 +177,7 @@ export default function AdminFlashsale() {
 
   const handleBulkImport = async () => {
     if (!bulkData.trim()) {
-      toast.error('Data bulk kosong');
+      appToast.error('Validasi', 'Data bulk kosong');
       return;
     }
 
@@ -194,12 +194,12 @@ export default function AdminFlashsale() {
       const { error } = await supabase.from('sps_assets').insert(newAssets);
       if (error) throw error;
 
-      toast.success(`${newAssets.length} aset berhasil diimpor!`);
+      appToast.success('Impor Berhasil', `${newAssets.length} aset berhasil diimpor!`);
       setIsBulkAdding(false);
       setBulkData('');
       fetchAssets();
     } catch (error: any) {
-      toast.error('Gagal impor bulk: ' + error.message);
+      appToast.error('Gagal Impor', error.message);
     } finally {
       setLoading(false);
     }
@@ -217,7 +217,7 @@ export default function AdminFlashsale() {
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
       if (jsonData.length <= 1) {
-        toast.error('File kosong atau hanya berisi header');
+        appToast.error('File Kosong', 'File kosong atau hanya berisi header');
         return;
       }
 
@@ -229,11 +229,11 @@ export default function AdminFlashsale() {
       const { error } = await supabase.from('sps_assets').insert(newAssets);
       if (error) throw error;
 
-      toast.success(`${newAssets.length} aset berhasil diimpor dari file!`);
+      appToast.success('Impor Berhasil', `${newAssets.length} aset berhasil diimpor dari file!`);
       setIsBulkAdding(false);
       fetchAssets();
     } catch (error: any) {
-      toast.error('Gagal impor file: ' + error.message);
+      appToast.error('Gagal Impor', error.message);
     } finally {
       setLoading(false);
     }
@@ -265,11 +265,11 @@ export default function AdminFlashsale() {
 
       if (error) throw error;
 
-      toast.success('Aset berhasil diperbarui!');
+      appToast.success('Aset Diperbarui');
       setEditingAsset(null);
       fetchAssets();
     } catch (error: any) {
-      toast.error('Gagal memperbarui aset: ' + error.message);
+      appToast.error('Gagal Memperbarui', error.message);
     } finally {
       setLoading(false);
     }
@@ -281,10 +281,10 @@ export default function AdminFlashsale() {
       setLoading(true);
       const { error } = await supabase.from('sps_assets').delete().eq('id', id);
       if (error) throw error;
-      toast.success('Aset berhasil dihapus');
+      appToast.success('Aset Dihapus');
       fetchAssets();
     } catch (error: any) {
-      toast.error('Gagal menghapus aset: ' + error.message);
+      appToast.error('Gagal Menghapus', error.message);
     } finally {
       setLoading(false);
     }
@@ -306,10 +306,10 @@ export default function AdminFlashsale() {
       await supabase.from('asset_bookings').update({ status: 'won' }).eq('id', bookingId);
       await supabase.from('asset_bookings').update({ status: 'lost' }).eq('asset_id', assetId).neq('id', bookingId);
 
-      toast.success('Pemenang berhasil ditetapkan!');
+      appToast.success('Pemenang Ditetapkan');
       fetchAssets();
     } catch (error: any) {
-      toast.error('Gagal menetapkan pemenang');
+      appToast.error('Gagal', 'Gagal menetapkan pemenang');
     }
   };
 

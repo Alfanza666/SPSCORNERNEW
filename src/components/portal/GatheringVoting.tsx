@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { CheckCircle2, Clock, Lock, Loader2, Users, Trophy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../ui/AppToast';
 
 interface Candidate {
   id: string;
@@ -112,7 +112,7 @@ export default function GatheringVoting({
           .eq('announcement_id', announcementId)
           .eq('voter_id', user.id);
         if (error) throw error;
-        toast.success('Pilihan Anda berhasil diubah!');
+        appToast.success('Pilihan Diubah', 'Pilihan Anda berhasil diubah.');
       } else {
         // Insert new vote
         const { error } = await supabase
@@ -124,7 +124,7 @@ export default function GatheringVoting({
             voter_nik: user.nik || ''
           });
         if (error) throw error;
-        toast.success('Vote berhasil tercatat!');
+        appToast.success('Vote Tercatat', 'Vote Anda berhasil tercatat.');
       }
 
       setMyVote(candidateId);
@@ -132,7 +132,7 @@ export default function GatheringVoting({
       await fetchVoteData();
     } catch (error: any) {
       console.error('Vote error:', error);
-      toast.error('Gagal melakukan vote: ' + (error.message || 'Unknown error'));
+      appToast.error('Gagal Vote', error.message || 'Terjadi kesalahan saat melakukan vote.');
     } finally {
       setVoting(false);
     }

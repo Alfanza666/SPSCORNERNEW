@@ -12,6 +12,7 @@ import {
   Upload,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { appToast } from '../ui/AppToast';
 import { supabase } from '../../lib/supabase';
 import type { FormConfig, FormField } from '../../types/form';
 import type { FieldUpdateHandler, FormAppearanceUpdates, InspectorTab } from './types';
@@ -258,7 +259,7 @@ function DefaultPanel({ activeTab, form, selectedField, onUpdateField, onUpdateF
       const file = event.target.files?.[0];
       if (!file) return;
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('Ukuran maksimal 5MB');
+        appToast.error('Ukuran Terlalu Besar', 'Ukuran file maksimal 5MB.');
         return;
       }
 
@@ -279,10 +280,10 @@ function DefaultPanel({ activeTab, form, selectedField, onUpdateField, onUpdateF
           .getPublicUrl(filePath);
 
         update({ banner_url: publicUrl });
-        toast.success('Banner berhasil diperbarui!', { id: toastId });
+        appToast.success('Banner Diperbarui', 'Banner formulir berhasil diperbarui.', { id: toastId });
       } catch (error: any) {
         console.error('Error uploading banner:', error);
-        toast.error('Gagal mengunggah banner', { id: toastId });
+        appToast.error('Gagal Mengunggah', 'Terjadi kesalahan saat mengunggah banner.', { id: toastId });
       }
     };
 

@@ -5,7 +5,7 @@ import { useAuthStore, isEmployeeNik } from '../store/useAuthStore';
 import { Loader2, AlertCircle, User, Phone, CreditCard, ShieldCheck, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import SPSLogo from '../components/SPSLogo';
-import toast from 'react-hot-toast';
+import { appToast } from '../components/ui/AppToast';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -250,7 +250,7 @@ export default function AuthCallback() {
 
       if (upsertError) throw upsertError;
 
-      toast.success('Profil berhasil dilengkapi!');
+      appToast.success('Profil Dilengkapi', 'Profil berhasil dilengkapi!');
 
       const { data: updatedProfile } = await supabase
         .from('profiles')
@@ -262,7 +262,7 @@ export default function AuthCallback() {
 
     } catch (err: any) {
       console.error('Profile save error:', err);
-      toast.error(err.message || 'Gagal menyimpan profil. Coba lagi.');
+      appToast.error('Gagal Menyimpan Profil', err.message || 'Gagal menyimpan profil. Coba lagi.');
     } finally {
       setSaving(false);
     }

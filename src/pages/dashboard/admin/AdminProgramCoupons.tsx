@@ -6,7 +6,7 @@ import {
   Download, Trash2, CheckCircle, XCircle, RefreshCw, Send, X, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import QRCode from 'react-qr-code';
 
 export default function AdminProgramCoupons() {
@@ -23,7 +23,7 @@ export default function AdminProgramCoupons() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [bulkText, setBulkText] = useState('');
-  const [manualForm, setManualForm] = useState({ nik: '', name: '' });
+  const [manualForm, setManualForm] = useState({ nik: '', name: '', couponType: 'attendance' });
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
@@ -67,12 +67,12 @@ export default function AdminProgramCoupons() {
         p_niks: niks
       });
       if (error) throw error;
-      toast.success(`Berhasil menggenerate ${data} kupon!`);
+      appToast.success('Kupon Dibuat!', `Berhasil menggenerate ${data} kupon!`);
       setShowBulkModal(false);
       setBulkText('');
       fetchCoupons();
     } catch (err: any) {
-      toast.error(err.message);
+      appToast.error('Gagal Generate', err.message || 'Terjadi kesalahan saat menggenerate kupon.');
     } finally {
       setProcessing(false);
     }
@@ -82,18 +82,22 @@ export default function AdminProgramCoupons() {
     if (!selectedProgram || !manualForm.nik || !manualForm.name) return;
     setProcessing(true);
     try {
-      const { error } = await supabase.rpc('generate_manual_coupon', {
-        p_program_id: selectedProgram,
-        p_nik: manualForm.nik,
-        p_name: manualForm.name
+      const { data, error } = await supabase.functions.invoke('manual-coupon', {
+        body: {
+          programId: selectedProgram,
+          nik: manualForm.nik,
+          name: manualForm.name,
+          couponType: manualForm.couponType
+        }
       });
       if (error) throw error;
-      toast.success('Kupon manual berhasil dibuat!');
+      if (data && !data.success) throw new Error(data.error);
+      appToast.success('Kupon Dibuat!', `Kupon ${manualForm.couponType} berhasil dibuat untuk ${manualForm.name}!`);
       setShowManualModal(false);
-      setManualForm({ nik: '', name: '' });
+      setManualForm({ nik: '', name: '', couponType: 'attendance' });
       fetchCoupons();
     } catch (err: any) {
-      toast.error(err.message);
+      appToast.error('Gagal Membuat', err.message || 'Terjadi kesalahan saat membuat kupon.');
     } finally {
       setProcessing(false);
     }
@@ -178,7 +182,7 @@ export default function AdminProgramCoupons() {
       link.click();
     } catch (err) {
       console.error('Download ticket error:', err);
-      toast.error('Gagal mendownload tiket');
+      appToast.error('Gagal Download', 'Terjadi kesalahan saat mendownload tiket.');
     }
   };
 
@@ -187,10 +191,10 @@ export default function AdminProgramCoupons() {
     try {
       const { error } = await supabase.from('program_coupons').delete().eq('id', coupon.id);
       if (error) throw error;
-      toast.success('Kupon berhasil dihapus');
+      appToast.success('Kupon Dihapus!', 'Kupon berhasil dihapus.');
       fetchCoupons();
     } catch (err: any) {
-      toast.error(err.message);
+      appToast.error('Gagal Menghapus', err.message || 'Terjadi kesalahan saat menghapus kupon.');
     }
   };
 
@@ -199,7 +203,7 @@ export default function AdminProgramCoupons() {
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
-      if (!token) { toast.error('Sesi habis, silakan login ulang'); return; }
+      if (!token) { appToast.error('Sesi Habis', 'Sesi habis, silakan login ulang.'); return; }
 
       const res = await fetch(`/api/admin/programs/${selectedProgram}/bypass-attendance`, {
         method: 'POST',
@@ -209,13 +213,13 @@ export default function AdminProgramCoupons() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Gagal bypass');
       if (result.success) {
-        toast.success('Kupon Bypass diterbitkan!');
+        appToast.success('Bypass Berhasil!', 'Kupon Bypass berhasil diterbitkan!');
         fetchCoupons();
       } else {
-        toast.error(result.data?.error || 'Gagal bypass');
+        appToast.error('Gagal Bypass', result.data?.error || 'Terjadi kesalahan saat bypass.');
       }
     } catch (err: any) {
-      toast.error(err.message);
+      appToast.error('Gagal Bypass', err.message || 'Terjadi kesalahan.');
     }
   };
 
@@ -407,20 +411,33 @@ export default function AdminProgramCoupons() {
         {showManualModal && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div initial={{scale:0.9}} animate={{scale:1}} className="bg-white dark:bg-zinc-900 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
-               <h2 className="text-lg font-black mb-4">Tambah Kupon Manual (Afiliasi)</h2>
+               <h2 className="text-lg font-black mb-4">Tambah Kupon Manual</h2>
                <div className="space-y-3">
                  <div>
+                   <label className="block text-xs font-bold text-zinc-500 mb-1">Tipe Kupon</label>
+                   <select
+                     value={manualForm.couponType}
+                     onChange={e => setManualForm({...manualForm, couponType: e.target.value})}
+                     className="w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 font-medium text-sm"
+                   >
+                     <option value="attendance">Attendance (Absensi)</option>
+                     <option value="meal">Meal (Makan)</option>
+                     <option value="doorprize">Doorprize (Undian)</option>
+                     <option value="sembako">Sembako</option>
+                   </select>
+                 </div>
+                 <div>
                    <label className="block text-xs font-bold text-zinc-500 mb-1">NIK</label>
-                   <input type="text" value={manualForm.nik} onChange={e => setManualForm({...manualForm, nik: e.target.value})} className="w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800" />
+                   <input type="text" value={manualForm.nik} onChange={e => setManualForm({...manualForm, nik: e.target.value})} className="w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800" placeholder="Masukkan NIK karyawan" />
                  </div>
                  <div>
                    <label className="block text-xs font-bold text-zinc-500 mb-1">Nama Lengkap</label>
-                   <input type="text" value={manualForm.name} onChange={e => setManualForm({...manualForm, name: e.target.value})} className="w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800" />
+                   <input type="text" value={manualForm.name} onChange={e => setManualForm({...manualForm, name: e.target.value})} className="w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800" placeholder="Masukkan nama lengkap" />
                  </div>
                </div>
                <div className="flex gap-3 mt-4">
                  <button onClick={() => setShowManualModal(false)} className="flex-1 py-3 bg-zinc-100 dark:bg-zinc-800 font-bold rounded-xl">Batal</button>
-                 <button onClick={handleManualGenerate} disabled={processing} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+                 <button onClick={handleManualGenerate} disabled={processing || !manualForm.nik || !manualForm.name} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
                    {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                    Buat Kupon
                  </button>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Search, Package, TrendingUp, TrendingDown, RotateCcw, AlertTriangle, Calendar, ExternalLink, ClipboardList, PlusCircle, AlertCircle, Info, ShoppingCart, XCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 const TYPE_META = {
   initial:       { label: 'Awal',       icon: PlusCircle,    color: 'bg-sky-500',   text: 'text-sky-600 bg-sky-50 dark:text-sky-400 dark:bg-sky-900/20' },
@@ -35,7 +35,7 @@ export default function StockTrace({ isAdmin }: { isAdmin?: boolean }) {
       const { data } = await q;
       setProducts(data || []);
     } catch (err: any) {
-      toast.error('Gagal muat produk: ' + err.message);
+      appToast.error('Gagal Memuat', err.message || 'Terjadi kesalahan saat memuat data produk.');
     }
   };
 
@@ -63,7 +63,7 @@ export default function StockTrace({ isAdmin }: { isAdmin?: boolean }) {
         .eq('id', productId)
         .single();
 
-      if (!prod) { toast.error('Produk tidak ditemukan'); return; }
+      if (!prod) { appToast.error('Produk Tidak Ditemukan', 'Data produk tidak ditemukan di sistem.'); return; }
 
       let sellerName = '';
       if (prod.seller_id) {
@@ -113,7 +113,7 @@ export default function StockTrace({ isAdmin }: { isAdmin?: boolean }) {
       setEvents(filtered);
       setProductInfo({ ...prod, seller_name: sellerName, initial_stock: initialStock, gap: gapInfo });
     } catch (err: any) {
-      toast.error('Gagal muat riwayat: ' + err.message);
+      appToast.error('Gagal Memuat Riwayat', err.message || 'Terjadi kesalahan saat memuat riwayat stok.');
     } finally {
       setLoading(false);
     }

@@ -5,7 +5,7 @@ import {
   Users, Plus, X, Trash2, Save, Search, Upload, Download,
   Loader2, AlertCircle, CheckCircle2, FileSpreadsheet
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { motion, AnimatePresence } from 'motion/react';
 import { Employee } from '../../../types/employee';
 
@@ -43,7 +43,7 @@ export default function AdminEmployees() {
       if (error) throw error;
       setEmployees(data || []);
     } catch (err: any) {
-      toast.error('Gagal memuat data: ' + err.message);
+      appToast.error('Gagal Memuat', err.message);
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ export default function AdminEmployees() {
 
   const handleSave = async () => {
     if (!form.nik.trim() || !form.name.trim()) {
-      toast.error('NIK dan Nama wajib diisi');
+      appToast.error('Validasi', 'NIK dan Nama wajib diisi');
       return;
     }
     setSaving(true);
@@ -78,7 +78,7 @@ export default function AdminEmployees() {
       if (editingId) {
         const { error } = await supabase.from('employees').update(payload).eq('id', editingId);
         if (error) throw error;
-        toast.success('Data karyawan diperbarui');
+        appToast.success('Karyawan Diperbarui');
       } else {
         const { error } = await supabase.from('employees').insert(payload);
         if (error) {
@@ -87,12 +87,12 @@ export default function AdminEmployees() {
           }
           throw error;
         }
-        toast.success('Karyawan ditambahkan');
+        appToast.success('Karyawan Ditambahkan');
       }
       setShowModal(false);
       fetchEmployees();
     } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan');
+      appToast.error('Gagal Menyimpan', err.message || 'Gagal menyimpan');
     } finally {
       setSaving(false);
     }
@@ -103,10 +103,10 @@ export default function AdminEmployees() {
     try {
       const { error } = await supabase.from('employees').delete().eq('id', id);
       if (error) throw error;
-      toast.success('Data dihapus');
+      appToast.success('Data Dihapus');
       fetchEmployees();
     } catch (err: any) {
-      toast.error('Gagal menghapus: ' + err.message);
+      appToast.error('Gagal Menghapus', err.message);
     }
   };
 
@@ -227,13 +227,13 @@ export default function AdminEmployees() {
       });
 
       if (skipped > 0) {
-        toast.error(`Import selesai dengan ${skipped} data dilewati.`);
+        appToast.error('Import Selesai', `${skipped} data dilewati.`);
       } else {
-        toast.success(`Import berhasil: ${imported} karyawan ditambahkan.`);
+        appToast.success('Import Berhasil', `${imported} karyawan ditambahkan.`);
       }
       fetchEmployees();
     } catch (err: any) {
-      toast.error('Gagal import: ' + (err.message || 'Format file tidak sesuai'));
+      appToast.error('Gagal Import', err.message || 'Format file tidak sesuai');
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -253,9 +253,9 @@ export default function AdminEmployees() {
       ws['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 18 }];
       XLSX.utils.book_append_sheet(wb, ws, 'Karyawan');
       XLSX.writeFile(wb, 'template_karyawan.xlsx');
-      toast.success('Template diunduh');
+      appToast.success('Template Diunduh');
     } catch {
-      toast.error('Gagal mengunduh template');
+      appToast.error('Gagal', 'Gagal mengunduh template');
     }
   };
 

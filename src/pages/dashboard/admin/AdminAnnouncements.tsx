@@ -4,7 +4,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { Megaphone, Plus, X, Pin, Trash2, Loader2, Edit, Upload, Image as ImageIcon, Users, Trophy, ClipboardList, Calendar, ChevronDown, ChevronUp, UserPlus, FileText, BarChart3, CheckCheck, Download, Share2 } from 'lucide-react';
 import RichTextEditor from '../../../components/ui/RichTextEditor';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { motion, AnimatePresence } from 'motion/react';
 import LogoFederasi from '../../../components/ui/federasi-logo.png';
 
@@ -126,7 +126,7 @@ export default function AdminAnnouncements() {
       );
     } catch (error) {
       console.error('Error fetching vote results:', error);
-      toast.error('Gagal memuat hasil voting');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat hasil voting.');
     } finally {
       setVoteResultsLoading(false);
     }
@@ -438,10 +438,10 @@ export default function AdminAnnouncements() {
       link.download = `hasil_voting_${(voteResultsAnnouncement?.title || 'voting').replace(/\s+/g, '_').slice(0, 30)}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-      toast.success('Gambar hasil voting diunduh!');
+      appToast.success('Berhasil!', 'Gambar hasil voting berhasil diunduh!');
     } catch (e) {
       console.error('Download error:', e);
-      toast.error('Gagal mengunduh gambar');
+      appToast.error('Gagal Mengunduh', 'Terjadi kesalahan saat mengunduh gambar.');
     }
   };
 
@@ -451,7 +451,7 @@ export default function AdminAnnouncements() {
       if (!canvas) return;
       const total = voteResultsCandidates.reduce((s, c) => s + c.count, 0);
       canvas.toBlob(async (blob) => {
-        if (!blob) { toast.error('Gagal membuat gambar'); return; }
+        if (!blob) { appToast.error('Gagal Membuat', 'Terjadi kesalahan saat membuat gambar.'); return; }
         const file = new File([blob], 'hasil_voting.png', { type: 'image/png' });
         if (navigator.share && navigator.canShare({ files: [file] })) {
           await navigator.share({ title: 'Hasil Voting', text: 'Hasil voting terbaru', files: [file] });
@@ -465,7 +465,7 @@ export default function AdminAnnouncements() {
       });
     } catch (e) {
       console.error('Share error:', e);
-      toast.error('Gagal membagikan');
+      appToast.error('Gagal Membagikan', 'Terjadi kesalahan saat membagikan hasil voting.');
     }
   };
 
@@ -523,7 +523,7 @@ export default function AdminAnnouncements() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      toast.error('File harus berupa gambar');
+      appToast.error('Format Salah', 'File harus berupa gambar.');
       return;
     }
 
@@ -543,9 +543,9 @@ export default function AdminAnnouncements() {
         .getPublicUrl(filePath);
 
       setForm({ ...form, image_url: publicUrl });
-      toast.success('Gambar berhasil diunggah');
+      appToast.success('Berhasil!', 'Gambar berhasil diunggah.');
     } catch (error: any) {
-      toast.error('Gagal mengunggah gambar: ' + error.message);
+      appToast.error('Gagal Mengunggah', error.message || 'Terjadi kesalahan saat mengunggah gambar.');
     } finally {
       setUploading(false);
     }
@@ -554,7 +554,7 @@ export default function AdminAnnouncements() {
   // Candidate photo upload
   const handleCandidatePhotoUpload = async (index: number, file: File) => {
     if (!file.type.startsWith('image/')) {
-      toast.error('File harus berupa gambar');
+      appToast.error('Format Salah', 'File harus berupa gambar.');
       return;
     }
     const candidateKey = `candidate-${index}`;
@@ -576,9 +576,9 @@ export default function AdminAnnouncements() {
       const updated = [...candidates];
       updated[index] = { ...updated[index], photo_url: publicUrl };
       setCandidates(updated);
-      toast.success('Foto kandidat diunggah');
+      appToast.success('Berhasil!', 'Foto kandidat berhasil diunggah.');
     } catch (error: any) {
-      toast.error('Gagal mengunggah foto: ' + error.message);
+      appToast.error('Gagal Mengunggah', error.message || 'Terjadi kesalahan saat mengunggah foto.');
     } finally {
       setUploadingCandidate(null);
     }
@@ -702,19 +702,19 @@ export default function AdminAnnouncements() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.content) {
-      toast.error('Mohon lengkapi semua kolom');
+      appToast.error('Form Tidak Lengkap', 'Mohon lengkapi semua kolom yang diperlukan.');
       return;
     }
 
     // Validate gathering-specific fields
     if (form.announcement_type === 'gathering' && gatheringConfig.voting_enabled) {
       if (candidates.length === 0) {
-        toast.error('Tambahkan minimal 1 kandidat untuk voting');
+        appToast.error('Kandidat Kosong', 'Tambahkan minimal 1 kandidat untuk voting.');
         return;
       }
       const hasEmptyName = candidates.some(c => !c.name.trim());
       if (hasEmptyName) {
-        toast.error('Semua kandidat harus memiliki nama');
+        appToast.error('Nama Kandidat', 'Semua kandidat harus memiliki nama.');
         return;
       }
     }
@@ -759,7 +759,7 @@ export default function AdminAnnouncements() {
           .eq('id', editingId);
         if (error) throw error;
         announcementId = editingId;
-        toast.success('Pengumuman diperbarui');
+        appToast.success('Diperbarui!', 'Pengumuman berhasil diperbarui.');
       } else {
         const { data, error } = await supabase
           .from('announcements')
@@ -768,7 +768,7 @@ export default function AdminAnnouncements() {
           .single();
         if (error) throw error;
         announcementId = data.id;
-        toast.success('Pengumuman dipublikasikan');
+        appToast.success('Dipublikasikan!', 'Pengumuman berhasil dipublikasikan.');
 
         // Trigger push notification broadcast
         try {
@@ -847,7 +847,7 @@ export default function AdminAnnouncements() {
       fetchAnnouncements();
     } catch (error: any) {
       console.error('Error:', error);
-      toast.error('Gagal menyimpan: ' + (error.message || ''));
+      appToast.error('Gagal Menyimpan', error.message || 'Terjadi kesalahan saat menyimpan pengumuman.');
     } finally {
       setSaving(false);
     }
@@ -900,11 +900,11 @@ export default function AdminAnnouncements() {
       // Cascade deletes handle candidates and votes
       const { error } = await supabase.from('announcements').delete().eq('id', id);
       if (error) throw error;
-      toast.success('Pengumuman dihapus');
+      appToast.success('Dihapus!', 'Pengumuman berhasil dihapus.');
       fetchAnnouncements();
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Gagal menghapus');
+      appToast.error('Gagal Menghapus', 'Terjadi kesalahan saat menghapus pengumuman.');
     }
   };
 
@@ -928,9 +928,9 @@ export default function AdminAnnouncements() {
       const lines = text.split('\n').filter(l => l.trim());
       const niks = lines.slice(1).map(l => l.split(/[,\t;]/)[0]?.trim()).filter(n => n && n.length >= 3);
       setTargetNiks(niks.join(', '));
-      toast.success(`${niks.length} NIK berhasil dimuat dari file`);
+      appToast.success('NIK Dimuat!', `${niks.length} NIK berhasil dimuat dari file.`);
     } catch (error: any) {
-      toast.error('Gagal membaca file');
+      appToast.error('Gagal Membaca', 'Terjadi kesalahan saat membaca file.');
     }
   };
 

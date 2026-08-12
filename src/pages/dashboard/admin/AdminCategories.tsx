@@ -10,7 +10,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 interface Category {
   id: string;
@@ -42,7 +42,7 @@ export default function AdminCategories() {
       setCategories(data || []);
     } catch (err: any) {
       console.error('Error fetching categories:', err);
-      toast.error('Gagal memuat data kategori');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat data kategori.');
     } finally {
       setLoading(false);
     }
@@ -63,13 +63,13 @@ export default function AdminCategories() {
 
       if (error) throw error;
 
-      toast.success('Kategori berhasil ditambahkan');
+      appToast.success('Kategori Ditambahkan!', 'Kategori berhasil ditambahkan.');
       setNewCategoryName('');
       setIsAddModalOpen(false);
       fetchCategories();
     } catch (err: any) {
       console.error('Error adding category:', err);
-      toast.error(err.message || 'Gagal menambahkan kategori');
+      appToast.error('Gagal Menambahkan', err.message || 'Terjadi kesalahan saat menambahkan kategori.');
     } finally {
       setIsSubmitting(false);
     }
@@ -84,11 +84,11 @@ export default function AdminCategories() {
 
       if (error) throw error;
 
-      toast.success('Kategori berhasil dihapus');
+      appToast.success('Kategori Dihapus!', 'Kategori berhasil dihapus.');
       fetchCategories();
     } catch (err: any) {
       console.error('Error deleting category:', err);
-      toast.error('Gagal menghapus kategori. Pastikan tidak ada produk yang menggunakan kategori ini.');
+      appToast.error('Gagal Menghapus', 'Pastikan tidak ada produk yang menggunakan kategori ini.');
     }
   };
 

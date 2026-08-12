@@ -18,7 +18,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -56,7 +56,7 @@ export default function AdminSellers() {
     try {
       const amount = Number(revisionAmount);
       if (isNaN(amount) || amount <= 0) {
-        toast.error('Jumlah revisi tidak valid');
+        appToast.error('Jumlah Tidak Valid', 'Masukkan jumlah revisi yang valid.');
         return;
       }
 
@@ -64,7 +64,7 @@ export default function AdminSellers() {
       const newBalance = revisionType === 'add' ? currentBalance + amount : currentBalance - amount;
 
       if (newBalance < 0) {
-        toast.error('Saldo tidak boleh menjadi negatif');
+        appToast.error('Saldo Negatif', 'Saldo tidak boleh menjadi negatif.');
         return;
       }
 
@@ -75,13 +75,13 @@ export default function AdminSellers() {
 
       if (error) throw error;
 
-      toast.success('Saldo berhasil direvisi');
+      appToast.success('Revisi Berhasil', 'Saldo penjual berhasil direvisi.');
       setSelectedSellerForRevision(null);
       setRevisionAmount('');
       fetchSellers();
     } catch (error: any) {
       console.error('Error revising balance:', error);
-      toast.error(`Gagal merevisi saldo: ${error.message}`);
+      appToast.error('Gagal Revisi', error.message || 'Terjadi kesalahan saat merevisi saldo.');
     } finally {
       setIsRevising(false);
     }
@@ -126,18 +126,18 @@ export default function AdminSellers() {
           
         if (fallbackError) {
           console.error('Fallback NIK check failed:', fallbackError);
-          toast.error('Terjadi kesalahan pada database. Pastikan schema database sudah diperbarui (menjalankan supabase-schema.sql).');
+          appToast.error('Database Error', 'Pastikan schema database sudah diperbarui.');
           setLoading(false);
           return;
         }
 
         if (existingUser) {
-          toast.error('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
+          appToast.error('NIK Sudah Ada', 'NIK ini sudah terdaftar di sistem.');
           setLoading(false);
           return;
         }
       } else if (nikExists) {
-        toast.error('Gagal menambahkan penjual: NIK ini sudah terdaftar di sistem.');
+        appToast.error('NIK Sudah Ada', 'NIK ini sudah terdaftar di sistem.');
         setLoading(false);
         return;
       }
@@ -173,13 +173,13 @@ export default function AdminSellers() {
         throw authError;
       }
 
-      toast.success('Penjual berhasil ditambahkan!');
+      appToast.success('Penjual Ditambahkan', 'Penjual baru berhasil ditambahkan.');
       setIsAdding(false);
       setNewSeller({ nik: '', password: '', name: '' });
       fetchSellers();
     } catch (error: any) {
       console.error('Error adding seller:', error);
-      toast.error(`Gagal menambahkan penjual: ${error.message}`);
+      appToast.error('Gagal Menambah', error.message || 'Terjadi kesalahan saat menambahkan penjual.');
     } finally {
       setLoading(false);
     }
@@ -200,7 +200,7 @@ export default function AdminSellers() {
       ));
     } catch (error) {
       console.error('Error updating seller status:', error);
-      toast.error('Gagal mengubah status penjual');
+      appToast.error('Gagal Mengubah Status', 'Terjadi kesalahan saat mengubah status penjual.');
     }
   };
 
@@ -214,16 +214,16 @@ export default function AdminSellers() {
       if (error) throw error;
       
       fetchSellers();
-      toast.success('Penjual berhasil dihapus');
+      appToast.success('Penjual Dihapus', 'Penjual berhasil dihapus dari sistem.');
     } catch (error: any) {
       console.error('Error deleting seller:', error);
-      toast.error(`Gagal menghapus penjual: ${error.message}`);
+      appToast.error('Gagal Menghapus', error.message || 'Terjadi kesalahan saat menghapus penjual.');
     }
   };
 
   const generateSellerLink = async () => {
     if (!user?.id) {
-      toast.error('Anda belum login');
+      appToast.error('Belum Login', 'Silakan login terlebih dahulu.');
       return;
     }
     
@@ -232,7 +232,7 @@ export default function AdminSellers() {
       
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        toast.error('Sesi tidak ditemukan. Refresh halaman atau login ulang.');
+        appToast.error('Sesi Berakhir', 'Refresh halaman atau login ulang.');
         return;
       }
       const response = await fetch('/api/admin/seller-registration-links', {
@@ -255,11 +255,11 @@ export default function AdminSellers() {
 
       setGeneratedLink(result.link);
       setSellerLinkExpires(result.expiresAt);
-      toast.success('Link berhasil dibuat!');
+      appToast.success('Link Dibuat', 'Link pendaftaran seller berhasil dibuat.');
       
     } catch (error: any) {
       console.error('Error generating seller link:', error);
-      toast.error(error.message || 'Gagal generate link');
+      appToast.error('Gagal Generate Link', error.message || 'Terjadi kesalahan saat membuat link.');
     } finally {
       setGeneratingLink(false);
     }
@@ -355,7 +355,7 @@ export default function AdminSellers() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(generatedLink);
-                    toast.success('Link disalin!');
+                    appToast.success('Disalin', 'Link berhasil disalin ke clipboard.');
                   }}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold"
                 >

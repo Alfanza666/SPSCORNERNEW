@@ -4,7 +4,7 @@ import { Bug, CheckCircle2, XCircle, Trash2, FileSpreadsheet, FileText, BarChart
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import * as XLSX from 'xlsx';
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -54,9 +54,9 @@ export default function AdminReports() {
       if (error) throw error;
       setReports(prev => prev.map(r => r.id === reportId ? { ...r, status: newStatus } : r));
       if (selectedReport?.id === reportId) setSelectedReport((p: any) => p ? { ...p, status: newStatus } : null);
-      toast.success('Status diperbarui');
+      appToast.success('Status Diperbarui');
     } catch (err: any) {
-      toast.error('Gagal: ' + err.message);
+      appToast.error('Gagal', err.message);
     }
   };
 
@@ -67,9 +67,9 @@ export default function AdminReports() {
       if (error) throw error;
       setReports(prev => prev.filter(r => r.id !== reportId));
       if (selectedReport?.id === reportId) setSelectedReport(null);
-      toast.success('Laporan dihapus');
+      appToast.success('Laporan Dihapus');
     } catch (err: any) {
-      toast.error('Gagal: ' + err.message);
+      appToast.error('Gagal', err.message);
     }
   };
 
@@ -89,9 +89,9 @@ export default function AdminReports() {
       const response = await fetch(`/api/admin/programs/${selectedProgramId}/workflow-report`);
       const result = await response.json();
       if (result.success) setProgramReport(result.report);
-      else toast.error('Gagal memuat laporan program');
+      else appToast.error('Gagal', 'Gagal memuat laporan program');
     } catch (e: any) {
-      toast.error('Gagal: ' + e.message);
+      appToast.error('Gagal', e.message);
     } finally {
       setProgramReportLoading(false);
     }
@@ -111,9 +111,9 @@ export default function AdminReports() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      toast.success(`Mengunduh laporan ${format.toUpperCase()}...`);
+      appToast.success('Mengunduh', `Mengunduh laporan ${format.toUpperCase()}...`);
     } catch (e: any) {
-      toast.error('Gagal: ' + e.message);
+      appToast.error('Gagal', e.message);
     }
   };
 
@@ -138,7 +138,7 @@ export default function AdminReports() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Laporan & Bug');
     XLSX.writeFile(wb, `laporan-bug-spscorner-${format(new Date(), 'yyyyMMdd-HHmm')}.xlsx`);
-    toast.success(`Berhasil mengekspor ${data.length} laporan ke Excel`);
+    appToast.success('Export Berhasil', `${data.length} laporan diekspor ke Excel`);
   };
 
   const exportToMarkdown = () => {
@@ -206,7 +206,7 @@ export default function AdminReports() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success(`Berhasil mengekspor ${filtered.length} laporan ke Markdown`);
+    appToast.success('Export Berhasil', `${filtered.length} laporan diekspor ke Markdown`);
   };
 
   return (

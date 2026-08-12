@@ -4,7 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
 import { Package, CheckCircle2, Clock, Search } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 export default function SellerTransactions() {
   const { user } = useAuthStore();
@@ -36,7 +36,7 @@ export default function SellerTransactions() {
       setItems(data || []);
     } catch (error) {
       console.error('Error fetching transactions:', error);
-      toast.error('Gagal memuat data transaksi');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat data transaksi.');
     } finally {
       setLoading(false);
     }
@@ -48,11 +48,11 @@ export default function SellerTransactions() {
       const response = await fetch(`/api/transactions/items/${item.id}/ready`, { method: 'POST', headers: { Authorization: `Bearer ${session?.access_token || ''}` } });
       if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Gagal memperbarui item');
 
-      toast.success('Berhasil mengirim notifikasi ke pembeli!');
+      appToast.success('Berhasil!', 'Notifikasi sudah dikirim ke pembeli.');
       fetchTransactions();
     } catch (error) {
       console.error('Error marking ready:', error);
-      toast.error('Gagal menandai siap diambil');
+      appToast.error('Gagal Update', 'Terjadi kesalahan saat menandai item siap diambil.');
     }
   };
 
@@ -70,11 +70,11 @@ export default function SellerTransactions() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal mengkonfirmasi pesanan');
       
-      toast.success('Pesanan berhasil dikonfirmasi dan nota dikirim ke pembeli.');
+      appToast.success('Terkonfirmasi!', 'Pesanan sudah dikonfirmasi dan nota terkirim ke pembeli.');
       fetchTransactions();
     } catch (error: any) {
       console.error('Error confirming:', error);
-      toast.error(error.message);
+      appToast.error('Gagal Konfirmasi', error.message || 'Terjadi kesalahan saat mengkonfirmasi pesanan.');
     }
   };
 

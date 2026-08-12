@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'motion/react';
 import { Lock, Eye, EyeOff, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import SPSLogo from '../../components/SPSLogo';
 
 export default function UpdatePassword() {
@@ -18,12 +18,12 @@ export default function UpdatePassword() {
     e.preventDefault();
     
     if (password.length < 6) {
-      toast.error('Password minimal 6 karakter');
+      appToast.error('Password Terlalu Pendek', 'Password minimal 6 karakter');
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Password tidak cocok');
+      appToast.error('Password Tidak Cocok', 'Password tidak cocok');
       return;
     }
 
@@ -44,7 +44,7 @@ export default function UpdatePassword() {
 
     } catch (err: any) {
       console.error('Update password error:', err);
-      toast.error(err.message || 'Gagal mengubah password');
+      appToast.error('Gagal Mengubah Password', err.message || 'Gagal mengubah password');
     } finally {
       setLoading(false);
     }

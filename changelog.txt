@@ -1,3 +1,45 @@
+v5.17.0 - AppToast UI System & Manual Coupon Type (MINOR)
+-----------------------------------------------
+### AppToast — Professional Error/Success Popup:
+- Implementasi `AppToast` component di semua halaman kiosk, dashboard, portal, dan components.
+- Semua `toast.error()` dan `toast.success()` diganti `appToast.error()` dan `appToast.success()`.
+- Format: title (PascalCase, max 40 chars) + detail message.
+- Support `{ id }` option untuk replace loading → success/error.
+- Tambah `appToast.loading()` variant untuk spinner.
+- Error kritis punya tombol "Hubungi Admin via WhatsApp" otomatis.
+- Auto-translate error teknis ke bahasa Indonesia yang dimengerti user.
+
+### Manual Coupon Type Selector:
+- Admin bisa pilih tipe kupon saat membuat tiket manual: Attendance, Meal, Doorprize, Sembako.
+- RPC baru `create_manual_coupon_v2` — tidak mengubah RPC lama `generate_manual_coupon`.
+- Data kupon yang sudah ada TIDAK diubah/dihapus.
+- Backend route `/api/admin/programs/:programId/manual-coupon` terima parameter `couponType`.
+- Frontend modal "Tambah Kupon Manual" punya dropdown tipe kupon.
+
+### Auto-Cleanup Timeout Fix (QRIS Manual):
+- Auto-cleanup sekarang bedakan timeout: 15 menit untuk non-manual, 60 menit untuk manual_qris/transfer_koperasi.
+- Manual verify endpoint izinkan re-verify dari status "failed" (auto-cancelled) untuk manual_qris/transfer_koperasi.
+- Fix masalah Rahmawati: transaksi QRIS Manual gagal karena auto-cleanup terlalu agresif.
+
+### Files Changed:
+- `src/components/ui/AppToast.tsx` — tambah loading variant + {id} support
+- `src/pages/kiosk/*` — semua 9 file kiosk pakai appToast
+- `src/pages/dashboard/*` — semua seller + admin pages pakai appToast
+- `src/pages/portal/*` — semua portal pages pakai appToast
+- `src/pages/auth/*` — semua auth pages pakai appToast
+- `src/components/*` — semua components pakai appToast
+- `src/lib/utils.ts` — pakai appToast
+- `src/routes/portal.ts` — manual coupon route terima couponType
+- `src/pages/dashboard/admin/AdminProgramCoupons.tsx` — dropdown tipe kupon
+- `src/services/background-jobs.js` — auto-cleanup timeout fix
+- `src/routes/payments.ts` — manual verify accept failed status
+- `scripts/create_manual_coupon_v2.sql` — RPC baru
+
+### QA & Prevention:
+- `npm run lint` passes — zero errors.
+- Semua toast.error/success sudah diganti (0 sisa).
+- Payment success tetap navigate ke /kiosk/success (confetti + nota).
+
 v5.16.7 - Critical Payment & Point Fix (PATCH)
 -----------------------------------------------
 ### Loyalty Point Double Payment Fix:

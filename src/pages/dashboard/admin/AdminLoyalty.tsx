@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Save, Tag } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { motion } from 'motion/react';
 
@@ -32,7 +32,7 @@ export default function AdminLoyalty() {
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
-      toast.error('Gagal memuat pengaturan');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat pengaturan.');
     } finally {
       setLoading(false);
     }
@@ -48,10 +48,10 @@ export default function AdminLoyalty() {
 
       if (error) throw error;
       setLoyaltyEnabled(newValue);
-      toast.success(newValue ? 'Loyalty point diaktifkan' : 'Loyalty point dinonaktifkan');
+      appToast.success('Pengaturan Diperbarui!', newValue ? 'Loyalty point berhasil diaktifkan.' : 'Loyalty point berhasil dinonaktifkan.');
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast.error('Gagal menyimpan pengaturan');
+      appToast.error('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan pengaturan.');
     } finally {
       setSaving(false);
     }

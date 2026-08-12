@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
@@ -79,7 +79,7 @@ export default function SellerPreOrders() {
       setPreOrders(poRes.data || []);
       setCategories(catRes.data || []);
     } catch (e: any) {
-      toast.error('Gagal memuat data: ' + e.message);
+      appToast.error('Gagal Memuat Data', e.message);
     } finally {
       setLoading(false);
     }
@@ -102,7 +102,7 @@ export default function SellerPreOrders() {
       const { data: { publicUrl } } = supabase.storage.from('products').getPublicUrl(filePath);
       setProductForm(prev => ({ ...prev, image_url: publicUrl }));
     } catch (error: any) {
-      toast.error(error.message);
+      appToast.error('Upload Gagal', error.message);
     } finally {
       setUploadingImage(false);
     }
@@ -193,11 +193,11 @@ export default function SellerPreOrders() {
       const { error: cfgErr } = await supabase.from('pre_order_configs').upsert(configPayload, { onConflict: 'product_id' });
       if (cfgErr) throw cfgErr;
       
-      toast.success('Produk PO berhasil disimpan!');
+      appToast.success('PO Disimpan', 'Produk PO berhasil disimpan!');
       setShowConfigForm(false);
       fetchAll();
     } catch (e: any) {
-      toast.error('Gagal menyimpan: ' + e.message);
+      appToast.error('Gagal Menyimpan', e.message);
     } finally {
       setLoading(false);
     }
@@ -207,9 +207,9 @@ export default function SellerPreOrders() {
     try {
       const { error } = await supabase.from('pre_order_configs').update({ is_active: !current }).eq('id', configId);
       if (error) throw error;
-      toast.success(!current ? 'PO diaktifkan' : 'PO dinonaktifkan');
+      appToast.success(!current ? 'PO Diaktifkan' : 'PO Dinonaktifkan');
       fetchAll();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { appToast.error('Gagal', e.message); }
   };
 
   const handleDeleteProduct = async (productId: string) => {
@@ -218,10 +218,10 @@ export default function SellerPreOrders() {
       setLoading(true);
       const { error } = await supabase.from('products').delete().eq('id', productId);
       if (error) throw error;
-      toast.success('Produk PO berhasil dihapus');
+      appToast.success('PO Dihapus', 'Produk PO berhasil dihapus');
       fetchAll();
     } catch (e: any) {
-      toast.error('Gagal menghapus produk: ' + e.message);
+      appToast.error('Gagal Menghapus', e.message);
       setLoading(false);
     }
   };
@@ -244,9 +244,9 @@ export default function SellerPreOrders() {
       if (newStatus === 'picked_up') updateData.picked_up_at = new Date().toISOString();
       const { error } = await supabase.from('pre_orders').update(updateData).eq('id', orderId);
       if (error) throw error;
-      toast.success(`Status diubah ke: ${STATUS_LABELS[newStatus]}`);
+      appToast.success('Status Diperbarui', `Status diubah ke: ${STATUS_LABELS[newStatus]}`);
       fetchAll();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { appToast.error('Gagal', e.message); }
   };
 
   const toggleDay = (day: number) => {
@@ -437,7 +437,7 @@ export default function SellerPreOrders() {
                         <button onClick={() => {
                           const url = `${window.location.origin}/kiosk/pre-order/${cfg.id}`;
                           if (navigator.share) navigator.share({ title: product.name, url }).catch(() => {});
-                          else navigator.clipboard.writeText(url).then(() => toast.success('Link disalin!')).catch(() => toast.error('Gagal copy'));
+                          else navigator.clipboard.writeText(url).then(() => appToast.success('Link Disalin')).catch(() => appToast.error('Gagal', 'Gagal menyalin link'));
                         }} className="px-4 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-xl hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors border border-emerald-100 dark:border-emerald-900/50" title="Bagikan ke media sosial">
                           <Share2 className="w-4 h-4" />
                         </button>

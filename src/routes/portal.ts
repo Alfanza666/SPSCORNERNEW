@@ -112,11 +112,11 @@ export function registerPortalRoutes(app, { supabase, sendNotification, ipaymuCl
     }
   });
 
-  // Generate manual coupon (external/affiliate)
+  // Generate manual coupon (external/affiliate) — supports configurable type
   app.post("/api/admin/programs/:programId/manual-coupon", async (req, res) => {
     try {
       const { programId } = req.params;
-      const { nik, name } = req.body;
+      const { nik, name, couponType } = req.body;
       const authHeader = req.headers.authorization;
       
       if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
@@ -129,16 +129,37 @@ export function registerPortalRoutes(app, { supabase, sendNotification, ipaymuCl
         return res.status(403).json({ error: "Forbidden: Admin only" });
       }
 
-      const result = await supabase.rpc("generate_manual_coupon", {
-        p_program_id: programId,
-        p_nik: nik,
-        p_name: name,
-        p_creator_id: user.id
-      });
-      
-      if (result.error) throw result.error;
-      
-      res.json({ success: true, data: result.data });
+      // Gunakan RPC baru jika couponType disediakan,否则 gunakan RPC lama
+      if (couponType && couponType !== 'attendance') {
+        const result = await supabase.rpc("create_manual_coupon_v2", {
+          p_program_id: programId,
+          p_nik: nik,
+          p_name: name,
+          p_gate_type: couponType,
+          p_creator_id: user.id
+        });
+        
+        if (result.error) throw result.error;
+        
+        const rpcResult = result.data;
+        if (rpcResult && !rpcResult.success) {
+          return res.status(400).json({ error: rpcResult.error });
+        }
+        
+        res.json({ success: true, data: rpcResult });
+      } else {
+        // Tetap gunakan RPC lama untuk tipe default (attendance)
+        const result = await supabase.rpc("generate_manual_coupon", {
+          p_program_id: programId,
+          p_nik: nik,
+          p_name: name,
+          p_creator_id: user.id
+        });
+        
+        if (result.error) throw result.error;
+        
+        res.json({ success: true, data: result.data });
+      }
     } catch (error: any) {
       console.error("Generate manual coupon error:", error);
       res.status(500).json({ error: error.message });

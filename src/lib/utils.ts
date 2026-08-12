@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import toast from 'react-hot-toast';
+import { appToast } from '../components/ui/AppToast';
 import * as XLSX from 'xlsx';
 
 export function cn(...inputs: ClassValue[]) {
@@ -54,7 +54,7 @@ export function exportExcel(
     XLSX.writeFile(wb, `${filename}.xlsx`);
   } catch (error) {
     console.error('Error exporting Excel:', error);
-    toast.error('Gagal mengunduh laporan Excel.');
+    appToast.error('Gagal Mengunduh', 'Terjadi kesalahan saat mengunduh laporan Excel.');
   }
 }
 
@@ -72,6 +72,6 @@ export function exportCSV(csvContent: string, filename: string) {
     document.body.removeChild(link);
   } catch (error) {
     console.error('Error exporting CSV:', error);
-    toast.error('Gagal mengunduh laporan.');
+    appToast.error('Gagal Mengunduh', 'Terjadi kesalahan saat mengunduh laporan.');
   }
 }

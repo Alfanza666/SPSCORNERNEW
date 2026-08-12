@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion } from 'motion/react';
 import { ArrowLeft, KeyRound, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../components/ui/AppToast';
 import SPSLogo from '../components/SPSLogo';
 
 export default function ForgotPassword() {
@@ -32,10 +32,10 @@ export default function ForgotPassword() {
       }
 
       setSuccess(true);
-      toast.success('Link reset password telah dikirim ke email Anda. Silakan cek inbox atau spam.');
+      appToast.success('Email Terkirim', 'Link reset password telah dikirim ke email Anda. Silakan cek inbox atau spam.');
     } catch (err: any) {
       console.error('Forgot password error:', err);
-      toast.error(err.message || 'Gagal mengirim permintaan reset password.');
+      appToast.error('Gagal Mengirim', err.message || 'Gagal mengirim permintaan reset password.');
     } finally {
       setLoading(false);
     }

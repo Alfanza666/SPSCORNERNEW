@@ -426,7 +426,7 @@ Sistem SPS Corner`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       
-      toast.success(data.message);
+      appToast.success('Pesanan Dibatalkan', data.message || 'Pesanan berhasil dibatalkan.');
       fetchHistory();
     } catch (error: any) {
       appToast.error('Gagal Membatalkan Pesanan', error.message || 'Terjadi kesalahan saat membatalkan pesanan.');

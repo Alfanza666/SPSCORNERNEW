@@ -400,21 +400,22 @@ function LightToast({ t, variant, title, message }: LightProps) {
 // PUBLIC API
 // ════════════════════════════════════════════════════════════════
 
+interface ToastOpts {
+  /** ID spesifik — jika diisi, toast sebelumnya dengan ID sama akan di-replace */
+  id?: string;
+  /** Durasi tampil (ms). Default: error=5000, success=4000, info=4000, loading=Infinity */
+  duration?: number;
+}
+
 /**
  * Toast KRITIS — untuk error yang user tidak bisa selesaikan sendiri.
  * Otomatis menerjemahkan error teknis & mengisi pesan WA lengkap.
- *
- * @example
- * appToast.critical({
- *   title: 'Pembayaran Gagal',
- *   error: error,          // Error object atau string — otomatis diterjemahkan
- *   context: 'Checkout step 3, nominal Rp 50.000', // Info tambahan (opsional)
- * })
  */
 function critical(opts: {
   title: string;
   error: unknown;
   context?: string;
+  id?: string;
   duration?: number;
 }) {
   const { user, action, raw } = translateError(opts.error);
@@ -429,7 +430,25 @@ function critical(opts: {
         context={opts.context}
       />
     ),
-    { duration: opts.duration ?? Infinity, position: 'top-center' }
+    { id: opts.id, duration: opts.duration ?? Infinity, position: 'top-center' }
+  );
+}
+
+/**
+ * Toast loading — spinner dengan pesan.
+ * Gunakan ID yang sama dengan success/error untuk replace.
+ *
+ * @example
+ * const toastId = appToast.loading('Memverifikasi...');
+ * // ... proses selesai
+ * appToast.success('Berhasil!', { id: toastId });
+ */
+function loading(title: string, opts?: ToastOpts) {
+  return toast.custom(
+    (t) => (
+      <LightToast t={t} variant="info" title={title} message={undefined} />
+    ),
+    { id: opts?.id, duration: opts?.duration ?? Infinity, position: 'top-center' }
   );
 }
 
@@ -440,8 +459,12 @@ function critical(opts: {
  * @example
  * appToast.error('Gagal memuat data', error)
  * appToast.error('Gagal memuat data', 'Periksa koneksi internet Anda')
+ * appToast.error('Gagal', 'Detail', { id: toastId })
  */
-function error(title: string, messageOrError?: string | unknown, duration = 5000) {
+function error(title: string, messageOrError?: string | unknown, optsOrDuration?: ToastOpts | number) {
+  const opts: ToastOpts = typeof optsOrDuration === 'number'
+    ? { duration: optsOrDuration }
+    : optsOrDuration ?? {};
   let message: string | undefined;
   if (typeof messageOrError === 'string') {
     message = messageOrError;
@@ -451,7 +474,7 @@ function error(title: string, messageOrError?: string | unknown, duration = 5000
   }
   return toast.custom(
     (t) => <LightToast t={t} variant="error" title={title} message={message} />,
-    { duration, position: 'top-center' }
+    { id: opts.id, duration: opts.duration ?? 5000, position: 'top-center' }
   );
 }
 
@@ -459,21 +482,27 @@ function error(title: string, messageOrError?: string | unknown, duration = 5000
  * Toast peringatan
  * @example appToast.warning('Stok Hampir Habis!', 'Sisa 2 item tersedia')
  */
-function warning(title: string, message?: string, duration = 5000) {
+function warning(title: string, message?: string, optsOrDuration?: ToastOpts | number) {
+  const opts: ToastOpts = typeof optsOrDuration === 'number'
+    ? { duration: optsOrDuration }
+    : optsOrDuration ?? {};
   return toast.custom(
     (t) => <LightToast t={t} variant="warning" title={title} message={message} />,
-    { duration, position: 'top-center' }
+    { id: opts.id, duration: opts.duration ?? 5000, position: 'top-center' }
   );
 }
 
 /**
  * Toast sukses
- * @example appToast.success('Pembayaran Berhasil!', 'Terima kasih atas pesananmu')
+ * @example appToast.success('Pembayaran Berhasil!', 'Terima kasih')
  */
-function success(title: string, message?: string, duration = 4000) {
+function success(title: string, message?: string, optsOrDuration?: ToastOpts | number) {
+  const opts: ToastOpts = typeof optsOrDuration === 'number'
+    ? { duration: optsOrDuration }
+    : optsOrDuration ?? {};
   return toast.custom(
     (t) => <LightToast t={t} variant="success" title={title} message={message} />,
-    { duration, position: 'top-center' }
+    { id: opts.id, duration: opts.duration ?? 4000, position: 'top-center' }
   );
 }
 
@@ -481,14 +510,17 @@ function success(title: string, message?: string, duration = 4000) {
  * Toast informasi
  * @example appToast.info('Sedang diproses...', 'Mohon tunggu sebentar')
  */
-function info(title: string, message?: string, duration = 4000) {
+function info(title: string, message?: string, optsOrDuration?: ToastOpts | number) {
+  const opts: ToastOpts = typeof optsOrDuration === 'number'
+    ? { duration: optsOrDuration }
+    : optsOrDuration ?? {};
   return toast.custom(
     (t) => <LightToast t={t} variant="info" title={title} message={message} />,
-    { duration, position: 'top-center' }
+    { id: opts.id, duration: opts.duration ?? 4000, position: 'top-center' }
   );
 }
 
 /** Tutup toast by ID atau semua */
 function dismiss(id?: string) { toast.dismiss(id); }
 
-export const appToast = { critical, error, warning, success, info, dismiss };
+export const appToast = { critical, error, warning, success, info, loading, dismiss };

@@ -5,7 +5,7 @@ import {
   Store, ArrowLeft, Eye, EyeOff, Loader2, AlertCircle,
   CheckCircle2, CreditCard, Phone, Mail, User, Hash, ShieldCheck
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import SPSLogo from '../../components/SPSLogo';
 
 export default function RegisterSeller() {
@@ -74,17 +74,17 @@ export default function RegisterSeller() {
     e.preventDefault();
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('Password tidak cocok');
+      appToast.error('Password Tidak Cocok', 'Password tidak cocok');
       return;
     }
 
     if (formData.password.length < 6) {
-      toast.error('Password minimal 6 karakter');
+      appToast.error('Password Terlalu Pendek', 'Password minimal 6 karakter');
       return;
     }
 
     if (formData.nik.length < 6) {
-      toast.error('NIK minimal 6 digit');
+      appToast.error('NIK Terlalu Pendek', 'NIK minimal 6 digit');
       return;
     }
 
@@ -111,11 +111,11 @@ export default function RegisterSeller() {
       }
 
       setStep('success');
-      toast.success('Pendaftaran berhasil!');
+      appToast.success('Pendaftaran Berhasil', 'Pendaftaran berhasil!');
 
     } catch (err: any) {
       console.error('Register error:', err);
-      toast.error(err.message || 'Gagal mendaftar');
+      appToast.error('Gagal Mendaftar', err.message || 'Gagal mendaftar');
     } finally {
       setLoading(false);
     }

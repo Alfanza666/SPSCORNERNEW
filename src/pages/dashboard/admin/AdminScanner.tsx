@@ -6,7 +6,7 @@ import {
   Loader2, History, QrCode, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import { Html5Qrcode } from 'html5-qrcode';
 
 interface ScanLog {
@@ -104,7 +104,7 @@ export default function AdminScanner() {
     if (scanning) return;
     
     if (window.isSecureContext === false) {
-      toast.error('Akses Kamera Ditolak: Fitur kamera memerlukan HTTPS.');
+      appToast.error('Akses Kamera Ditolak', 'Fitur kamera memerlukan HTTPS.');
       return;
     }
 
@@ -140,7 +140,7 @@ export default function AdminScanner() {
         errorMsg = `Gagal: ${err.name || 'UnknownError'} - ${err.message || String(err)}`;
       }
       
-      toast.error(errorMsg, { duration: 8000 });
+      appToast.error('Gagal Mengakses Kamera', errorMsg, { duration: 8000 });
       setScanning(false);
     }
   };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Printer, Search, FileSpreadsheet, Loader2, FileText, Plus, X, Download } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -76,7 +76,7 @@ export default function AdminCouponReports() {
 
   const handleFetchData = async () => {
     if (!startDate || !endDate) {
-      toast.error('Harap pilih rentang tanggal');
+      appToast.error('Rentang Tanggal', 'Harap pilih rentang tanggal terlebih dahulu.');
       return;
     }
 
@@ -108,12 +108,12 @@ export default function AdminCouponReports() {
       }
       
       if (data?.length === 0) {
-        toast.error('Tidak ada data scan ditemukan pada rentang waktu tersebut.');
+        appToast.error('Tidak Ada Data', 'Tidak ada data scan ditemukan pada rentang waktu tersebut.');
       } else {
-        toast.success(`${data?.length} data ditemukan`);
+        appToast.success('Data Ditemukan!', `${data?.length} data berhasil ditemukan.`);
       }
     } catch (e: any) {
-      toast.error('Gagal menarik data: ' + e.message);
+      appToast.error('Gagal Menarik Data', e.message || 'Terjadi kesalahan saat menarik data.');
     } finally {
       setFetchingData(false);
     }
@@ -122,7 +122,7 @@ export default function AdminCouponReports() {
   const exportToExcel = () => {
     const selectedData = reportData.filter(row => selectedIds[row.id]);
     if (selectedData.length === 0) {
-      toast.error('Pilih minimal satu NIK/data untuk diekspor');
+      appToast.error('Pilih Data', 'Pilih minimal satu NIK/data untuk diekspor.');
       return;
     }
 
@@ -145,7 +145,7 @@ export default function AdminCouponReports() {
   const downloadPDF = async () => {
     const selectedData = reportData.filter(row => selectedIds[row.id]);
     if (selectedData.length === 0) {
-      toast.error('Pilih minimal satu NIK/data untuk diekspor');
+      appToast.error('Pilih Data', 'Pilih minimal satu NIK/data untuk diekspor.');
       return;
     }
     setDownloading(true);
@@ -289,9 +289,9 @@ export default function AdminCouponReports() {
       doc.line(pageW - margin - 50, sigY + 18, pageW - margin, sigY + 18);
 
       doc.save(`Laporan_Kupon_SPS_${startDate}_to_${endDate}.pdf`);
-      toast.success('PDF berhasil di download');
+      appToast.success('Berhasil!', 'PDF berhasil diunduh.');
     } catch (e: any) {
-      toast.error('Gagal download PDF: ' + e.message);
+      appToast.error('Gagal Download', e.message || 'Terjadi kesalahan saat mengunduh PDF.');
     } finally {
       setDownloading(false);
     }
@@ -312,9 +312,9 @@ export default function AdminCouponReports() {
         .eq('id', row.id);
       if (error) throw error;
       setReportData(prev => prev.map(r => r.id === row.id ? { ...r, claimed_at: newDate } : r));
-      toast.success('Waktu berhasil diubah');
+      appToast.success('Berhasil!', 'Waktu berhasil diubah.');
     } catch (e: any) {
-      toast.error('Gagal menyimpan: ' + e.message);
+      appToast.error('Gagal Menyimpan', e.message || 'Terjadi kesalahan saat menyimpan perubahan waktu.');
     } finally {
       setEditingId(null);
     }
@@ -324,7 +324,7 @@ export default function AdminCouponReports() {
 
   const handleManualClaim = async () => {
     if (!newRecord.programId || !newRecord.nik || !newRecord.name || !newRecord.claimedAt) {
-      toast.error('Harap isi semua field');
+      appToast.error('Form Tidak Lengkap', 'Harap isi semua field yang diperlukan.');
       return;
     }
     setAddingData(true);
@@ -374,7 +374,7 @@ export default function AdminCouponReports() {
 
       if (updateError) throw updateError;
 
-      toast.success('Data scan berhasil ditambahkan');
+      appToast.success('Berhasil!', 'Data scan berhasil ditambahkan.');
       setShowAddModal(false);
       setNewRecord(prev => ({
         ...prev,
@@ -386,7 +386,7 @@ export default function AdminCouponReports() {
       }));
       handleFetchData();
     } catch (e: any) {
-      toast.error('Gagal menambah data: ' + e.message);
+      appToast.error('Gagal Menambah Data', e.message || 'Terjadi kesalahan saat menambah data.');
     } finally {
       setAddingData(false);
     }

@@ -6,7 +6,7 @@ import {
   MessageSquare, AlertTriangle, Shield, Send, Clock, CheckCircle, Loader2, FileText, ChevronRight, ChevronLeft, Sparkles
 } from 'lucide-react';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Feedback {
@@ -61,7 +61,7 @@ export default function PortalKritik() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !formData.title || !formData.description) {
-      toast.error('Mohon lengkapi semua kolom');
+      appToast.error('Lengkapi Kolom', 'Mohon lengkapi semua kolom yang diperlukan.');
       return;
     }
 
@@ -84,12 +84,12 @@ export default function PortalKritik() {
       } catch (e) { console.error('Gagal mengirim notif admin', e); }
       // end notifyAdmins
 
-      toast.success('Terima kasih! Kritik/saran Anda telah dikirim');
+      appToast.success('Terkirim!', 'Kritik/saran Anda telah dikirim.');
       setFormData({ type: 'saran', title: '', description: '' });
       fetchMyFeedback();
     } catch (error) {
       console.error('Error submitting feedback:', error);
-      toast.error('Gagal mengirim kritik/saran');
+      appToast.error('Gagal Kirim', 'Terjadi kesalahan saat mengirim kritik/saran.');
     } finally {
       setSubmitting(false);
     }

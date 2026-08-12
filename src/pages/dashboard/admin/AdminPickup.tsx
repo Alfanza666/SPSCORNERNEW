@@ -4,7 +4,7 @@ import { Package, AlertTriangle, Clock, CheckCircle2, RefreshCw, User } from 'lu
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 interface PickupRecord {
   id: string;
@@ -66,11 +66,11 @@ export default function AdminPickup() {
         .update({ pickup_status: 'ready', pickup_ready_at: new Date().toISOString() })
         .eq('id', txId);
       if (error) throw error;
-      toast.success('Pesanan ditandai siap diambil');
+      appToast.success('Pesanan Siap', 'Pesanan ditandai siap diambil');
       fetchPickups();
     } catch (err: any) {
       // Column might not exist yet — notify gracefully
-      toast.error('Fitur ini memerlukan migrasi kolom pickup_status di tabel transactions');
+      appToast.error('Gagal', 'Fitur ini memerlukan migrasi kolom pickup_status di tabel transactions');
     }
   };
 

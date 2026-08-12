@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 interface ReportProduct {
   id: string;
@@ -84,7 +84,7 @@ export default function AdminStockReport() {
 
   const handleExportExcel = () => {
     if (filtered.length === 0) {
-      toast.error('Tidak ada data untuk diexport');
+      appToast.error('Tidak Ada Data', 'Tidak ada data untuk diexport');
       return;
     }
 
@@ -132,7 +132,7 @@ export default function AdminStockReport() {
     }
 
     XLSX.writeFile(wb, `Laporan_Stok_SPS_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-    toast.success('File Excel berhasil di-download');
+    appToast.success('Export Berhasil', 'File Excel berhasil di-download');
   };
 
   return (

@@ -20,7 +20,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
 
@@ -98,26 +98,26 @@ export default function SellerWithdrawals() {
     const withdrawAmount = Number(amount);
     
     if (withdrawAmount < 50000) {
-      toast.error('Minimal penarikan adalah Rp 50.000');
+      appToast.error('Minimal Penarikan', 'Jumlah penarikan minimal adalah Rp 50.000.');
       return;
     }
     
     if (withdrawAmount > balance) {
-      toast.error('Saldo tidak mencukupi');
+      appToast.error('Saldo Tidak Cukup', 'Saldo Anda tidak mencukupi untuk penarikan ini.');
       return;
     }
 
     // Validasi nomor rekening / nomor HP
     const cleanAccNum = accountNumber.replace(/\s/g, '');
     if (cleanAccNum.length < 8 || cleanAccNum.length > 20 || !/^\d+$/.test(cleanAccNum)) {
-      toast.error('Nomor rekening/HP tidak valid. Masukkan angka 8-20 digit.');
+      appToast.error('Nomor Rekening Tidak Valid', 'Masukkan angka 8-20 digit untuk nomor rekening/HP.');
       return;
     }
 
     // Validasi nama pemilik rekening
     const cleanAccName = accountName.trim();
     if (cleanAccName.length < 3) {
-      toast.error('Nama pemilik rekening minimal 3 karakter.');
+      appToast.error('Nama Tidak Valid', 'Nama pemilik rekening minimal 3 karakter.');
       return;
     }
 
@@ -146,10 +146,10 @@ export default function SellerWithdrawals() {
 
       setAmount('');
       fetchData();
-      toast.success('Permintaan penarikan berhasil dikirim. Menunggu persetujuan admin.');
+      appToast.success('Berhasil Dikirim!', 'Permintaan penarikan menunggu persetujuan admin.');
     } catch (error: any) {
       console.error('Error requesting withdrawal:', error);
-      toast.error(error.message || 'Gagal mengirim permintaan penarikan');
+      appToast.error('Gagal Mengirim', error.message || 'Terjadi kesalahan saat mengirim permintaan penarikan.');
     } finally {
       setIsRequesting(false);
     }

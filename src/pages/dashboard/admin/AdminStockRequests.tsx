@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Package, CheckCircle2, XCircle, Clock, Search } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { appToast } from '../../../components/ui/AppToast';
 
 export default function AdminStockRequests() {
   const { user } = useAuthStore();
@@ -30,7 +30,7 @@ export default function AdminStockRequests() {
       setRequests(data || []);
     } catch (error) {
       console.error('Error fetching stock requests:', error);
-      toast.error('Gagal memuat data permintaan restock');
+      appToast.error('Gagal Memuat', 'Terjadi kesalahan saat memuat data permintaan restock.');
     } finally {
       setLoading(false);
     }
@@ -57,11 +57,11 @@ export default function AdminStockRequests() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
 
-      toast.success(`Permintaan restock berhasil di-${newStatus === 'approved' ? 'setujui' : 'tolak'}`);
+      appToast.success('Berhasil!', `Permintaan restock berhasil di-${newStatus === 'approved' ? 'setujui' : 'tolak'}.`);
       fetchRequests();
     } catch (error: any) {
       console.error('Error updating request:', error);
-      toast.error(`Gagal memperbarui status: ${error.message}`);
+      appToast.error('Gagal Memperbarui', error.message || 'Terjadi kesalahan saat memperbarui status.');
     } finally {
       setLoading(false);
     }
