@@ -167,7 +167,7 @@ export function registerPortalRoutes(app, { supabase, sendNotification, ipaymuCl
           coupon_code: couponCode,
           gate_type: gateType,
           status: "active",
-          created_by: user.id,
+          metadata: { manual: true, created_by_admin: user.id },
         })
         .select()
         .single();
