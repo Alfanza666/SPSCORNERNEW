@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { 
@@ -8,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { appToast } from '../../../components/ui/AppToast';
 import QRCode from 'react-qr-code';
+import TicketQrFrame from '../../../components/portal/TicketQrFrame';
 
 export default function AdminProgramCoupons() {
   const { user } = useAuthStore();
@@ -105,81 +107,70 @@ export default function AdminProgramCoupons() {
 
   const downloadTicket = async (coupon: any) => {
     try {
-      const canvas = document.createElement('canvas');
-      const size = 500;
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, size, size);
-      ctx.fillStyle = '#1e3a5f';
-      ctx.fillRect(0, 0, size, 80);
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      const loadImg = new Promise<void>((resolve) => {
-        img.onload = () => resolve();
-        img.onerror = () => resolve();
-        img.src = '/logos/serikat-logo.png';
+      // Gunakan layout TicketQrFrame yang sama dengan tampilan di portal
+      const html2canvas = (await import('html2canvas')).default;
+
+      // Buat container tersembunyi di luar viewport
+      const container = document.createElement('div');
+      container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:480px;height:640px;z-index:-1;';
+      document.body.appendChild(container);
+
+      // Tentukan label gate_type yang sesuai
+      const gateLabel = (coupon.gate_type || 'ATTENDANCE').toUpperCase();
+      const ticketTitleMap: Record<string, string> = {
+        attendance: 'TIKET MASUK',
+        attendance_family: 'TIKET MASUK (KELUARGA)',
+        meal: 'KUPON MAKAN',
+        meal_family: 'KUPON MAKAN (KELUARGA)',
+        doorprize: 'KUPON DOORPRIZE',
+        sembako: 'KUPON SEMBAKO',
+      };
+      const ticketTitle = ticketTitleMap[coupon.gate_type] || gateLabel;
+      const statusLabel = coupon.status === 'active' ? 'AKTIF' : 'SUDAH DIGUNAKAN';
+      const beneficiaryLabel = coupon.beneficiary_type === 'family' ? 'Keluarga' : 'Karyawan';
+      const qrValue = coupon.coupon_code || coupon.nik || '';
+      const programName = coupon.union_programs?.name || '';
+      const participantName = coupon.profiles?.name || coupon.name || '-';
+      const nik = coupon.nik || '-';
+
+      // Render TicketQrFrame ke dalam container
+      const root = createRoot(container);
+      await new Promise<void>((resolve) => {
+        root.render(
+          React.createElement(TicketQrFrame, {
+            programName,
+            ticketTitle,
+            qrValue,
+            name: participantName,
+            nik,
+            beneficiaryLabel,
+            code: coupon.coupon_code,
+            status: statusLabel,
+            className: 'w-full h-full',
+          })
+        );
+        // Tunggu satu frame agar gambar dan font selesai dimuat
+        setTimeout(resolve, 800);
       });
-      await loadImg;
-      if (img.complete && img.naturalWidth > 0) {
-        ctx.drawImage(img, 12, 12, 56, 56);
-      }
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 22px Arial';
-      ctx.fillText((coupon.union_programs?.name || 'PROGRAM').toUpperCase(), size / 2, 35);
-      ctx.font = '12px Arial';
-      ctx.fillText('TANDA TERIMA', size / 2, 55);
-      ctx.fillStyle = '#1e3a5f';
-      ctx.font = 'bold 16px Arial';
-      ctx.textAlign = 'left';
-      ctx.fillText('Nama:', 30, 120);
-      ctx.font = '15px Arial';
-      ctx.fillText(coupon.name || '-', 110, 120);
-      ctx.font = 'bold 16px Arial';
-      ctx.fillText('NIK:', 30, 150);
-      ctx.font = '15px Arial';
-      ctx.fillText(coupon.nik || '-', 110, 150);
-      ctx.font = 'bold 16px Arial';
-      ctx.fillText('Gate:', 30, 180);
-      ctx.font = '15px Arial';
-      ctx.fillText((coupon.gate_type || '-').toUpperCase(), 110, 180);
-      ctx.font = 'bold 16px Arial';
-      ctx.fillText('Kode:', 30, 210);
-      ctx.font = 'bold 15px Courier New';
-      ctx.fillText(coupon.coupon_code || '-', 110, 210);
-      const qrValue = coupon.coupon_code || coupon.nik;
-      const qrCanvas = document.createElement('canvas');
-      const qrSize = 220;
-      qrCanvas.width = qrSize;
-      qrCanvas.height = qrSize;
-      const QRlib = (await import('qr.js')).default;
-      const qr = QRlib(qrValue, { typeNumber: -1, errorCorrectLevel: QRlib.ErrorCorrectLevel.H });
-      const mods = qr.modules;
-      const cellSize = qrSize / mods.length;
-      const qrCtx = qrCanvas.getContext('2d');
-      if (!qrCtx) return;
-      qrCtx.fillStyle = '#ffffff';
-      qrCtx.fillRect(0, 0, qrSize, qrSize);
-      qrCtx.fillStyle = '#000000';
-      for (let r = 0; r < mods.length; r++) {
-        for (let c = 0; c < mods.length; c++) {
-          if (mods[r][c]) {
-            qrCtx.fillRect(c * cellSize, r * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
-          }
-        }
-      }
-      ctx.drawImage(qrCanvas, (size - qrSize) / 2, 240, qrSize, qrSize);
-      ctx.fillStyle = '#888888';
-      ctx.font = '11px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('Federasi Serikat Pekerja Sukses', size / 2, size - 15);
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: null,
+        width: 480,
+        height: 640,
+      });
+
+      root.unmount();
+      document.body.removeChild(container);
+
       const link = document.createElement('a');
-      link.download = `tiket-${coupon.name || coupon.nik}-${coupon.coupon_code || ''}.png`;
+      link.download = `tiket-${participantName}-${coupon.coupon_code || ''}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
+
+      appToast.success('Berhasil!', `Tiket ${participantName} berhasil didownload.`);
     } catch (err) {
       console.error('Download ticket error:', err);
       appToast.error('Gagal Download', 'Terjadi kesalahan saat mendownload tiket.');
