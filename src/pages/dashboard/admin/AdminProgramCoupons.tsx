@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { 
-  Ticket, Plus, Upload, Users, Loader2, Search, Filter, 
-  Download, Trash2, CheckCircle, XCircle, RefreshCw, Send, X, AlertTriangle
+  Ticket, Plus, Upload, Users, Loader2, Search,
+  Download, Trash2, Send, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { appToast } from '../../../components/ui/AppToast';
 import QRCode from 'react-qr-code';
-import TicketQrFrame from '../../../components/portal/TicketQrFrame';
 
 export default function AdminProgramCoupons() {
   const { user } = useAuthStore();
@@ -119,93 +117,192 @@ export default function AdminProgramCoupons() {
 
   const downloadTicket = async (coupon: any) => {
     try {
-      // Gunakan layout TicketQrFrame yang sama dengan tampilan di portal
-      const html2canvas = (await import('html2canvas')).default;
+      const W = 960;
+      const H = 1280;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d')!;
 
-      // Buat container tersembunyi di luar viewport
-      const container = document.createElement('div');
-      container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:480px;height:640px;z-index:-1;';
-      document.body.appendChild(container);
-
-      // Tentukan label gate_type yang sesuai
-      const gateLabel = (coupon.gate_type || 'ATTENDANCE').toUpperCase();
-      const ticketTitleMap: Record<string, string> = {
-        attendance: 'TIKET MASUK',
-        attendance_family: 'TIKET MASUK (KELUARGA)',
-        meal: 'KUPON MAKAN',
-        meal_family: 'KUPON MAKAN (KELUARGA)',
-        doorprize: 'KUPON DOORPRIZE',
-        sembako: 'KUPON SEMBAKO',
-      };
-      const ticketTitle = ticketTitleMap[coupon.gate_type] || gateLabel;
-      const statusLabel = coupon.status === 'active' ? 'AKTIF' : 'SUDAH DIGUNAKAN';
-      const beneficiaryLabel = coupon.beneficiary_type === 'family' ? 'Keluarga' : 'Karyawan';
-      const qrValue = coupon.coupon_code || coupon.nik || '';
-      const programName = coupon.union_programs?.name || '';
-      const participantName = coupon.profiles?.name || coupon.name || '-';
-      const nik = coupon.nik || '-';
-
-      // Render TicketQrFrame ke dalam container
-      const root = createRoot(container);
-      await new Promise<void>((resolve) => {
-        root.render(
-          React.createElement(TicketQrFrame, {
-            programName,
-            ticketTitle,
-            qrValue,
-            name: participantName,
-            nik,
-            beneficiaryLabel,
-            code: coupon.coupon_code,
-            status: statusLabel,
-            className: 'w-full h-full',
-          })
-        );
-        // Tunggu agar React render + gambar selesai load
-        setTimeout(resolve, 1000);
-      });
-
-      // Fix: html2canvas tidak bisa render <svg> secara langsung.
-      // Konversi semua SVG di dalam container menjadi <img> data URL terlebih dahulu.
-      const svgElements = container.querySelectorAll('svg');
-      await Promise.all(Array.from(svgElements).map(async (svg) => {
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
-        return new Promise<void>((res) => {
-          const img = document.createElement('img');
-          const { width, height } = svg.getBoundingClientRect();
-          img.width = width || 240;
-          img.height = height || 240;
-          img.style.cssText = svg.style.cssText || 'width:100%;height:100%;';
-          img.onload = () => {
-            svg.parentNode?.replaceChild(img, svg);
-            URL.revokeObjectURL(url);
-            res();
-          };
-          img.onerror = () => { URL.revokeObjectURL(url); res(); };
-          img.src = url;
+      // Helper: load image by src → HTMLImageElement
+      const loadImage = (src: string): Promise<HTMLImageElement> =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(img); // lanjut meski gagal
+          img.src = src;
         });
-      }));
 
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        width: 480,
-        height: 640,
-      });
+      // Load semua aset secara paralel
+      const [frameImg, sariRotiImg, federasiImg, spsLogoImg] = await Promise.all([
+        loadImage('/src/components/ui/Frame QR New.png'),
+        loadImage('/src/components/ui/logo_sariroti_group.png'),
+        loadImage('/src/components/ui/federasi-logo.png'),
+        loadImage('/src/components/ui/logo-landscape.webp'),
+      ]);
 
-      root.unmount();
-      document.body.removeChild(container);
+      // --- Background putih ---
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
 
+      // --- Frame background ---
+      if (frameImg.complete && frameImg.naturalWidth > 0) {
+        ctx.drawImage(frameImg, 0, 0, W, H);
+      }
+
+      // --- Logo kiri (Sari Roti) ---
+      if (sariRotiImg.complete && sariRotiImg.naturalWidth > 0) {
+        ctx.drawImage(sariRotiImg, Math.round(W * 0.06), Math.round(H * 0.045), Math.round(W * 0.145), Math.round(H * 0.06));
+      }
+
+      // --- Logo kanan (Federasi) ---
+      if (federasiImg.complete && federasiImg.naturalWidth > 0) {
+        ctx.drawImage(federasiImg, Math.round(W * 0.835), Math.round(H * 0.045), Math.round(W * 0.105), Math.round(H * 0.062));
+      }
+
+      // --- Label tipe peserta ---
+      const beneficiaryLabel = (coupon.beneficiary_type === 'family' ? 'Keluarga' : 'Karyawan').toUpperCase();
+      const centerX = W / 2;
+      const labelY = Math.round(H * 0.095);
+      ctx.fillStyle = '#1e3a8a'; // blue-900
+      const badgeW = 160; const badgeH = 28; const badgeR = 14;
+      const bx = centerX - badgeW / 2;
+      ctx.beginPath();
+      ctx.moveTo(bx + badgeR, labelY - badgeH / 2);
+      ctx.arcTo(bx + badgeW, labelY - badgeH / 2, bx + badgeW, labelY + badgeH / 2, badgeR);
+      ctx.arcTo(bx + badgeW, labelY + badgeH / 2, bx, labelY + badgeH / 2, badgeR);
+      ctx.arcTo(bx, labelY + badgeH / 2, bx, labelY - badgeH / 2, badgeR);
+      ctx.arcTo(bx, labelY - badgeH / 2, bx + badgeW, labelY - badgeH / 2, badgeR);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(beneficiaryLabel, centerX, labelY);
+
+      // --- Nama program ---
+      const programName = (coupon.union_programs?.name || 'PROGRAM SERIKAT').toUpperCase();
+      ctx.fillStyle = '#1e3a8a';
+      ctx.font = 'bold 52px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      // Word wrap jika terlalu panjang
+      const maxProgramW = W * 0.62;
+      let programFontSize = 52;
+      ctx.font = `bold ${programFontSize}px Arial`;
+      while (ctx.measureText(programName).width > maxProgramW && programFontSize > 20) {
+        programFontSize -= 2;
+        ctx.font = `bold ${programFontSize}px Arial`;
+      }
+      ctx.fillText(programName, centerX, Math.round(H * 0.135));
+
+      // --- Tipe tiket ---
+      const ticketTitleMap: Record<string, string> = {
+        attendance: 'TIKET MASUK', attendance_family: 'TIKET MASUK (KELUARGA)',
+        meal: 'KUPON MAKAN', meal_family: 'KUPON MAKAN (KELUARGA)',
+        doorprize: 'KUPON DOORPRIZE', sembako: 'KUPON SEMBAKO',
+      };
+      const ticketTitle = (ticketTitleMap[coupon.gate_type] || (coupon.gate_type || 'TIKET').toUpperCase());
+      ctx.fillStyle = '#1e293b'; // slate-800
+      ctx.font = 'bold 26px Arial';
+      ctx.fillText(ticketTitle, centerX, Math.round(H * 0.162));
+
+      // --- QR Code via qr.js ---
+      const qrValue = coupon.coupon_code || coupon.nik || 'NO-CODE';
+      const QRlib = (await import('qr.js')).default;
+      const qr = QRlib(qrValue, { typeNumber: -1, errorCorrectLevel: QRlib.ErrorCorrectLevel.H });
+      const mods = qr.modules;
+      const qrAreaSize = Math.round(W * 0.46);
+      const qrX = Math.round((W - qrAreaSize) / 2);
+      const qrY = Math.round(H * 0.305);
+      const cellSize = qrAreaSize / mods.length;
+      // QR background putih + shadow
+      const qrPad = 16;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(30,64,175,0.35)';
+      ctx.shadowBlur = 30;
+      ctx.fillRect(qrX - qrPad, qrY - qrPad, qrAreaSize + qrPad * 2, qrAreaSize + qrPad * 2);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#0f172a';
+      for (let r = 0; r < mods.length; r++) {
+        for (let c = 0; c < mods.length; c++) {
+          if (mods[r][c]) {
+            ctx.fillRect(
+              qrX + Math.round(c * cellSize),
+              qrY + Math.round(r * cellSize),
+              Math.ceil(cellSize), Math.ceil(cellSize)
+            );
+          }
+        }
+      }
+
+      // --- Nama peserta ---
+      const participantName = (coupon.profiles?.name || coupon.name || '-').toUpperCase();
+      const nik = coupon.nik || '-';
+      const infoY = Math.round(H * 0.74);
+      const infoX = Math.round(W * 0.08);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = 'rgba(30,58,138,0.75)';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText('NAMA', infoX, infoY);
+      ctx.fillStyle = '#172554';
+      ctx.font = 'bold 32px Arial';
+      ctx.fillText(participantName, infoX, infoY + 36);
+
+      // --- NIK ---
+      const nikY = Math.round(H * 0.812);
+      ctx.fillStyle = 'rgba(30,58,138,0.75)';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText('NIK', infoX, nikY);
+      ctx.fillStyle = '#172554';
+      ctx.font = 'bold 28px Courier New, monospace';
+      ctx.fillText(nik, infoX, nikY + 34);
+
+      // --- Kode kupon ---
+      if (coupon.coupon_code) {
+        ctx.fillStyle = 'rgba(30,58,138,0.65)';
+        ctx.font = 'bold 22px Courier New, monospace';
+        ctx.fillText(coupon.coupon_code, infoX, Math.round(H * 0.864));
+      }
+
+      // --- Badge status ---
+      const statusLabel = coupon.status === 'active' ? 'AKTIF' : 'SUDAH DIGUNAKAN';
+      const statusBgColor = coupon.status === 'active' ? '#10b981' : '#f59e0b';
+      const sbX = Math.round(W * 0.68);
+      const sbY = Math.round(H * 0.75);
+      ctx.fillStyle = statusBgColor;
+      ctx.font = 'bold 20px Arial';
+      ctx.textAlign = 'center';
+      const sW = ctx.measureText(statusLabel).width + 28;
+      const sH = 34; const sR = 17;
+      ctx.beginPath();
+      ctx.moveTo(sbX - sW / 2 + sR, sbY - sH / 2);
+      ctx.arcTo(sbX + sW / 2, sbY - sH / 2, sbX + sW / 2, sbY + sH / 2, sR);
+      ctx.arcTo(sbX + sW / 2, sbY + sH / 2, sbX - sW / 2, sbY + sH / 2, sR);
+      ctx.arcTo(sbX - sW / 2, sbY + sH / 2, sbX - sW / 2, sbY - sH / 2, sR);
+      ctx.arcTo(sbX - sW / 2, sbY - sH / 2, sbX + sW / 2, sbY - sH / 2, sR);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(statusLabel, sbX, sbY);
+
+      // --- Logo SPS Corner (kanan bawah) ---
+      if (spsLogoImg.complete && spsLogoImg.naturalWidth > 0) {
+        const lW = Math.round(W * 0.22);
+        const lH = Math.round(lW * (spsLogoImg.naturalHeight / spsLogoImg.naturalWidth));
+        ctx.drawImage(spsLogoImg, sbX - lW / 2, Math.round(H * 0.8), lW, lH);
+      }
+
+      // --- Download ---
       const link = document.createElement('a');
-      link.download = `tiket-${participantName}-${coupon.coupon_code || ''}.png`;
+      link.download = `tiket-${participantName.replace(/\s+/g, '-')}-${coupon.coupon_code || ''}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
 
-      appToast.success('Berhasil!', `Tiket ${participantName} berhasil didownload.`);
+      appToast.success('Berhasil!', `Tiket ${coupon.profiles?.name || coupon.name} berhasil didownload.`);
     } catch (err) {
       console.error('Download ticket error:', err);
       appToast.error('Gagal Download', 'Terjadi kesalahan saat mendownload tiket.');

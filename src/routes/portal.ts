@@ -112,54 +112,69 @@ export function registerPortalRoutes(app, { supabase, sendNotification, ipaymuCl
     }
   });
 
-  // Generate manual coupon (external/affiliate) — supports configurable type
+  // Generate manual coupon — supports all gate types
   app.post("/api/admin/programs/:programId/manual-coupon", async (req, res) => {
     try {
       const { programId } = req.params;
       const { nik, name, couponType } = req.body;
       const authHeader = req.headers.authorization;
-      
+
       if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
       const token = authHeader.split(" ")[1];
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
-      
+
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
       if (profile?.role !== "admin" && profile?.role !== "superadmin") {
         return res.status(403).json({ error: "Forbidden: Admin only" });
       }
 
-      // Gunakan RPC baru jika couponType disediakan,否则 gunakan RPC lama
-      if (couponType && couponType !== 'attendance') {
-        const result = await supabase.rpc("create_manual_coupon_v2", {
-          p_program_id: programId,
-          p_nik: nik,
-          p_name: name,
-          p_gate_type: couponType,
-          p_creator_id: user.id
-        });
-        
-        if (result.error) throw result.error;
-        
-        const rpcResult = result.data;
-        if (rpcResult && !rpcResult.success) {
-          return res.status(400).json({ error: rpcResult.error });
-        }
-        
-        res.json({ success: true, data: rpcResult });
-      } else {
-        // Tetap gunakan RPC lama untuk tipe default (attendance)
+      const gateType = couponType || "attendance";
+
+      if (gateType === "attendance") {
+        // RPC generate_manual_coupon sudah proven working untuk tipe attendance
         const result = await supabase.rpc("generate_manual_coupon", {
           p_program_id: programId,
           p_nik: nik,
           p_name: name,
           p_creator_id: user.id
         });
-        
         if (result.error) throw result.error;
-        
-        res.json({ success: true, data: result.data });
+        return res.json({ success: true, data: result.data });
       }
+
+      // Untuk tipe selain attendance (meal, doorprize, sembako, dll):
+      // RPC create_manual_coupon_v2 buggy (referensi kolom 'coupon_type' yg tidak ada).
+      // Gunakan direct INSERT ke program_coupons — aman, hanya tambah baris baru.
+      const prefix = gateType.toUpperCase().slice(0, 3);
+      const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const couponCode = `${prefix}-MNL-${randomPart}`;
+
+      // Cari user_id dari NIK jika ada di profiles
+      const { data: profileByNik } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("nik", nik)
+        .maybeSingle();
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("program_coupons")
+        .insert({
+          program_id: programId,
+          user_id: profileByNik?.id || null,
+          nik,
+          name,
+          coupon_code: couponCode,
+          gate_type: gateType,
+          status: "active",
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      return res.json({ success: true, data: inserted });
     } catch (error: any) {
       console.error("Generate manual coupon error:", error);
       res.status(500).json({ error: error.message });
