@@ -84,16 +84,28 @@ export default function AdminProgramCoupons() {
     if (!selectedProgram || !manualForm.nik || !manualForm.name) return;
     setProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('manual-coupon', {
-        body: {
-          programId: selectedProgram,
+      // Gunakan REST endpoint server (bukan Supabase Edge Function yang tidak ada)
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (!token) throw new Error('Sesi habis, silakan login ulang.');
+
+      const res = await fetch(`/api/admin/programs/${selectedProgram}/manual-coupon`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           nik: manualForm.nik,
           name: manualForm.name,
-          couponType: manualForm.couponType
-        }
+          couponType: manualForm.couponType,
+        }),
       });
-      if (error) throw error;
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Terjadi kesalahan saat membuat kupon.');
       if (data && !data.success) throw new Error(data.error);
+
       appToast.success('Kupon Dibuat!', `Kupon ${manualForm.couponType} berhasil dibuat untuk ${manualForm.name}!`);
       setShowManualModal(false);
       setManualForm({ nik: '', name: '', couponType: 'attendance' });
@@ -149,15 +161,38 @@ export default function AdminProgramCoupons() {
             className: 'w-full h-full',
           })
         );
-        // Tunggu satu frame agar gambar dan font selesai dimuat
-        setTimeout(resolve, 800);
+        // Tunggu agar React render + gambar selesai load
+        setTimeout(resolve, 1000);
       });
+
+      // Fix: html2canvas tidak bisa render <svg> secara langsung.
+      // Konversi semua SVG di dalam container menjadi <img> data URL terlebih dahulu.
+      const svgElements = container.querySelectorAll('svg');
+      await Promise.all(Array.from(svgElements).map(async (svg) => {
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        return new Promise<void>((res) => {
+          const img = document.createElement('img');
+          const { width, height } = svg.getBoundingClientRect();
+          img.width = width || 240;
+          img.height = height || 240;
+          img.style.cssText = svg.style.cssText || 'width:100%;height:100%;';
+          img.onload = () => {
+            svg.parentNode?.replaceChild(img, svg);
+            URL.revokeObjectURL(url);
+            res();
+          };
+          img.onerror = () => { URL.revokeObjectURL(url); res(); };
+          img.src = url;
+        });
+      }));
 
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
-        allowTaint: false,
-        backgroundColor: null,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
         width: 480,
         height: 640,
       });
