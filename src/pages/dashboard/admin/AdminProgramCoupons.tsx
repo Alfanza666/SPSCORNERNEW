@@ -24,6 +24,10 @@ export default function AdminProgramCoupons() {
   // Modals State
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
+  const [previewCoupon, setPreviewCoupon] = useState<any>(null);
+  const [downloadingImage, setDownloadingImage] = useState(false);
+  const ticketFrameRef = React.useRef<HTMLDivElement>(null);
+
   const [bulkText, setBulkText] = useState('');
   const [manualForm, setManualForm] = useState({ nik: '', name: '', couponType: 'attendance' });
   const [processing, setProcessing] = useState(false);
@@ -117,81 +121,30 @@ export default function AdminProgramCoupons() {
     }
   };
 
-  const downloadTicket = async (coupon: any) => {
-    const participantName = coupon.profiles?.name || coupon.name || '-';
+  const handleDownloadTicketImage = async (coupon: any) => {
+    if (!ticketFrameRef.current) return;
+    setDownloadingImage(true);
     try {
-      // Pakai html-to-image: support oklch CSS + SVG (react-qr-code)
-      // Hasilnya IDENTIK dengan tampilan TicketQrFrame di portal
       const { toPng } = await import('html-to-image');
+      await document.fonts.ready;
 
-      const ticketTitleMap: Record<string, string> = {
-        attendance: 'TIKET MASUK',
-        attendance_family: 'TIKET MASUK (KELUARGA)',
-        meal: 'KUPON MAKAN',
-        meal_family: 'KUPON MAKAN (KELUARGA)',
-        doorprize: 'KUPON DOORPRIZE',
-        sembako: 'KUPON SEMBAKO',
-      };
-      const ticketTitle = ticketTitleMap[coupon.gate_type] || (coupon.gate_type || 'TIKET').toUpperCase();
-      const statusLabel = coupon.status === 'active' ? 'AKTIF' : 'SUDAH DIGUNAKAN';
-      const beneficiaryLabel = coupon.beneficiary_type === 'family' ? 'Keluarga' : 'Karyawan';
-      const qrValue = coupon.coupon_code || coupon.nik || '';
-      const programName = coupon.union_programs?.name || '';
-      const nik = coupon.nik || '-';
-
-      // Buat container tersembunyi di luar viewport dengan ukuran tetap
-      const container = document.createElement('div');
-      container.style.cssText = [
-        'position:fixed',
-        'top:-9999px',
-        'left:-9999px',
-        'width:480px',
-        'height:640px',
-        'z-index:-1',
-        'overflow:hidden',
-      ].join(';');
-      document.body.appendChild(container);
-
-      // Render TicketQrFrame — komponen yang sama persis dengan di portal
-      const root = createRoot(container);
-      await new Promise<void>((resolve) => {
-        root.render(
-          React.createElement(TicketQrFrame, {
-            programName,
-            ticketTitle,
-            qrValue,
-            name: participantName,
-            nik,
-            beneficiaryLabel,
-            code: coupon.coupon_code,
-            status: statusLabel,
-          })
-        );
-        // Tunggu React render + semua gambar & font selesai load
-        setTimeout(resolve, 1200);
-      });
-
-      // html-to-image: handles oklch CSS + SVG natively
-      const dataUrl = await toPng(container, {
-        width: 480,
-        height: 640,
-        pixelRatio: 3, // resolusi tinggi untuk print
+      const dataUrl = await toPng(ticketFrameRef.current, {
+        pixelRatio: 3,
         cacheBust: true,
-        skipFonts: false,
       });
 
-      root.unmount();
-      document.body.removeChild(container);
-
+      const participantName = coupon.profiles?.name || coupon.name || coupon.nik || 'peserta';
       const link = document.createElement('a');
       link.download = `tiket-${participantName.replace(/\s+/g, '-')}-${coupon.coupon_code || ''}.png`;
       link.href = dataUrl;
       link.click();
 
-      appToast.success('Berhasil!', `Tiket ${participantName} berhasil didownload.`);
-    } catch (err) {
+      appToast.success('Berhasil Download!', `Tiket ${participantName} berhasil disimpan.`);
+    } catch (err: any) {
       console.error('Download ticket error:', err);
-      appToast.error('Gagal Download', 'Terjadi kesalahan saat mendownload tiket.');
+      appToast.error('Gagal Download', err?.message || 'Terjadi kesalahan saat mendownload tiket.');
+    } finally {
+      setDownloadingImage(false);
     }
   };
 
@@ -358,16 +311,16 @@ export default function AdminProgramCoupons() {
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button 
-                          onClick={() => downloadTicket(c)}
-                          className="text-xs font-bold text-blue-600 hover:text-blue-700 border border-blue-200 px-2 py-1 rounded-lg hover:bg-blue-50"
-                          title="Download Tiket"
+                          onClick={() => setPreviewCoupon(c)}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg hover:bg-blue-50 flex items-center gap-1"
+                          title="Preview & Download Tiket Baku"
                         >
-                          <Download className="w-3 h-3 inline-block mr-0.5" />Tiket
+                          <Ticket className="w-3 h-3" /> Tiket
                         </button>
                         {c.gate_type === 'attendance' && c.status === 'active' && (
                           <button 
                             onClick={() => handleBypass(c.nik)}
-                            className="text-xs font-bold text-amber-600 hover:text-amber-700 border border-amber-200 px-2 py-1 rounded-lg hover:bg-amber-50"
+                            className="text-xs font-bold text-amber-600 hover:text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg hover:bg-amber-50"
                             title="Bypass presensi"
                           >
                             Bypass
@@ -451,6 +404,92 @@ export default function AdminProgramCoupons() {
                    Buat Kupon
                  </button>
                </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: Ticket Preview & Download (Layout Baku) */}
+      <AnimatePresence>
+        {previewCoupon && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto"
+            onClick={() => setPreviewCoupon(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }} 
+              className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md p-6 shadow-2xl relative my-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4 pb-3 border-b border-zinc-800">
+                <div>
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <Ticket className="w-5 h-5 text-blue-500" />
+                    Preview Tiket Baku
+                  </h2>
+                  <p className="text-xs text-zinc-400 font-mono mt-0.5">
+                    {previewCoupon.profiles?.name || previewCoupon.name} • {previewCoupon.coupon_code}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setPreviewCoupon(null)} 
+                  className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* VISIBLE TICKET FRAME CARD */}
+              <div ref={ticketFrameRef} className="my-4 rounded-2xl overflow-hidden bg-white shadow-2xl p-1">
+                <TicketQrFrame
+                  programName={previewCoupon.union_programs?.name || programs.find(p => p.id === selectedProgram)?.name || 'PROGRAM SERIKAT'}
+                  ticketTitle={
+                    previewCoupon.gate_type === 'attendance' ? 'TIKET MASUK' :
+                    previewCoupon.gate_type === 'meal' ? 'KUPON MAKAN' :
+                    previewCoupon.gate_type === 'doorprize' ? 'KUPON DOORPRIZE' :
+                    previewCoupon.gate_type === 'sembako' ? 'KUPON SEMBAKO' :
+                    (previewCoupon.gate_type || 'TIKET').toUpperCase()
+                  }
+                  qrValue={previewCoupon.coupon_code || previewCoupon.nik || ''}
+                  name={previewCoupon.profiles?.name || previewCoupon.name || '-'}
+                  nik={previewCoupon.nik || '-'}
+                  beneficiaryLabel={previewCoupon.beneficiary_type === 'family' ? 'Keluarga' : 'Karyawan'}
+                  code={previewCoupon.coupon_code}
+                  status={previewCoupon.status === 'active' ? 'AKTIF' : 'SUDAH DIGUNAKAN'}
+                />
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex gap-3 mt-6">
+                <button 
+                  onClick={() => handleDownloadTicketImage(previewCoupon)} 
+                  disabled={downloadingImage}
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50 text-sm"
+                >
+                  {downloadingImage ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Download Tiket (PNG)
+                    </>
+                  )}
+                </button>
+                <button 
+                  onClick={() => setPreviewCoupon(null)} 
+                  className="py-3 px-5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-colors text-sm"
+                >
+                  Tutup
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
