@@ -315,13 +315,41 @@ export function registerPaymentRoutes(app, {
       }
 
       // FIX F: Atomic idempotency lock — klaim transaksi untuk diproses
-      const { data: claimed, error: claimError } = await supabase
+      // Untuk manual_qris/transfer_koperasi, izinkan re-verify dari status "failed" (auto-cancelled)
+      let { data: claimed, error: claimError } = await supabase
         .from("transactions")
         .update({ status: "processing" })
         .eq("id", transaction_id)
         .eq("status", "pending")
         .select()
         .single();
+
+      // Fallback: jika gagal claim dari pending, coba claim dari failed (auto-cancelled manual payment)
+      if (!claimed || claimError) {
+        const { data: txMeta } = await supabase
+          .from("transactions")
+          .select("status, payment_method, metadata")
+          .eq("id", transaction_id)
+          .single();
+        const isAutoCancelled = txMeta?.status === "failed"
+          && (txMeta?.metadata?.cancel_reason || "").includes("Auto-cancelled")
+          && ["manual_qris", "transfer_koperasi"].includes(txMeta?.payment_method);
+
+        if (isAutoCancelled) {
+          const { data: reClaimed, error: reClaimError } = await supabase
+            .from("transactions")
+            .update({ status: "processing" })
+            .eq("id", transaction_id)
+            .eq("status", "failed")
+            .select()
+            .single();
+          if (reClaimed && !reClaimError) {
+            claimed = reClaimed;
+            claimError = null;
+          }
+        }
+      }
+
       if (!claimed || claimError) {
         return res.status(409).json({ success: false, error: "Transaksi sedang diproses atau sudah tidak pending." });
       }

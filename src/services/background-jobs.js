@@ -270,14 +270,23 @@ async function autoCleanup() {
       }
     }
 
-    // ── Cancel transaksi expired (> 15 menit) ──
-    const expiredThreshold = new Date(Date.now() - 15 * 60 * 1e3).toISOString();
-    // Ambil ALL pending expired — termasuk yang punya receipt_image (AI tolak dll)
-    const { data: expired } = await supabaseInstance
+    // ── Cancel transaksi expired (> 15 menit / 60 menit untuk manual) ──
+    const shortThreshold = new Date(Date.now() - 15 * 60 * 1e3).toISOString();
+    const longThreshold = new Date(Date.now() - 60 * 60 * 1e3).toISOString();
+    // QRIS Manual & Transfer Koperasi butuh waktu lebih lama untuk upload bukti
+    const { data: expiredManual } = await supabaseInstance
       .from("transactions")
       .select("id, buyer_id, metadata, payment_details, receipt_image")
       .in("status", ["pending"])
-      .lt("created_at", expiredThreshold);
+      .in("payment_method", ["manual_qris", "transfer_koperasi"])
+      .lt("created_at", longThreshold);
+    const { data: expiredOthers } = await supabaseInstance
+      .from("transactions")
+      .select("id, buyer_id, metadata, payment_details, receipt_image")
+      .in("status", ["pending"])
+      .not("payment_method", "in", '("manual_qris","transfer_koperasi")')
+      .lt("created_at", shortThreshold);
+    const expired = [...(expiredManual || []), ...(expiredOthers || [])];
     if (!expired || expired.length === 0) return;
     for (const tx of expired) {
       // Lewati transaksi yang punya receipt_image DAN belum pernah gagal verifikasi

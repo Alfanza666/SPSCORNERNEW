@@ -7,6 +7,7 @@ import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, Arro
 import { motion, AnimatePresence } from 'motion/react';
 import React, { Suspense } from 'react';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 const DAYS_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
@@ -228,11 +229,11 @@ export default function Catalog() {
   // Handle adding PO item to cart with validation
   const handleAddPoItem = (product: Product) => {
     if (!isTodayOpenDay(product)) {
-      toast.error(`Pre-Order ini hanya buka di hari ${getOpenDaysText(product.po_open_days)}`);
+      appToast.error('Hari Tidak Tepat', `Pre-Order ini hanya buka di hari ${getOpenDaysText(product.po_open_days)}.`);
       return;
     }
     if (!isWithinCutoff(product)) {
-      toast.error(`Batas pemesanan sudah lewat (cutoff ${product.po_cutoff_time} WITA)`);
+      appToast.error('Waktu Habis', `Batas pemesanan sudah lewat (cutoff ${product.po_cutoff_time} WITA).`);
       return;
     }
     // Check min order
@@ -243,13 +244,13 @@ export default function Catalog() {
       addItem({ ...product, stock: product.po_stock || 999 });
       if (product.po_min_order > 1) {
         updateQuantity(product.id, product.po_min_order);
-        toast.success(`Minimum order ${product.po_min_order} pcs`);
+        appToast.success('Minimum Order', `Pesanan minimal ${product.po_min_order} pcs.`);
       }
       return;
     }
     // Check max order
     if (product.po_max_order && currentQty >= product.po_max_order) {
-      toast.error(`Maksimum order ${product.po_max_order} pcs`);
+      appToast.error('Melebihi Batas', `Maksimum order ${product.po_max_order} pcs.`);
       return;
     }
     addItem({ ...product, stock: product.po_max_order || product.po_stock || 999 });
@@ -498,7 +499,7 @@ export default function Catalog() {
                               <button
                                 onClick={() => {
                                   if (poQty < maxOrder) updateQuantity(product.id, poQty + 1);
-                                  else toast.error(`Maks. order ${maxOrder} pcs`);
+                                  else appToast.error('Melebihi Batas', `Maks. order ${maxOrder} pcs.`);
                                 }}
                                 disabled={poQty >= maxOrder}
                                 className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-amber-500 text-white rounded-lg shadow-sm hover:bg-amber-600 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:hover:scale-100"
@@ -755,7 +756,7 @@ export default function Catalog() {
                           <button
                             onClick={() => {
                               if (qty < maxOrder) updateQuantity(selectedProduct.id, qty + 1);
-                              else toast.error(`Maks. order ${maxOrder} pcs`);
+                              else appToast.error('Melebihi Batas', `Maks. order ${maxOrder} pcs.`);
                             }}
                             disabled={qty >= maxOrder}
                             className="w-10 h-10 flex items-center justify-center bg-amber-500 text-white rounded-xl shadow-sm hover:bg-amber-600 hover:scale-105 active:scale-95 transition-all disabled:opacity-50"

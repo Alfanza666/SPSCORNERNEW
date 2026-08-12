@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 const PAYMENT_METHOD_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
   qris: { label: 'QRIS (Otomatis)', icon: Smartphone },
@@ -176,7 +177,7 @@ Sistem SPS Corner`);
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('Mohon izinkan pop-up untuk mencetak nota.');
+      appToast.error('Pop-up Diblokir', 'Mohon izinkan pop-up browser untuk mencetak nota pembelian.');
       return;
     }
 
@@ -245,9 +246,9 @@ Sistem SPS Corner`);
 
   const copyReference = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      toast.success('No. Referensi disalin!');
+      appToast.success('Referensi Tersalin!', 'Nomor referensi sudah siap ditempel.');
     }).catch(() => {
-      toast.error('Gagal menyalin');
+      appToast.error('Gagal Menyalin', 'Coba salin manual dengan menekan dan tahan pada nomor referensi.');
     });
   };
 

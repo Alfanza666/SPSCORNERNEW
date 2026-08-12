@@ -8,6 +8,7 @@ import { formatRupiah } from '../../lib/utils';
 import { RefreshCw, CheckCircle2, XCircle, Loader2, Upload, FileImage, ShieldCheck, AlertCircle, Info, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 export default function Validate() {
   const { items, getTotal, clearCart, reservations } = useCartStore();
@@ -31,7 +32,7 @@ export default function Validate() {
 
     try {
       if (!file.type.startsWith('image/')) {
-        toast.error('File harus berupa gambar (JPG, PNG, dll).');
+        appToast.error('Format File Salah', 'File harus berupa gambar (JPG, PNG, dll).');
         return;
       }
       
@@ -50,7 +51,7 @@ export default function Validate() {
       reader.readAsDataURL(compressedFile);
     } catch (error) {
       console.error('Error compressing image:', error);
-      toast.error('Gagal memproses gambar. Silakan coba lagi.');
+      appToast.error('Gagal Memproses Gambar', 'Terjadi kesalahan saat mengompres gambar. Coba lagi dengan gambar lain.');
     }
   };
 

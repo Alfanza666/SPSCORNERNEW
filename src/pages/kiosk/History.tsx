@@ -6,6 +6,7 @@ import { formatRupiah } from '../../lib/utils';
 import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCircle, ArrowLeft, Search, X, Download, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 interface TransactionItem {
   id: string;
@@ -175,20 +176,20 @@ export default function History() {
           }
 
           if (data.success) {
-            toast.success('Pembayaran berhasil diverifikasi!', { id: 'upload-receipt' });
+            appToast.success('Pembayaran Terverifikasi!', 'Bukti pembayaran valid. Pesanan sedang diproses.');
             fetchHistorySilently();
           } else {
-            toast.error(data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai', { id: 'upload-receipt' });
+            appToast.error('Verifikasi Gagal', data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai');
           }
         } catch (error: any) {
-          toast.error(error.message || 'Terjadi kesalahan', { id: 'upload-receipt' });
+          appToast.error('Gagal Memverifikasi Bukti', error.message || 'Terjadi kesalahan saat verifikasi');
         } finally {
           setUploadingReceipt(null);
         }
       };
       reader.readAsDataURL(file);
     } catch (err: any) {
-      toast.error('Gagal membaca file', { id: 'upload-receipt' });
+      appToast.error('Gagal Membaca File', 'File gambar tidak dapat dibaca. Pastikan file yang dipilih adalah gambar.');
       setUploadingReceipt(null);
     }
   };
@@ -251,16 +252,16 @@ export default function History() {
       const data = await res.json();
       
       if (data.success) {
-        if (data.itemStatus === 'delivered') toast.success('Pesanan berhasil!', { id: 'check-status' });
-        else if (data.itemStatus === 'failed') toast.error('Pesanan gagal: ' + (data.message || 'Error'), { id: 'check-status' });
-        else toast.success('Pesanan masih diproses (pending).', { id: 'check-status' });
+        if (data.itemStatus === 'delivered') appToast.success('Pesanan Berhasil!', 'Produk digital sudah dikirim ke nomor tujuan.');
+        else if (data.itemStatus === 'failed') appToast.error('Pesanan Gagal', data.message || 'Produk digital gagal diproses. Hubungi admin jika ada kendala.');
+        else appToast.info('Masih Diproses', 'Pesanan kamu masih dalam antrian. Mohon tunggu sebentar.');
         
         fetchHistorySilently();
       } else {
-        toast.error('Gagal: ' + (data.error || 'Server error'), { id: 'check-status' });
+        appToast.error('Gagal Memeriksa Status', data.error || 'Server tidak merespons. Coba lagi nanti.');
       }
     } catch (e: any) {
-      toast.error('Error: ' + e.message, { id: 'check-status' });
+      appToast.error('Gagal Memeriksa Status', e.message || 'Terjadi kesalahan koneksi.');
     }
   };
 
@@ -268,11 +269,11 @@ export default function History() {
     if (!returningItem) return;
     const qty = parseInt(returnQty);
     if (qty < 1 || qty > returningItem.maxQty) {
-      toast.error(`Jumlah retur harus 1 - ${returningItem.maxQty}`);
+      appToast.error('Jumlah Tidak Valid', `Jumlah retur harus antara 1 - ${returningItem.maxQty}`);
       return;
     }
     if (!returnReason.trim()) {
-      toast.error('Harap isi alasan retur');
+      appToast.error('Alasan Wajib Diisi', 'Harap isi alasan retur sebelum mengirim permintaan.');
       return;
     }
     setSubmittingReturn(true);
@@ -290,15 +291,15 @@ export default function History() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || 'Gagal mengirim permintaan retur');
+        appToast.error('Gagal Mengirim Retur', data.error || 'Terjadi kesalahan saat mengirim permintaan retur.');
       } else {
-        toast.success('Permintaan retur berhasil dikirim');
+        appToast.success('Retur Terkirim!', 'Permintaan retur berhasil dikirim. Tunggu konfirmasi dari seller.');
         setReturningItem(null);
         setReturnQty('1');
         setReturnReason('');
       }
     } catch {
-      toast.error('Gagal menghubungi server');
+      appToast.error('Gagal Menghubungi Server', 'Koneksi terputus. Pastikan internet aktif lalu coba lagi.');
     } finally {
       setSubmittingReturn(false);
     }
@@ -307,7 +308,7 @@ export default function History() {
   const handlePrintNota = (tx: Transaction) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error('Mohon izinkan pop-up untuk mencetak nota.');
+      appToast.error('Pop-up Diblokir', 'Mohon izinkan pop-up untuk mencetak nota pembelian.');
       return;
     }
 
@@ -389,7 +390,7 @@ export default function History() {
     const sarirotiItems = tx.transaction_items.filter(item => item.products?.category?.toLowerCase() === 'sariroti' || item.products?.name?.toLowerCase().includes('sariroti'));
     
     if (sarirotiItems.length === 0) {
-      toast.error('Tidak ada produk Sariroti dalam pesanan ini.');
+      appToast.error('Tidak Ada Produk Sariroti', 'Pesanan ini tidak memiliki produk Sariroti yang perlu dikonfirmasi.');
       return;
     }
 
@@ -428,7 +429,7 @@ Sistem SPS Corner`);
       toast.success(data.message);
       fetchHistory();
     } catch (error: any) {
-      toast.error('Gagal membatalkan pesanan: ' + error.message);
+      appToast.error('Gagal Membatalkan Pesanan', error.message || 'Terjadi kesalahan saat membatalkan pesanan.');
       setLoading(false);
     }
   };

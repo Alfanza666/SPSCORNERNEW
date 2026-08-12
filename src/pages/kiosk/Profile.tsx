@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import { 
   User, 
   Lock, 
@@ -162,10 +163,10 @@ export default function Profile() {
       }
 
       await fetchProfile(user!.id);
-      toast.success('Profil berhasil diperbarui!');
+      appToast.success('Profil Tersimpan!', 'Data profil kamu berhasil diperbarui.');
     } catch (err: any) {
       console.error('Profile save error:', err);
-      toast.error(err.message || 'Gagal menyimpan profil');
+      appToast.error('Gagal Menyimpan Profil', err.message || 'Terjadi kesalahan saat menyimpan data profil.');
     } finally {
       setSavingProfile(false);
     }
@@ -176,13 +177,13 @@ export default function Profile() {
     setLoading(true);
 
     if (newPassword !== confirmPassword) {
-      toast.error('Password konfirmasi tidak cocok');
+      appToast.error('Password Tidak Cocok', 'Konfirmasi password harus sama dengan password baru.');
       setLoading(false);
       return;
     }
 
     if (newPassword.length < 6) {
-      toast.error('Password minimal 6 karakter');
+      appToast.error('Password Terlalu Pendek', 'Password minimal harus 6 karakter.');
       setLoading(false);
       return;
     }
@@ -194,23 +195,13 @@ export default function Profile() {
 
       if (updateError) throw updateError;
 
-      toast.success('Password berhasil diperbarui!', {
-        duration: 4000,
-        position: 'top-center',
-        style: {
-          borderRadius: '20px',
-          background: '#333',
-          color: '#fff',
-          padding: '16px 24px',
-          fontWeight: 'bold'
-        },
-      });
+      appToast.success('Password Berhasil Diubah!', 'Gunakan password baru untuk login selanjutnya.');
       
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
       console.error('Password update error:', err);
-      toast.error(err.message || 'Gagal memperbarui password');
+      appToast.error('Gagal Mengubah Password', err.message || 'Terjadi kesalahan saat mengubah password.');
     } finally {
       setLoading(false);
     }
@@ -636,7 +627,7 @@ export default function Profile() {
             const { signOut } = useAuthStore.getState();
             await signOut();
             navigate('/login', { replace: true });
-            toast.success('Berhasil keluar');
+            appToast.success('Berhasil Keluar', 'Sampai jumpa lagi!');
           }}
           className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-6 py-3.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 rounded-xl border border-red-100 dark:border-red-900/50 font-black text-sm transition-all active:scale-[0.98] shadow-inner"
         >

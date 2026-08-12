@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useCartStore } from '../../store/useCartStore';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 interface DigitalCategory {
   id: string;
@@ -165,12 +166,12 @@ export default function DigitalProducts() {
         setProducts(activeProducts);
       } else {
         const errMsg = response.data.error || 'Gagal mengambil data produk dari server provider';
-        toast.error(errMsg);
+        appToast.error('Gagal Memuat Produk', errMsg);
       }
     } catch (error: any) {
       console.error('Error fetching digital products:', error);
       const netErrMsg = error.response?.data?.error || error.message || 'Terjadi kesalahan jaringan saat mengambil data produk';
-      toast.error(netErrMsg);
+      appToast.error('Koneksi Bermasalah', netErrMsg);
     } finally {
       setLoading(false);
     }
@@ -211,7 +212,7 @@ export default function DigitalProducts() {
 
   const handleInquiry = async () => {
     if (!targetNumber) {
-      toast.error('Masukkan ID Pelanggan / No Meter');
+      appToast.error('ID Pelanggan Wajib Diisi', 'Masukkan ID Pelanggan atau No Meter untuk melanjutkan.');
       return;
     }
 
@@ -230,12 +231,12 @@ export default function DigitalProducts() {
       if (response.data.success) {
         setInquiryResult(response.data.data);
       } else {
-        toast.error(response.data.error || 'Data tagihan tidak ditemukan. Pastikan nomor/ID benar.');
+        appToast.error('Data Tidak Ditemukan', response.data.error || 'Pastikan nomor/ID yang dimasukkan benar.');
       }
     } catch (error: any) {
       console.error('Inquiry error:', error);
       const netErrMsg = error.response?.data?.error || error.message || 'Gagal melakukan pengecekan tagihan, silakan coba lagi.';
-      toast.error(netErrMsg);
+      appToast.error('Gagal Mengecek Tagihan', netErrMsg);
     } finally {
       setInquiryLoading(false);
     }
@@ -248,7 +249,7 @@ export default function DigitalProducts() {
     }
 
     if (!finalTarget) {
-      toast.error('Lengkapi data tujuan terlebih dahulu');
+      appToast.error('Data Tujuan Belum Lengkap', 'Isi nomor tujuan atau ID pelanggan sebelum membeli.');
       return;
     }
 
@@ -271,7 +272,7 @@ export default function DigitalProducts() {
       }
     });
 
-    toast.success(`${product.product_name} ditambahkan ke keranjang`);
+    appToast.success('Ditambahkan ke Keranjang!', `${product.product_name} sudah siap dipesan.`);
     navigate('/kiosk/cart');
   };
 
@@ -308,7 +309,7 @@ export default function DigitalProducts() {
       }
     });
 
-    toast.success(`Tagihan ditambahkan ke keranjang`);
+    appToast.success('Tagihan Ditambahkan!', 'Tagihan sudah masuk keranjang. Lanjut ke checkout untuk pembayaran.');
     navigate('/kiosk/cart');
   };
 

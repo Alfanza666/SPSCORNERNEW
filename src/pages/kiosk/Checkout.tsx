@@ -7,6 +7,7 @@ import { formatRupiah } from '../../lib/utils';
 import { ShieldCheck, ArrowLeft, CreditCard, Loader2, QrCode, CheckCircle2, Phone, Star, Building2, Copy } from 'lucide-react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 import { addDays } from 'date-fns';
 
 export default function Checkout() {
@@ -341,11 +342,11 @@ export default function Checkout() {
       console.error('Direct Payment error:', error);
       const ambiguous = error?.ambiguous || error?.message === 'PRIMARY_API_REQUEST_UNCERTAIN';
       if (ambiguous) {
-        toast.error('Status permintaan pembayaran belum dapat dipastikan. Jangan ulangi pembayaran; periksa riwayat transaksi.');
+        appToast.error('Status Tidak Pasti', 'Pembayaran belum terkonfirmasi. Jangan bayar ulang — cek riwayat transaksi.');
       } else {
         setPaymentLocked(false);
         sessionStorage.removeItem('paymentLocked');
-        toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+        appToast.error('Pembayaran Gagal', error.message || 'Terjadi kesalahan saat memproses pembayaran. Coba lagi.');
       }
     } finally {
       setLoading(false);
@@ -426,7 +427,7 @@ export default function Checkout() {
 
     } catch (error: any) {
       console.error('Manual QRIS error:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+      appToast.error('Gagal Memproses QRIS', error.message || 'Terjadi kesalahan saat membuat transaksi QRIS.');
     } finally {
       setLoading(false);
       isCreatingTx.current = false;
@@ -487,7 +488,7 @@ export default function Checkout() {
       setPaymentStep('transfer_koperasi');
     } catch (error: any) {
       console.error('Transfer Koperasi error:', error);
-      toast.error(error.message || 'Terjadi kesalahan');
+      appToast.error('Gagal Memproses Transfer', error.message || 'Terjadi kesalahan saat membuat transaksi transfer.');
     } finally {
       setLoading(false);
       isCreatingTx.current = false;
@@ -496,9 +497,9 @@ export default function Checkout() {
 
   const handleApplyPoints = async () => {
     if (!user || !buyerName) return;
-    if (pointsToUse < 1000) { toast.error('Minimal 1.000 poin'); return; }
-    if (pointsToUse > (user.loyalty_points || 0)) { toast.error('Poin tidak mencukupi'); return; }
-    if (pointsToUse > getTotal()) { toast.error('Poin melebihi total belanja'); return; }
+    if (pointsToUse < 1000) { appToast.error('Poin Minimal 1.000', 'Gunakan minimal 1.000 poin untuk pembayaran.'); return; }
+    if (pointsToUse > (user.loyalty_points || 0)) { appToast.error('Poin Tidak Cukup', 'Poin yang kamu masukkan melebihi jumlah poin tersedia.'); return; }
+    if (pointsToUse > getTotal()) { appToast.error('Poin Melebihi Tagihan', 'Poin tidak boleh melebihi total belanja.'); return; }
     
     setApplyingPoints(true);
     try {
@@ -537,9 +538,9 @@ export default function Checkout() {
       
       const result = await payRes.json();
       setPointsApplied(true);
-      toast.success(`Poin Rp ${pointsToUse.toLocaleString()} dipakai! Sisa Rp ${result.remaining_amount.toLocaleString()}. Bayar sisanya via metode lain.`);
+      appToast.success('Poin Berhasil Dipakai!', `Rp ${pointsToUse.toLocaleString()} poin terpotong. Sisa tagihan: Rp ${result.remaining_amount.toLocaleString()}.`);
     } catch (error: any) {
-      toast.error(error.message || 'Gagal menggunakan poin');
+      appToast.error('Gagal Menggunakan Poin', error.message || 'Terjadi kesalahan saat memproses poin.');
     } finally {
       setApplyingPoints(false);
     }
@@ -554,7 +555,7 @@ export default function Checkout() {
     const total = getTotal();
     if ((user.loyalty_points || 0) < total) {
       isCreatingTx.current = false;
-      toast.error('Points Anda tidak mencukupi untuk pembayaran ini');
+      appToast.error('Poin Tidak Cukup', 'Poin kamu tidak mencukupi untuk membayar pesanan ini.');
       return;
     }
 
@@ -629,14 +630,13 @@ export default function Checkout() {
         throw new Error(errorMessage);
       }
 
-      toast.success('Berhasil membayar dengan Points!');
       await createPreOrderRecords(transaction.id);
       setReservations([]);
       navigate('/kiosk/success', { state: { transactionId: transaction.id } });
 
     } catch (error: any) {
       console.error('Point Payment error:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+      appToast.error('Pembayaran Poin Gagal', error.message || 'Terjadi kesalahan saat memproses pembayaran poin.');
     } finally {
       setLoading(false);
       setPointPaymentLoading(false);
@@ -680,16 +680,15 @@ export default function Checkout() {
       }
 
       if (data.success) {
-        toast.success('Pembayaran berhasil diverifikasi!');
         await createPreOrderRecords(transactionId);
         setReservations([]);
         navigate('/kiosk/success', { state: { transactionId } });
       } else {
-        toast.error(data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai');
+        appToast.error('Verifikasi Gagal', data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai.');
       }
     } catch (error: any) {
       console.error('Verify receipt error:', error);
-      toast.error(error.message || 'Terjadi kesalahan saat memverifikasi bukti pembayaran');
+      appToast.error('Gagal Memverifikasi Bukti', error.message || 'Terjadi kesalahan saat verifikasi bukti pembayaran.');
     } finally {
       setVerifyingReceipt(false);
     }
@@ -834,11 +833,11 @@ buyer_email: buyerEmail,
       console.error('Payment error:', error);
       const ambiguous = error?.ambiguous || error?.message === 'PRIMARY_API_REQUEST_UNCERTAIN';
       if (ambiguous) {
-        toast.error('Status permintaan pembayaran belum dapat dipastikan. Jangan ulangi pembayaran; periksa riwayat transaksi.');
+        appToast.error('Status Tidak Pasti', 'Pembayaran belum terkonfirmasi. Jangan bayar ulang — cek riwayat transaksi.');
       } else {
         setPaymentLocked(false);
         sessionStorage.removeItem('paymentLocked');
-        toast.error(error.message || 'Terjadi kesalahan saat memproses pembayaran');
+        appToast.error('Pembayaran Gagal', error.message || 'Terjadi kesalahan saat memproses pembayaran. Coba lagi.');
       }
       setLoading(false);
       isCreatingTx.current = false;
@@ -975,7 +974,7 @@ buyer_email: buyerEmail,
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
-                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          appToast.error('Nomor HP Wajib Diisi', 'Silakan isi nomor HP yang aktif untuk dihubungi jika ada kendala.');
                           return;
                         }
                         handleDirectPayment('qris', 'qris');
@@ -998,7 +997,7 @@ buyer_email: buyerEmail,
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
-                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          appToast.error('Nomor HP Wajib Diisi', 'Silakan isi nomor HP yang aktif untuk dihubungi jika ada kendala.');
                           return;
                         }
                         handleDirectPayment('va', 'bca');
@@ -1021,7 +1020,7 @@ buyer_email: buyerEmail,
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
-                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          appToast.error('Nomor HP Wajib Diisi', 'Silakan isi nomor HP yang aktif untuk dihubungi jika ada kendala.');
                           return;
                         }
                         handleDirectPayment('va', 'mandiri');
@@ -1044,7 +1043,7 @@ buyer_email: buyerEmail,
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
-                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          appToast.error('Nomor HP Wajib Diisi', 'Silakan isi nomor HP yang aktif untuk dihubungi jika ada kendala.');
                           return;
                         }
                         handleManualQris();
@@ -1067,7 +1066,7 @@ buyer_email: buyerEmail,
                     <button
                       onClick={() => {
                         if (!user && !guestPhone) {
-                          toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                          appToast.error('Nomor HP Wajib Diisi', 'Silakan isi nomor HP yang aktif untuk dihubungi jika ada kendala.');
                           return;
                         }
                         handleTransferKoperasi();
@@ -1092,7 +1091,7 @@ buyer_email: buyerEmail,
                       <button
                         onClick={() => {
                           if (!user && !guestPhone) {
-                            toast.error('Silakan isi nomor HP untuk dihubungi jika ada kendala');
+                            appToast.error('Nomor HP Wajib Diisi', 'Silakan isi nomor HP yang aktif untuk dihubungi jika ada kendala.');
                             return;
                           }
                           handlePayment();
@@ -1139,7 +1138,7 @@ buyer_email: buyerEmail,
                   <div className="flex items-center gap-2">
                     <p className="text-xl font-black text-amber-700 dark:text-amber-400 tracking-wider">1560017319346</p>
                     <button
-                      onClick={() => { navigator.clipboard.writeText('1560017319346'); toast.success('No. Rekening disalin!'); }}
+                      onClick={() => { navigator.clipboard.writeText('1560017319346'); appToast.success('Nomor Rekening Tersalin!', 'Rekening Bank Mandiri sudah siap ditempel di aplikasi banking.'); }}
                       className="p-1.5 rounded-lg bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-800/30 transition-colors"
                     >
                       <Copy className="w-4 h-4 text-amber-600" />
@@ -1372,7 +1371,7 @@ buyer_email: buyerEmail,
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(vaNumber);
-                          toast.success('Nomor VA berhasil disalin');
+                          appToast.success('Nomor VA Tersalin!', 'Virtual Account sudah siap ditempel di aplikasi banking.');
                         }}
                         className="text-[10px] font-bold text-zinc-500 hover:text-blue-600 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto"
                       >

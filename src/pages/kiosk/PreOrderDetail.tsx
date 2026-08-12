@@ -6,6 +6,7 @@ import { formatRupiah } from '../../lib/utils';
 import { ArrowLeft, Plus, Minus, ShoppingCart, Clock, Store, Share2, Check } from 'lucide-react';
 import { motion } from 'motion/react';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 export default function PreOrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +31,7 @@ export default function PreOrderDetail() {
         .single();
 
       if (!data?.products) {
-        toast.error('Produk tidak ditemukan');
+        appToast.error('Produk Tidak Ditemukan', 'Produk yang kamu cari sudah tidak tersedia.');
         return;
       }
 
@@ -45,7 +46,7 @@ export default function PreOrderDetail() {
         po_pickup_type: data.pickup_type,
       });
     } catch {
-      toast.error('Gagal memuat produk');
+      appToast.error('Gagal Memuat Produk', 'Terjadi kesalahan saat mengambil data produk. Coba lagi nanti.');
     } finally {
       setLoading(false);
     }
@@ -64,7 +65,7 @@ export default function PreOrderDetail() {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch {
-        toast.error('Gagal copy link');
+        appToast.error('Gagal Menyalin Link', 'Link tidak bisa disalin. Coba salin manual dari browser.');
       }
     }
   };
@@ -86,7 +87,7 @@ export default function PreOrderDetail() {
       });
       updateQuantity(product.id, qty);
     }
-    toast.success('Ditambahkan ke keranjang');
+    appToast.success('Ditambahkan ke Keranjang!', 'Produk pre-order sudah siap dipesan.');
   };
 
   if (loading) {

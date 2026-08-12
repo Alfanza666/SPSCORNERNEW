@@ -7,6 +7,7 @@ import { Trash2, Plus, Minus, ArrowRight, ArrowLeft, ShoppingCart, ShoppingBag, 
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
+import { appToast } from '../../components/ui/AppToast';
 
 export default function Cart() {
   const { items, removeItem, updateQuantity, getTotal, reservations, setReservations } = useCartStore();
@@ -113,20 +114,20 @@ export default function Cart() {
     // ----------------------------------------------------
 
     if (!buyerName.trim()) {
-      toast.error('Mohon masukkan nama Anda');
+      appToast.error('Nama Wajib Diisi', 'Masukkan nama lengkap kamu untuk melanjutkan.');
       return;
     }
     if (!buyerPhone.trim() || buyerPhone.length < 10) {
-      toast.error('Mohon masukkan nomor HP yang valid');
+      appToast.error('Nomor HP Tidak Valid', 'Masukkan nomor HP yang benar (minimal 10 digit).');
       return;
     }
 
     if (!buyerEmail.trim() && !user) {
-      toast.error('Mohon masukkan email untuk receive notifikasi pengambilan pesanan');
+      appToast.error('Email Wajib Diisi', 'Masukkan email untuk menerima notifikasi pengambilan pesanan.');
       return;
     }
     if (buyerEmail.trim() && !buyerEmail.includes('@')) {
-      toast.error('Format email tidak valid');
+      appToast.error('Format Email Salah', 'Pastikan email yang dimasukkan benar (contoh: nama@gmail.com).');
       return;
     }
 
@@ -162,7 +163,7 @@ export default function Cart() {
       navigate('/kiosk/checkout');
     } catch (error: any) {
       console.error('Reservation error:', error);
-      toast.error(error.message || 'Gagal memproses pesanan. Silakan coba lagi.');
+      appToast.error('Gagal Memproses Pesanan', error.message || 'Terjadi kesalahan. Silakan coba lagi.');
     } finally {
       setIsReserving(false);
     }
