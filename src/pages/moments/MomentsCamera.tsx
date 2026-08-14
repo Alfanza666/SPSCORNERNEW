@@ -59,8 +59,14 @@ export default function MomentsCamera() {
   useEffect(() => {
     if (selectedFrame?.image_url) {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => setFrameImage(img);
+      img.onload = () => {
+        console.log('Frame image loaded:', selectedFrame.name);
+        setFrameImage(img);
+      };
+      img.onerror = (err) => {
+        console.error('Frame image load error:', err);
+        setFrameImage(null);
+      };
       img.src = selectedFrame.image_url;
     } else {
       setFrameImage(null);
@@ -126,7 +132,10 @@ export default function MomentsCamera() {
 
     // Draw frame if selected
     if (frameImage) {
+      console.log('Drawing frame on canvas:', frameImage.width, 'x', frameImage.height);
       ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+    } else {
+      console.log('No frame selected or frame not loaded');
     }
 
     // Add watermark for guest users (burned into photo)
@@ -140,6 +149,8 @@ export default function MomentsCamera() {
 
     // Get final photo
     const finalPhoto = canvas.toDataURL('image/jpeg', 0.95);
+
+    console.log('Photo captured:', { hasFrame: !!selectedFrame, isGuest: !user });
 
     // Navigate to preview
     navigate('/moments/preview', {

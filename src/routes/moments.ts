@@ -295,18 +295,30 @@ export function registerMomentsRoutes(app, { supabase, sendNotification, groq })
         targetEventId = event?.id;
       }
 
+      if (!targetEventId) {
+        return res.status(400).json({ success: false, error: "No active event found" });
+      }
+
       // Upload raw photo
       const rawBase64 = photo_raw_base64.replace(/^data:image\/\w+;base64,/, "");
       const rawBuffer = Buffer.from(rawBase64, "base64");
       const rawFileName = `photos/raw_${Date.now()}.jpg`;
-      await supabase.storage.from("moments").upload(rawFileName, rawBuffer, { contentType: "image/jpeg", fileSizeLimit: 52428800 }); // 50MB
+      const { error: rawUploadError } = await supabase.storage.from("moments").upload(rawFileName, rawBuffer, { contentType: "image/jpeg", upsert: true });
+      if (rawUploadError) {
+        console.error("[Moments] Raw photo upload error:", rawUploadError);
+        throw new Error("Failed to upload raw photo: " + rawUploadError.message);
+      }
       const { data: { publicUrl: rawUrl } } = supabase.storage.from("moments").getPublicUrl(rawFileName);
 
       // Upload final photo (with frame + watermark)
       const finalBase64 = photo_final_base64.replace(/^data:image\/\w+;base64,/, "");
       const finalBuffer = Buffer.from(finalBase64, "base64");
       const finalFileName = `photos/final_${Date.now()}.jpg`;
-      await supabase.storage.from("moments").upload(finalFileName, finalBuffer, { contentType: "image/jpeg", fileSizeLimit: 52428800 }); // 50MB
+      const { error: finalUploadError } = await supabase.storage.from("moments").upload(finalFileName, finalBuffer, { contentType: "image/jpeg", upsert: true });
+      if (finalUploadError) {
+        console.error("[Moments] Final photo upload error:", finalUploadError);
+        throw new Error("Failed to upload final photo: " + finalUploadError.message);
+      }
       const { data: { publicUrl: finalUrl } } = supabase.storage.from("moments").getPublicUrl(finalFileName);
 
       // Get user_id if authenticated (optional)
@@ -325,8 +337,12 @@ export function registerMomentsRoutes(app, { supabase, sendNotification, groq })
         })
         .select()
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error("[Moments] Insert photo error:", error);
+        throw new Error("Failed to save photo record: " + error.message);
+      }
 
+      console.log("[Moments] Photo saved successfully:", data.id);
       res.json({ success: true, photo: data });
     } catch (error) {
       console.error("[Moments] Save photo error:", error);
