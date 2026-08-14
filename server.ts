@@ -37,6 +37,7 @@ import { registerAdminReportingRoutes } from "./src/routes/adminReporting.js";
 import { registerStockTraceRoutes } from "./src/routes/stock-trace.js";
 import { registerProgramRegistrationWorkflowRoutes } from "./src/routes/programRegistrationWorkflow.js";
 import { registerEventWorkflowRoutes } from "./src/routes/eventWorkflow.js";
+import { registerMomentsRoutes } from "./src/routes/moments.js";
 import { initNotificationService, sendNotification, sendPushToUser, sendPushToAdmins } from "./src/services/notification.js";
 import { initStockService, restoreTransactionStock, deductTransactionStock, commitTransactionStock, atomicAdjustStock, reconcileStock, checkLowStockAndNotify } from "./src/services/stock.js";
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail, buildBuyerConfirmationEmail, buildPasswordResetEmail, buildTempPasswordEmail, buildTestEmail, buildDailyReportEmail } from "./src/services/email.js";
@@ -309,6 +310,7 @@ registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal,
 registerPortalRoutes(app, { supabase, sendNotification, ipaymuClient });
 registerProgramRegistrationWorkflowRoutes(app, { supabase, sendNotification, groq });
 registerEventWorkflowRoutes(app, { supabase, sendNotification });
+registerMomentsRoutes(app, { supabase, sendNotification, groq });
 
 // API 404 catch-all — return JSON instead of HTML for unmatched API routes (must be BEFORE SPA fallback)
 app.use('/api/*', (req, res) => {

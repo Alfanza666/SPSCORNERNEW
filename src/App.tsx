@@ -113,6 +113,14 @@ const AdminStockReport = lazyWithRetry(() => import('./pages/dashboard/admin/Adm
 const AdminStockTrace = lazyWithRetry(() => import('./pages/dashboard/admin/AdminStockTrace'));
 const SellerStockTrace = lazyWithRetry(() => import('./pages/dashboard/seller/SellerStockTrace'));
 
+// Moments pages
+const MomentsLanding = lazyWithRetry(() => import('./pages/moments/MomentsLanding'));
+const MomentsCamera = lazyWithRetry(() => import('./pages/moments/MomentsCamera'));
+const MomentsPreview = lazyWithRetry(() => import('./pages/moments/MomentsPreview'));
+const MomentsGallery = lazyWithRetry(() => import('./pages/moments/MomentsGallery'));
+const MomentsLive = lazyWithRetry(() => import('./pages/moments/MomentsLive'));
+const AdminMoments = lazyWithRetry(() => import('./pages/dashboard/admin/AdminMoments'));
+
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   const isChunkError = error?.message?.includes('dynamically imported') ||
     error?.message?.includes('Loading chunk') ||
@@ -242,6 +250,18 @@ export default function App() {
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
 
+            {/* Moments Routes */}
+            <Route path="/moments" element={<MomentsLanding />} />
+            <Route path="/moments/" element={<MomentsLanding />} />
+            <Route path="/moments/camera" element={<MomentsCamera />} />
+            <Route path="/moments/camera/" element={<MomentsCamera />} />
+            <Route path="/moments/preview" element={<MomentsPreview />} />
+            <Route path="/moments/preview/" element={<MomentsPreview />} />
+            <Route path="/moments/gallery" element={<MomentsGallery />} />
+            <Route path="/moments/gallery/" element={<MomentsGallery />} />
+            <Route path="/moments/live" element={<MomentsLive />} />
+            <Route path="/moments/live/" element={<MomentsLive />} />
+
             <Route path="/portal" element={<PortalLayout />}>
               <Route index element={<PortalDashboard />} />
               <Route path="program" element={<PortalProgram />} />
@@ -357,6 +377,8 @@ export default function App() {
               <Route path="admin/analytics/" element={<AdminAnalytics />} />
               <Route path="admin/integrasi" element={<AdminIntegrasi />} />
               <Route path="admin/integrasi/" element={<AdminIntegrasi />} />
+              <Route path="admin/moments" element={<AdminMoments />} />
+              <Route path="admin/moments/" element={<AdminMoments />} />
 
               <Route path="seller" element={<SellerDashboard />} />
               <Route path="seller/" element={<SellerDashboard />} />
