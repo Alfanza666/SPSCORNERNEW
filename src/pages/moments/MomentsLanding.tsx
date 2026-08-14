@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Camera } from 'lucide-react';
+import { Camera, LogIn, UserCircle } from 'lucide-react';
 import { useMomentsStore } from '../../store/useMomentsStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import SPSLogo from '../../components/SPSLogo';
 
 export default function MomentsLanding() {
   const navigate = useNavigate();
   const { event, fetchEvent } = useMomentsStore();
+  const { user } = useAuthStore();
   const [isReady, setIsReady] = useState(false);
+  const [showChoice, setShowChoice] = useState(false);
 
   useEffect(() => {
     fetchEvent();
@@ -16,8 +19,22 @@ export default function MomentsLanding() {
     return () => clearTimeout(timer);
   }, [fetchEvent]);
 
-  const handleStart = () => {
+  const handleStartCamera = () => {
     navigate('/moments/camera');
+  };
+
+  const handleLogin = () => {
+    navigate('/login', { state: { from: '/moments' } });
+  };
+
+  const handleMainButton = () => {
+    if (user) {
+      // Sudah login, langsung ke kamera
+      handleStartCamera();
+    } else {
+      // Belum login, tampilkan pilihan
+      setShowChoice(true);
+    }
   };
 
   return (
@@ -74,20 +91,62 @@ export default function MomentsLanding() {
           Capture Your Moment
         </motion.p>
 
-        {/* Start Button */}
-        <motion.button
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleStart}
-          className="group relative inline-flex items-center gap-3 px-10 py-5 bg-[#CA8A04] text-[#0C0A09] font-semibold rounded-2xl shadow-[0_8px_32px_rgba(202,138,4,0.25)] transition-all duration-300 hover:shadow-[0_16px_48px_rgba(202,138,4,0.35)] cursor-pointer"
-        >
-          <Camera className="w-5 h-5" />
-          <span className="text-base tracking-wide font-sans">START CAMERA</span>
-          <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        </motion.button>
+        {/* Main Button or Choice */}
+        {!showChoice ? (
+          <motion.button
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleMainButton}
+            className="group relative inline-flex items-center gap-3 px-10 py-5 bg-[#CA8A04] text-[#0C0A09] font-semibold rounded-2xl shadow-[0_8px_32px_rgba(202,138,4,0.25)] transition-all duration-300 hover:shadow-[0_16px_48px_rgba(202,138,4,0.35)] cursor-pointer"
+          >
+            <Camera className="w-5 h-5" />
+            <span className="text-base tracking-wide font-sans">
+              {user ? 'START CAMERA' : 'MULAI FOTO'}
+            </span>
+            <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </motion.button>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col gap-3 w-full max-w-xs"
+          >
+            {/* Login Button */}
+            <button
+              onClick={handleLogin}
+              className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-[#CA8A04] text-[#0C0A09] font-semibold rounded-2xl shadow-[0_8px_32px_rgba(202,138,4,0.25)] transition-all duration-300 hover:shadow-[0_16px_48px_rgba(202,138,4,0.35)] cursor-pointer"
+            >
+              <LogIn className="w-5 h-5" />
+              <span className="text-sm tracking-wide font-sans">Login (Tanpa Watermark)</span>
+            </button>
+
+            {/* Guest Button */}
+            <button
+              onClick={handleStartCamera}
+              className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-[#1C1917] text-white font-medium rounded-2xl border border-[#44403C] transition-all duration-300 hover:bg-[#292524] cursor-pointer"
+            >
+              <UserCircle className="w-5 h-5" />
+              <span className="text-sm tracking-wide font-sans">Lanjut sebagai Guest</span>
+            </button>
+
+            {/* Info */}
+            <p className="text-[10px] text-[#57534E] font-sans mt-2">
+              Login untuk download HD tanpa watermark & foto tersimpan ke akun
+            </p>
+
+            {/* Back button */}
+            <button
+              onClick={() => setShowChoice(false)}
+              className="text-xs text-[#78716C] font-sans hover:text-white cursor-pointer mt-2"
+            >
+              Kembali
+            </button>
+          </motion.div>
+        )}
 
         {/* SPS Corner Logo */}
         <motion.div

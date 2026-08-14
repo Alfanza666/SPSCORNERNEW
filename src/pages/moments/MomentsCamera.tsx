@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, RefreshCw, X, Zap, ZapOff } from 'lucide-react';
 import { useMomentsStore } from '../../store/useMomentsStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function MomentsCamera() {
   const navigate = useNavigate();
   const { frames, selectedFrame, fetchFrames, setSelectedFrame } = useMomentsStore();
+  const { user } = useAuthStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -124,8 +126,16 @@ export default function MomentsCamera() {
 
     // Draw frame if selected
     if (frameImage) {
-      // Frame covers the entire canvas
       ctx.drawImage(frameImage, 0, 0, canvas.width, canvas.height);
+    }
+
+    // Add watermark for guest users (burned into photo)
+    if (!user) {
+      const fontSize = Math.max(12, canvas.width * 0.02);
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.fillText('Powered by SPS Corner', canvas.width / 2, canvas.height - fontSize);
     }
 
     // Get final photo

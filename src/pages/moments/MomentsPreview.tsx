@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Download, Share2, RotateCcw, Check } from 'lucide-react';
+import { Download, Share2, RotateCcw, Check, Images, LogIn } from 'lucide-react';
 import { useMomentsStore } from '../../store/useMomentsStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import SPSLogo from '../../components/SPSLogo';
 
 interface LocationState {
@@ -15,6 +16,7 @@ export default function MomentsPreview() {
   const navigate = useNavigate();
   const location = useLocation();
   const { savePhoto, event } = useMomentsStore();
+  const { user } = useAuthStore();
   const state = location.state as LocationState;
 
   const [isSaving, setIsSaving] = useState(false);
@@ -63,7 +65,6 @@ export default function MomentsPreview() {
     link.click();
     document.body.removeChild(link);
 
-    // Haptic feedback
     if (navigator.vibrate) {
       navigator.vibrate(30);
     }
@@ -72,7 +73,6 @@ export default function MomentsPreview() {
   // Share photo
   const handleShare = async () => {
     try {
-      // Convert base64 to blob
       const response = await fetch(finalPhoto);
       const blob = await response.blob();
       const file = new File([blob], `sps-moments-${Date.now()}.jpg`, { type: 'image/jpeg' });
@@ -84,17 +84,11 @@ export default function MomentsPreview() {
           files: [file]
         });
       } else {
-        // Fallback: download
         handleDownload();
       }
     } catch (err) {
       console.error('Share error:', err);
     }
-  };
-
-  // Take another photo
-  const handleRetake = () => {
-    navigate('/moments/camera');
   };
 
   return (
@@ -126,22 +120,22 @@ export default function MomentsPreview() {
       {/* Bottom controls */}
       <div className="bg-[#0C0A09] pt-4 pb-8 px-6">
         {/* Action buttons */}
-        <div className="flex items-center justify-center gap-4 mb-6">
+        <div className="flex items-center justify-center gap-3 mb-4">
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={handleRetake}
-            className="flex items-center gap-2 px-6 py-3 bg-[#1C1917] text-[#A8A29E] rounded-xl cursor-pointer transition-colors hover:bg-[#44403C]"
+            onClick={() => navigate('/moments/camera')}
+            className="flex items-center gap-2 px-5 py-3 bg-[#1C1917] text-[#A8A29E] rounded-xl cursor-pointer transition-colors hover:bg-[#44403C]"
           >
             <RotateCcw className="w-4 h-4" />
-            <span className="text-sm font-sans">Take Again</span>
+            <span className="text-sm font-sans">Foto Lagi</span>
           </motion.button>
 
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleDownload}
-            className="flex items-center gap-2 px-6 py-3 bg-[#CA8A04] text-[#0C0A09] rounded-xl cursor-pointer transition-all hover:bg-[#D4A017]"
+            className="flex items-center gap-2 px-5 py-3 bg-[#CA8A04] text-[#0C0A09] rounded-xl cursor-pointer transition-all hover:bg-[#D4A017]"
           >
             <Download className="w-4 h-4" />
             <span className="text-sm font-semibold font-sans">Download</span>
@@ -151,20 +145,45 @@ export default function MomentsPreview() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleShare}
-            className="flex items-center gap-2 px-6 py-3 bg-[#1C1917] text-[#A8A29E] rounded-xl cursor-pointer transition-colors hover:bg-[#44403C]"
+            className="flex items-center gap-2 px-5 py-3 bg-[#1C1917] text-[#A8A29E] rounded-xl cursor-pointer transition-colors hover:bg-[#44403C]"
           >
             <Share2 className="w-4 h-4" />
             <span className="text-sm font-sans">Share</span>
           </motion.button>
         </div>
 
-        {/* Watermark for non-logged in users */}
-        <div className="flex justify-center">
-          <div className="flex items-center gap-1.5 opacity-60">
-            <SPSLogo className="w-3.5 h-3.5" />
-            <span className="text-[9px] text-[#78716C] tracking-wider font-sans">Powered by SPS Corner</span>
+        {/* Gallery button - Login required */}
+        {user ? (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/moments/gallery')}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#CA8A04]/10 text-[#CA8A04] border border-[#CA8A04]/20 rounded-xl cursor-pointer transition-colors hover:bg-[#CA8A04]/20 mb-4"
+          >
+            <Images className="w-4 h-4" />
+            <span className="text-sm font-sans">Lihat Semua Foto</span>
+          </motion.button>
+        ) : (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/login', { state: { from: '/moments/gallery' } })}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#1C1917] text-[#A8A29E] border border-[#44403C] rounded-xl cursor-pointer transition-colors hover:bg-[#292524] mb-4"
+          >
+            <LogIn className="w-4 h-4" />
+            <span className="text-sm font-sans">Login untuk Lihat Gallery</span>
+          </motion.button>
+        )}
+
+        {/* Watermark for guest users */}
+        {!user && (
+          <div className="flex justify-center">
+            <div className="flex items-center gap-1.5 opacity-60">
+              <SPSLogo className="w-3.5 h-3.5" />
+              <span className="text-[9px] text-[#78716C] tracking-wider font-sans">Powered by SPS Corner</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Saving overlay */}
