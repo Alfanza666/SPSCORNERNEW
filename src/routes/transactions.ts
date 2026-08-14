@@ -62,18 +62,7 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
     if (profile?.role !== "admin" && profile?.role !== "superadmin")
       return res.status(403).json({ error: "Forbidden: Admin only" });
 
-    // FIX F: Atomic idempotency lock — klaim transaksi untuk diproses
-    const { data: claimed, error: claimError } = await supabase
-      .from("transactions")
-      .update({ status: "processing" })
-      .eq("id", transaction_id)
-      .eq("status", "manual_verification")
-      .select()
-      .single();
-    if (!claimed || claimError) {
-      return res.status(409).json({ error: "Transaksi sedang diproses atau sudah tidak manual_verification." });
-    }
-
+    // Validasi status transaksi — izinkan approve dari manual_verification atau pending
     const { data: transaction, error: txError } = await supabase
       .from("transactions")
       .select("*, transaction_items(*)")
@@ -81,10 +70,16 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       .single();
     if (txError || !transaction)
       return res.status(404).json({ error: "Transaction not found" });
+
+    if (transaction.status !== "manual_verification" && transaction.status !== "pending") {
+      return res.status(409).json({ error: `Transaksi dalam status "${transaction.status}", tidak bisa di-approve.` });
+    }
+
     const { error: updateError } = await supabase
       .from("transactions")
       .update({ status: "success" })
-      .eq("id", transaction_id);
+      .eq("id", transaction_id)
+      .in("status", ["manual_verification", "pending"]);
     if (updateError) throw updateError;
 
     // Re-deduct stock if auto-cleanup had restored it, or commit if it was never deducted
@@ -151,14 +146,9 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       }
     }
     res.json({ success: true, message: "Transaction approved and processed" });
-  } catch (error) {
+    } catch (error) {
     console.error("Error approving transaction:", error);
-    // FIX F: Rollback status ke 'manual_verification' agar bisa dicoba ulang
-    try {
-      if (transaction_id) {
-        await supabase.from("transactions").update({ status: "manual_verification" }).eq("id", transaction_id).eq("status", "processing");
-      }
-    } catch (rbErr) { console.error("[AdminApprove] Rollback failed:", rbErr); }
+    // Status tidak diubah ke "processing", jadi tidak perlu rollback
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

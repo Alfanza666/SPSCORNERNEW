@@ -314,73 +314,43 @@ export function registerPaymentRoutes(app, {
           .json({ success: false, error: "Missing required fields" });
       }
 
-      // FIX F: Atomic idempotency lock — klaim transaksi untuk diproses
-      // Untuk manual_qris/transfer_koperasi, izinkan re-verify dari status "failed" (auto-cancelled)
-      let { data: claimed, error: claimError } = await supabase
+      // Validasi status transaksi — izinkan verify dari pending, failed (auto-cancelled), atau paid/success (idempotent)
+      const { data: txCheck, error: txCheckError } = await supabase
         .from("transactions")
-        .update({ status: "processing" })
+        .select("id, status, payment_method, metadata, payment_details")
         .eq("id", transaction_id)
-        .eq("status", "pending")
-        .select()
         .single();
 
-      // Fallback: jika gagal claim dari pending, coba claim dari failed (auto-cancelled manual payment)
-      if (!claimed || claimError) {
-        const { data: txMeta } = await supabase
-          .from("transactions")
-          .select("status, payment_method, metadata, payment_details")
-          .eq("id", transaction_id)
-          .single();
-        const isAutoCancelled = txMeta?.status === "failed"
-          && (txMeta?.metadata?.cancel_reason || "").includes("Auto-cancelled")
-          && ["manual_qris", "transfer_koperasi"].includes(txMeta?.payment_method);
-
-        if (isAutoCancelled) {
-          const { data: reClaimed, error: reClaimError } = await supabase
-            .from("transactions")
-            .update({ status: "processing" })
-            .eq("id", transaction_id)
-            .eq("status", "failed")
-            .select()
-            .single();
-          if (reClaimed && !reClaimError) {
-            claimed = reClaimed;
-            claimError = null;
-          }
-        }
-
-        // Fallback: transaksi terjebak "processing" karena bug sebelumnya
-        // Bisa karena verification_failed ATAU stuck tanpa flag (gagal update status ke paid)
-        if (!claimed) {
-          const isStuckProcessing = txMeta?.status === "processing"
-            && ["manual_qris", "transfer_koperasi"].includes(txMeta?.payment_method);
-
-          if (isStuckProcessing) {
-            // Clear verification flags dan izinkan re-verify
-            const currentDetails = { ...(txMeta.payment_details || {}) };
-            delete currentDetails.verification_failed;
-            delete currentDetails.reason;
-            delete currentDetails.attempted_at;
-
-            const { data: reClaimed, error: reClaimError } = await supabase
-              .from("transactions")
-              .update({
-                payment_details: currentDetails
-              })
-              .eq("id", transaction_id)
-              .eq("status", "processing")
-              .select()
-              .single();
-            if (reClaimed && !reClaimError) {
-              claimed = reClaimed;
-              claimError = null;
-            }
-          }
-        }
+      if (txCheckError || !txCheck) {
+        return res.status(404).json({ success: false, error: "Transaksi tidak ditemukan." });
       }
 
-      if (!claimed || claimError) {
-        return res.status(409).json({ success: false, error: "Transaksi sedang diproses atau sudah tidak pending." });
+      const validMethods = ["manual_qris", "transfer_koperasi"];
+      if (!validMethods.includes(txCheck.payment_method)) {
+        return res.status(400).json({ success: false, error: "Metode pembayaran tidak didukung untuk verifikasi manual." });
+      }
+
+      // Sudah paid/success — return idempotent
+      if (txCheck.status === "paid" || txCheck.status === "success") {
+        return res.json({ success: true, message: "Pembayaran sudah terverifikasi." });
+      }
+
+      // Status pending — lanjut verifikasi
+      // Status failed dengan auto-cancelled — reset ke pending dulu
+      const isAutoCancelled = txCheck.status === "failed"
+        && (txCheck.metadata?.cancel_reason || "").includes("Auto-cancelled");
+
+      if (txCheck.status === "pending" || isAutoCancelled) {
+        if (isAutoCancelled) {
+          // Reset status ke pending agar bisa diverifikasi ulang
+          await supabase
+            .from("transactions")
+            .update({ status: "pending", metadata: { ...txCheck.metadata, cancel_reason: null } })
+            .eq("id", transaction_id)
+            .eq("status", "failed");
+        }
+      } else {
+        return res.status(409).json({ success: false, error: `Transaksi dalam status "${txCheck.status}", tidak bisa diverifikasi.` });
       }
       const base64Data = receipt_image.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
@@ -510,11 +480,10 @@ export function registerPaymentRoutes(app, {
       }
       const existingPaymentDetails = txRecord?.payment_details || {};
       if (!verificationResult.isValid) {
-        // Rollback status ke "pending" agar user bisa retry
+        // Update payment_details dengan info verifikasi gagal (status tetap "pending")
         await supabase
           .from("transactions")
           .update({
-            status: "pending",
             receipt_image: receiptUrl,
             payment_details: {
               ...existingPaymentDetails,
@@ -524,8 +493,7 @@ export function registerPaymentRoutes(app, {
               attempted_at: new Date().toISOString(),
             },
           })
-          .eq("id", transaction_id)
-          .eq("status", "processing"); // Guard: hanya rollback jika masih "processing"
+          .eq("id", transaction_id);
         return res
           .status(400)
           .json({
@@ -590,12 +558,7 @@ export function registerPaymentRoutes(app, {
       res.json({ success: true, message: "Payment verified successfully" });
     } catch (error) {
       console.error("❌ Manual Verification Error:", error);
-      // FIX F: Rollback status ke 'pending' agar bisa dicoba ulang
-      try {
-        if (transaction_id) {
-          await supabase.from("transactions").update({ status: "pending" }).eq("id", transaction_id).eq("status", "processing");
-        }
-      } catch (rbErr) { console.error("[ManualVerify] Rollback failed:", rbErr); }
+      // Status tetap "pending" karena tidak pernah diubah ke "processing"
       try {
         if (transaction_id && receiptUrl) {
           const { data: currentTx } = await supabase
