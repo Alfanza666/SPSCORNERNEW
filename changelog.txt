@@ -1,3 +1,33 @@
+v6.0.0 - SPS Corner Moments (MAJOR)
+-----------------------------------------------
+### SPS Corner Moments — Disposable Event Camera:
+- Fitur kamera disposable untuk acara perusahaan (Employee Gathering, Family Day, dll).
+- Landing screen premium dengan branding SPS Corner.
+- Camera screen fullscreen dengan frame selector, countdown 3-2-1, flash animation.
+- Preview screen dengan download, share, dan auto-save ke database.
+- Gallery (login required) — masonry grid, like, download, share.
+- Live Gallery (login required) — auto-refresh slideshow untuk TV/LED.
+- Admin dashboard — upload frame PNG, generate frame dengan AI, manage photos.
+- Watermark "Powered by SPS Corner" untuk guest user.
+- Storage bucket `moments` baru (50MB limit).
+- Database: `moments_events`, `moments_frames`, `moments_photos`.
+
+### Files Added:
+- `database/migrations/013_moments_schema.sql`
+- `src/routes/moments.ts`
+- `src/store/useMomentsStore.ts`
+- `src/pages/moments/MomentsLanding.tsx`
+- `src/pages/moments/MomentsCamera.tsx`
+- `src/pages/moments/MomentsPreview.tsx`
+- `src/pages/moments/MomentsGallery.tsx`
+- `src/pages/moments/MomentsLive.tsx`
+- `src/pages/dashboard/admin/AdminMoments.tsx`
+
+### Files Modified:
+- `package.json` — version 6.0.0
+- `server.ts` — register moments routes
+- `src/App.tsx` — add moments routes
+
 v5.17.0 - AppToast UI System & Manual Coupon Type (MINOR)
 -----------------------------------------------
 ### AppToast — Professional Error/Success Popup:

@@ -40,7 +40,8 @@ import {
   Gift,
   BarChart3,
   QrCode,
-  Plug
+  Plug,
+  Camera
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -331,7 +332,8 @@ export default function DashboardLayout() {
           { to: "/dashboard/admin/program-registrations", icon: ShieldCheck, label: "Verifikasi RSVP" },
           { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
           { to: "/dashboard/admin/kritik-saran", icon: MessageSquare, label: "Kritik & Saran" },
-          { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" }
+          { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
+          { to: "/dashboard/admin/moments", icon: Camera, label: "SPS Moments" }
         ]
       },
       {
