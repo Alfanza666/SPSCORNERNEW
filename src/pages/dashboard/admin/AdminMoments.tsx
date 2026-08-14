@@ -1,6 +1,6 @@
 import { useEffect, useState, ChangeEvent } from 'react';
 import { motion } from 'motion/react';
-import { Upload, Trash2, Eye, EyeOff, Star, StarOff, Image, RefreshCw } from 'lucide-react';
+import { Upload, Trash2, Eye, EyeOff, Star, StarOff, Image, RefreshCw, Link, QrCode, Copy, ExternalLink } from 'lucide-react';
 import { appToast } from '../../../components/ui/AppToast';
 import SPSLogo from '../../../components/SPSLogo';
 import { supabase } from '../../../lib/supabase';
@@ -235,6 +235,85 @@ export default function AdminMoments() {
             <h1 className="text-2xl font-bold text-[#0C0A09] font-sans">SPS Corner Moments</h1>
           </div>
           <p className="text-sm text-[#78716C] font-sans">Manage frames and photos for the event</p>
+        </div>
+
+        {/* Links & QR Code Section */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E7E5E4] mb-6">
+          <h2 className="text-lg font-semibold text-[#0C0A09] mb-4 font-sans flex items-center gap-2">
+            <Link className="w-5 h-5" />
+            Links & QR Code
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Camera Link */}
+            <div className="bg-[#F5F5F4] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-[#78716C] font-sans">Camera (for QR Code)</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://spscorner.store/moments');
+                    appToast.success('Copied!', 'Link copied to clipboard');
+                  }}
+                  className="text-[#CA8A04] cursor-pointer"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm font-mono text-[#0C0A09]">https://spscorner.store/moments</p>
+            </div>
+
+            {/* Gallery Link */}
+            <div className="bg-[#F5F5F4] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-[#78716C] font-sans">Gallery (Login Required)</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://spscorner.store/moments/gallery');
+                    appToast.success('Copied!', 'Link copied to clipboard');
+                  }}
+                  className="text-[#CA8A04] cursor-pointer"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm font-mono text-[#0C0A09]">https://spscorner.store/moments/gallery</p>
+            </div>
+
+            {/* Live Gallery Link */}
+            <div className="bg-[#F5F5F4] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-[#78716C] font-sans">Live Gallery (for TV/LED)</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText('https://spscorner.store/moments/live');
+                    appToast.success('Copied!', 'Link copied to clipboard');
+                  }}
+                  className="text-[#CA8A04] cursor-pointer"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm font-mono text-[#0C0A09]">https://spscorner.store/moments/live</p>
+            </div>
+
+            {/* QR Code Info */}
+            <div className="bg-[#CA8A04]/10 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <QrCode className="w-4 h-4 text-[#CA8A04]" />
+                <span className="text-xs text-[#CA8A04] font-sans font-semibold">QR Code</span>
+              </div>
+              <p className="text-xs text-[#78716C] font-sans">
+                Generate QR code dari link Camera di atas. Peserta scan QR → langsung bisa foto.
+              </p>
+              <a
+                href="https://qr-code-generator.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-2 text-xs text-[#CA8A04] font-sans hover:underline"
+              >
+                Generate QR Code <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
