@@ -183,7 +183,7 @@ export function registerMomentsRoutes(app, { supabase, sendNotification, groq })
       const fileName = `frames/${Date.now()}_${name.replace(/[^a-zA-Z0-9]/g, "_")}.png`;
       const { error: uploadError } = await supabase.storage
         .from("moments")
-        .upload(fileName, buffer, { contentType: "image/png" });
+        .upload(fileName, buffer, { contentType: "image/png", fileSizeLimit: 52428800 }); // 50MB
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from("moments").getPublicUrl(fileName);
 
@@ -299,14 +299,14 @@ export function registerMomentsRoutes(app, { supabase, sendNotification, groq })
       const rawBase64 = photo_raw_base64.replace(/^data:image\/\w+;base64,/, "");
       const rawBuffer = Buffer.from(rawBase64, "base64");
       const rawFileName = `photos/raw_${Date.now()}.jpg`;
-      await supabase.storage.from("moments").upload(rawFileName, rawBuffer, { contentType: "image/jpeg" });
+      await supabase.storage.from("moments").upload(rawFileName, rawBuffer, { contentType: "image/jpeg", fileSizeLimit: 52428800 }); // 50MB
       const { data: { publicUrl: rawUrl } } = supabase.storage.from("moments").getPublicUrl(rawFileName);
 
       // Upload final photo (with frame + watermark)
       const finalBase64 = photo_final_base64.replace(/^data:image\/\w+;base64,/, "");
       const finalBuffer = Buffer.from(finalBase64, "base64");
       const finalFileName = `photos/final_${Date.now()}.jpg`;
-      await supabase.storage.from("moments").upload(finalFileName, finalBuffer, { contentType: "image/jpeg" });
+      await supabase.storage.from("moments").upload(finalFileName, finalBuffer, { contentType: "image/jpeg", fileSizeLimit: 52428800 }); // 50MB
       const { data: { publicUrl: finalUrl } } = supabase.storage.from("moments").getPublicUrl(finalFileName);
 
       // Get user_id if authenticated (optional)

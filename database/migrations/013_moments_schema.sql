@@ -55,35 +55,43 @@ ALTER TABLE moments_frames ENABLE ROW LEVEL SECURITY;
 ALTER TABLE moments_photos ENABLE ROW LEVEL SECURITY;
 
 -- Public read access untuk events dan frames (camera butuh akses tanpa login)
+DROP POLICY IF EXISTS "moments_events_public_read" ON moments_events;
 CREATE POLICY "moments_events_public_read" ON moments_events
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "moments_frames_public_read" ON moments_frames;
 CREATE POLICY "moments_frames_public_read" ON moments_frames
   FOR SELECT USING (true);
 
 -- Public insert untuk photos (user bisa foto tanpa login)
+DROP POLICY IF EXISTS "moments_photos_public_insert" ON moments_photos;
 CREATE POLICY "moments_photos_public_insert" ON moments_photos
   FOR INSERT WITH CHECK (true);
 
 -- Public read untuk photos yang tidak hidden
+DROP POLICY IF EXISTS "moments_photos_public_read" ON moments_photos;
 CREATE POLICY "moments_photos_public_read" ON moments_photos
   FOR SELECT USING (is_hidden = false);
 
 -- Authenticated users bisa read semua photos termasuk hidden (untuk gallery)
+DROP POLICY IF EXISTS "moments_photos_auth_read" ON moments_photos;
 CREATE POLICY "moments_photos_auth_read" ON moments_photos
   FOR SELECT USING (auth.role() = 'authenticated');
 
 -- Admin bisa manage semua
+DROP POLICY IF EXISTS "moments_events_admin_all" ON moments_events;
 CREATE POLICY "moments_events_admin_all" ON moments_events
   FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'superadmin'))
   );
 
+DROP POLICY IF EXISTS "moments_frames_admin_all" ON moments_frames;
 CREATE POLICY "moments_frames_admin_all" ON moments_frames
   FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'superadmin'))
   );
 
+DROP POLICY IF EXISTS "moments_photos_admin_all" ON moments_photos;
 CREATE POLICY "moments_photos_admin_all" ON moments_photos
   FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.role IN ('admin', 'superadmin'))
@@ -103,6 +111,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS moments_events_updated_at ON moments_events;
 CREATE TRIGGER moments_events_updated_at
   BEFORE UPDATE ON moments_events
   FOR EACH ROW
@@ -113,6 +122,6 @@ CREATE TRIGGER moments_events_updated_at
 -- Jalankan manual di Supabase Dashboard > Storage > New Bucket
 -- Name: moments
 -- Public: true
--- File size limit: 10MB
+-- File size limit: 50MB
 -- Allowed MIME types: image/png, image/jpeg, image/webp
 -- ============================================================
