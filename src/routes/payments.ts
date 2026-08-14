@@ -328,7 +328,7 @@ export function registerPaymentRoutes(app, {
       if (!claimed || claimError) {
         const { data: txMeta } = await supabase
           .from("transactions")
-          .select("status, payment_method, metadata")
+          .select("status, payment_method, metadata, payment_details")
           .eq("id", transaction_id)
           .single();
         const isAutoCancelled = txMeta?.status === "failed"
@@ -346,6 +346,35 @@ export function registerPaymentRoutes(app, {
           if (reClaimed && !reClaimError) {
             claimed = reClaimed;
             claimError = null;
+          }
+        }
+
+        // Fallback: transaksi terjebak "processing" karena bug sebelumnya
+        // Bisa karena verification_failed ATAU stuck tanpa flag (gagal update status ke paid)
+        if (!claimed) {
+          const isStuckProcessing = txMeta?.status === "processing"
+            && ["manual_qris", "transfer_koperasi"].includes(txMeta?.payment_method);
+
+          if (isStuckProcessing) {
+            // Clear verification flags dan izinkan re-verify
+            const currentDetails = { ...(txMeta.payment_details || {}) };
+            delete currentDetails.verification_failed;
+            delete currentDetails.reason;
+            delete currentDetails.attempted_at;
+
+            const { data: reClaimed, error: reClaimError } = await supabase
+              .from("transactions")
+              .update({
+                payment_details: currentDetails
+              })
+              .eq("id", transaction_id)
+              .eq("status", "processing")
+              .select()
+              .single();
+            if (reClaimed && !reClaimError) {
+              claimed = reClaimed;
+              claimError = null;
+            }
           }
         }
       }
@@ -424,16 +453,26 @@ export function registerPaymentRoutes(app, {
         - Jika tanggal di nota TIDAK TERLIHAT, abaikan pengecekan tanggal dan fokus ke nominal & status saja.
 
         TOLAK hanya jika:
-        - Gambar bukan bukti pembayaran sama sekali
-        - Nominal yang terlihat JELAS berbeda jauh dari Rp ${Number(chargeableAmount).toLocaleString('id-ID')}
+        - Gambar bukan bukti pembayaran sama sekali (misal: foto selfie, screenshot chat, dll)
+        - Nominal yang terlihat JELAS berbeda jauh dari Rp ${Number(chargeableAmount).toLocaleString('id-ID')} (toleransi ±5%)
         - Status transaksi JELAS menunjukkan gagal/pending/dibatalkan
         - Tanggal di nota JELAS berbeda lebih dari 1 hari dari tanggal transaksi
+
+        FORMAT ALASAN PENOLAKAN (WAJIB JELAS & ACTIONABLE):
+        Jika TIDAK VALID, alasan HARUS spesifik dan memberitahu user apa yang salah. Contoh format:
+        - "Nominal tidak sesuai. Yang tertera: Rp 50.000, seharusnya: Rp 75.000. Silakan upload bukti dengan nominal yang benar."
+        - "Bukti pembayaran tidak terbaca jelas. Silakan upload ulang dengan gambar yang lebih jelas."
+        - "Status transaksi pada bukti menunjukkan GAGAL. Silakan lakukan pembayaran ulang dan upload bukti yang berhasil."
+        - "Tanggal pada bukti (01/01/2025) tidak sesuai dengan tanggal transaksi (15/08/2026). Silakan upload bukti pembayaran yang benar."
+        - "Gambar yang diupload bukan bukti pembayaran. Silakan upload screenshot bukti transfer/pembayaran yang berhasil."
+
+        JANGAN berikan alasan umum seperti "bukti tidak valid" tanpa penjelasan spesifik.
 
         Balas HANYA dengan JSON tanpa markdown:
         {
           "isValid": boolean,
           "amountFound": number or null,
-          "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid jelaskan alasannya."
+          "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid WAJIB jelaskan secara spesifik apa yang salah dan apa yang harus dilakukan user."
         }
       `;
       const visionModel = process.env.GROQ_VISION_MODEL?.trim() || "qwen/qwen3.6-27b";
@@ -471,9 +510,11 @@ export function registerPaymentRoutes(app, {
       }
       const existingPaymentDetails = txRecord?.payment_details || {};
       if (!verificationResult.isValid) {
+        // Rollback status ke "pending" agar user bisa retry
         await supabase
           .from("transactions")
           .update({
+            status: "pending",
             receipt_image: receiptUrl,
             payment_details: {
               ...existingPaymentDetails,
@@ -483,7 +524,8 @@ export function registerPaymentRoutes(app, {
               attempted_at: new Date().toISOString(),
             },
           })
-          .eq("id", transaction_id);
+          .eq("id", transaction_id)
+          .eq("status", "processing"); // Guard: hanya rollback jika masih "processing"
         return res
           .status(400)
           .json({

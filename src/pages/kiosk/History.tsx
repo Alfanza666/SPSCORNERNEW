@@ -179,10 +179,17 @@ export default function History() {
             appToast.success('Pembayaran Terverifikasi!', 'Bukti pembayaran valid. Pesanan sedang diproses.');
             fetchHistorySilently();
           } else {
-            appToast.error('Verifikasi Gagal', data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai');
+            const errorMsg = data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai.';
+            appToast.error('Bukti Ditolak', errorMsg, { duration: 8000 });
           }
         } catch (error: any) {
-          appToast.error('Gagal Memverifikasi Bukti', error.message || 'Terjadi kesalahan saat verifikasi');
+          const errorMsg = error.message || 'Terjadi kesalahan saat verifikasi.';
+          if (errorMsg.includes('Bukti transfer tidak valid')) {
+            const reason = errorMsg.replace('Bukti transfer tidak valid: ', '');
+            appToast.error('Bukti Ditolak', reason, { duration: 8000 });
+          } else {
+            appToast.error('Gagal Memverifikasi Bukti', errorMsg, { duration: 8000 });
+          }
         } finally {
           setUploadingReceipt(null);
         }

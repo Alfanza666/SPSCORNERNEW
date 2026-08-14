@@ -684,11 +684,19 @@ export default function Checkout() {
         setReservations([]);
         navigate('/kiosk/success', { state: { transactionId } });
       } else {
-        appToast.error('Verifikasi Gagal', data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai.');
+        const errorMsg = data.error || 'Bukti pembayaran tidak valid atau nominal tidak sesuai.';
+        appToast.error('Bukti Ditolak', errorMsg, { duration: 8000 });
       }
     } catch (error: any) {
       console.error('Verify receipt error:', error);
-      appToast.error('Gagal Memverifikasi Bukti', error.message || 'Terjadi kesalahan saat verifikasi bukti pembayaran.');
+      const errorMsg = error.message || 'Terjadi kesalahan saat verifikasi bukti pembayaran.';
+      // Parse error dari backend untuk judul yang lebih spesifik
+      if (errorMsg.includes('Bukti transfer tidak valid')) {
+        const reason = errorMsg.replace('Bukti transfer tidak valid: ', '');
+        appToast.error('Bukti Ditolak', reason, { duration: 8000 });
+      } else {
+        appToast.error('Gagal Memverifikasi Bukti', errorMsg, { duration: 8000 });
+      }
     } finally {
       setVerifyingReceipt(false);
     }
