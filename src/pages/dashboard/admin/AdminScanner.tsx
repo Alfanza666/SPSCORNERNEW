@@ -67,6 +67,8 @@ export default function AdminScanner() {
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [scanHistory, setScanHistory] = useState<ScanLog[]>([]);
   const [sessionSuccessCount, setSessionSuccessCount] = useState<number>(0);
+  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('');
   
   // Lock state prevents multiple scans of the SAME or DIFFERENT codes while processing
   const [isLocked, setIsLocked] = useState(false);
@@ -81,10 +83,24 @@ export default function AdminScanner() {
 
   useEffect(() => {
     fetchTotalScans();
+    fetchPrograms();
     return () => {
       stopScanner();
     };
   }, []);
+
+  const fetchPrograms = async () => {
+    try {
+      const { data } = await supabase
+        .from('union_programs')
+        .select('id, name')
+        .order('created_at', { ascending: false });
+      if (data) {
+        setPrograms(data);
+        if (data.length > 0) setSelectedProgramId(data[0].id);
+      }
+    } catch (e) { console.error(e); }
+  };
 
   const fetchTotalScans = async () => {
     try {
@@ -102,6 +118,11 @@ export default function AdminScanner() {
 
   const startScanner = async () => {
     if (scanning) return;
+
+    if (!selectedProgramId) {
+      appToast.error('Program Belum Dipilih', 'Pilih program terlebih dahulu sebelum memindai.');
+      return;
+    }
     
     if (window.isSecureContext === false) {
       appToast.error('Akses Kamera Ditolak', 'Fitur kamera memerlukan HTTPS.');
@@ -204,11 +225,26 @@ export default function AdminScanner() {
 
   const processScan = async (code: string) => {
     try {
+      if (!selectedProgramId) {
+        throw new Error('Program belum dipilih');
+      }
+
+      // Auth token is required by the backend (requireAdmin), otherwise it returns 401 Unauthorized
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        throw new Error('Sesi habis, silakan login ulang.');
+      }
+
       // V2: Use the new scan endpoint with program and gate awareness
       const response = await fetch('/api/admin/program-entitlements/scan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
+          programId: selectedProgramId,
           scanned_code: code,
           gate: 'attendance',
         }),
@@ -298,6 +334,21 @@ export default function AdminScanner() {
              </div>
              <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Total Hari Ini</div>
           </div>
+        </div>
+
+        {/* Program Selector */}
+        <div className="mb-4">
+          <select
+            value={selectedProgramId}
+            onChange={(e) => setSelectedProgramId(e.target.value)}
+            disabled={scanning}
+            className="w-full p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/50 text-zinc-900 dark:text-white font-bold text-sm shadow-2xl disabled:opacity-60"
+          >
+            {programs.length === 0 && <option value="">Tidak ada program</option>}
+            {programs.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
         </div>
 
         {/* Scanner Area */}
