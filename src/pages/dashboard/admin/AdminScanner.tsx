@@ -69,6 +69,7 @@ export default function AdminScanner() {
   const [sessionSuccessCount, setSessionSuccessCount] = useState<number>(0);
   const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
   const [selectedProgramId, setSelectedProgramId] = useState<string>('');
+  const [selectedGate, setSelectedGate] = useState<'attendance' | 'meal'>('attendance');
   
   // Lock state prevents multiple scans of the SAME or DIFFERENT codes while processing
   const [isLocked, setIsLocked] = useState(false);
@@ -246,7 +247,7 @@ export default function AdminScanner() {
         body: JSON.stringify({
           programId: selectedProgramId,
           scanned_code: code,
-          gate: 'attendance',
+          gate: selectedGate,
         }),
       });
 
@@ -349,6 +350,34 @@ export default function AdminScanner() {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
+        </div>
+
+        {/* Gate Selector */}
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={scanning}
+            onClick={() => setSelectedGate('attendance')}
+            className={`p-3 rounded-2xl font-bold text-sm border transition-colors disabled:opacity-60 ${
+              selectedGate === 'attendance'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-zinc-50/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800/50'
+            }`}
+          >
+            Kehadiran
+          </button>
+          <button
+            type="button"
+            disabled={scanning}
+            onClick={() => setSelectedGate('meal')}
+            className={`p-3 rounded-2xl font-bold text-sm border transition-colors disabled:opacity-60 ${
+              selectedGate === 'meal'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-zinc-50/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800/50'
+            }`}
+          >
+            Makanan
+          </button>
         </div>
 
         {/* Scanner Area */}
