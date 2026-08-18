@@ -705,6 +705,35 @@ export class EventWorkflowService {
   }
 
   /**
+   * Auto-detect scan: finds coupon by code across all programs, auto-detects gate.
+   * Admin only needs to scan — no manual program/gate selection.
+   */
+  async scanEntitlementAuto(
+    scannedCode: string,
+    scannerUserId: string
+  ): Promise<{
+    scan_result: string;
+    failure_reason?: string;
+    redemption_id?: string;
+    entitlement_code?: string;
+    beneficiary_type?: string;
+    gate?: string;
+    program_id?: string;
+    program_name?: string;
+    name?: string;
+    nik?: string;
+  }> {
+    const { data: result, error } = await this.supabase
+      .rpc('scan_entitlement_auto', {
+        p_scanned_code: scannedCode,
+        p_scanner_user_id: scannerUserId,
+      });
+
+    if (error) throw error;
+    return result;
+  }
+
+  /**
    * Manual attendance override with required reason.
    */
   async attendanceOverride(

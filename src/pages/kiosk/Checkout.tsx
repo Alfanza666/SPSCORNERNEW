@@ -373,7 +373,6 @@ export default function Checkout() {
       if (transactionId) {
         tx = { id: transactionId };
       } else {
-        // 1. Create transaction record via backend API
         const txData: any = {
           buyer_name: buyerName,
           buyer_id: user?.id || null,
@@ -394,30 +393,40 @@ export default function Checkout() {
           }))
         };
 
-        const txRes = await fetch('/api/transactions/create', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(txData)
-        });
-
-        if (!txRes.ok) {
-          let errorMessage = 'Failed to create transaction';
-          try {
-            const text = await txRes.text();
+        const createTx = async () => {
+          const res = await fetch('/api/transactions/create', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(txData)
+          });
+          if (!res.ok) {
+            let errorMessage = 'Failed to create transaction';
             try {
-              const errorData = JSON.parse(text);
-              errorMessage = errorData?.error || errorMessage;
-            } catch (e) {
-              console.error('Non-JSON error response from create:', text);
-              errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`;
-            }
-          } catch (e) {
-            console.error('Failed to read error response:', e);
+              const text = await res.text();
+              try { const d = JSON.parse(text); errorMessage = d?.error || errorMessage; }
+              catch { errorMessage = `Server error (${res.status}): ${text.slice(0, 100)}`; }
+            } catch { /* ignore */ }
+            throw new Error(errorMessage);
           }
-          throw new Error(errorMessage);
+          return res.json();
+        };
+
+        let result: any;
+        try {
+          result = await createTx();
+        } catch (firstErr: any) {
+          // Retry sekali jika PRIMARY_API_REQUEST_UNCERTAIN
+          // Backend idempotency (5 menit) mencegah duplikat
+          if (firstErr.message === 'PRIMARY_API_REQUEST_UNCERTAIN') {
+            console.warn('[Checkout] Retrying transaction creation after network uncertain...');
+            await new Promise(r => setTimeout(r, 3000));
+            result = await createTx();
+          } else {
+            throw firstErr;
+          }
         }
 
-        ({ transaction: tx } = await txRes.json());
+        tx = result.transaction;
         setTransactionId(tx.id);
         saveGuestTransaction(tx.id);
       }
@@ -427,7 +436,11 @@ export default function Checkout() {
 
     } catch (error: any) {
       console.error('Manual QRIS error:', error);
-      appToast.error('Gagal Memproses QRIS', error.message || 'Terjadi kesalahan saat membuat transaksi QRIS.');
+      if (error.message === 'PRIMARY_API_REQUEST_UNCERTAIN') {
+        appToast.error('Koneksi Tidak Stabil', 'Transaksi mungkin sudah dibuat. Cek riwayat transaksi sebelum mencoba lagi.', { duration: 8000 });
+      } else {
+        appToast.error('Gagal Memproses QRIS', error.message || 'Terjadi kesalahan saat membuat transaksi QRIS.');
+      }
     } finally {
       setLoading(false);
       isCreatingTx.current = false;
@@ -467,19 +480,37 @@ export default function Checkout() {
             metadata: item.metadata
           }))
         };
-        const txRes = await fetch('/api/transactions/create', {
-          method: 'POST', headers, body: JSON.stringify(txData)
-        });
-        if (!txRes.ok) {
-          let errorMessage = 'Failed to create transaction';
-          try {
-            const text = await txRes.text();
-            try { const errorData = JSON.parse(text); errorMessage = errorData?.error || errorMessage; }
-            catch (e) { errorMessage = `Server error (${txRes.status}): ${text.slice(0, 100)}`; }
-          } catch (e) { console.error('Failed to read error response:', e); }
-          throw new Error(errorMessage);
+
+        const createTx = async () => {
+          const res = await fetch('/api/transactions/create', {
+            method: 'POST', headers, body: JSON.stringify(txData)
+          });
+          if (!res.ok) {
+            let errorMessage = 'Failed to create transaction';
+            try {
+              const text = await res.text();
+              try { const d = JSON.parse(text); errorMessage = d?.error || errorMessage; }
+              catch { errorMessage = `Server error (${res.status}): ${text.slice(0, 100)}`; }
+            } catch { /* ignore */ }
+            throw new Error(errorMessage);
+          }
+          return res.json();
+        };
+
+        let result: any;
+        try {
+          result = await createTx();
+        } catch (firstErr: any) {
+          if (firstErr.message === 'PRIMARY_API_REQUEST_UNCERTAIN') {
+            console.warn('[Checkout] Retrying transfer_koperasi creation after network uncertain...');
+            await new Promise(r => setTimeout(r, 3000));
+            result = await createTx();
+          } else {
+            throw firstErr;
+          }
         }
-        ({ transaction: tx } = await txRes.json());
+
+        tx = result.transaction;
         setTransactionId(tx.id);
         saveGuestTransaction(tx.id);
       }
@@ -488,7 +519,11 @@ export default function Checkout() {
       setPaymentStep('transfer_koperasi');
     } catch (error: any) {
       console.error('Transfer Koperasi error:', error);
-      appToast.error('Gagal Memproses Transfer', error.message || 'Terjadi kesalahan saat membuat transaksi transfer.');
+      if (error.message === 'PRIMARY_API_REQUEST_UNCERTAIN') {
+        appToast.error('Koneksi Tidak Stabil', 'Transaksi mungkin sudah dibuat. Cek riwayat transaksi sebelum mencoba lagi.', { duration: 8000 });
+      } else {
+        appToast.error('Gagal Memproses Transfer', error.message || 'Terjadi kesalahan saat membuat transaksi transfer.');
+      }
     } finally {
       setLoading(false);
       isCreatingTx.current = false;

@@ -398,6 +398,30 @@ export function registerEventWorkflowRoutes(app: any, { supabase, sendNotificati
   });
 
   /**
+   * POST /api/admin/scan/auto
+   * Auto-detect scan: finds coupon by code across all programs.
+   * Auto-detects gate type. Admin only needs to scan the QR.
+   */
+  app.post("/api/admin/scan/auto", async (req: any, res: any) => {
+    try {
+      const admin = await requireAdmin(req, res);
+      if (!admin) return;
+
+      const { scanned_code } = req.body;
+
+      if (!scanned_code) {
+        return res.status(400).json({ error: "scanned_code is required" });
+      }
+
+      const result = await workflowService.scanEntitlementAuto(scanned_code, admin.userId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Auto scan error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
    * POST /api/admin/programs/:programId/attendance-override
    * Manual attendance override with required reason.
    */

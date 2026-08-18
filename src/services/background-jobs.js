@@ -260,10 +260,12 @@ async function autoCleanup() {
           .eq("id", tx.id);
         if (metaErr) continue;
         if (tx.buyer_id && sendNotif) {
+          const isManual = ['manual_qris', 'transfer_koperasi'].includes(tx.payment_method);
+          const remainingMin = isManual ? 50 : 5;
           await sendNotif(tx.buyer_id, {
             type: "transaction",
             title: "⏳ Segera Selesaikan Pembayaran",
-            message: `Pesanan #${tx.id.slice(0, 8)} akan dibatalkan otomatis dalam 5 menit.`,
+            message: `Pesanan #${tx.id.slice(0, 8)} akan dibatalkan otomatis dalam ${remainingMin} menit.`,
             path: `/kiosk/success?id=${tx.id}`,
           });
         }

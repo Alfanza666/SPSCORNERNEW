@@ -454,30 +454,42 @@ app.post("/api/transactions/create", async (req, res) => {
       receiptValidationPayload = validation.payload;
     }
 
-    // ─── Idempotency: cek duplikat pending/paid untuk buyer yg sama dalam 60 detik ───
-    if (requestedStatus === "pending" && buyer_id) {
-      const sixtySecAgo = new Date(Date.now() - 60 * 1000).toISOString();
-      const { data: recentTx } = await supabase
+    // ─── Idempotency: cek duplikat pending untuk buyer yg sama dalam 5 menit ───
+    // Mencegah duplikat saat PRIMARY_API_REQUEST_UNCERTAIN (timeout tapi transaksi tetap terbuat)
+    if (requestedStatus === "pending") {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      let idQuery = supabase
         .from("transactions")
         .select("id, status, total_amount, transaction_items(id, product_id, quantity, metadata)")
-        .eq("buyer_id", buyer_id)
         .eq("status", "pending")
-        .gte("created_at", sixtySecAgo)
+        .gte("created_at", fiveMinAgo)
         .order("created_at", { ascending: false })
         .limit(3);
 
-      if (recentTx && recentTx.length > 0) {
-        // Cari yg total_amount + item count sama (heuristic cukup kuat untuk cegah duplikat)
-        const duplicate = recentTx.find((tx) => {
-          if (Number(tx.total_amount) !== Number(total_amount)) return false;
-          const existingCount = (tx.transaction_items || []).length;
-          const incomingCount = (items || []).length;
-          if (existingCount !== incomingCount) return false;
-          return true;
-        });
-        if (duplicate) {
-          console.log(`[Idempotency] Returning existing transaction ${duplicate.id} for buyer ${buyer_id}`);
-          return res.json({ success: true, transaction: duplicate });
+      // Authenticated: match by buyer_id; Guest: match by buyer_phone + payment_method
+      if (buyer_id) {
+        idQuery = idQuery.eq("buyer_id", buyer_id);
+      } else if (buyer_phone) {
+        idQuery = idQuery.eq("buyer_phone", buyer_phone).eq("payment_method", payment_method || '');
+      } else {
+        // No identifier — skip idempotency check
+        idQuery = null as any;
+      }
+
+      if (idQuery) {
+        const { data: recentTx } = await idQuery;
+        if (recentTx && recentTx.length > 0) {
+          const duplicate = recentTx.find((tx) => {
+            if (Number(tx.total_amount) !== Number(total_amount)) return false;
+            const existingCount = (tx.transaction_items || []).length;
+            const incomingCount = (items || []).length;
+            if (existingCount !== incomingCount) return false;
+            return true;
+          });
+          if (duplicate) {
+            console.log(`[Idempotency] Returning existing transaction ${duplicate.id} for buyer ${buyer_id || buyer_phone}`);
+            return res.json({ success: true, transaction: duplicate });
+          }
         }
       }
     }

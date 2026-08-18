@@ -7,6 +7,10 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+function getScanTime(row: any): string {
+  return row.claimed_at || row.scanned_at || row.created_at || '';
+}
+
 export default function AdminCouponReports() {
   const { user } = useAuthStore();
   const [programs, setPrograms] = useState<any[]>([]);
@@ -86,9 +90,9 @@ export default function AdminCouponReports() {
         .from('program_coupons')
         .select('*, profiles!program_coupons_user_id_fkey(name, nik, phone), union_programs(name)')
         .eq('status', 'claimed')
-        .gte('claimed_at', `${startDate}T00:00:00Z`)
-        .lte('claimed_at', `${endDate}T23:59:59Z`)
-        .order('claimed_at', { ascending: false });
+        .gte('scanned_at', `${startDate}T00:00:00Z`)
+        .lte('scanned_at', `${endDate}T23:59:59Z`)
+        .order('scanned_at', { ascending: false });
 
       if (selectedProgram !== 'all') {
         query = query.eq('program_id', selectedProgram);
@@ -128,7 +132,7 @@ export default function AdminCouponReports() {
 
     const excelData = selectedData.map((row, index) => ({
       No: index + 1,
-      'Waktu Scan': new Date(row.claimed_at).toLocaleString('id-ID'),
+      'Waktu Scan': new Date(getScanTime(row)).toLocaleString('id-ID'),
       'Program': row.union_programs?.name || '-',
       'NIK': row.nik,
       'Nama Karyawan': row.name || row.profiles?.name || '-',
@@ -218,7 +222,7 @@ export default function AdminCouponReports() {
 
       const rows = selectedData.map((row, idx) => [
         (idx + 1).toString(),
-        new Date(row.claimed_at).toLocaleString('id-ID'),
+        new Date(getScanTime(row)).toLocaleString('id-ID'),
         row.nik,
         row.name || row.profiles?.name || '-',
         row.union_programs?.name || '-',
@@ -299,7 +303,7 @@ export default function AdminCouponReports() {
 
   const startEditTime = (row: any) => {
     setEditingId(row.id);
-    setEditValue(new Date(row.claimed_at).toISOString().slice(0, 19));
+    setEditValue(new Date(getScanTime(row)).toISOString().slice(0, 19));
   };
 
   const saveEditTime = async (row: any) => {
@@ -640,7 +644,7 @@ export default function AdminCouponReports() {
                             className="cursor-pointer hover:text-blue-600 hover:underline decoration-dotted"
                             title="Klik untuk edit waktu"
                           >
-                            {new Date(row.claimed_at).toLocaleString('id-ID')}
+                            {new Date(getScanTime(row)).toLocaleString('id-ID')}
                           </span>
                         )}
                       </td>

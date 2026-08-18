@@ -67,16 +67,13 @@ export default function AdminScanner() {
   const [cameraFacing, setCameraFacing] = useState<'environment' | 'user'>('environment');
   const [scanHistory, setScanHistory] = useState<ScanLog[]>([]);
   const [sessionSuccessCount, setSessionSuccessCount] = useState<number>(0);
-  const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
-  const [selectedProgramId, setSelectedProgramId] = useState<string>('');
-  const [selectedGate, setSelectedGate] = useState<'attendance' | 'meal'>('attendance');
   
   // Lock state prevents multiple scans of the SAME or DIFFERENT codes while processing
   const [isLocked, setIsLocked] = useState(false);
   
   // Modals
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successData, setSuccessData] = useState<{ name: string; nik: string; gate: string; message: string } | null>(null);
+  const [successData, setSuccessData] = useState<{ name: string; nik: string; gate: string; program_name: string; message: string } | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -84,24 +81,10 @@ export default function AdminScanner() {
 
   useEffect(() => {
     fetchTotalScans();
-    fetchPrograms();
     return () => {
       stopScanner();
     };
   }, []);
-
-  const fetchPrograms = async () => {
-    try {
-      const { data } = await supabase
-        .from('union_programs')
-        .select('id, name')
-        .order('created_at', { ascending: false });
-      if (data) {
-        setPrograms(data);
-        if (data.length > 0) setSelectedProgramId(data[0].id);
-      }
-    } catch (e) { console.error(e); }
-  };
 
   const fetchTotalScans = async () => {
     try {
@@ -119,11 +102,6 @@ export default function AdminScanner() {
 
   const startScanner = async () => {
     if (scanning) return;
-
-    if (!selectedProgramId) {
-      appToast.error('Program Belum Dipilih', 'Pilih program terlebih dahulu sebelum memindai.');
-      return;
-    }
     
     if (window.isSecureContext === false) {
       appToast.error('Akses Kamera Ditolak', 'Fitur kamera memerlukan HTTPS.');
@@ -206,6 +184,7 @@ export default function AdminScanner() {
         name: result.name,
         nik: result.nik,
         gate: result.gate,
+        program_name: result.program_name || '',
         message: result.message
       });
       setSessionSuccessCount(prev => prev + 1);
@@ -226,10 +205,6 @@ export default function AdminScanner() {
 
   const processScan = async (code: string) => {
     try {
-      if (!selectedProgramId) {
-        throw new Error('Program belum dipilih');
-      }
-
       // Auth token is required by the backend (requireAdmin), otherwise it returns 401 Unauthorized
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
@@ -237,17 +212,15 @@ export default function AdminScanner() {
         throw new Error('Sesi habis, silakan login ulang.');
       }
 
-      // V2: Use the new scan endpoint with program and gate awareness
-      const response = await fetch('/api/admin/program-entitlements/scan', {
+      // Auto-detect: scan tanpa perlu pilih program atau gate
+      const response = await fetch('/api/admin/scan/auto', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          programId: selectedProgramId,
           scanned_code: code,
-          gate: selectedGate,
         }),
       });
 
@@ -257,16 +230,18 @@ export default function AdminScanner() {
         throw new Error(result.error || 'Scan failed');
       }
 
+      const gateLabel = result.gate === 'meal' ? 'Makan' : result.gate === 'attendance' ? 'Kehadiran' : result.gate || '';
+
       if (result.scan_result === 'success') {
         addToHistory({
           id: Math.random().toString(36).substr(2, 9),
           name: result.name || 'Karyawan',
           nik: result.nik || '',
           status: 'success',
-          message: result.message || result.gate || 'attendance',
+          message: `${gateLabel} • ${result.program_name || ''}`,
           timestamp: new Date().toISOString()
         });
-        return { success: true, name: result.name || 'Karyawan', nik: result.nik || '', gate: result.gate || 'attendance', message: result.message };
+        return { success: true, name: result.name || 'Karyawan', nik: result.nik || '', gate: gateLabel, program_name: result.program_name || '', message: gateLabel };
       } else {
         addToHistory({
           id: Math.random().toString(36).substr(2, 9),
@@ -335,49 +310,6 @@ export default function AdminScanner() {
              </div>
              <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Total Hari Ini</div>
           </div>
-        </div>
-
-        {/* Program Selector */}
-        <div className="mb-4">
-          <select
-            value={selectedProgramId}
-            onChange={(e) => setSelectedProgramId(e.target.value)}
-            disabled={scanning}
-            className="w-full p-3.5 rounded-2xl bg-zinc-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/50 text-zinc-900 dark:text-white font-bold text-sm shadow-2xl disabled:opacity-60"
-          >
-            {programs.length === 0 && <option value="">Tidak ada program</option>}
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Gate Selector */}
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={scanning}
-            onClick={() => setSelectedGate('attendance')}
-            className={`p-3 rounded-2xl font-bold text-sm border transition-colors disabled:opacity-60 ${
-              selectedGate === 'attendance'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-zinc-50/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800/50'
-            }`}
-          >
-            Kehadiran
-          </button>
-          <button
-            type="button"
-            disabled={scanning}
-            onClick={() => setSelectedGate('meal')}
-            className={`p-3 rounded-2xl font-bold text-sm border transition-colors disabled:opacity-60 ${
-              selectedGate === 'meal'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-zinc-50/80 dark:bg-zinc-900/80 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800/50'
-            }`}
-          >
-            Makanan
-          </button>
         </div>
 
         {/* Scanner Area */}
@@ -502,7 +434,7 @@ export default function AdminScanner() {
                   <CheckCircle2 className="w-12 h-12 text-green-500" />
                 </div>
                 <h2 className="text-2xl font-black text-zinc-900 dark:text-white mb-2">Scan Berhasil!</h2>
-                <p className="text-green-400 font-bold mb-6 text-sm bg-green-500/10 px-4 py-1.5 rounded-full uppercase tracking-wider">{successData.message}</p>
+                <p className="text-green-400 font-bold mb-6 text-sm bg-green-500/10 px-4 py-1.5 rounded-full uppercase tracking-wider">{successData.gate}</p>
                 
                 <div className="w-full bg-zinc-50 dark:bg-zinc-950/50 rounded-2xl p-4 mb-6 border border-zinc-800">
                   <p className="text-sm text-zinc-400 mb-1">Nama Peserta</p>
@@ -510,6 +442,13 @@ export default function AdminScanner() {
                   <div className="w-full h-[1px] bg-zinc-800 my-3" />
                   <p className="text-sm text-zinc-400 mb-1">NIK</p>
                   <p className="font-mono text-zinc-300 font-bold">{successData.nik}</p>
+                  {successData.program_name && (
+                    <>
+                      <div className="w-full h-[1px] bg-zinc-800 my-3" />
+                      <p className="text-sm text-zinc-400 mb-1">Program</p>
+                      <p className="text-sm font-bold text-zinc-300">{successData.program_name}</p>
+                    </>
+                  )}
                 </div>
 
                 <button
