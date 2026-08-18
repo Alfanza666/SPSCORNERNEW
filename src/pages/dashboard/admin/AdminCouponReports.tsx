@@ -15,6 +15,7 @@ export default function AdminCouponReports() {
   const { user } = useAuthStore();
   const [programs, setPrograms] = useState<any[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<string>('all');
+  const [selectedGate, setSelectedGate] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [nomorSurat, setNomorSurat] = useState<string>('');
@@ -96,6 +97,12 @@ export default function AdminCouponReports() {
 
       if (selectedProgram !== 'all') {
         query = query.eq('program_id', selectedProgram);
+      }
+
+      if (selectedGate === 'attendance') {
+        query = query.in('gate_type', ['attendance', 'attendance_family']);
+      } else if (selectedGate === 'meal') {
+        query = query.in('gate_type', ['meal', 'meal_family', 'food']);
       }
 
       const { data, error } = await query;
@@ -406,7 +413,7 @@ export default function AdminCouponReports() {
 
       {/* KONTROL FILTER (TIDAK TER-PRINT) */}
       <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm print:hidden">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Program Serikat</label>
             <select
@@ -418,6 +425,18 @@ export default function AdminCouponReports() {
               {programs.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Jenis Kupon</label>
+            <select
+              value={selectedGate}
+              onChange={(e) => setSelectedGate(e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Semua Jenis</option>
+              <option value="attendance">Kehadiran</option>
+              <option value="meal">Makanan</option>
             </select>
           </div>
           <div>
