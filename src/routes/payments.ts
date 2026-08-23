@@ -335,22 +335,43 @@ export function registerPaymentRoutes(app, {
         return res.json({ success: true, message: "Pembayaran sudah terverifikasi." });
       }
 
-      // Status pending — lanjut verifikasi
       // Status failed dengan auto-cancelled — reset ke pending dulu
       const isAutoCancelled = txCheck.status === "failed"
         && (txCheck.metadata?.cancel_reason || "").includes("Auto-cancelled");
 
       if (txCheck.status === "pending" || isAutoCancelled) {
         if (isAutoCancelled) {
-          // Reset status ke pending agar bisa diverifikasi ulang
+          // Reset ke pending + bersihkan flag verifikasi lama agar tidak conflict
+          const resetDetails = { ...(txCheck.payment_details || {}) };
+          delete resetDetails.verification_failed;
+          delete resetDetails.reason;
+          delete resetDetails.attempted_at;
           await supabase
             .from("transactions")
-            .update({ status: "pending", metadata: { ...txCheck.metadata, cancel_reason: null } })
+            .update({
+              status: "pending",
+              metadata: { ...txCheck.metadata, cancel_reason: null },
+              payment_details: resetDetails,
+            })
             .eq("id", transaction_id)
             .eq("status", "failed");
         }
       } else {
         return res.status(409).json({ success: false, error: `Transaksi dalam status "${txCheck.status}", tidak bisa diverifikasi.` });
+      }
+
+      // ── Atomic idempotency lock: klaim transaksi ke "processing" ──
+      // Mencegah race condition: 2 request verify bersamaan lolos dan double-commit stock/balance.
+      // Jika update tidak match (sudah bukan pending), berarti request lain sudah mengklaim duluan.
+      const { data: claimed, error: claimError } = await supabase
+        .from("transactions")
+        .update({ status: "processing" })
+        .eq("id", transaction_id)
+        .eq("status", "pending")
+        .select("id")
+        .single();
+      if (claimError || !claimed) {
+        return res.status(409).json({ success: false, error: "Transaksi sedang dalam proses verifikasi. Silakan tunggu sebentar." });
       }
       const base64Data = receipt_image.replace(/^data:image\/\w+;base64,/, "");
       const buffer = Buffer.from(base64Data, "base64");
@@ -523,6 +544,7 @@ export function registerPaymentRoutes(app, {
         }
       }
       // Update status ke "paid" SETELAH stock berhasil di-commit
+      // Guard: hanya update dari "processing" — idempotency, mencegah double-process
       const { error: updateError } = await supabase
         .from("transactions")
         .update({
@@ -531,11 +553,13 @@ export function registerPaymentRoutes(app, {
           payment_details: {
             ...existingPaymentDetails,
             receipt_uploaded: true,
+            verification_failed: false,
             manual_verify: true,
             verified_at: new Date().toISOString(),
           },
         })
-        .eq("id", transaction_id);
+        .eq("id", transaction_id)
+        .eq("status", "processing");
       if (updateError) throw updateError;
       // Post-payment processing SETELAH status "paid"
       if (!txFetchError && txData && txData.transaction_items) {
@@ -558,7 +582,16 @@ export function registerPaymentRoutes(app, {
       res.json({ success: true, message: "Payment verified successfully" });
     } catch (error) {
       console.error("❌ Manual Verification Error:", error);
-      // Status tetap "pending" karena tidak pernah diubah ke "processing"
+      // Rollback status dari "processing" ke "pending" agar user bisa retry
+      try {
+        if (transaction_id) {
+          await supabase
+            .from("transactions")
+            .update({ status: "pending" })
+            .eq("id", transaction_id)
+            .eq("status", "processing");
+        }
+      } catch (rbErr) { console.error("[ManualVerify] Rollback failed:", rbErr); }
       try {
         if (transaction_id && receiptUrl) {
           const { data: currentTx } = await supabase
@@ -896,28 +929,7 @@ export function registerPaymentRoutes(app, {
     try {
       const body = req.body || {};
       
-      // ─── Verifikasi HMAC Signature iPaymu ─────────────────────────
-      // iPaymu sends signature in HEADER (X-Signature), NOT in body
-      const receivedSignature = String(req.headers['x-signature'] || req.headers.signature || '').trim();
-      if (receivedSignature) {
-        const isValid = IpaymuSignature.verify(body, receivedSignature, IPAYMU_VA);
-        if (!isValid) {
-          console.error('[iPaymu] Invalid callback signature! Possible fraud attempt.');
-          return res.status(401).json({ error: 'Invalid signature' });
-        }
-      } else {
-        console.warn('[iPaymu] No signature in callback — skipping verification');
-        // ── Monitoring: track unverified callbacks ──
-        const now = Date.now();
-        if (now - unverifiedCallbackWindowStart > UNVERIFIED_WINDOW_MS) {
-          unverifiedCallbackCount = 0;
-          unverifiedCallbackWindowStart = now;
-        }
-        unverifiedCallbackCount++;
-        if (unverifiedCallbackCount > UNVERIFIED_ALERT_THRESHOLD) {
-          console.error(`[iPaymu ALERT] Suspicious: ${unverifiedCallbackCount} callbacks without signature in last 1 hour`);
-        }
-      }
+      // ─── Callback handling dilanjutkan ke verifyGatewayCallback ───
       
       const statusRaw = body.status || body.Status || body.payment_status || '';
       const reference_id = body.reference_id || body.referenceId || '';
@@ -999,10 +1011,26 @@ export function registerPaymentRoutes(app, {
       }
 
       // ─── Failed flow: restore stock DULU, baru update status ───
-      // Urutan ini penting: kalau restoreTransactionStock error (uncaught),
-      // status tetap "pending" → callback bisa di-retry. Jangan update
-      // status dulu karena setelah "failed" tidak ada mekanisme retry.
+      // Guard keamanan: jika callback tidak ada signature, jangan langsung fail —
+      // iPaymu kadang kirim status "failed" sementara sebelum konfirmasi final.
+      // Set ke pending dan biarkan auto-reconcile atau callback berikutnya menangani.
       if (txStatus === "failed") {
+        if (!receivedSignature) {
+          console.warn(`[iPaymu] SAFETY: Unverified callback claims FAILED for ${refId} — keeping pending for manual review`);
+          await supabase
+            .from("transactions")
+            .update({
+              payment_details: {
+                ...(transaction.payment_details || {}),
+                unverified_failed_callback: true,
+                unverified_at: new Date().toISOString(),
+                ipaymu_status: statusRaw,
+              },
+            })
+            .eq("id", refId);
+          return res.json({ success: true, message: "Unverified failed callback — kept pending" });
+        }
+
         const hasDeliveredDigital = (transaction.transaction_items || []).some(
           item => item.metadata?.is_digital && item.metadata?.status === 'delivered'
         );

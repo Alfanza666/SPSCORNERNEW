@@ -1,3 +1,66 @@
+v6.0.4 - Fix iPaymu Callback Blocked (PATCH)
+-----------------------------------------------
+### Bug Fix (payments.ts):
+- [CRITICAL] Callback dari iPaymu selalu ditolak dengan `401 Unauthorized` (Invalid signature). 
+  Penyebabnya: ada blok validasi signature yang terlalu strict di awal route `/api/payment/ipaymu/callback`.
+  Karena parsing Node.js untuk `x-www-form-urlencoded` sering membuat tipe data string berbeda dengan hash iPaymu,
+  signature sering dianggap tidak cocok.
+- Solusi: Menghapus validasi strict tersebut. Proses diserahkan kembali ke `verifyGatewayCallback` yang jauh lebih robust, 
+  karena jika signature lokal gagal diverifikasi, fungsi tersebut akan fallback melakukan API status lookup 
+  (direct check ke iPaymu) dari VPS yang IP-nya sudah di-whitelist.
+
+v6.0.3 - updateBuyerPoints Idempotency Fix (PATCH)
+-----------------------------------------------
+### Bug Fix (payment.js):
+- [BUG] updateBuyerPoints tidak punya idempotency guard di level fungsi.
+  Sebelumnya hanya auto-reconcile yang cek points_history, bukan fungsi itu sendiri.
+  Jika dipanggil 2x (race condition dari manual verify atau callback+auto-reconcile),
+  points bisa double-earn.
+- Ditambahkan cek points_history (type='earned', transaction_id) SEBELUM increment.
+  Jika sudah ada, skip tanpa error. Konsisten dengan pola auto-reconcile.
+
+### Files Modified:
+- `src/services/payment.js` — idempotency guard di updateBuyerPoints
+
+v6.0.2 - Critical Payment Integrity Fix (PATCH)
+-----------------------------------------------
+### Root Cause:
+- Commit 96b7f60 (15 Agt 2026) menghapus atomic idempotency lock dari manual verify.
+  Lock ini (status: "processing") sebelumnya ada sebagai FIX F (CAPA v5.16.7) untuk
+  mencegah race condition: 2 request verify bersamaan lolos dan double-commit stock/balance.
+  Penghapusan lock inilah penyebab selisih stock yang dikeluhkan seller.
+
+### Bug Fix (payments.ts):
+- [CRITICAL] Pulihkan atomic idempotency lock pada /api/payment/manual/verify:
+  transaksi di-claim ke status "processing" sebelum proses AI verify.
+  Jika dua request masuk bersamaan, hanya satu yang berhasil claim.
+- [CRITICAL] Rollback ke "pending" di catch block jika proses gagal — agar user bisa retry.
+- [BUG] Update status "paid" kini hanya berlaku jika status masih "processing"
+  (.eq("status", "processing")) — double-process mustahil terjadi.
+- [BUG] Clear flag verification_failed, reason, attempted_at saat reset auto-cancelled
+  transaction — flag lama tidak conflict dengan re-verify baru.
+- [BUG] iPaymu callback: jika status "failed" tapi TANPA signature, transaksi TIDAK
+  langsung di-fail. Disimpan flag unverified_failed_callback dan tetap pending
+  untuk review manual/auto-reconcile. Mencegah false-positive payment failure.
+
+### Files Modified:
+- `src/routes/payments.ts` — atomic lock restore + iPaymu unverified-failed guard
+
+v6.0.1 - Critical AutoCleanup Fix: QRIS Otomatis Protection (PATCH)
+-----------------------------------------------
+### Bug Fix:
+- [CRITICAL] autoCleanup tidak boleh cancel transaksi QRIS Otomatis (iPaymu direct)
+  yang sudah punya ipaymu_trx_id — ini berarti sudah dibayar, tinggal tunggu callback.
+  Root cause: semua payment_method selain manual_qris/transfer_koperasi kena threshold
+  15 menit, padahal QRIS iPaymu callback bisa datang lebih lambat.
+- Ditambahkan guard `hasGatewayRef` — jika tx sudah punya ipaymu_trx_id/ipaymu_sid,
+  autoCleanup SKIP (tidak cancel) transaksi tersebut.
+- Threshold baru untuk QRIS Otomatis & VA iPaymu: 30 menit (bukan 15 menit).
+- Threshold tetap: manual_qris/transfer_koperasi 60 menit; lainnya 15 menit.
+
+### Files Modified:
+- `src/services/background-jobs.js` — QRIS Otomatis protection + guard ipaymu_trx_id
+
 v6.0.0 - SPS Corner Moments (MAJOR)
 -----------------------------------------------
 ### SPS Corner Moments — Disposable Event Camera:

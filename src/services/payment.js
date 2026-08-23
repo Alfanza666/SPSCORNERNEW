@@ -116,6 +116,19 @@ export async function updateBuyerPoints(tx_id, buyer_id, total_amount) {
     const pointsEarned = Math.floor(numAmount * 0.008);
     if (pointsEarned < 1) return;
 
+    // Idempotency guard — cek apakah sudah ada riwayat earned untuk transaksi ini
+    // Mencegah double-earn jika dipanggil 2x (race condition, callback + auto-reconcile, dll)
+    const { data: existing } = await supabaseInstance
+      .from('points_history')
+      .select('id')
+      .eq('transaction_id', tx_id)
+      .eq('type', 'earned')
+      .limit(1);
+    if (existing && existing.length > 0) {
+      console.log(`[updateBuyerPoints] Already earned for tx ${tx_id.slice(0, 8)} — skip`);
+      return;
+    }
+
     let source = null;
 
     // FIX D: Atomic increment — only record history if this succeeds
@@ -152,3 +165,4 @@ export async function updateBuyerPoints(tx_id, buyer_id, total_amount) {
     }
   } catch (e) { console.error("updateBuyerPoints error:", e); }
 }
+

@@ -272,25 +272,50 @@ async function autoCleanup() {
       }
     }
 
-    // ── Cancel transaksi expired (> 15 menit / 60 menit untuk manual) ──
+    // ── Cancel transaksi expired ──
+    // Threshold:
+    //   manual_qris / transfer_koperasi: 60 menit (tunggu upload bukti)
+    //   qris / va (iPaymu gateway/otomatis): 30 menit (tunggu callback iPaymu)
+    //   lainnya: 15 menit
     const shortThreshold = new Date(Date.now() - 15 * 60 * 1e3).toISOString();
+    const gatewayThreshold = new Date(Date.now() - 30 * 60 * 1e3).toISOString();
     const longThreshold = new Date(Date.now() - 60 * 60 * 1e3).toISOString();
+
     // QRIS Manual & Transfer Koperasi butuh waktu lebih lama untuk upload bukti
     const { data: expiredManual } = await supabaseInstance
       .from("transactions")
-      .select("id, buyer_id, metadata, payment_details, receipt_image")
+      .select("id, buyer_id, metadata, payment_details, receipt_image, payment_method")
       .in("status", ["pending"])
       .in("payment_method", ["manual_qris", "transfer_koperasi"])
       .lt("created_at", longThreshold);
+
+    // QRIS Otomatis / VA iPaymu: threshold 30 menit agar callback sempat datang
+    const { data: expiredGateway } = await supabaseInstance
+      .from("transactions")
+      .select("id, buyer_id, metadata, payment_details, receipt_image, payment_method")
+      .in("status", ["pending"])
+      .in("payment_method", ["qris", "va"])
+      .lt("created_at", gatewayThreshold);
+
+    // Lainnya (points, dll): 15 menit
     const { data: expiredOthers } = await supabaseInstance
       .from("transactions")
-      .select("id, buyer_id, metadata, payment_details, receipt_image")
+      .select("id, buyer_id, metadata, payment_details, receipt_image, payment_method")
       .in("status", ["pending"])
-      .not("payment_method", "in", '("manual_qris","transfer_koperasi")')
+      .not("payment_method", "in", '("manual_qris","transfer_koperasi","qris","va")')
       .lt("created_at", shortThreshold);
-    const expired = [...(expiredManual || []), ...(expiredOthers || [])];
+
+    const expired = [...(expiredManual || []), ...(expiredGateway || []), ...(expiredOthers || [])];
     if (!expired || expired.length === 0) return;
     for (const tx of expired) {
+      // ── CRITICAL GUARD: Jangan cancel transaksi yang sudah punya ipaymu_trx_id
+      // (artinya sudah dibayar via QRIS Otomatis / VA iPaymu, tinggal tunggu callback)
+      const hasGatewayRef = tx.payment_details?.ipaymu_trx_id || tx.payment_details?.ipaymu_sid;
+      if (hasGatewayRef) {
+        console.log(`[AutoCleanup] SKIP tx ${tx.id.slice(0, 8)} — has ipaymu_trx_id, waiting for callback`);
+        continue;
+      }
+
       // Lewati transaksi yang punya receipt_image DAN belum pernah gagal verifikasi
       // (tunggu admin verifikasi manual, jangan auto-cancel)
       const receiptUploaded = tx.receipt_image || tx.payment_details?.receipt_uploaded;
