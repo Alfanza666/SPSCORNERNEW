@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../../../lib/supabase';
-import { useAuthStore } from '../../../store/useAuthStore';
+import { supabase } from './src/lib/supabase';
+import { useAuthStore } from './src/store/useAuthStore';
 import { 
   Camera, CameraOff, RotateCcw, CheckCircle2, XCircle, 
   Loader2, History, QrCode, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { appToast } from '../../../components/ui/AppToast';
+import { appToast } from './src/components/ui/AppToast';
 import { Html5Qrcode } from 'html5-qrcode';
 
 interface ScanLog {

@@ -97,6 +97,59 @@ export default function Checkout() {
     }
   };
 
+  const resetPaymentState = () => {
+    txIdRef.current = null;
+    setTransactionId(null);
+    setPaymentLocked(false);
+    setPaymentStep('summary');
+    setReceiptImage(null);
+    setDirectPaymentData(null);
+    setPointsApplied(false);
+    setPointsToUse(0);
+    setQrisError(false);
+    sessionStorage.removeItem('lastTransactionId');
+    sessionStorage.removeItem('paymentLocked');
+  };
+
+  const cancelActiveTransaction = async () => {
+    const activeTransactionId = transactionId || txIdRef.current;
+    if (!activeTransactionId) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+    const response = await fetch('/api/transactions/cancel', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ transaction_id: activeTransactionId }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Transaksi tidak dapat dibatalkan.');
+
+    resetPaymentState();
+  };
+
+  const handleChangePaymentMethod = async () => {
+    if (!transactionId && !txIdRef.current) {
+      setPaymentStep('summary');
+      return;
+    }
+    if (!window.confirm('Transaksi pembayaran saat ini akan dibatalkan agar Anda dapat memilih metode lain. Lanjutkan?')) return;
+
+    setLoading(true);
+    setLoadingMessage('Membatalkan transaksi sebelumnya...');
+    try {
+      await cancelActiveTransaction();
+      appToast.success('Transaksi Lama Dibatalkan', 'Silakan pilih metode pembayaran yang baru.');
+    } catch (error: any) {
+      appToast.error('Gagal Membatalkan Transaksi', error.message || 'Silakan coba lagi.');
+    } finally {
+      setLoading(false);
+      setLoadingMessage('');
+    }
+  };
+
   useEffect(() => {
     if (!transactionId && (items.length === 0 || !buyerName)) {
       navigate('/kiosk');
@@ -198,18 +251,31 @@ export default function Checkout() {
     return () => clearInterval(tick);
   }, [paymentStep]);
 
-  const handleBack = async () => {
-    if (reservations.length > 0) {
-      try {
+  const handleBack = async (destination = '/kiosk/cart') => {
+    if (loading) return;
+    const activeTransactionId = transactionId || txIdRef.current;
+    if (activeTransactionId && !window.confirm('Transaksi yang sedang menunggu akan dibatalkan. Kembali ke keranjang?')) return;
+
+    try {
+      if (activeTransactionId) {
+        setLoading(true);
+        setLoadingMessage('Membatalkan transaksi...');
+        await cancelActiveTransaction();
+      }
+      if (reservations.length > 0) {
         for (const resId of reservations) {
           await supabase.rpc('release_stock', { p_reservation_id: resId });
         }
         setReservations([]);
-      } catch (error) {
-        console.error('Error releasing reservations on back:', error);
       }
+      navigate(destination);
+    } catch (error: any) {
+      console.error('Error cancelling transaction on back:', error);
+      appToast.error('Gagal Membatalkan Transaksi', error.message || 'Pesanan tetap disimpan. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
+      setLoadingMessage('');
     }
-    navigate('/kiosk/cart');
   };
 
   const handleDirectPayment = async (method: string, channel: string) => {
@@ -890,9 +956,9 @@ buyer_email: buyerEmail,
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
       <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-600 mb-4 sm:mb-6 uppercase tracking-widest justify-center">
-        <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => navigate('/kiosk')}>Menu</span>
+         <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => handleBack('/kiosk')}>Menu</span>
         <span className="opacity-50">/</span>
-        <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => navigate('/kiosk/cart')}>Keranjang</span>
+         <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => handleBack()}>Keranjang</span>
         <span className="opacity-50">/</span>
         <span className="text-blue-600 dark:text-blue-400">Pembayaran</span>
       </div>
@@ -1255,16 +1321,14 @@ buyer_email: buyerEmail,
                 )}
               </button>
 
-              {!paymentLocked && (
-                <button
-                  onClick={() => setPaymentStep('summary')}
-                  disabled={verifyingReceipt}
+              <button
+                  onClick={handleChangePaymentMethod}
+                  disabled={verifyingReceipt || loading}
                   className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
                 >
                   <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
                   Ganti Metode Pembayaran
-                </button>
-              )}
+              </button>
             </div>
           </div>
         ) : paymentStep === 'manual_qris' ? (
@@ -1345,16 +1409,14 @@ buyer_email: buyerEmail,
                 )}
               </button>
 
-              {!paymentLocked && (
-                <button
-                  onClick={() => setPaymentStep('summary')}
-                  disabled={verifyingReceipt}
+              <button
+                  onClick={handleChangePaymentMethod}
+                  disabled={verifyingReceipt || loading}
                   className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
                 >
                   <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
                   Ganti Metode Pembayaran
-                </button>
-              )}
+              </button>
             </div>
           </div>
         ) : (
@@ -1487,16 +1549,14 @@ buyer_email: buyerEmail,
                 Cek Status Pembayaran
               </button>
 
-              {!paymentLocked && (
-                <button
-                  onClick={() => setPaymentStep('summary')}
+              <button
+                  onClick={handleChangePaymentMethod}
                   disabled={loading}
                   className="w-full py-3 text-zinc-400 dark:text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors font-bold text-xs flex items-center justify-center gap-2 group uppercase tracking-widest"
                 >
                   <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1.5 transition-transform" />
                   Ganti Metode Pembayaran
-                </button>
-              )}
+              </button>
             </div>
           </div>
         )}

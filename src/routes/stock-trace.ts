@@ -1,4 +1,20 @@
 export function registerStockTraceRoutes(app, { supabase }) {
+  // Supabase memotong hasil pada 1.000 row. Produk lama sudah punya ribuan
+  // adjustment, jadi timeline dan deteksi gap WAJIB dibaca per halaman agar
+  // stok awal dan selisih tidak dihitung dari data sebagian.
+  const TRACE_PAGE_SIZE = 500;
+  const fetchAllRows = async (queryFactory: () => any) => {
+    const rows: any[] = [];
+    for (let from = 0; ; from += TRACE_PAGE_SIZE) {
+      const { data, error } = await queryFactory().range(from, from + TRACE_PAGE_SIZE - 1);
+      if (error) throw error;
+      const page = data || [];
+      rows.push(...page);
+      if (page.length < TRACE_PAGE_SIZE) break;
+    }
+    return rows;
+  };
+
   // GET /api/stock-movements/:productId — riwayat mutasi stok per produk
   app.get("/api/stock-movements/:productId", async (req, res) => {
     try {
@@ -27,18 +43,20 @@ export function registerStockTraceRoutes(app, { supabase }) {
       }
 
       // ── Query stock_adjustments (ascending = oldest dulu) ──
-      let query = supabase
-        .from("stock_adjustments")
-        .select(`*, transactions ( id, status, buyer_name, created_at )`)
-        .eq("product_id", productId)
-        .order("created_at", { ascending: true });
+      const adjustments = await fetchAllRows(() => {
+        let query = supabase
+          .from("stock_adjustments")
+          .select(`*, transactions ( id, status, buyer_name, created_at )`)
+          .eq("product_id", productId);
 
-      if (type) query = query.eq("adjustment_type", type);
-      if (startDate) query = query.gte("created_at", startDate);
-      if (endDate) query = query.lte("created_at", endDate);
+        if (type) query = query.eq("adjustment_type", type);
+        if (startDate) query = query.gte("created_at", startDate);
+        if (endDate) query = query.lte("created_at", endDate);
 
-      const { data: adjustments, error } = await query;
-      if (error) throw error;
+        return query
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true });
+      });
 
       // ── Synthetic event: awal produk dibuat ─────────────
       const events = [];

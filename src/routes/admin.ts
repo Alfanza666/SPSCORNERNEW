@@ -4,6 +4,22 @@ import crypto from "crypto";
 
 export function registerAdminRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal, buildTempPasswordEmail }) {
 
+// Supabase membatasi hasil query pada 1.000 row. Tabel stock_adjustments sudah
+// jauh melewati batas itu, sehingga laporan stok WAJIB dibaca per halaman.
+// Tanpa ini, kolom Terjual/Restock/Restore terhitung sebagian dan stok awal salah.
+const STOCK_REPORT_PAGE_SIZE = 500;
+async function fetchAllRows(queryFactory) {
+  const rows = [];
+  for (let from = 0; ; from += STOCK_REPORT_PAGE_SIZE) {
+    const { data, error } = await queryFactory().range(from, from + STOCK_REPORT_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < STOCK_REPORT_PAGE_SIZE) break;
+  }
+  return rows;
+}
+
 app.get("/api/admin/password-resets", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -106,23 +122,25 @@ app.get("/api/admin/stock-report", async (req, res) => {
     const productIds = products.map(p => p.id);
 
     // 2a. Get ALL stock adjustments (no date filter) — untuk initialStock yang akurat
-    let allAdjQuery = supabase
+    const allAdjustments = await fetchAllRows(() => supabase
       .from("stock_adjustments")
-      .select("product_id, adjustment_type, previous_stock, new_stock")
-      .in("product_id", productIds);
-    const { data: allAdjustments, error: allAdjError } = await allAdjQuery;
-    if (allAdjError) throw allAdjError;
+      .select("product_id, adjustment_type, previous_stock, new_stock, created_at, id")
+      .in("product_id", productIds)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true }));
 
     // 2b. Get stock adjustments within date range (untuk kolom pergerakan periode)
-    let periodAdjQuery = supabase
-      .from("stock_adjustments")
-      .select("product_id, adjustment_type, previous_stock, new_stock, created_at")
-      .in("product_id", productIds);
-    if (dateStart) periodAdjQuery = periodAdjQuery.gte("created_at", dateStart + "T00:00:00+07:00");
-    if (dateEnd) periodAdjQuery = periodAdjQuery.lte("created_at", dateEnd + "T23:59:59+07:00");
-    periodAdjQuery = periodAdjQuery.order("created_at", { ascending: true });
-    const { data: periodAdjustments, error: periodAdjError } = await periodAdjQuery;
-    if (periodAdjError) throw periodAdjError;
+    const periodAdjustments = await fetchAllRows(() => {
+      let periodAdjQuery = supabase
+        .from("stock_adjustments")
+        .select("product_id, adjustment_type, previous_stock, new_stock, created_at, id")
+        .in("product_id", productIds);
+      if (dateStart) periodAdjQuery = periodAdjQuery.gte("created_at", dateStart + "T00:00:00+07:00");
+      if (dateEnd) periodAdjQuery = periodAdjQuery.lte("created_at", dateEnd + "T23:59:59+07:00");
+      return periodAdjQuery
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
+    });
 
     // 3. Helper: group adjustments into movements
     const groupAdjustments = (adjustments) => {

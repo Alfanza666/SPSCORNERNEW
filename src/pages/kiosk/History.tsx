@@ -82,6 +82,19 @@ export default function History() {
     };
   }, [transactions]);
 
+  useEffect(() => {
+    const refreshWhenReturning = () => {
+      if (document.visibilityState === 'visible') fetchHistorySilently();
+    };
+
+    window.addEventListener('focus', refreshWhenReturning);
+    document.addEventListener('visibilitychange', refreshWhenReturning);
+    return () => {
+      window.removeEventListener('focus', refreshWhenReturning);
+      document.removeEventListener('visibilitychange', refreshWhenReturning);
+    };
+  }, [user]);
+
   const fetchHistorySilently = async () => {
     try {
       let query = supabase

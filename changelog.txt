@@ -1,3 +1,72 @@
+v6.0.7 - Stock Ledger Audit & Stock-First Enforcement (PATCH)
+---------------------------------------------------------------------
+### Audit Selisih Seller:
+- Raka: ledger konsisten. 39 baris paid semuanya punya log potong stok dan settlement saldo; 0 continuity break.
+  Sistem mencatat 44 Susu UHT (25 @Rp8.500 + 19 @Rp8.750) dan 1 Susu Beruang; omzet kotor Rp389.650.
+  Selisih Rp28.400 pada lampiran seller berasal dari perbedaan asumsi harga dan 1 unit Bearbrand, bukan unit hilang.
+- Nurul: ledger sejak Juni bersih, 0 continuity break. Stok 4 berasal dari restock +10 (19 Agt) minus 8 penjualan.
+  37 item paid Mei-Juni tanpa log ber-transaction_id terbukti tetap memotong stok; kolom transaction_id baru ada sejak 11 Juni 2026.
+  Selisih fisik 4 unit tidak dijelaskan ledger sehingga perlu opname fisik.
+- Global: 16.801 baris stock_adjustments, 13.985 correction duplikat dari bug restore lama (puncak 23 Mei 2026).
+  Baris dipertahankan sebagai audit trail; stok akhir tidak terpengaruh.
+
+### Bug Fix:
+- [CRITICAL] `transactions/create`: transaksi settled yang gagal memotong sebagian stok kini di-rollback,
+  status diturunkan ke pending, dan request ditolak dengan kode STOCK_COMMIT_FAILED.
+- [HIGH] Laporan stok admin dan timeline stok membaca stock_adjustments per halaman 500 row.
+  Sebelumnya terpotong batas 1.000 row Supabase sehingga stok awal dan kolom pergerakan salah.
+- [BUG] Stock opname menulis log sebelum stok berubah. Sekarang update dulu, log setelah berhasil,
+  dan kegagalan log diberi peringatan eksplisit.
+
+### Files Modified:
+- `src/routes/admin.ts`
+- `src/routes/stock-trace.ts`
+- `src/routes/transactions.ts`
+- `src/pages/dashboard/admin/AdminStockOpname.tsx`
+- `docs/CAPA-v6.0.7.md`
+
+v6.0.6 - Cancel Pending Transaction on Payment Method Switch (PATCH)
+---------------------------------------------------------------------
+### Bug Fix:
+- [BUG] Saat transaksi iPaymu sudah dibuat lalu user memilih QRIS manual, `transactionId` lama dipakai ulang sehingga `payment_method` tetap `qris`; upload bukti manual ditolak sebagai metode otomatis.
+- [BUG] Tombol kembali, breadcrumb, dan pergantian metode tidak membatalkan transaksi pending, sehingga row dapat tertinggal sampai auto-expire.
+- [FIX] Tambahkan konfirmasi pembatalan dan gunakan endpoint cancel yang sudah ada sebelum kembali atau memilih metode baru.
+- [FIX] Semua state pembayaran dibersihkan setelah cancel agar transaksi baru menyimpan metode yang benar.
+
+### Audit Transaksi Failed:
+- 474 transaksi berstatus `failed` diperiksa.
+- 134 transaksi dengan referensi iPaymu semuanya `failed/expired` di gateway; tidak ada yang ternyata `paid` atau masih pending.
+- Tidak ada `seller_balance_adjustments` pada transaksi failed; 154 transaksi yang pernah deduct stok semuanya memiliki restore dan net stok 0.
+- Tidak ada seller dengan saldo negatif. Satu kandidat bukti manual (`325eca93`) perlu pengecekan bukti/bank manual karena tersimpan receipt tanpa hasil verifikasi AI.
+
+### Files Modified:
+- `src/pages/kiosk/Checkout.tsx`
+- `docs/CAPA-v6.0.6.md`
+
+v6.0.5 - Fix iPaymu Paid Callback Stuck Pending (PATCH)
+---------------------------------------------------------
+### Root Cause:
+- [CRITICAL] Deklarasi `receivedSignature` ikut terhapus saat validasi signature strict dihapus pada v6.0.4, tetapi masih dipakai pada audit trail callback. Setiap callback terverifikasi berhenti dengan `ReferenceError` sebelum status transaksi di-update.
+- [BUG] Hasil verifikasi langsung dari API iPaymu belum dipakai untuk memetakan status transaksi; status literal `paid` juga belum termasuk dalam mapping paid.
+
+### Bug Fix:
+- Pulihkan pembacaan signature hanya untuk audit trail tanpa mengembalikan blok validasi strict.
+- Map callback yang dikonfirmasi API dan status gateway `paid` ke `transactions.status = paid`.
+- Pertahankan `unverified_callback` saat update status dan metadata callback berikutnya.
+- Perbaiki verifier transaksi lama agar tidak menganggap field `ExpiredDate` sebagai status expired.
+- Tambahkan regression test untuk callback tanpa signature dan callback status literal `paid`.
+
+### Data Repair:
+- 9 transaksi pending yang dikonfirmasi `paid` oleh API iPaymu diproses ulang dengan urutan stock, status, lalu settlement.
+- Transaksi `c6386131` tetap `pending` karena gateway mengembalikan `Status: 0` dan `PaidStatus: unpaid`.
+
+### Files Modified:
+- `src/routes/payments.ts`
+- `src/test/ipaymuCallbackRoute.test.ts`
+- `scripts/verify-pending-ipaymu.ts`
+- `scripts/force-process-paid.ts`
+- `docs/CAPA-v6.0.5.md`
+
 v6.0.4 - Fix iPaymu Callback Blocked (PATCH)
 -----------------------------------------------
 ### Bug Fix (payments.ts):

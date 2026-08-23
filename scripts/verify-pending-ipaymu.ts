@@ -41,6 +41,7 @@ const ipaymu = new IpaymuClient(
 );
 
 const PAID_STATUSES = new Set(['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement']);
+const FAILED_STATUSES = new Set(['failed', 'fail', 'gagal', 'expired', 'cancel', 'cancelled', 'canceled', 'deny', 'denied']);
 
 function isPaid(statusResponse: any): boolean {
   const values: string[] = [];
@@ -56,6 +57,26 @@ function isPaid(statusResponse: any): boolean {
   return values.some(v => PAID_STATUSES.has(v));
 }
 
+function isFailed(statusResponse: any): boolean {
+  const data = statusResponse?.Data || statusResponse || {};
+  const statusCode = Number(data.Status ?? data.status_code ?? data.transaction_status_code);
+  if (Number.isFinite(statusCode) && statusCode === -2) return true;
+
+  const textValues = [
+    data.status,
+    data.Status,
+    data.status_desc,
+    data.StatusDesc,
+    data.payment_status,
+    data.PaidStatus,
+    data.transaction_status,
+  ]
+    .filter(value => typeof value === 'string')
+    .map(value => value.trim().toLowerCase());
+
+  return textValues.some(value => FAILED_STATUSES.has(value));
+}
+
 function getChargeableAmount(tx: any): number {
   const meta = tx.metadata || {};
   const remaining = Number(meta.remaining_amount);
@@ -67,7 +88,7 @@ function getChargeableAmount(tx: any): number {
 
 async function main() {
   console.log('=== SPS Corner — iPaymu Pending Verifier ===\n');
-  console.log(`iPaymu VA  : ${IPAYMU_VA}`);
+  console.log(`iPaymu configured: ${Boolean(IPAYMU_VA && IPAYMU_API_KEY)}`);
   console.log(`Production : ${IPAYMU_PRODUCTION}\n`);
 
   // Ambil semua transaksi pending yang punya ipaymu_trx_id
@@ -109,10 +130,26 @@ async function main() {
       const paid = isPaid(statusResp);
 
       if (paid) {
-        console.log(`✅ PAID`);
+        // Stock must be committed before marking a transaction as paid.
+        try {
+          const stockResult = await commitTransactionStock(tx.id);
+          if (stockResult?.alreadyCommitted) {
+            console.log(`       Stock : sudah committed sebelumnya ✅`);
+          } else if (stockResult?.success) {
+            console.log(`       Stock : committed ✅`);
+          } else {
+            console.log(`       Stock : GAGAL ⚠️ — ${stockResult?.error}`);
+            checkErrors++;
+            continue;
+          }
+        } catch (e) {
+          console.log(`       Stock : ERROR ⚠️ — ${e.message}`);
+          checkErrors++;
+          continue;
+        }
 
-        // 1. Update status ke paid
-        await supabase
+        // Claim the pending row only after stock is ready.
+        const { data: claimed, error: claimError } = await supabase
           .from('transactions')
           .update({
             status: 'paid',
@@ -125,23 +162,23 @@ async function main() {
             }
           })
           .eq('id', tx.id)
-          .eq('status', 'pending');
+          .eq('status', 'pending')
+          .select('id')
+          .maybeSingle();
 
-        // 2. Commit stock
-        try {
-          const stockResult = await commitTransactionStock(tx.id);
-          if (stockResult?.alreadyCommitted) {
-            console.log(`       Stock : sudah committed sebelumnya ✅`);
-          } else if (stockResult?.success) {
-            console.log(`       Stock : committed ✅`);
-          } else {
-            console.log(`       Stock : GAGAL ⚠️ — ${stockResult?.error}`);
-          }
-        } catch (e) {
-          console.log(`       Stock : ERROR ⚠️ — ${e.message}`);
+        if (claimError) {
+          console.log(`       Status : UPDATE ERROR ⚠️ — ${claimError.message}`);
+          checkErrors++;
+          continue;
+        }
+        if (!claimed) {
+          console.log(`       Status : dilewati, sudah diproses proses lain`);
+          continue;
         }
 
-        // 3. Seller balance (idempotent via RPC)
+        console.log(`✅ PAID`);
+
+        // Seller balance (idempotent via RPC)
         try {
           await updateSellerBalances(tx.transaction_items, tx.id);
           console.log(`       Balance: settled ✅`);
@@ -175,8 +212,7 @@ async function main() {
         confirmedPaid++;
       } else {
         // Cek apakah expired/failed di iPaymu
-        const rawStatus = JSON.stringify(statusResp?.Data || statusResp || '').toLowerCase();
-        const isExpired = rawStatus.includes('expired') || rawStatus.includes('"failed"') || rawStatus.includes('"cancel"');
+        const isExpired = isFailed(statusResp);
 
         if (isExpired) {
           console.log(`❌ EXPIRED/FAILED di gateway`);

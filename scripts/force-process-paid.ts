@@ -58,8 +58,20 @@ async function processOneTx(tx: any) {
   const pd = tx.payment_details || {};
   process.stdout.write(`  #${tx.id.slice(0, 8)} | Rp${Number(tx.total_amount).toLocaleString('id-ID')} → `);
 
-  // 1. Update status ke paid
-  const { error: updateErr } = await supabase
+  // Stock must be committed before marking a transaction as paid.
+  try {
+    const r = await commitTransactionStock(tx.id);
+    if (!r?.success) {
+      console.log(`       Stock  : GAGAL — ${r?.error}`);
+      return;
+    }
+    console.log(`       Stock  : ${r?.alreadyCommitted ? 'sudah committed' : 'committed'} ✅`);
+  } catch (e) {
+    console.log(`       Stock  : ERROR — ${e.message}`);
+    return;
+  }
+
+  const { data: claimed, error: updateErr } = await supabase
     .from('transactions')
     .update({
       status: 'paid',
@@ -73,23 +85,21 @@ async function processOneTx(tx: any) {
       }
     })
     .eq('id', tx.id)
-    .eq('status', 'pending');
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle();
 
   if (updateErr) {
     console.log(`❌ Update gagal: ${updateErr.message}`);
     return;
   }
+  if (!claimed) {
+    console.log('⏭️ sudah diproses proses lain');
+    return;
+  }
   console.log('✅ paid');
 
-  // 2. Commit stock
-  try {
-    const r = await commitTransactionStock(tx.id);
-    console.log(`       Stock  : ${r?.alreadyCommitted ? 'sudah committed' : r?.success ? 'committed' : 'GAGAL — ' + r?.error} ✅`);
-  } catch (e) {
-    console.log(`       Stock  : ERROR — ${e.message}`);
-  }
-
-  // 3. Seller balance
+  // Seller balance
   try {
     await updateSellerBalances(tx.transaction_items, tx.id);
     console.log(`       Balance: settled ✅`);

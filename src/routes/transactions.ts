@@ -590,6 +590,7 @@ app.post("/api/transactions/create", async (req, res) => {
     // ─── Server-side stock deduction (atomic via RPC → optimistic locking) ───
     const physicalItems = (insertedItems || []).filter(item => !item.metadata?.is_digital && item.product_id);
     const deductedProducts = {};
+    const failedDeductions = [];
     for (const item of (tx.status === 'paid' || tx.status === 'success') ? physicalItems : []) {
       const result = await atomicAdjustStock(
         item.product_id, -item.quantity,
@@ -598,9 +599,40 @@ app.post("/api/transactions/create", async (req, res) => {
       );
       if (result && result.success) {
         deductedProducts[item.product_id] = { quantity: item.quantity, seller_id: item.seller_id };
+      } else {
+        failedDeductions.push({ product_id: item.product_id, quantity: item.quantity, error: result?.error_message || 'Stock deduction failed' });
       }
     }
     const hasDeducted = Object.keys(deductedProducts).length > 0;
+
+    // Stock-First Rule: transaksi settled tidak boleh berdiri tanpa potongan stok.
+    // Jika ada item fisik yang gagal dipotong, kembalikan stok yang sudah terpotong
+    // dan turunkan status ke pending agar tidak ada penjualan lunas tanpa stok.
+    if ((tx.status === 'paid' || tx.status === 'success') && failedDeductions.length > 0) {
+      for (const [productId, info] of Object.entries(deductedProducts)) {
+        await atomicAdjustStock(
+          productId, +info.quantity,
+          info.seller_id || txDataToInsert.buyer_id, 'correction',
+          `Stock rollback — transaction ${tx.id} gagal memotong sebagian item`, null, tx.id
+        );
+      }
+      await supabase
+        .from("transactions")
+        .update({
+          status: "pending",
+          metadata: {
+            ...(tx.metadata || {}),
+            stock_deducted: false,
+            stock_commit_failed: true,
+            stock_commit_error: failedDeductions[0]?.error || 'Stock deduction failed',
+          },
+        })
+        .eq("id", tx.id);
+      return res.status(409).json({
+        error: "Stok tidak mencukupi untuk menyelesaikan transaksi. Silakan periksa stok produk.",
+        code: "STOCK_COMMIT_FAILED",
+      });
+    }
 
     // Update transaction with stock_deducted flag + deducted_products map in metadata
     await supabase

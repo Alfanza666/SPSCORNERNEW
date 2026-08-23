@@ -9,6 +9,22 @@ let unverifiedCallbackCount = 0;
 let unverifiedCallbackWindowStart = Date.now();
 const UNVERIFIED_ALERT_THRESHOLD = 5;
 const UNVERIFIED_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const PAID_GATEWAY_STATUSES = new Set([
+  'paid',
+  'success',
+  'sukses',
+  'berhasil',
+  'completed',
+  'settlement',
+]);
+const FAILED_GATEWAY_STATUSES = new Set([
+  'gagal',
+  'fail',
+  'failed',
+  'expired',
+  'deny',
+  'cancel',
+]);
 
 export function registerPaymentRoutes(app, {
   supabase, sendNotification, ipaymuClient, sendSarirotiEmailInternal,
@@ -172,7 +188,6 @@ export function registerPaymentRoutes(app, {
   }
 
   const gatewayStatusIsPaid = (payload: any) => {
-    const paidStatuses = new Set(['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement']);
     const values: string[] = [];
     const visit = (value: any, key = '') => {
       if (!value || typeof value !== 'object') {
@@ -182,7 +197,7 @@ export function registerPaymentRoutes(app, {
       for (const [childKey, childValue] of Object.entries(value)) visit(childValue, childKey);
     };
     visit(payload);
-    return values.some(value => paidStatuses.has(value));
+    return values.some(value => PAID_GATEWAY_STATUSES.has(value));
   };
 
   const verifyGatewayCallback = async (req: any, referenceId: string, body: any) => {
@@ -202,7 +217,7 @@ export function registerPaymentRoutes(app, {
       const statusResponse = await ipaymuClient.getTransactionStatus(ipaymuTrxId);
       if (gatewayStatusIsPaid(statusResponse)) return { verified: true, method: 'api_lookup' };
       const callbackStatus = String(body.status || body.Status || body.payment_status || '').toLowerCase();
-      const callbackIsPaid = ['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement'].includes(callbackStatus);
+      const callbackIsPaid = PAID_GATEWAY_STATUSES.has(callbackStatus) || gatewayStatusIsPaid(body);
       if (!callbackIsPaid) return { verified: true, method: 'callback_not_paid' };
       // Callback claims paid but API doesn't confirm — log but don't hard-reject
       console.warn(`[iPaymu] WARNING: Callback for ${referenceId} claims paid but API lookup unclear. Processing with caution.`);
@@ -210,7 +225,7 @@ export function registerPaymentRoutes(app, {
     } catch (error) {
       console.error(`[iPaymu] Unable to verify callback for ${referenceId}:`, error);
       const callbackStatus = String(body.status || body.Status || body.payment_status || '').toLowerCase();
-      const callbackIsPaid = ['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement'].includes(callbackStatus);
+      const callbackIsPaid = PAID_GATEWAY_STATUSES.has(callbackStatus) || gatewayStatusIsPaid(body);
       if (callbackIsPaid) {
         console.warn(`[iPaymu] CRITICAL: API lookup failed but callback claims PAID for ${referenceId}. Processing with caution.`);
         return { verified: true, method: 'fallback_trust' };
@@ -930,6 +945,15 @@ export function registerPaymentRoutes(app, {
       const body = req.body || {};
       
       // ─── Callback handling dilanjutkan ke verifyGatewayCallback ───
+      // Tetap baca signature untuk audit trail; validasi dilakukan oleh
+      // verifyGatewayCallback agar fallback API lookup tetap tersedia.
+      const receivedSignature = String(
+        req.headers?.['x-signature']
+          || req.headers?.signature
+          || body.signature
+          || body.Signature
+          || ''
+      ).trim();
       
       const statusRaw = body.status || body.Status || body.payment_status || '';
       const reference_id = body.reference_id || body.referenceId || '';
@@ -950,10 +974,12 @@ export function registerPaymentRoutes(app, {
       console.log(`[iPaymu] Callback verified via: ${verification.method} for ${refId}`);
 
       const statusLower = String(statusRaw).toLowerCase().trim();
+      const callbackClaimsPaid = PAID_GATEWAY_STATUSES.has(statusLower) || gatewayStatusIsPaid(body);
+      const callbackClaimsFailed = FAILED_GATEWAY_STATUSES.has(statusLower);
       let txStatus =
-        statusLower === "berhasil" || statusLower === "success" || statusLower === "sukses" || statusLower === "completed" || statusLower === "settlement"
+        verification.method === 'api_lookup' || callbackClaimsPaid
           ? "paid"
-          : statusLower === "gagal" || statusLower === "fail" || statusLower === "expired" || statusLower === "deny" || statusLower === "cancel"
+          : callbackClaimsFailed
             ? "failed"
             : "pending";
 
@@ -986,17 +1012,19 @@ export function registerPaymentRoutes(app, {
         return res.status(404).json({ error: "Transaction not found" });
       }
 
+      const callbackPaymentDetails = { ...(transaction.payment_details || {}) };
+      if (!receivedSignature) {
+        callbackPaymentDetails.unverified_callback = true;
+        callbackPaymentDetails.unverified_at = new Date().toISOString();
+      }
+
       // ── Audit trail: flag callback without signature (non-blocking) ──
       if (!receivedSignature) {
         try {
           await supabase
             .from("transactions")
             .update({
-              payment_details: {
-                ...(transaction.payment_details || {}),
-                unverified_callback: true,
-                unverified_at: new Date().toISOString(),
-              },
+              payment_details: callbackPaymentDetails,
             })
             .eq("id", refId);
         } catch (flagErr) {
@@ -1021,7 +1049,7 @@ export function registerPaymentRoutes(app, {
             .from("transactions")
             .update({
               payment_details: {
-                ...(transaction.payment_details || {}),
+                ...callbackPaymentDetails,
                 unverified_failed_callback: true,
                 unverified_at: new Date().toISOString(),
                 ipaymu_status: statusRaw,
@@ -1049,7 +1077,7 @@ export function registerPaymentRoutes(app, {
             .update({
               status: "failed",
               payment_details: {
-                ...(transaction.payment_details || {}),
+                ...callbackPaymentDetails,
                 ipaymu_trx_id: trx_id || transaction_id,
                 ipaymu_sid: sid,
                 ipaymu_status: statusRaw,
@@ -1090,7 +1118,7 @@ export function registerPaymentRoutes(app, {
         .update({
           status: txStatus,
           payment_details: {
-            ...(transaction.payment_details || {}),
+            ...callbackPaymentDetails,
             ipaymu_trx_id: trx_id || transaction_id,
             ipaymu_sid: sid,
             ipaymu_status: statusRaw,
@@ -1113,7 +1141,7 @@ export function registerPaymentRoutes(app, {
           // FIX C: save flag untuk retry di auto-reconcile
           try {
             await supabase.from('transactions').update({
-              payment_details: { ...(transaction.payment_details || {}), seller_balance_failed: true, seller_balance_error: String(e?.message || e) }
+              payment_details: { ...callbackPaymentDetails, seller_balance_failed: true, seller_balance_error: String(e?.message || e) }
             }).eq('id', refId);
           } catch (_) { /* non-blocking */ }
         }
@@ -1126,7 +1154,7 @@ export function registerPaymentRoutes(app, {
           // FIX C: save flag untuk retry di auto-reconcile
           try {
             await supabase.from('transactions').update({
-              payment_details: { ...(transaction.payment_details || {}), buyer_points_failed: true }
+              payment_details: { ...callbackPaymentDetails, buyer_points_failed: true }
             }).eq('id', refId);
           } catch (_) { /* non-blocking */ }
         }

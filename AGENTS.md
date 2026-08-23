@@ -318,6 +318,11 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **🚨 Points Pay Atomicity: Potong point dan update status transaksi WAJIB atomic atau ada kompensasi rollback. Cek `point_payment_processed` untuk idempotency.** Lihat `docs/CAPA-v5.16.7.md`.
 - **🚨 Stock-First Rule: `commitTransactionStock()` WAJIB dipanggil SEBELUM status update ke 'paid'/'success'. Jika stock gagal, status tetap pending.** Lihat `docs/CAPA-v5.16.7.md` section 8.2.
 - **🚨 iPaymu Callback Monitoring: Callback tanpa validasi signature wajib set `unverified_callback: true` di `payment_details`. Auto-reconcile retry gagal settlement.** Lihat `docs/CAPA-v5.16.7.md` section 8.1, 8.3.
+- **🚨 iPaymu Callback Status Rule: Jangan menghapus pembacaan `receivedSignature` yang dipakai audit trail; callback yang sudah diverifikasi lewat API lookup wajib dipetakan ke status `paid`, termasuk status literal `paid`.** Lihat `docs/CAPA-v6.0.5.md`.
+- **🚨 Payment Method Switch Rule: Setelah transaksi dibuat, `Ganti Metode Pembayaran`/`Kembali` wajib membatalkan transaksi pending sebelum membuat transaksi dengan metode baru; jangan reuse `transactionId` lintas metode.** Lihat `docs/CAPA-v6.0.6.md`.
+- **🚨 Stock Ledger Pagination Rule: DILARANG membaca `stock_adjustments` tanpa pagination. Tabel sudah >16.000 row sehingga limit 1.000 Supabase membuat laporan stok salah.** Lihat `docs/CAPA-v6.0.7.md`.
+- **🚨 Stock Log Order Rule: Update stok WAJIB berhasil lebih dulu sebelum menulis `stock_adjustments`. Jangan pernah menulis log opname sebelum perubahan stok dikonfirmasi.** Lihat `docs/CAPA-v6.0.7.md`.
+- **🚨 Stock-First Create Rule: Transaksi `paid`/`success` yang gagal memotong sebagian item fisik WAJIB rollback potongan dan turun ke `pending`, jangan dibiarkan settled.** Lihat `docs/CAPA-v6.0.7.md`.
 - **🚨 Settlement Failure Flags: Jika `updateSellerBalances()` atau `updateBuyerPoints()` gagal, simpan flag `seller_balance_failed`/`buyer_points_failed` di `payment_details` untuk retry oleh auto-reconcile.** Lihat `docs/CAPA-v5.16.7.md` section 8.3.
 - **🚨 Phantom History Prevention: `points_history` insert WAJIB dilakukan HANYA jika RPC/fallback points increment BERHASIL. Jangan insert history di luar success check.** Lihat `docs/CAPA-v5.16.7.md` section 8.4.
 - **🚨 Points Race Condition: Semua fallback read-then-write untuk loyalty_points WAJIB pakai `.gte()` guard untuk mencegah concurrent overwrite.** Lihat `docs/CAPA-v5.16.7.md` section 8.5.
@@ -327,7 +332,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
-- Current version: `v5.16.7`.
+- Current version: `v6.0.7`.
 - `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
 - CI/CD via VPS cron (git pull tiap 5 menit).
 - ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1`.
@@ -338,6 +343,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 
 ### Known Dead Code Candidates
 - `supabase-schema.sql` — masih ada, dirujuk oleh `AdminSellers.tsx` & `Register.tsx`.
+- `AdminScanner.tsx` (root) — duplikat yang tidak di-import oleh `src/App.tsx`; import diperbaiki agar lint tidak gagal, hapus pada cleanup terpisah setelah memastikan tidak ada consumer eksternal.
 
 ---
 
@@ -349,6 +355,9 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 | CAPA v5.16.5 | `docs/CAPA-v5.16.5.md` | Auth intermittent, safe failover VPS/Vercel/Fixie, payment integrity, notification mobile, deployment drift |
 | CAPA v5.16.6 | `docs/CAPA-v5.16.6.md` | Safari/WebKit payment upload hotfix dan pencegahan Request body stream |
 | CAPA v5.16.7 | `docs/CAPA-v5.16.7.md` | Critical payment & point fix — double payment loyalty point, point refund on cancel, points pay race condition |
+| CAPA v6.0.5 | `docs/CAPA-v6.0.5.md` | iPaymu callback ReferenceError dan transaksi paid yang tersangkut sebagai pending |
+| CAPA v6.0.6 | `docs/CAPA-v6.0.6.md` | Pergantian metode pembayaran meninggalkan transaksi pending dan audit transaksi failed |
+| CAPA v6.0.7 | `docs/CAPA-v6.0.7.md` | Audit selisih stok seller Raka/Nurul dan pengamanan workflow stok |
 | Implementation Plan v5.16.5 | `docs/IMPLEMENTATION-PLAN-v5.16.5.md` | Approved scope, impact, QA gates, execution record, dan rollback |
 | Changelog | `changelog.txt` | Riwayat pembaruan |
 | Reconciliation SQL | `scripts/reconcile_fn.sql` | DB function untuk deteksi mismatch |
