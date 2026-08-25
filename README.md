@@ -57,7 +57,10 @@ cp .env.example .env
 | `GMAIL_APP_PASSWORD` | Gmail App Password |
 | `VITE_VAPID_PUBLIC_KEY` | VAPID public key (Web Push) |
 | `VAPID_PRIVATE_KEY` | VAPID private key |
-| `GEMINI_API_KEY` | Google Gemini API key |
+| `GRIPHUB_API_KEY` | Griphub Router API key (server-side) |
+| `GRIPHUB_BASE_URL` | OpenAI-compatible Griphub API base URL |
+| `GRIPHUB_MODEL` | Griphub text model |
+| `GRIPHUB_VISION_MODEL` | Griphub vision model for receipt verification |
 
 ## Form Studio & Event Workflow
 

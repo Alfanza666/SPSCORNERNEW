@@ -56,7 +56,7 @@ function registerCallbackRoute(transaction: any, gatewayStatus: any, updates: an
     IPAYMU_API_KEY: 'key',
     IPAYMU_SIGNATURE_KEY: 'signature',
     IPAYMU_PRODUCTION: false,
-    groq: {},
+    griphub: {},
   });
 
   return app;

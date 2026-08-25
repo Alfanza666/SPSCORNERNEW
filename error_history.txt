@@ -2,8 +2,8 @@ Riwayat Error & Fix:
 - [FIXED] Pembayaran QRIS Manual yang terlambat diverifikasi tidak memotong kembali stok karena verifikasi manual menggunakan commitTransactionStock tanpa memeriksa status restorasi; diperbaiki dengan memanggil deductTransactionStock jika metadata.stock_restored = true (v5.14.10).
 - [FIXED] Penyetujuan retur dan restock dapat memicu silent failure jika atomicAdjustStock gagal karena status request diupdate sebelum stok berubah; perbaikan urutan eksekusi dan validasi ditambahkan (v5.14.10).
 - [FIXED] Verifikasi bukti berhenti di review admin karena tidak ada default model vision; default production kini `qwen/qwen3.6-27b` (v5.14.9).
-- [FIXED] Akun Groq production tidak memiliki model vision aktif; verifikasi gambar kini aman fallback ke review admin dan model teks dipisahkan (v5.14.8).
-- [FIXED] Upload bukti pembayaran menampilkan HTTP 404 karena model Groq Scout dihentikan; diganti ke model vision aktif dan fallback manual diperbaiki (v5.14.7).
+- [FIXED] Provider AI production tidak memiliki model vision aktif; verifikasi gambar kini aman fallback ke review admin dan model teks dipisahkan (v5.14.8).
+- [FIXED] Upload bukti pembayaran menampilkan HTTP 404 karena model vision dihentikan; diganti ke model vision aktif dan fallback manual diperbaiki (v5.14.7).
 - [FIXED] Tiga gap agregat saldo seller lama (total gross Rp62.500, net Rp62.300, fee Rp200) direkonsiliasi dengan source unik dan guard nilai profil (v5.14.6).
 - [FIXED] Satu transaksi gagal lama masih memiliki sale adjustment tanpa correction; stok dipulihkan satu unit dan ditandai idempoten (v5.14.6).
 - [FIXED] Auto-cleanup transaksi unpaid menandai failed walau restore stok tidak pernah claim karena JSON key NULL; 73 unit dari 43 transaksi gagal dipulihkan, 3 unit produk terhapus dicatat sebagai pengecualian, dan runtime kini menahan status pending bila restore gagal (v5.14.4).
@@ -37,7 +37,7 @@ Riwayat Error & Fix:
 - [FIXED] Targeting draft mutable dapat langsung memblok peserta yang masih ada di frozen eligibility; form program kini memakai validasi eligibility authoritative dari status endpoint (v5.12.0).
 - [FIXED] Respons pagination lama dapat menimpa filter/program terbaru; sequence guard mengabaikan respons request yang sudah stale (v5.12.0).
 - [FIXED] Gambar desain baju/size chart pada Form Experience V2 tampil setengah lebar dan tidak dapat diperbesar; galeri kini responsif dengan lightbox fullscreen, zoom 100-300%, Escape, dan focus return (v5.11.1).
-- [FIXED] Bukti pembayaran formulir Program Workflow V2 hanya menunggu review admin walaupun kiosk sudah memakai Groq; route payment-proof form kini dapat verifikasi Groq otomatis, auto-approve bila valid, fallback manual bila AI ragu/offline, dan reject agar user upload ulang bila jelas tidak valid (v5.11.0).
+- [FIXED] Bukti pembayaran formulir Program Workflow V2 hanya menunggu review admin; route payment-proof form kini dapat verifikasi Griphub otomatis, auto-approve bila valid, fallback manual bila AI ragu/offline, dan reject agar user upload ulang bila jelas tidak valid (v5.11.0).
 - [FIXED] Harga oversize dan keluarga tampil nol karena link-form menimpa harga Form Studio dengan kolom program legacy bernilai nol; Form Studio kini menjadi sumber harga utama (v5.11.0).
 - [FIXED] Peserta yang tidak camping tidak ditanya membawa keluarga dan keluarga tidak masuk quote; cabang keluarga kini bergantung pada kehadiran, bukan camping (v5.11.0).
 - [FIXED] Add-on checkout hanya dihitung di browser; konfigurasi sekarang disnapshot dan dihitung ulang server dengan validasi item serta quantity (v5.11.0).

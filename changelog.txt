@@ -1,3 +1,25 @@
+v6.0.10 - iPaymu Settlement Ledger Repair (PATCH)
+--------------------------------------------------
+- Memperbaiki pencatatan loyalty points dari kolom `amount` menjadi `points`.
+- Menambahkan repair idempoten untuk histori `earned` pada transaksi QRIS otomatis yang sudah paid.
+- Repair ledger tidak menambah saldo points ulang, sehingga aman terhadap double-earn.
+- Verifier iPaymu tidak lagi mencoba mengirim push notification tanpa web-push runtime.
+
+v6.0.9 - Griphub Router & AI Cost Guard (PATCH)
+-----------------------------------------------
+- Mengganti seluruh integrasi AI aktif dari provider lama ke Griphub Router OpenAI-compatible.
+- Menambahkan konfigurasi server-side `GRIPHUB_API_KEY`, `GRIPHUB_BASE_URL`, `GRIPHUB_MODEL`, dan `GRIPHUB_VISION_MODEL`.
+- Membatasi output AI: vision 256 token, Moments 256 token, Form Builder 1.536 token, dan client global maksimal 1.536 token.
+- Memadatkan snapshot Form Builder yang dikirim ke model dan mempertahankan fallback manual untuk verifikasi bukti.
+- Script deploy kini menyinkronkan `.env` ke VPS dengan permission `600`.
+
+v6.0.8 - Restore Backend ke VPS Baru (PATCH)
+---------------------------------------------
+- Mengalihkan deploy target ke VPS baru `103.193.179.217`.
+- Mengalihkan Cloudflare Worker origin ke VPS baru.
+- Menambahkan guard Worker agar request mutating tidak di-replay ke Vercel setelah origin mungkin memproses request.
+- Mempertahankan IP VPS lama hanya sebagai referensi historis; whitelist iPaymu wajib diperbarui secara manual.
+
 v6.0.7 - Stock Ledger Audit & Stock-First Enforcement (PATCH)
 ---------------------------------------------------------------------
 ### Audit Selisih Seller:

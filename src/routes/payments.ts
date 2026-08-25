@@ -31,7 +31,7 @@ export function registerPaymentRoutes(app, {
   sendWANotification, processDigitalItems, updateSellerBalances,
   updateBuyerPoints, refundTransactionPoints, triggerSarirotiEmail, checkLowStockAndNotify,
   sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock, commitTransactionStock,
-  IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
+  IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, griphub,
 }) {
   // Auth helper — returns buyer_id or null
   function routeError(statusCode, code, message, ambiguous = false) {
@@ -481,11 +481,11 @@ export function registerPaymentRoutes(app, {
           "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid WAJIB jelaskan secara spesifik apa yang salah dan apa yang harus dilakukan user."
         }
       `;
-      const visionModel = process.env.GROQ_VISION_MODEL?.trim() || "qwen/qwen3.6-27b";
-      if (!process.env.GROQ_API_KEY) {
-        throw new Error("GROQ_API_KEY tidak tersedia; gunakan review manual");
+      const visionModel = process.env.GRIPHUB_VISION_MODEL?.trim() || process.env.GRIPHUB_MODEL?.trim();
+      if (!griphub?.isConfigured || !visionModel) {
+        throw new Error("Konfigurasi Griphub belum tersedia; gunakan review manual");
       }
-      const groqResponse = await groq.chat.completions.create({
+      const griphubResponse = await griphub.chat.completions.create({
         model: visionModel,
         messages: [
           {
@@ -503,7 +503,7 @@ export function registerPaymentRoutes(app, {
         ],
         response_format: { type: "json_object" },
       });
-      const resultText = groqResponse.choices?.[0]?.message?.content;
+       const resultText = griphubResponse.choices?.[0]?.message?.content;
       if (!resultText) {
         throw new Error("Gagal mendapatkan respons dari AI");
       }

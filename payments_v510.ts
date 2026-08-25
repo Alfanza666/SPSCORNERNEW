@@ -7,7 +7,7 @@ export function registerPaymentRoutes(app, {
   sendWANotification, processDigitalItems, updateSellerBalances,
   updateBuyerPoints, triggerSarirotiEmail, checkLowStockAndNotify,
   sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock,
-  IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
+  IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, griphub,
 }) {
   if (process.env.NODE_ENV !== "production") {
     app.get("/api/payment/ipaymu/debug", (req, res) => {
@@ -185,11 +185,11 @@ export function registerPaymentRoutes(app, {
           "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid jelaskan alasannya."
         }
       `;
-      if (!process.env.GROQ_API_KEY) {
-        return res.status(500).json({ success: false, error: "GROQ_API_KEY tidak dikonfigurasi di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
+      if (!griphub?.isConfigured || !(process.env.GRIPHUB_VISION_MODEL || process.env.GRIPHUB_MODEL)) {
+        return res.status(500).json({ success: false, error: "Konfigurasi Griphub tidak tersedia di backend (.env). Sistem verifikasi AI tidak dapat berjalan." });
       }
-      const groqResponse = await groq.chat.completions.create({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      const griphubResponse = await griphub.chat.completions.create({
+        model: process.env.GRIPHUB_VISION_MODEL || process.env.GRIPHUB_MODEL,
         messages: [
           {
             role: "user",
@@ -206,7 +206,7 @@ export function registerPaymentRoutes(app, {
         ],
         response_format: { type: "json_object" },
       });
-      const resultText = groqResponse.choices?.[0]?.message?.content;
+      const resultText = griphubResponse.choices?.[0]?.message?.content;
       if (!resultText) {
         throw new Error("Gagal mendapatkan respons dari AI");
       }

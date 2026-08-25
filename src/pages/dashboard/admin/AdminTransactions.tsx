@@ -173,6 +173,7 @@ export default function AdminTransactions() {
 
     const response = await fetch(`/api/admin/transactions/history?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
       signal: query.signal,
     });
     const payload = await response.json().catch(() => ({})) as Partial<HistoryResponse>;

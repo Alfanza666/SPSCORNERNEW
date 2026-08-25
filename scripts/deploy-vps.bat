@@ -2,7 +2,7 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-set VPS=root@45.158.126.76
+set VPS=root@103.193.179.217
 set REMOTE_DIR=/opt/sps-backend
 
 echo ======================================
@@ -11,7 +11,7 @@ echo ======================================
 echo.
 
 echo [1/5] Copying server.ts to VPS...
-scp -o StrictHostKeyChecking=no server.ts %VPS%:%REMOTE_DIR%/server.ts
+scp -o StrictHostKeyChecking=accept-new server.ts %VPS%:%REMOTE_DIR%/server.ts
 if %errorlevel% neq 0 (
   echo FAILED: SCP server.ts
   pause
@@ -20,14 +20,14 @@ if %errorlevel% neq 0 (
 echo OK
 
 echo [2/5] Copying frontend files...
-scp -r -o StrictHostKeyChecking=no src\pages\dashboard\seller\ %VPS%:%REMOTE_DIR%/src/pages/dashboard/seller/ 2>nul
-scp -r -o StrictHostKeyChecking=no src\pages\dashboard\admin\ %VPS%:%REMOTE_DIR%/src/pages/dashboard/admin/ 2>nul
-scp -r -o StrictHostKeyChecking=no src\routes\ %VPS%:%REMOTE_DIR%/src/routes/ 2>nul
-scp -r -o StrictHostKeyChecking=no src\middleware\ %VPS%:%REMOTE_DIR%/src/middleware/ 2>nul
+scp -r -o StrictHostKeyChecking=accept-new src\pages\dashboard\seller\ %VPS%:%REMOTE_DIR%/src/pages/dashboard/seller/ 2>nul
+scp -r -o StrictHostKeyChecking=accept-new src\pages\dashboard\admin\ %VPS%:%REMOTE_DIR%/src/pages/dashboard/admin/ 2>nul
+scp -r -o StrictHostKeyChecking=accept-new src\routes\ %VPS%:%REMOTE_DIR%/src/routes/ 2>nul
+scp -r -o StrictHostKeyChecking=accept-new src\middleware\ %VPS%:%REMOTE_DIR%/src/middleware/ 2>nul
 echo OK
 
 echo [3/5] Restarting PM2...
-ssh -o StrictHostKeyChecking=no %VPS% "pm2 restart sps-backend --update-env"
+ssh -o StrictHostKeyChecking=accept-new %VPS% "pm2 restart sps-backend --update-env"
 if %errorlevel% neq 0 (
   echo FAILED: PM2 restart
   pause

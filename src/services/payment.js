@@ -155,14 +155,16 @@ export async function updateBuyerPoints(tx_id, buyer_id, total_amount) {
 
     // FIX D: Only insert history if points were actually added
     if (source) {
-      await supabaseInstance.from("points_history").insert({
-        user_id: buyer_id, transaction_id: tx_id, amount: pointsEarned, type: 'earned',
+      const { error: historyError } = await supabaseInstance.from("points_history").insert({
+        user_id: buyer_id, transaction_id: tx_id, points: pointsEarned, type: 'earned',
         description: `Poin dari transaksi #${tx_id.slice(0,8)} (via ${source})`,
         expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       });
+      if (historyError) {
+        console.error(`[updateBuyerPoints] History insert failed after successful increment for ${tx_id}:`, historyError);
+      }
     } else {
       console.error(`[updateBuyerPoints] Both RPC and fallback failed for ${tx_id} — no phantom record created`);
     }
   } catch (e) { console.error("updateBuyerPoints error:", e); }
 }
-

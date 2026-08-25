@@ -380,7 +380,7 @@ export default function PremiumFormExperience({
             accountNumber={paymentMethod === 'bank_transfer' ? paymentField.bank_accounts?.[0]?.account_number : undefined}
             accountName={paymentMethod === 'bank_transfer' ? paymentField.bank_accounts?.[0]?.account_name || paymentField.account_name : undefined}
             status={paymentProof ? 'pending' : 'idle'}
-            statusMessage={aiPaymentVerification ? 'AI Groq akan memeriksa bukti. Jika ragu/offline, bukti otomatis masuk review admin.' : 'Bukti akan diperiksa admin. Hak dasar karyawan tetap aktif; QR keluarga menunggu persetujuan.'}
+             statusMessage={aiPaymentVerification ? 'AI Griphub akan memeriksa bukti. Jika ragu/offline, bukti otomatis masuk review admin.' : 'Bukti akan diperiksa admin. Hak dasar karyawan tetap aktif; QR keluarga menunggu persetujuan.'}
             proofFileName={paymentProof?.name}
             proofPreviewUrl={paymentProofPreview}
             disabled={isSubmitting}

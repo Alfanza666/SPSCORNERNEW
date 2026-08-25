@@ -262,7 +262,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 ### Architecture
 - **Backend monolitik**: Semua route Express di `server.ts` (line 1+). `// @ts-nocheck`.
 - **Vercel (Frontend)**: `api/index.ts` re-export `server.ts`. `vercel.json` handle SPA + API routing.
-- **VPS (Backend API)**: Express di VPS `45.158.126.76` via PM2 (`sps-backend`).
+- **VPS (Backend API)**: Express di VPS `103.193.179.217` via PM2 (`sps-backend`).
 - **Frontend entry**: `src/main.tsx` → `src/App.tsx` (React 19, lazy-loaded routes).
 - **State management**: Zustand stores di `src/store/`.
 - **Path alias**: `@/*` → `./src/*`.
@@ -289,7 +289,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **Supabase**: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (client) + `SUPABASE_SERVICE_ROLE_KEY` (server).
 - **Digiflazz**: `DIGIFLAZZ_USERNAME` + `DIGIFLAZZ_API_KEY`.
 - **iPaymu**: `IPAYMU_VA` + `IPAYMU_API_KEY`.
-- **Gemini AI**: `GEMINI_API_KEY` (di `vite.config.ts`, bukan `VITE_` prefix).
+- **Griphub Router AI**: `GRIPHUB_API_KEY`, `GRIPHUB_BASE_URL`, `GRIPHUB_MODEL`, dan `GRIPHUB_VISION_MODEL` (server-side only).
 - **Gmail SMTP**: `GMAIL_USER` + `GMAIL_APP_PASSWORD`.
 - **Web Push**: `VITE_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY`.
 - **Fixie proxy**: `FIXIE_URL` (opsional).
@@ -311,6 +311,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **🚨 API Failover Rule: VPS adalah primary dan Vercel + Fixie adalah fallback. GET/HEAD boleh auto-fallback, tetapi mutating request/payment DILARANG blind replay setelah timeout/5xx tanpa idempotency + status verification.** Lihat `docs/CAPA-v5.16.5.md`.
 - **🚨 Safari/WebKit Upload Rule: DILARANG membungkus ulang body mutating request menjadi `Request`/`ReadableStream` di global fetch failover. Pertahankan body `RequestInit` asli dan wajib uji jalur primary serta fallback dengan simulasi WebKit.** Lihat `docs/CAPA-v5.16.6.md`.
 - **🚨 iPaymu Egress Rule: Request iPaymu dari VPS boleh direct melalui IP tetap yang di-whitelist; request dari Vercel WAJIB melalui Fixie/static egress yang terverifikasi.**
+- **🚨 VPS Migration Rule: Origin production saat ini adalah `103.193.179.217`; IP lama `45.158.126.76` tidak boleh dipakai lagi tanpa verifikasi eksplisit. Update Cloudflare Worker, iPaymu whitelist, deploy script, dan PM2 host secara konsisten.**
 - **🚨 Auth State Rule: DILARANG mengabaikan seluruh event `onAuthStateChange` setelah startup. `TOKEN_REFRESHED`, `SIGNED_IN`, dan `SIGNED_OUT` harus ditangani secara selektif agar Zustand dan sesi Supabase tetap sinkron.**
 - **🚨 VPS Drift Rule: DILARANG `git reset --hard`, menghapus untracked files, atau menimpa worktree VPS yang drift sebelum backup + diff. Hotfix manual valid wajib dipindahkan ke Git.**
 - **🚨 Loyalty Point Rule: Setiap payment endpoint WAJIB cek `metadata.remaining_amount` sebelum charge ke payment gateway. Gunakan helper `getChargeableAmount(transaction)`.** Lihat `docs/CAPA-v5.16.7.md`.
@@ -332,11 +333,11 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
-- Current version: `v6.0.7`.
+- Current version: `v6.0.10`.
 - `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
 - CI/CD via VPS cron (git pull tiap 5 menit).
 - ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1`.
-- Vite defines `process.env.GEMINI_API_KEY` langsung (bukan `VITE_` prefix).
+- AI provider memakai Griphub Router OpenAI-compatible API; API key tidak boleh masuk bundle frontend.
 - Digiflazz background cache update skip di Vercel (`if (!process.env.VERCEL)`).
 - **⚠️ API 404 catch-all di `server.ts`**: Wajib ada SEBELUM SPA fallback.
 - **⚠️ `@sentry/node` sering missing di VPS**: Cek dependency baru setiap update `server.ts`.
@@ -362,3 +363,4 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 | Changelog | `changelog.txt` | Riwayat pembaruan |
 | Reconciliation SQL | `scripts/reconcile_fn.sql` | DB function untuk deteksi mismatch |
 | Deploy Script | `scripts/deploy-vps.ps1` | Deploy otomatis ke VPS |
+| CAPA v6.0.8 | `docs/CAPA-v6.0.8.md` | Restore backend ke VPS baru dan cutover origin |

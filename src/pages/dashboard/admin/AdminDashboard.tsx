@@ -180,7 +180,7 @@ export default function AdminDashboard() {
 
       const authHeader = { Authorization: `Bearer ${session.access_token}` };
       const [overviewRes, resetsResult, qrisResult] = await Promise.all([
-        fetch('/api/admin/dashboard/overview', { headers: authHeader }),
+        fetch('/api/admin/dashboard/overview', { headers: authHeader, cache: 'no-store' }),
         fetch('/api/admin/password-resets', { headers: authHeader })
           .then(async response => response.ok ? response.json() : [])
           .catch(error => {

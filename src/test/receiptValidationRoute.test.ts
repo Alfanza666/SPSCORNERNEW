@@ -5,13 +5,13 @@ import { registerMiscRoutes } from '../routes/misc';
 
 describe('legacy receipt validator compatibility', () => {
   it('routes old clients without cart items to manual pending before calling AI', async () => {
-    const groqCreate = vi.fn();
+    const griphubCreate = vi.fn();
     const app = express();
     app.use(express.json());
     registerMiscRoutes(app, {
       supabase: {},
       sendNotification: vi.fn(),
-      groq: { chat: { completions: { create: groqCreate } } },
+       griphub: { isConfigured: true, chat: { completions: { create: griphubCreate } } },
       sendSarirotiEmailInternal: vi.fn(),
       buildTestEmail: vi.fn(),
     });
@@ -32,6 +32,6 @@ describe('legacy receipt validator compatibility', () => {
         fallbackToPending: true,
       }),
     });
-    expect(groqCreate).not.toHaveBeenCalled();
+    expect(griphubCreate).not.toHaveBeenCalled();
   });
 });

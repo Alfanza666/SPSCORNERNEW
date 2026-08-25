@@ -37,7 +37,7 @@ Status aktual saat dokumen ini dibuat:
 |---|---|---|
 | UI Form Studio baru | **Implemented** | Sudah ada di frontend produksi. |
 | Premium Form Experience V2 | **Implemented** | Preview admin dan portal memakai komponen yang sama. |
-| AI menghasilkan dan menerapkan schema | **Implemented in code** | Production memiliki `GROQ_API_KEY`; pengujian live dengan sesi admin tetap perlu dilakukan saat review. |
+| AI menghasilkan dan menerapkan schema | **Implemented in code** | Production memiliki konfigurasi `GRIPHUB_*`; pengujian live dengan sesi admin tetap perlu dilakukan saat review. |
 | Backend registrasi RSVP V2 | **Deployed** | API VPS sehat dan route sudah aktif. |
 | Database Workflow V2 | **Blocked** | Migration `006` belum dijalankan; Supabase masih mengembalikan `PGRST205`. |
 | Pembayaran transfer/QRIS manual | **Implemented, blocked by DB** | Bukti ditahan untuk verifikasi admin. |
@@ -373,7 +373,7 @@ sequenceDiagram
     participant Admin
     participant Builder
     participant API as /api/ai/generate-form
-    participant Model as Groq Llama
+    participant Model as Griphub model
 
     Admin->>Builder: Tulis kebutuhan form
     Builder->>API: currentForm + messages + bearer token
@@ -418,7 +418,7 @@ AI dapat menghasilkan:
 ### 8.4 Batasan saat ini
 
 - UI menampilkan riwayat chat, tetapi backend hanya mengirim system prompt dan **instruksi user terakhir** ke model. Konteks follow-up terutama berasal dari `currentForm`, bukan seluruh percakapan.
-- Local `.env` belum memiliki `GROQ_API_KEY`; production VPS terkonfirmasi memilikinya.
+- Local `.env` dan production VPS wajib memiliki konfigurasi `GRIPHUB_*` yang sama secara nama variable.
 - Belum ada live E2E test dengan sesi admin dalam audit dokumentasi ini.
 
 ---

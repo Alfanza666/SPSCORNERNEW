@@ -11,8 +11,6 @@ import { createClient } from '@supabase/supabase-js';
 import { IpaymuClient } from '../src/services/ipaymu/client.js';
 import { initStockService, commitTransactionStock } from '../src/services/stock.js';
 import { initPaymentService, updateSellerBalances, updateBuyerPoints } from '../src/services/payment.js';
-import { initNotificationService, sendNotification } from '../src/services/notification.js';
-import https from 'https';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -22,7 +20,6 @@ const supabase = createClient(
 // Init services
 initStockService(supabase, null, null);
 initPaymentService(supabase);
-initNotificationService(supabase, null);
 
 const IPAYMU_VA = (process.env.IPAYMU_VA || '').replace(/['"]/g, '').trim();
 const IPAYMU_API_KEY = (process.env.IPAYMU_API_KEY || '').replace(/['"]/g, '').trim();
@@ -96,6 +93,7 @@ async function main() {
     .from('transactions')
     .select('id, buyer_id, buyer_name, total_amount, payment_method, payment_details, metadata, created_at, transaction_items(*)')
     .in('status', ['pending'])
+    .in('payment_method', ['qris', 'va'])
     .not('payment_details->>ipaymu_trx_id', 'is', null)
     .order('created_at', { ascending: false });
 
@@ -195,20 +193,6 @@ async function main() {
         }
 
         // 5. Notif buyer
-        if (tx.buyer_id) {
-          try {
-            await sendNotification(tx.buyer_id, {
-              type: 'transaction',
-              title: '✅ Pembayaran Dikonfirmasi',
-              message: `Transaksi #${tx.id.slice(0, 8)} sebesar Rp ${Number(tx.total_amount).toLocaleString('id-ID')} telah dikonfirmasi.`,
-              path: `/kiosk/history?id=${tx.id}`,
-            });
-            console.log(`       Notif  : terkirim ✅`);
-          } catch (e) {
-            console.log(`       Notif  : gagal (non-blocking)`);
-          }
-        }
-
         confirmedPaid++;
       } else {
         // Cek apakah expired/failed di iPaymu

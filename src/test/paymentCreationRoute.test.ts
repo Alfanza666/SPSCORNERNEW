@@ -52,7 +52,7 @@ function registerRoutes(transaction: any, ipaymuClient: any, savedUpdates: any[]
     IPAYMU_API_KEY: 'key',
     IPAYMU_SIGNATURE_KEY: 'signature',
     IPAYMU_PRODUCTION: false,
-    groq: {},
+    griphub: {},
   });
 
   return handlers;

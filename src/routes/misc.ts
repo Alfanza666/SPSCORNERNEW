@@ -11,7 +11,7 @@ import {
   sendTransactionValidationError,
 } from "../utils/transactionCreationValidation.js";
 
-export function registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal, buildTestEmail }) {
+export function registerMiscRoutes(app, { supabase, sendNotification, griphub, sendSarirotiEmailInternal, buildTestEmail }) {
 
   app.post("/api/validate/receipt", async (req, res) => {
     try {
@@ -75,8 +75,8 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
       }
     `;
 
-      const visionModel = process.env.GROQ_VISION_MODEL?.trim() || 'qwen/qwen3.6-27b';
-      if (!groq || !process.env.GROQ_API_KEY) {
+      const visionModel = process.env.GRIPHUB_VISION_MODEL?.trim() || process.env.GRIPHUB_MODEL?.trim();
+      if (!griphub?.isConfigured || !visionModel) {
         return res.json({
           success: true,
           data: {
@@ -86,7 +86,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
           },
         });
       }
-      const result = await groq.chat.completions.create({
+      const result = await griphub.chat.completions.create({
         model: visionModel,
         messages: [
           {
@@ -97,7 +97,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
             ],
           },
         ],
-        max_tokens: 300,
+        max_tokens: 256,
         temperature: 0.1,
         response_format: { type: "json_object" },
       });
@@ -136,7 +136,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
     } catch (error) {
       if (sendTransactionValidationError(res, error)) return;
       console.error('[Validate] Receipt error:', error);
-      // Fallback gracefully on Groq/network/timeout errors: let frontend allow manual verification
+      // Fallback gracefully on Griphub/network/timeout errors: let frontend allow manual verification
       res.json({
         success: true,
         data: {
@@ -159,7 +159,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, groq, send
       if (profile?.role !== "admin" && profile?.role !== "superadmin") {
         return res.status(403).json({ success: false, error: "Forbidden: Admin only" });
       }
-      if (!process.env.GROQ_API_KEY) {
+      if (!griphub?.isConfigured || !(process.env.GRIPHUB_MODEL || process.env.GRIPHUB_VISION_MODEL)) {
         return res.status(503).json({ success: false, error: 'AI belum dikonfigurasi di server. Hubungi administrator.' });
       }
 
@@ -343,15 +343,29 @@ CONTOH: Jika user minta "buat form pendaftaran karyawan baru", output harus:
 
 Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.length > 0 ? JSON.stringify(currentForm) : 'null (buat dari awal)'}`;
 
-      const messages = [{ role: 'system', content: systemPrompt }];
+      const compactCurrentForm = currentForm && typeof currentForm === 'object'
+        ? JSON.stringify({
+            id: currentForm.id,
+            title: currentForm.title,
+            description: currentForm.description,
+            fields: Array.isArray(currentForm.fields) ? currentForm.fields.slice(0, 100) : [],
+          }).slice(0, 12000)
+        : 'null (buat dari awal)';
+      const compactSystemPrompt = systemPrompt.replace(
+        currentForm && currentForm.fields && currentForm.fields.length > 0
+          ? JSON.stringify(currentForm)
+          : 'null (buat dari awal)',
+        compactCurrentForm,
+      );
+      const messages = [{ role: 'system', content: compactSystemPrompt }];
 
       messages.push({ role: 'user', content: userInstruction });
 
       const callFormModel = async (requestMessages) => {
-        const result = await groq.chat.completions.create({
-          model: process.env.GROQ_TEXT_MODEL || 'llama-3.3-70b-versatile',
+        const result = await griphub.chat.completions.create({
+          model: process.env.GRIPHUB_MODEL || process.env.GRIPHUB_VISION_MODEL,
           messages: requestMessages,
-          max_tokens: 4096,
+          max_tokens: 1536,
           temperature: 0.25,
           response_format: { type: "json_object" }
         });

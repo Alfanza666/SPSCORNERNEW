@@ -456,7 +456,7 @@ export function FieldSettingsPanel({
                 className="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
               />
               <span>
-                <span className="block text-xs font-black text-emerald-800 dark:text-emerald-300">Verifikasi AI Groq otomatis</span>
+                <span className="block text-xs font-black text-emerald-800 dark:text-emerald-300">Verifikasi AI Griphub otomatis</span>
                 <span className="mt-1 block text-[11px] leading-5 text-emerald-700/80 dark:text-emerald-200/80">
                   Jika bukti dan nominal cocok, pembayaran langsung disetujui. Jika AI ragu/offline, bukti tetap masuk review admin.
                 </span>

@@ -24,7 +24,7 @@ function createApp(modelResponses: unknown[]) {
 
   registerMiscRoutes(app, {
     supabase,
-    groq: { chat: { completions: { create } } },
+     griphub: { isConfigured: true, chat: { completions: { create } } },
     sendNotification: vi.fn(),
     sendSarirotiEmailInternal: vi.fn(),
     buildTestEmail: vi.fn(),
@@ -34,7 +34,11 @@ function createApp(modelResponses: unknown[]) {
 }
 
 describe('POST /api/ai/generate-form', () => {
-  beforeEach(() => vi.stubEnv('GROQ_API_KEY', 'test-groq-key'));
+  beforeEach(() => {
+    vi.stubEnv('GRIPHUB_API_KEY', 'test-griphub-key');
+    vi.stubEnv('GRIPHUB_BASE_URL', 'https://griphub.test/v1');
+    vi.stubEnv('GRIPHUB_MODEL', 'test-text-model');
+  });
   afterEach(() => vi.unstubAllEnvs());
 
   it('menolak request tanpa token', async () => {

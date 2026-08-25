@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
 
-export function registerMomentsRoutes(app, { supabase, sendNotification, groq }) {
+export function registerMomentsRoutes(app, { supabase, sendNotification, griphub }) {
   // Auth helper
   async function requireUser(req) {
     const authHeader = req.headers.authorization;
@@ -232,9 +232,9 @@ export function registerMomentsRoutes(app, { supabase, sendNotification, groq })
       const { description, event_id } = req.body;
       if (!description) return res.status(400).json({ success: false, error: "Description required" });
 
-      // Generate detailed prompt with Groq
-      const promptResponse = await groq.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+      // Generate detailed prompt with Griphub
+      const promptResponse = await griphub.chat.completions.create({
+        model: process.env.GRIPHUB_MODEL || process.env.GRIPHUB_VISION_MODEL,
         messages: [
           {
             role: "system",
@@ -252,7 +252,7 @@ export function registerMomentsRoutes(app, { supabase, sendNotification, groq })
           }
         ],
         temperature: 0.7,
-        max_tokens: 500
+        max_tokens: 256
       });
       const generatedPrompt = promptResponse.choices?.[0]?.message?.content;
       if (!generatedPrompt) throw new Error("Failed to generate prompt");

@@ -67,8 +67,14 @@ const supabaseServiceKey =
     ? envKey
     : (() => { throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set"); })();
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-import Groq from "groq-sdk";
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || "" });
+import { createGriphubClient } from "./src/services/griphub.js";
+const griphub = createGriphubClient();
+console.log("Griphub Config:", {
+  configured: griphub.isConfigured,
+  baseUrl: process.env.GRIPHUB_BASE_URL ? "set (hidden)" : "not set",
+  textModel: process.env.GRIPHUB_MODEL ? "set (hidden)" : "not set",
+  visionModel: process.env.GRIPHUB_VISION_MODEL ? "set (hidden)" : "not set",
+});
 
 const app = express();
 
@@ -287,7 +293,7 @@ registerPaymentRoutes(app, {
   sendWANotification, processDigitalItems, updateSellerBalances,
   updateBuyerPoints, refundTransactionPoints, triggerSarirotiEmail, checkLowStockAndNotify,
   sendBuyerReceiptEmail, getDigiflazzAxiosConfig, crypto, restoreTransactionStock, deductTransactionStock, commitTransactionStock,
-  IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, groq,
+  IPAYMU_VA, IPAYMU_API_KEY, IPAYMU_SIGNATURE_KEY, IPAYMU_PRODUCTION, griphub,
 });
 
 if (!process.env.VERCEL) {
@@ -305,12 +311,12 @@ registerStockTraceRoutes(app, { supabase });
 
 
 registerAnalyticsRoutes(app, { supabase });
-registerMiscRoutes(app, { supabase, sendNotification, groq, sendSarirotiEmailInternal, buildTestEmail });
+registerMiscRoutes(app, { supabase, sendNotification, griphub, sendSarirotiEmailInternal, buildTestEmail });
 registerAuthRoutes(app, { supabase, sendNotification, sendSarirotiEmailInternal, buildPasswordResetEmail });
 registerPortalRoutes(app, { supabase, sendNotification, ipaymuClient });
-registerProgramRegistrationWorkflowRoutes(app, { supabase, sendNotification, groq });
+registerProgramRegistrationWorkflowRoutes(app, { supabase, sendNotification, griphub });
 registerEventWorkflowRoutes(app, { supabase, sendNotification });
-registerMomentsRoutes(app, { supabase, sendNotification, groq });
+registerMomentsRoutes(app, { supabase, sendNotification, griphub });
 
 // API 404 catch-all — return JSON instead of HTML for unmatched API routes (must be BEFORE SPA fallback)
 app.use('/api/*', (req, res) => {

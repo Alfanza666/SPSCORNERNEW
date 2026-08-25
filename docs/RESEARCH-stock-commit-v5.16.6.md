@@ -23,7 +23,7 @@ Admin                   Backend (payments.ts)              Supabase DB
  │                          │  2. Upload receipt image          │
  │                          │ ────────────────────────────────>│
  │                          │                                  │
- │                          │  3. AI verify (Groq vision)      │
+ │                          │  3. AI verify (Griphub vision)   │
  │                          │ ────────────────────────────────>│
  │                          │                                  │
  │                          │  4. VALID?                       │

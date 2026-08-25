@@ -2,7 +2,7 @@
 // Deploy via Cloudflare Dashboard → Workers & Pages → Create Worker
 // Set route: api.spscorner.store/*
 
-const VPS = 'http://45.158.126.76:3000';
+const VPS = 'http://103.193.179.217:3000';
 const VERCEL_FALLBACK = 'https://www.spscorner.store';
 const HEALTH_CHECK_INTERVAL = 30_000; // 30 seconds
 const VPS_TIMEOUT = 5000;
@@ -42,12 +42,28 @@ export default {
           body: request.body,
           signal: AbortSignal.timeout(VPS_TIMEOUT),
         });
-        return new Response(vpsRes.body, {
-          status: vpsRes.status,
-          statusText: vpsRes.statusText,
-          headers: vpsRes.headers,
-        });
+        // Never replay a mutating request after the VPS may have processed it.
+        // GET/HEAD can safely use Vercel if the origin returns 5xx.
+        if (vpsRes.status >= 500 && request.method !== 'GET' && request.method !== 'HEAD') {
+          return vpsRes;
+        }
+        if (vpsRes.ok || vpsRes.status < 500 || (request.method !== 'GET' && request.method !== 'HEAD')) {
+          return new Response(vpsRes.body, {
+            status: vpsRes.status,
+            statusText: vpsRes.statusText,
+            headers: vpsRes.headers,
+          });
+        }
+        vpsHealthy = false;
       } catch {
+        // A mutating request may have reached the VPS. Return an explicit
+        // uncertain response instead of sending the same body to Vercel.
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+          return new Response(JSON.stringify({ error: 'ORIGIN_REQUEST_UNCERTAIN' }), {
+            status: 502,
+            headers: { 'content-type': 'application/json' },
+          });
+        }
         vpsHealthy = false;
       }
     }

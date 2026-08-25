@@ -717,27 +717,27 @@ async function loadPaymentProofForKioskValidator(supabase: any, proofReference: 
   return { buffer, mimeType };
 }
 
-async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: any, proofReference: string, expectedAmount: number) {
+async function validateProgramPaymentProofWithKioskRules(griphub: any, supabase: any, proofReference: string, expectedAmount: number) {
   const attemptedAt = new Date().toISOString();
-  if (!groq || !process.env.GROQ_API_KEY) {
+  if (!griphub?.isConfigured || !(process.env.GRIPHUB_VISION_MODEL || process.env.GRIPHUB_MODEL)) {
     return {
       attempted_at: attemptedAt,
-      provider: "groq",
+      provider: "griphub",
       source: "kiosk_receipt_validator",
       valid: false,
       fallback_to_manual: true,
-      reason: "GROQ_API_KEY belum dikonfigurasi di backend. Bukti disimpan untuk review admin.",
+      reason: "Konfigurasi Griphub belum tersedia di backend. Bukti disimpan untuk review admin.",
     };
   }
 
-  const visionModel = process.env.GROQ_VISION_MODEL?.trim() || "qwen/qwen3.6-27b";
+  const visionModel = process.env.GRIPHUB_VISION_MODEL?.trim() || process.env.GRIPHUB_MODEL;
 
   try {
     const { buffer, mimeType } = await loadPaymentProofForKioskValidator(supabase, proofReference);
     if (buffer.length > 10 * 1024 * 1024) {
       return {
         attempted_at: attemptedAt,
-        provider: "groq",
+        provider: "griphub",
         source: "kiosk_receipt_validator",
         valid: false,
         fallback_to_manual: true,
@@ -776,7 +776,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
       }
     `;
 
-    const result = await groq.chat.completions.create({
+    const result = await griphub.chat.completions.create({
       model: visionModel,
       messages: [
         {
@@ -787,7 +787,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
           ],
         },
       ],
-      max_tokens: 300,
+      max_tokens: 256,
       temperature: 0.1,
       response_format: { type: "json_object" },
     });
@@ -799,7 +799,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
     } catch {
       return {
         attempted_at: attemptedAt,
-        provider: "groq",
+        provider: "griphub",
         source: "kiosk_receipt_validator",
         model: visionModel,
         valid: false,
@@ -811,7 +811,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
 
     return {
       attempted_at: attemptedAt,
-      provider: "groq",
+      provider: "griphub",
       source: "kiosk_receipt_validator",
       model: visionModel,
       valid: Boolean(parsed.valid),
@@ -823,7 +823,7 @@ async function validateProgramPaymentProofWithKioskRules(groq: any, supabase: an
     console.error("[ProgramWorkflowV2] Kiosk receipt validator failed:", error);
     return {
       attempted_at: attemptedAt,
-      provider: "groq",
+      provider: "griphub",
       source: "kiosk_receipt_validator",
       model: visionModel,
       valid: false,
@@ -1590,7 +1590,7 @@ function sendWorkflowError(res: any, error: any) {
   return res.status(500).json({ success: false, error: "Terjadi kesalahan sistem.", code: "INTERNAL_ERROR" });
 }
 
-export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, sendNotification, groq }: any) {
+export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, sendNotification, griphub }: any) {
   app.post("/api/portal/programs/:programId/registration-v2/submit", async (req: any, res: any) => {
     try {
       const { programId } = req.params;
@@ -1942,7 +1942,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       }
 
       const expectedAmount = Number(payment.expected_amount || registration.total_amount || 0);
-      const aiVerification = await validateProgramPaymentProofWithKioskRules(groq, supabase, proofUrl, expectedAmount);
+          const aiVerification = await validateProgramPaymentProofWithKioskRules(griphub, supabase, proofUrl, expectedAmount);
       const aiMetadata = {
         ...(isPlainObject(updatedPayment.proof_metadata) ? updatedPayment.proof_metadata : proofMetadata),
         ai_verification: aiVerification,
@@ -1961,7 +1961,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
             proof_metadata: reviewHistory(aiMetadata, {
               action: "approved_by_ai",
               at: now,
-              by: "groq",
+              by: "griphub",
               note: aiVerification.reason,
             }),
           })
@@ -1994,7 +1994,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
           data: paidPayment,
           registration: await loadRegistrationDetails(supabase, confirmedRegistration),
           ai_verified: true,
-          message: "Bukti pembayaran berhasil diverifikasi AI Groq. Tiket dan kupon sudah aktif.",
+          message: "Bukti pembayaran berhasil diverifikasi AI Griphub. Tiket dan kupon sudah aktif.",
         });
       }
 
@@ -2018,7 +2018,7 @@ export function registerProgramRegistrationWorkflowRoutes(app: any, { supabase, 
       const rejectedMetadata = reviewHistory(aiMetadata, {
         action: "rejected_by_ai",
         at: new Date().toISOString(),
-        by: "groq",
+        by: "griphub",
         note: aiVerification.reason,
       });
       const { error: rejectPaymentError } = await supabase
