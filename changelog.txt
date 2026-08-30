@@ -1,3 +1,10 @@
+v6.0.12 - QRIS Manual AI Verification Flow (PATCH)
+----------------------------------------------------
+- Menyamakan nominal QRIS manual di UI dengan nominal transaksi dan nominal yang dikirim ke AI; MDR tidak lagi membuat instruksi berbeda.
+- Bukti yang ditolak AI tetap tersimpan, transaksi kembali pending, dan user dapat upload ulang tanpa dialihkan ke admin.
+- Hanya AI yang benar-benar error atau tidak tersedia yang diberi flag `ai_error` dan masuk antrean admin.
+- Bukti dan alasan verifikasi tetap tersedia di riwayat transaksi admin.
+
 v6.0.11 - Manual Receipt Verification Lock Recovery (PATCH)
 -------------------------------------------------------------
 - Mengembalikan transaksi ke `pending` setelah AI menolak bukti QRIS manual agar user dapat mengganti bukti.

@@ -11,6 +11,11 @@ import {
   sendTransactionValidationError,
 } from "../utils/transactionCreationValidation.js";
 
+export function isManualPaymentAdminActionable(transaction: any) {
+  if (!['manual_qris', 'transfer_koperasi'].includes(transaction?.payment_method)) return true;
+  return transaction?.payment_details?.ai_error === true;
+}
+
 export function registerTransactionRoutes(app, {
   supabase, sendNotification, sendWANotification,
   sendSarirotiEmailInternal, sendBuyerReceiptEmail, buildBuyerConfirmationEmail,
@@ -73,6 +78,12 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
 
     if (transaction.status !== "manual_verification" && transaction.status !== "pending") {
       return res.status(409).json({ error: `Transaksi dalam status "${transaction.status}", tidak bisa di-approve.` });
+    }
+    if (!isManualPaymentAdminActionable(transaction)) {
+      return res.status(409).json({
+        error: "AI belum gagal. Jika bukti ditolak AI, pembeli harus mengganti atau mengunggah ulang bukti.",
+        code: "AI_REJECTED_RECEIPT",
+      });
     }
 
     const { error: updateError } = await supabase

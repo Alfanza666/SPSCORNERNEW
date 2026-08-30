@@ -1351,7 +1351,7 @@ buyer_email: buyerEmail,
               <div className="space-y-2 mb-8">
                 <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Total Bayar</p>
                 <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tighter">
-                  {formatRupiah(estimatedTotal)}
+                  {formatRupiah(remainingTotal)}
                 </h2>
               </div>
 
@@ -1359,7 +1359,7 @@ buyer_email: buyerEmail,
                 <h4 className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-widest mb-2">Instruksi:</h4>
                 <ol className="text-xs text-blue-600 dark:text-blue-300 space-y-1.5 list-decimal pl-4 font-medium">
                   <li>Scan kode QR di atas menggunakan aplikasi pembayaran Anda</li>
-                  <li>Masukkan nominal <strong>{formatRupiah(estimatedTotal)}</strong></li>
+                   <li>Masukkan nominal <strong>{formatRupiah(remainingTotal)}</strong></li>
                   <li>Selesaikan pembayaran</li>
                   <li>Screenshot bukti pembayaran dan upload di bawah ini</li>
                 </ol>

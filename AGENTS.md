@@ -333,7 +333,8 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
-- Current version: `v6.0.11`.
+- Current version: `v6.0.12`.
+- **🚨 Manual QRIS AI Rule:** `verification_failed` berarti AI menolak bukti dan user wajib diberi kesempatan upload ulang; hanya `payment_details.ai_error === true` yang boleh masuk antrean/admin approve. Bukti wajib disimpan di `transactions.receipt_image` pada setiap percobaan. Lihat `docs/CAPA-v6.0.12.md`.
 - `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
 - CI/CD via VPS cron (git pull tiap 5 menit).
 - ⚠️ GitHub Actions terkendala billing. Alternatif: `.\scripts\deploy-vps.ps1`.
@@ -364,3 +365,4 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 | Reconciliation SQL | `scripts/reconcile_fn.sql` | DB function untuk deteksi mismatch |
 | Deploy Script | `scripts/deploy-vps.ps1` | Deploy otomatis ke VPS |
 | CAPA v6.0.8 | `docs/CAPA-v6.0.8.md` | Restore backend ke VPS baru dan cutover origin |
+| CAPA v6.0.12 | `docs/CAPA-v6.0.12.md` | QRIS manual AI verification, reject vs AI outage, dan penyimpanan bukti |

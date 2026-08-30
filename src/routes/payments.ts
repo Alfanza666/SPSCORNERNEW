@@ -319,6 +319,8 @@ export function registerPaymentRoutes(app, {
     let receipt_image: string | undefined;
     let expected_amount: number | undefined;
     let receiptUrl: string | undefined;
+    let aiVerificationStarted = false;
+    let aiVerificationFinished = false;
     try {
       // Auth optional — guest checkout juga pakai endpoint ini
       const buyerId = await requireUser(req);
@@ -511,6 +513,7 @@ export function registerPaymentRoutes(app, {
         }
       `;
       const visionModel = process.env.GRIPHUB_VISION_MODEL?.trim() || process.env.GRIPHUB_MODEL?.trim();
+      aiVerificationStarted = true;
       if (!griphub?.isConfigured || !visionModel) {
         throw new Error("Konfigurasi Griphub belum tersedia; gunakan review manual");
       }
@@ -537,13 +540,17 @@ export function registerPaymentRoutes(app, {
         throw new Error("Gagal mendapatkan respons dari AI");
       }
       let verificationResult;
-      try {
-        verificationResult = JSON.parse(resultText);
-      } catch {
-        console.warn('[ManualVerify] AI returned non-JSON:', resultText?.substring(0, 200));
-        verificationResult = { isValid: false, reason: 'Sistem AI tidak dapat membaca gambar. Pastikan gambar jelas dan coba lagi.' };
-      }
-      const existingPaymentDetails = txRecord?.payment_details || {};
+       try {
+         verificationResult = JSON.parse(resultText);
+       } catch {
+         console.warn('[ManualVerify] AI returned non-JSON:', resultText?.substring(0, 200));
+         throw new Error('Respons AI tidak dapat dibaca sebagai hasil verifikasi.');
+       }
+       if (!verificationResult || typeof verificationResult.isValid !== 'boolean') {
+         throw new Error('Respons AI tidak memiliki hasil verifikasi yang valid.');
+       }
+       aiVerificationFinished = true;
+       const existingPaymentDetails = txRecord?.payment_details || {};
       if (!verificationResult.isValid) {
         // Update payment_details dengan info verifikasi gagal (status tetap "pending")
         await supabase
@@ -555,9 +562,11 @@ export function registerPaymentRoutes(app, {
             receipt_image: receiptUrl,
             payment_details: {
               ...existingPaymentDetails,
-              receipt_uploaded: true,
-              verification_failed: true,
-              reason: verificationResult.reason,
+               receipt_uploaded: true,
+               verification_failed: true,
+               ai_error: false,
+               verification_started_at: null,
+               reason: verificationResult.reason,
               attempted_at: new Date().toISOString(),
             },
           })
@@ -599,9 +608,12 @@ export function registerPaymentRoutes(app, {
           receipt_image: receiptUrl,
           payment_details: {
             ...existingPaymentDetails,
-            receipt_uploaded: true,
-            verification_failed: false,
-            manual_verify: true,
+             receipt_uploaded: true,
+             verification_failed: false,
+             ai_error: false,
+             processing_error: false,
+             verification_started_at: null,
+             manual_verify: true,
             verified_at: new Date().toISOString(),
           },
         })
@@ -655,16 +667,21 @@ export function registerPaymentRoutes(app, {
               payment_details: {
                 ...currentDetails,
                 receipt_uploaded: true,
-                ai_error: true,
-                reason: `Sistem verifikasi otomatis (AI) sedang sibuk. Bukti pembayaran disimpan untuk verifikasi manual oleh Admin.`,
+                ai_error: aiVerificationStarted && !aiVerificationFinished,
+                processing_error: !aiVerificationStarted || aiVerificationFinished,
+                verification_failed: false,
+                verification_started_at: null,
+                reason: aiVerificationStarted && !aiVerificationFinished
+                  ? `Sistem verifikasi otomatis (AI) sedang tidak tersedia. Bukti pembayaran disimpan untuk verifikasi manual oleh Admin.`
+                  : `Penyelesaian transaksi gagal setelah verifikasi AI. Silakan coba verifikasi ulang.`,
                 attempted_at: new Date().toISOString()
               }
             })
             .eq("id", transaction_id);
 
 
-          // Kirim notifikasi realtime ke semua admin untuk verifikasi manual
-          try {
+          // Hanya AI yang benar-benar gagal yang masuk antrean admin.
+          if (aiVerificationStarted && !aiVerificationFinished) try {
             const { data: admins } = await supabase
               .from("profiles")
               .select("id")
@@ -684,10 +701,17 @@ export function registerPaymentRoutes(app, {
             console.error("Failed to notify admins of manual verification fallback:", err);
           }
 
-          return res.json({
-            success: true,
-            fallbackToPending: true,
-            message: "Layanan verifikasi otomatis (AI) sedang sibuk. Bukti pembayaran Anda telah disimpan untuk diverifikasi manual oleh Admin."
+          if (aiVerificationStarted && !aiVerificationFinished) {
+            return res.json({
+              success: true,
+              fallbackToPending: true,
+              message: "Layanan verifikasi otomatis (AI) sedang tidak tersedia. Bukti pembayaran Anda telah disimpan untuk diverifikasi manual oleh Admin."
+            });
+          }
+          return res.status(500).json({
+            success: false,
+            error: "Penyelesaian transaksi gagal setelah verifikasi AI. Silakan coba verifikasi ulang.",
+            code: "PAYMENT_PROCESSING_FAILED",
           });
         }
       } catch (dbErr) {

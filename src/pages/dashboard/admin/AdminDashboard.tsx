@@ -696,7 +696,7 @@ export default function AdminDashboard() {
                       {transaction.buyer_name || transaction.buyerName || 'Pembeli'}
                     </p>
                     <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">
-                      Pembayaran pending | {formatRupiah(transaction.total_amount ?? transaction.totalAmount ?? 0)}
+                       AI tidak tersedia, perlu verifikasi admin | {formatRupiah(transaction.total_amount ?? transaction.totalAmount ?? 0)}
                     </p>
                   </div>
                   <Receipt className="h-4 w-4 shrink-0 text-blue-500" />

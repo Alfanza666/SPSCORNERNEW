@@ -36,6 +36,7 @@ interface NormalizedHistoryRow {
   receipt_image?: string | null;
   created_at: string;
   metadata?: Record<string, unknown> | null;
+  payment_details?: Record<string, unknown> | null;
 }
 
 class ReportingRequestError extends Error {
@@ -185,7 +186,7 @@ function applyValidationAttemptFilters(query: any, filters: HistoryFilters): any
 }
 
 function transactionSelect(filters: HistoryFilters): string {
-  const base = 'id,buyer_name,buyer_id,total_amount,status,payment_method,receipt_image,created_at,metadata';
+  const base = 'id,buyer_name,buyer_id,total_amount,status,payment_method,receipt_image,payment_details,created_at,metadata';
   return filters.sellerId
     ? `${base},matched_items:transaction_items!inner(seller_id,price,quantity,subtotal)`
     : base;
@@ -284,6 +285,8 @@ export function normalizeTransactionHistoryRow(row: any, sellerId = ''): Normali
     receipt_image: row?.receipt_image || null,
     created_at: String(row?.created_at || ''),
     metadata: row?.metadata && typeof row.metadata === 'object' ? row.metadata : null,
+    payment_details: row?.payment_details && typeof row.payment_details === 'object' ? row.payment_details : null,
+    reason: row?.reason || row?.payment_details?.reason || null,
   };
 }
 
@@ -656,9 +659,10 @@ async function loadOverview(supabase: any) {
 
   const pendingQuery = supabase
     .from('transactions')
-    .select('id,buyer_name,buyer_id,total_amount,status,payment_method,receipt_image,created_at,metadata', { count: 'exact' })
+    .select('id,buyer_name,buyer_id,total_amount,status,payment_method,receipt_image,payment_details,created_at,metadata', { count: 'exact' })
     .eq('status', 'pending')
     .in('payment_method', ['manual_qris', 'transfer_koperasi'])
+    .contains('payment_details', { ai_error: true })
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(10);
