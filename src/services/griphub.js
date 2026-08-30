@@ -1,4 +1,34 @@
 // Server-side Griphub Router client using the OpenAI-compatible chat API.
+function parseGriphubResponse(responseText, contentType) {
+  if (contentType.includes('text/event-stream')) {
+    const chunks = responseText
+      .split(/\r?\n/)
+      .filter(line => line.startsWith('data:'))
+      .map(line => line.slice(5).trim())
+      .filter(data => data && data !== '[DONE]')
+      .flatMap(data => {
+        try { return [JSON.parse(data)]; } catch { return []; }
+      });
+    const content = chunks
+      .map(chunk => chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.message?.content || '')
+      .join('');
+    const firstChoice = chunks.find(chunk => Array.isArray(chunk.choices))?.choices?.[0] || {};
+    return {
+      ...chunks.at(-1),
+      choices: [{
+        ...firstChoice,
+        message: { ...(firstChoice.message || {}), content },
+      }],
+    };
+  }
+
+  try {
+    return responseText ? JSON.parse(responseText) : null;
+  } catch {
+    return { error: responseText.slice(0, 500) };
+  }
+}
+
 export function createGriphubClient() {
   const apiKey = String(process.env.GRIPHUB_API_KEY || '').trim();
   const configuredBaseURL = String(process.env.GRIPHUB_BASE_URL || '').trim().replace(/\/+$/, '');
@@ -26,15 +56,14 @@ export function createGriphubClient() {
               'content-type': 'application/json',
             },
             body: JSON.stringify({ ...payload, max_tokens: maxTokens }),
+            signal: AbortSignal.timeout(30000),
           });
 
           const responseText = await response.text();
-          let responseBody;
-          try {
-            responseBody = responseText ? JSON.parse(responseText) : null;
-          } catch {
-            responseBody = { error: responseText.slice(0, 500) };
-          }
+          const responseBody = parseGriphubResponse(
+            responseText,
+            response.headers.get('content-type') || '',
+          );
 
           if (!response.ok) {
             const message = responseBody?.error?.message || responseBody?.error || `Griphub request failed: ${response.status}`;
@@ -50,3 +79,5 @@ export function createGriphubClient() {
     },
   };
 }
+
+export { parseGriphubResponse };

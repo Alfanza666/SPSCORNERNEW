@@ -1,3 +1,10 @@
+v6.0.11 - Manual Receipt Verification Lock Recovery (PATCH)
+-------------------------------------------------------------
+- Mengembalikan transaksi ke `pending` setelah AI menolak bukti QRIS manual agar user dapat mengganti bukti.
+- Menambahkan timestamp lock dan recovery untuk lock `processing` yang stale lebih dari 2 menit.
+- Menambahkan timeout Griphub 30 detik agar request AI tidak meninggalkan lock aktif.
+- Jalur iPaymu otomatis dan QRIS manual tetap dipisahkan.
+
 v6.0.10 - iPaymu Settlement Ledger Repair (PATCH)
 --------------------------------------------------
 - Memperbaiki pencatatan loyalty points dari kolom `amount` menjadi `points`.

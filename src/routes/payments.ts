@@ -350,6 +350,29 @@ export function registerPaymentRoutes(app, {
         return res.json({ success: true, message: "Pembayaran sudah terverifikasi." });
       }
 
+      // Recover only abandoned manual-verification locks. A request is limited
+      // by the Griphub timeout, so a processing lock older than two minutes is stale.
+      if (txCheck.status === "processing") {
+        const startedAt = Date.parse(txCheck.payment_details?.verification_started_at || "");
+        const stale = !Number.isFinite(startedAt) || Date.now() - startedAt > 2 * 60 * 1000;
+        if (stale) {
+          const { data: resetStaleLock } = await supabase
+            .from("transactions")
+            .update({
+              status: "pending",
+              payment_details: {
+                ...(txCheck.payment_details || {}),
+                verification_started_at: null,
+                verification_stale_reset_at: new Date().toISOString(),
+              },
+            })
+            .eq("id", transaction_id)
+            .eq("status", "processing")
+            .select("id");
+          if (resetStaleLock?.length) txCheck.status = "pending";
+        }
+      }
+
       // Status failed dengan auto-cancelled — reset ke pending dulu
       const isAutoCancelled = txCheck.status === "failed"
         && (txCheck.metadata?.cancel_reason || "").includes("Auto-cancelled");
@@ -380,7 +403,13 @@ export function registerPaymentRoutes(app, {
       // Jika update tidak match (sudah bukan pending), berarti request lain sudah mengklaim duluan.
       const { data: claimed, error: claimError } = await supabase
         .from("transactions")
-        .update({ status: "processing" })
+        .update({
+          status: "processing",
+          payment_details: {
+            ...(txCheck.payment_details || {}),
+            verification_started_at: new Date().toISOString(),
+          },
+        })
         .eq("id", transaction_id)
         .eq("status", "pending")
         .select("id")
@@ -520,6 +549,9 @@ export function registerPaymentRoutes(app, {
         await supabase
           .from("transactions")
           .update({
+            // AI rejection is a completed verification attempt, not an active lock.
+            // Return to pending so the buyer can replace the receipt and retry.
+            status: "pending",
             receipt_image: receiptUrl,
             payment_details: {
               ...existingPaymentDetails,
