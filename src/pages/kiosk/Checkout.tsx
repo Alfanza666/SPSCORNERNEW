@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -745,14 +746,30 @@ export default function Checkout() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      appToast.error('Format File Salah', 'File harus berupa gambar (JPG, PNG, dll).');
+      return;
+    }
+    try {
+      // Kompresi sebelum kirim ke AI — foto kamera HP bisa 5-10MB dan
+      // menyebabkan verifikasi AI lambat/timeout untuk QRIS manual & transfer koperasi.
+      const compressedFile = await imageCompression(file, {
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        initialQuality: 0.85,
+      });
       const reader = new FileReader();
       reader.onloadend = () => {
         setReceiptImage(reader.result as string);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      appToast.error('Gagal Memproses Gambar', 'Terjadi kesalahan saat mengompres gambar. Coba lagi dengan gambar lain.');
     }
   };
 

@@ -381,6 +381,28 @@ export async function checkLowStockAndNotify(items) {
 
 // ── Reconciliation job ────────────────────────────────────────
 // Bandingkan currentStock vs expectedStock dari adjustment trail
+// Supabase membatasi hasil query pada 1.000 row. Beberapa produk sudah
+// memiliki >1.000 baris stock_adjustments, jadi WAJIB dibaca per halaman —
+// tanpa ini, "adjustment terakhir" bisa terpotong di baris ke-1000 (lama),
+// bukan baris terbaru, sehingga expectedStock salah dan gap palsu besar.
+const RECONCILE_PAGE_SIZE = 500;
+async function fetchAllAdjustments(productId) {
+  const rows = [];
+  for (let from = 0; ; from += RECONCILE_PAGE_SIZE) {
+    const { data, error } = await supabaseInstance
+      .from('stock_adjustments')
+      .select('new_stock, previous_stock, created_at')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: true })
+      .range(from, from + RECONCILE_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < RECONCILE_PAGE_SIZE) break;
+  }
+  return rows;
+}
+
 export async function reconcileStock(productIds = null) {
   try {
     let query = supabaseInstance.from('products').select('id, name, stock');
@@ -390,11 +412,7 @@ export async function reconcileStock(productIds = null) {
 
     const discrepancies = [];
     for (const product of products) {
-      const { data: adjustments } = await supabaseInstance
-        .from('stock_adjustments')
-        .select('new_stock, previous_stock, created_at')
-        .eq('product_id', product.id)
-        .order('created_at', { ascending: true });
+      const adjustments = await fetchAllAdjustments(product.id);
 
       if (!adjustments || adjustments.length === 0) continue;
 

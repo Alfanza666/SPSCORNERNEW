@@ -1,3 +1,11 @@
+v6.0.13 - Payment Reliability & Stock Reconciliation Hotfix (PATCH)
+----------------------------------------------------
+- [FIX] Upload bukti pembayaran manual QRIS dan transfer koperasi (Checkout & Riwayat) kini dikompresi sebelum dikirim ke AI, sama seperti halaman validasi otomatis. Foto kamera HP yang besar (5-10MB) sebelumnya menyebabkan verifikasi AI lambat/timeout sehingga sering muncul "Gagal Memverifikasi Bukti".
+- [FIX] `reconcileStock()` (job pendeteksi selisih stok tiap 30 menit) kini membaca `stock_adjustments` dengan pagination. Sebelumnya data terpotong di 1.000 baris untuk produk dengan riwayat padat, membuat deteksi selisih stok salah/tidak akurat.
+- [FIX] Endpoint admin `/api/withdrawals/process` kini memakai klaim status atomic untuk mencegah dua request bersamaan (double-klik/dua tab) memproses withdrawal yang sama dan merefund saldo seller dua kali.
+- [FIX] Endpoint admin `/api/product-returns/process` kini memakai klaim status atomic untuk mencegah dua request bersamaan memotong stok retur dua kali.
+- [QA] `npm run lint`, 126 test, dan `npm run build` lulus. Tidak ada perubahan skema database atau logic bisnis retur/refund.
+
 v6.0.12 - QRIS Manual AI Verification Flow (PATCH)
 ----------------------------------------------------
 - Menyamakan nominal QRIS manual di UI dengan nominal transaksi dan nominal yang dikirim ke AI; MDR tidak lagi membuat instruksi berbeda.

@@ -57,6 +57,20 @@ export function registerWithdrawalRoutes(app: any, deps: { supabase: any; sendNo
       if (!withdrawal) return res.status(404).json({ error: "Withdrawal not found" });
       if (withdrawal.status === "paid" || withdrawal.status === "rejected") return res.status(400).json({ error: "Withdrawal already processed" });
 
+      // Klaim atomic: hanya proses jika status masih sama dengan yang baru dibaca.
+      // Mencegah double-klik/dua tab admin memproses withdrawal yang sama secara
+      // bersamaan (bisa menyebabkan saldo seller di-refund 2x).
+      const { data: claimed, error: claimError } = await supabase
+        .from("withdrawals")
+        .update({ status })
+        .eq("id", id)
+        .eq("status", withdrawal.status)
+        .select("id");
+      if (claimError) throw claimError;
+      if (!claimed || claimed.length === 0) {
+        return res.status(409).json({ error: "Withdrawal sedang diproses oleh permintaan lain." });
+      }
+
       if (status === "rejected") {
         const { data: profile } = await supabase.from("profiles").select("balance").eq("id", withdrawal.seller_id).single();
         if (profile) {
@@ -76,8 +90,6 @@ export function registerWithdrawalRoutes(app: any, deps: { supabase: any; sendNo
           console.error("[Withdrawal] Seller profile not found for paid update:", withdrawal.seller_id);
         }
       }
-
-      await supabase.from("withdrawals").update({ status }).eq("id", id);
 
       const statusLabels: Record<string, string> = { approved: "disetujui", rejected: "ditolak", paid: "dibayar" };
       await sendNotification(withdrawal.seller_id, {

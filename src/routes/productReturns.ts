@@ -104,6 +104,20 @@ export function registerProductReturnRoutes(app: any, deps: { supabase: any; sen
       const { id, status } = req.body;
       const { data: returnReq } = await supabase.from("product_returns").select("*").eq("id", id).single();
       if (!returnReq) return res.status(404).json({ error: "Return request not found" });
+      if (returnReq.status !== "pending") return res.status(400).json({ error: "Permintaan retur sudah diproses" });
+
+      // Klaim atomic: hanya lanjut jika masih "pending". Mencegah admin
+      // double-klik/dua tab memproses retur yang sama (stok terpotong 2x).
+      const { data: claimed, error: claimError } = await supabase
+        .from("product_returns")
+        .update({ status, admin_id: user.id, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("status", "pending")
+        .select("id");
+      if (claimError) throw claimError;
+      if (!claimed || claimed.length === 0) {
+        return res.status(409).json({ error: "Permintaan retur sedang diproses oleh permintaan lain." });
+      }
 
       if (status === "approved") {
         const result = await atomicAdjustStock(
@@ -112,11 +126,11 @@ export function registerProductReturnRoutes(app: any, deps: { supabase: any; sen
           `Retur disetujui dari request ID: ${id}`, 0
         );
         if (!result || !result.success) {
+          // Rollback status klaim agar admin bisa retry (mis. setelah restock manual)
+          await supabase.from("product_returns").update({ status: "pending", admin_id: null }).eq("id", id).eq("status", status);
           return res.status(400).json({ error: result?.error_message || "Stok tidak mencukupi untuk melakukan retur" });
         }
       }
-
-      await supabase.from("product_returns").update({ status, admin_id: user.id, updated_at: new Date().toISOString() }).eq("id", id);
 
       const statusLabels: Record<string, string> = { approved: "disetujui", rejected: "ditolak" };
       const recipientId = returnReq.initiated_by || returnReq.seller_id;

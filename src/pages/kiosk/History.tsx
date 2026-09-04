@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
@@ -149,11 +150,23 @@ export default function History() {
   const handleUploadReceipt = async (e: any, tx: Transaction) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      appToast.error('Format File Salah', 'File harus berupa gambar (JPG, PNG, dll).');
+      return;
+    }
 
     setUploadingReceipt(tx.id);
     toast.loading('Memverifikasi bukti pembayaran...', { id: 'upload-receipt' });
 
     try {
+      // Kompresi sebelum kirim ke AI — foto kamera HP bisa 5-10MB dan
+      // menyebabkan verifikasi AI lambat/timeout untuk QRIS manual & transfer koperasi.
+      const compressedFile = await imageCompression(file, {
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        initialQuality: 0.85,
+      });
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64data = reader.result as string;
@@ -207,9 +220,10 @@ export default function History() {
           setUploadingReceipt(null);
         }
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(compressedFile);
     } catch (err: any) {
-      appToast.error('Gagal Membaca File', 'File gambar tidak dapat dibaca. Pastikan file yang dipilih adalah gambar.');
+      console.error('Error compressing/reading receipt image:', err);
+      appToast.error('Gagal Memproses Gambar', 'Terjadi kesalahan saat memproses gambar. Coba lagi dengan gambar lain.');
       setUploadingReceipt(null);
     }
   };
