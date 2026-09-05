@@ -13,20 +13,29 @@ function parseGriphubResponse(responseText, contentType) {
       .map(chunk => chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.message?.content || '')
       .join('');
     const firstChoice = chunks.find(chunk => Array.isArray(chunk.choices))?.choices?.[0] || {};
-    return {
+    const raw = {
       ...chunks.at(-1),
       choices: [{
         ...firstChoice,
         message: { ...(firstChoice.message || {}), content },
       }],
     };
+    if (raw.choices?.[0]?.message?.content) {
+      raw.choices[0].message.content = stripAiWrapper(raw.choices[0].message.content);
+    }
+    return raw;
   }
 
+  let parsed;
   try {
-    return responseText ? JSON.parse(responseText) : null;
+    parsed = responseText ? JSON.parse(responseText) : null;
   } catch {
-    return { error: responseText.slice(0, 500) };
+    parsed = { error: responseText.slice(0, 500) };
   }
+  if (parsed?.choices?.[0]?.message?.content) {
+    parsed.choices[0].message.content = stripAiWrapper(parsed.choices[0].message.content);
+  }
+  return parsed;
 }
 
 // Model qwen di Groq kadang mengaktifkan mode "thinking" yang membungkus
