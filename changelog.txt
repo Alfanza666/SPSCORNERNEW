@@ -4,7 +4,6 @@ v6.0.19 - AI Thinking Mode & Rate Limit Hardening (PATCH)
 - [FIX] Batas output AI diturunkan (200 token untuk verifikasi bukti) agar tidak cepat menabrak rate limit Groq tier gratis.
 - [FIX] Request AI yang kena rate limit kini otomatis menunggu sebentar lalu mencoba ulang (maksimal 3x) sebelum beralih ke cadangan.
 - [QA] Diuji langsung di server produksi: Groq utama merespons dalam ±1 detik, tag thinking berhasil dibersihkan, JSON ter-parse benar. `npm run lint`, 126 test, dan `npm run build` lulus.
-- [FIX] `parseGriphubResponse()` kini membersihkan tag <think> dari content response (streaming & non-streaming) SEBELUM dikembalikan ke caller — defense in depth agar semua endpoint AI otomatis terlindungi tanpa perlu `stripAiWrapper` di tiap caller.
 
 v6.0.18 - Fix AI JSON Mode & Fallback Model Routing (PATCH)
 ----------------------------------------------------
