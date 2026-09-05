@@ -339,7 +339,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
-- Current version: `v6.0.16`.
+- Current version: `v6.0.17`.
 - **🚨 Manual QRIS AI Rule:** `verification_failed` berarti AI menolak bukti dan user wajib diberi kesempatan upload ulang; hanya `payment_details.ai_error === true` yang boleh masuk antrean/admin approve. Bukti wajib disimpan di `transactions.receipt_image` pada setiap percobaan. Lihat `docs/CAPA-v6.0.12.md`.
 - `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
 - CI/CD via VPS cron (git pull tiap 5 menit).
