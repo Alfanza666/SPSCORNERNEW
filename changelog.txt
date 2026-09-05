@@ -1,3 +1,10 @@
+v6.0.18 - Fix AI JSON Mode & Fallback Model Routing (PATCH)
+----------------------------------------------------
+- [FIX] Menghapus `response_format: json_object` dari semua jalur AI (verifikasi manual, validasi otomatis, program workflow, form builder, test AI) karena model qwen di Groq menolak strict JSON mode ("Failed to validate JSON").
+- [FIX] Parsing respons AI kini toleran terhadap markdown fence, sehingga JSON tetap terbaca meski AI membungkusnya dengan ```json.
+- [FIX] Fallback ke Griphub kini selalu memakai model milik Griphub sendiri (GRIPHUB_VISION_MODEL/GRIPHUB_MODEL), tidak lagi meneruskan model Groq yang ditolak Griphub ("Provider-prefixed model routes are internal-only").
+- [QA] `npm run lint`, 126 test, dan `npm run build` lulus. Tidak ada perubahan skema database, stok, saldo, atau alur pembayaran.
+
 v6.0.17 - Admin AI Test Page (MINOR)
 ----------------------------------------------------
 - [FEAT] Menambahkan halaman "Test Verifikasi AI" di menu Dashboard Admin (Laporan & Evaluasi) untuk menguji verifikasi bukti pembayaran secara langsung tanpa membuat transaksi nyata.

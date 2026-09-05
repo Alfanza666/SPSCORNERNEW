@@ -330,6 +330,8 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **🚨 Idempotency Lock: Manual verify dan admin approve WAJIB pakai atomic status lock (`UPDATE WHERE status='pending'` / `'manual_verification'`) sebelum proses. Rollback ke status asal di catch block.** Lihat `docs/CAPA-v5.16.7.md` section 8.6.
 - **🚨 Point Earn Correct Amount: Points earned WAJIB dihitung dari `getChargeableAmount(transaction)`, bukan `total_amount`.** Lihat `docs/CAPA-v5.16.7.md` section 8.7.
 - **🚨 points_history Valid Types: HANYA `'earned'`, `'spent'`, `'expired'`, `'refund'`, `'compensation'` yang diizinkan DB CHECK constraint. DILARANG insert type lain.** Lihat `docs/CAPA-v5.16.7.md` section 8.8.
+- **🚨 AI JSON Mode Rule: DILARANG mengirim `response_format: { type: "json_object" }` saat provider utama adalah Groq (model qwen menolaknya dengan "Failed to validate JSON"). Andalkan prompt + parsing JSON yang toleran terhadap markdown fence.** Lihat v6.0.18 di `changelog.txt`.
+- **🚨 AI Fallback Model Rule: Saat fallback dari Groq ke Griphub, model WAJIB diganti ke model milik Griphub (`GRIPHUB_VISION_MODEL`/`GRIPHUB_MODEL`). DILARANG meneruskan nama model Groq (qwen/...) ke Griphub karena ditolak ("provider-prefixed internal-only").** Lihat v6.0.18 di `changelog.txt`.
 - **🚨 Cancel Order Auth Rule: Semua permintaan pembatalan transaksi (frontend) WAJIB menyertakan header `Authorization` dari sesi yang sedang aktif jika user sedang login. DILARANG memanggil endpoint cancel tanpa token untuk transaksi milik akun yang login.** Lihat v6.0.16 di `changelog.txt`.
 - **🚨 Receipt Save Order Rule: Bukti pembayaran WAJIB disimpan ke database SEBELUM memanggil AI verifikasi. DILARANG menyimpan bukti hanya setelah AI selesai — jika AI gagal/timeout, bukti tidak akan tercatat dan riwayat akan menampilkan "tidak ada gambar bukti".** Lihat v6.0.15 di `changelog.txt`.
 - **🚨 AI Provider Order: Verifikasi bukti pembayaran WAJIB memakai Groq sebagai provider utama (stabil) dengan Griphub sebagai cadangan otomatis jika Groq timeout/gagal. DILARANG mengembalikan Griphub sebagai provider utama tanpa pengujian ulang penuh.** Lihat v6.0.14 di `changelog.txt`.
@@ -339,7 +341,7 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
-- Current version: `v6.0.17`.
+- Current version: `v6.0.18`.
 - **🚨 Manual QRIS AI Rule:** `verification_failed` berarti AI menolak bukti dan user wajib diberi kesempatan upload ulang; hanya `payment_details.ai_error === true` yang boleh masuk antrean/admin approve. Bukti wajib disimpan di `transactions.receipt_image` pada setiap percobaan. Lihat `docs/CAPA-v6.0.12.md`.
 - `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
 - CI/CD via VPS cron (git pull tiap 5 menit).
