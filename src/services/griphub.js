@@ -29,11 +29,22 @@ function parseGriphubResponse(responseText, contentType) {
   }
 }
 
+// Model qwen di Groq kadang mengaktifkan mode "thinking" yang membungkus
+// jawaban dengan tag <think>...</think>, membuat JSON tidak bisa di-parse.
+// Helper ini menghapus tag tersebut + markdown fence dari respons AI.
+function stripAiWrapper(text) {
+  return String(text || '')
+    .replace(/<think[^>]*>[\s\S]*?<\/think>/gi, '')
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+}
+
 async function callProvider(baseURL, apiKey, payload, timeoutMs = 30000) {
   const requestedMaxTokens = Number(payload?.max_tokens);
   const maxTokens = Number.isFinite(requestedMaxTokens)
     ? Math.min(Math.max(requestedMaxTokens, 64), 1536)
-    : 512;
+    : 200;
   const response = await fetch(`${baseURL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -54,10 +65,29 @@ async function callProvider(baseURL, apiKey, payload, timeoutMs = 30000) {
     const message = responseBody?.error?.message || responseBody?.error || `Provider request failed: ${response.status}`;
     const error = new Error(String(message));
     error.status = response.status;
+    error.retryable = response.status === 429 || /rate limit|try again/i.test(message);
     throw error;
   }
 
   return responseBody;
+}
+
+// Groq tier gratis punya batas token/menit yang kecil. Saat kena rate limit,
+// tunggu sebentar lalu coba lagi — rate limit pulih dalam hitungan detik.
+async function callWithRateLimitRetry(call, maxAttempts = 3) {
+  let lastError;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await call();
+    } catch (error) {
+      lastError = error;
+      if (!error?.retryable || attempt >= maxAttempts - 1) throw error;
+      const waitMs = 4000 * (attempt + 1);
+      console.warn(`[AI] Rate limit, retry dalam ${waitMs / 1000}s (percobaan ${attempt + 2}/${maxAttempts})`);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+  throw lastError;
 }
 
 export function createGriphubClient() {
@@ -90,10 +120,15 @@ export function createGriphubClient() {
             return p;
           };
           const groqPayload = cleanPayload(isVision ? groqVisionModel : groqTextModel, false);
+          // Tag <think> (mode thinking qwen) ditangani oleh stripAiWrapper
+          // di sisi parser — parameter reasoning tidak dipakai karena
+          // API Groq menolak properti yang tidak didukung.
 
           if (groqApiKey) {
             try {
-              return await callProvider(groqBaseURL, groqApiKey, groqPayload);
+              return await callWithRateLimitRetry(
+                () => callProvider(groqBaseURL, groqApiKey, groqPayload),
+              );
             } catch (groqError) {
               console.error('[AI] Groq gagal:', groqError?.message);
               if (apiKey && baseURL) {
@@ -131,5 +166,5 @@ export function createGriphubClient() {
   };
 }
 
-export { parseGriphubResponse };
+export { parseGriphubResponse, stripAiWrapper };
 

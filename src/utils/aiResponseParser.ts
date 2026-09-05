@@ -114,27 +114,29 @@ function sanitizeFields(updatedForm: any): FormField[] {
 }
 
 function extractJSON(text: string): { cleaned: string; json: any } {
+  // Bersihkan tag <think> (mode thinking qwen di Groq) sebelum mencari JSON.
+  const sanitized = String(text || '').replace(/<think[^>]*>[\s\S]*?<\/think>/gi, '');
   let jsonStr: string | null = null;
 
-  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const codeBlockMatch = sanitized.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlockMatch) {
     jsonStr = codeBlockMatch[1].trim();
   }
 
   if (!jsonStr) {
-    const braceMatch = text.match(/\{[\s\S]*\}/);
+    const braceMatch = sanitized.match(/\{[\s\S]*\}/);
     if (braceMatch) {
       jsonStr = braceMatch[0];
     }
   }
 
-  let cleaned = text;
+  let cleaned = sanitized;
   let json = null;
 
   if (jsonStr) {
     try {
       json = JSON.parse(jsonStr);
-      cleaned = text
+      cleaned = sanitized
         .replace(/```(?:json)?\s*[\s\S]*?```/g, '')
         .replace(/\{[\s\S]*\}/, '')
         .replace(/---GENERATE---[\s\S]*?(?:---END---|$)/g, '')

@@ -4,6 +4,7 @@ import {
   issueReceiptValidationAttestation,
   recordReceiptValidationIssuance,
 } from "../utils/receiptValidationToken.js";
+import { stripAiWrapper } from "../services/griphub.js";
 import {
   loadCanonicalTransactionItems,
   normalizeTransactionCreationInput,
@@ -97,16 +98,14 @@ export function registerMiscRoutes(app, { supabase, sendNotification, griphub, s
             ],
           },
         ],
-        max_tokens: 256,
+        max_tokens: 200,
         temperature: 0.1,
       });
 
       const responseText = result.choices?.[0]?.message?.content || '';
       let parsed;
       try {
-        parsed = JSON.parse(
-          String(responseText).replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim(),
-        );
+        parsed = JSON.parse(stripAiWrapper(responseText));
       } catch {
         // Fallback: AI returned non-JSON, treat as failed validation
         console.warn('[Validate] AI returned non-JSON:', responseText.substring(0, 200));
@@ -374,7 +373,7 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
 
       const parseModelJSON = (content) => {
         const candidates = [
-          content.trim(),
+          stripAiWrapper(content),
           content.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim(),
         ];
         for (const candidate of candidates) {

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import crypto from "node:crypto";
+import { stripAiWrapper } from "../services/griphub.js";
 
 const MAX_ANSWER_FIELDS = 150;
 const MAX_ANSWER_BYTES = 150_000;
@@ -787,16 +788,14 @@ async function validateProgramPaymentProofWithKioskRules(griphub: any, supabase:
           ],
         },
       ],
-      max_tokens: 256,
+      max_tokens: 200,
       temperature: 0.1,
     });
 
     const responseText = result.choices?.[0]?.message?.content || "";
     let parsed: any;
     try {
-      parsed = JSON.parse(
-        String(responseText).replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim(),
-      );
+      parsed = JSON.parse(stripAiWrapper(responseText));
     } catch {
       return {
         attempted_at: attemptedAt,

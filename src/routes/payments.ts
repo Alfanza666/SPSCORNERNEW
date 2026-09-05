@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
 import { IpaymuSignature } from "../services/ipaymu/signature.js";
+import { stripAiWrapper } from "../services/griphub.js";
 // FIX H: Valid points_history types (DB constraint enforced):
 //   'earned', 'spent', 'expired', 'refund', 'compensation'
 
@@ -514,6 +515,7 @@ export function registerPaymentRoutes(app, {
       // Prompt sudah meminta JSON; parsing di bawah toleran terhadap markdown fence.
       const griphubResponse = await griphub.chat.completions.create({
         model: visionModel,
+        max_tokens: 200,
         messages: [
           {
             role: "user",
@@ -535,9 +537,7 @@ export function registerPaymentRoutes(app, {
       }
       let verificationResult;
        try {
-         verificationResult = JSON.parse(
-           String(resultText).replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim(),
-         );
+         verificationResult = JSON.parse(stripAiWrapper(resultText));
        } catch {
          console.warn('[ManualVerify] AI returned non-JSON:', resultText?.substring(0, 200));
          throw new Error('Respons AI tidak dapat dibaca sebagai hasil verifikasi.');

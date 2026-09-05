@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
+import { stripAiWrapper } from "../services/griphub.js";
 
 export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
   app.get("/api/health", (req, res) => {
@@ -162,9 +163,7 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
       let parsed = null;
       let parseError = null;
       try {
-        parsed = resultText
-          ? JSON.parse(String(resultText).replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim())
-          : null;
+        parsed = resultText ? JSON.parse(stripAiWrapper(resultText)) : null;
       } catch (e: any) {
         parseError = e?.message || 'Gagal parse JSON dari AI';
       }
