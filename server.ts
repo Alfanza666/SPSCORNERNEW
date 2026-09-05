@@ -286,7 +286,7 @@ app.get("/api/test-ping", (req, res) => {
 registerWithdrawalRoutes(app, { supabase, sendNotification, getAdminIds, getToken, resolveUser });
 registerStockRoutes(app, { supabase, sendNotification, getAdminIds, getToken, resolveUser, atomicAdjustStock });
 registerProductReturnRoutes(app, { supabase, sendNotification, getAdminIds, getToken, resolveUser, atomicAdjustStock });
-registerDiagnosticsRoutes(app, { supabase });
+registerDiagnosticsRoutes(app, { supabase, griphub });
 registerPushRoutes(app, { supabase, webpush, sendNotification, sendPushToUser });
 registerPaymentRoutes(app, {
   supabase, sendNotification, ipaymuClient, sendSarirotiEmailInternal,

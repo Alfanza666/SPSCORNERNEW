@@ -2,7 +2,7 @@
 import { __name } from "./route-utils.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 
-export function registerDiagnosticsRoutes(app, { supabase }) {
+export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
   });
@@ -108,6 +108,82 @@ export function registerDiagnosticsRoutes(app, { supabase }) {
       } catch (err: any) { res.status(500).json({ success: false, error: err.message }); }
     });
   }
+
+  // ── AI Test endpoint (admin only) — uji cepat verifikasi bukti bayar ──
+  // Kirim gambar struk + nominal, lihat hasil AI langsung tanpa membuat transaksi nyata.
+  // Read-only: tidak menyimpan/mengubah data apapun.
+  app.post("/api/admin/ai/test-verify", async (req, res) => {
+    try {
+      const { image_base64, expected_amount } = req.body || {};
+      if (!image_base64 || !expected_amount) {
+        return res.status(400).json({ success: false, error: "image_base64 dan expected_amount wajib diisi" });
+      }
+      if (!griphub?.isConfigured) {
+        return res.status(503).json({ success: false, error: "AI belum dikonfigurasi di server" });
+      }
+
+      const base64Data = String(image_base64).replace(/^data:image\/\w+;base64,/, "");
+      const mimeType = String(image_base64).match(/data:(image\/\w+);base64,/)?.[1] || "image/jpeg";
+      const amountFormatted = Number(expected_amount).toLocaleString('id-ID');
+
+      const prompt = [
+        `Verifikasi bukti pembayaran kantin.`,
+        `Harus dibayar: Rp ${amountFormatted}`,
+        ``,
+        `Aturan:`,
+        `- VALID jika terlihat nominal ~Rp ${amountFormatted} (toleransi ±5%) DAN status berhasil ("Berhasil"/"Sukses"/centang hijau).`,
+        `- Jangan tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.`,
+        `- TOLAK hanya jika: bukan bukti bayar, nominal JELAS beda jauh, atau status JELAS gagal/dibatalkan.`,
+        ``,
+        `Balas HANYA JSON tanpa markdown:`,
+        `{"isValid": true/false, "amountFound": angka atau null, "reason": "alasan singkat Bahasa Indonesia"}`,
+      ].join('\n');
+
+      const visionModel = process.env.GROQ_VISION_MODEL?.trim()
+        || process.env.GRIPHUB_VISION_MODEL?.trim()
+        || process.env.GRIPHUB_MODEL?.trim();
+
+      const startedAt = Date.now();
+      const aiResponse = await griphub.chat.completions.create({
+        model: visionModel,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Data}` } },
+            ],
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
+      const durationMs = Date.now() - startedAt;
+
+      const resultText = aiResponse.choices?.[0]?.message?.content;
+      let parsed = null;
+      let parseError = null;
+      try {
+        parsed = resultText ? JSON.parse(resultText) : null;
+      } catch (e: any) {
+        parseError = e?.message || 'Gagal parse JSON dari AI';
+      }
+
+      res.json({
+        success: true,
+        duration_ms: durationMs,
+        model_used: visionModel,
+        raw_response: resultText,
+        parsed_result: parsed,
+        parse_error: parseError,
+      });
+    } catch (error: any) {
+      console.error("[AI Test] Error:", error);
+      res.status(500).json({
+        success: false,
+        error: error?.message || 'Gagal menjalankan test AI',
+      });
+    }
+  });
 
   // ── Reconciliation status endpoint (admin only) ──────────────────
   app.get("/api/admin/reconciliation/status", async (req, res) => {
