@@ -1,3 +1,9 @@
+v6.0.15 - Always Save Receipt Before AI Verification (PATCH)
+----------------------------------------------------
+- [FIX] Bukti pembayaran kini disimpan ke database SEBELUM AI dipanggil, sehingga selalu tercatat meskipun AI lambat, timeout, atau gagal total. Sebelumnya bukti hanya disimpan setelah AI selesai — jika AI gagal, bukti tidak pernah tersimpan dan riwayat transaksi menampilkan "tidak ada gambar bukti".
+- [FIX] Prompt verifikasi dipersingkat dan jawaban AI dibatasi agar proses verifikasi lebih cepat di HP (mengurangi waktu tunggu "Memverifikasi bukti pembayaran..." yang terlalu lama).
+- [QA] `npm run lint`, 126 test, dan `npm run build` lulus. Tidak ada perubahan skema database, stok, saldo, atau alur pembayaran.
+
 v6.0.14 - Groq as Primary AI with Griphub Fallback (PATCH)
 ----------------------------------------------------
 - [FIX] Verifikasi bukti pembayaran kini memakai Groq sebagai provider AI utama (stabil sejak periode Juli) dan otomatis beralih ke Griphub sebagai cadangan jika Groq timeout/gagal. Ini menyelesaikan kasus berulang "Gagal Memverifikasi Bukti" untuk QRIS manual dan transfer koperasi yang disebabkan Griphub sering tidak merespons dalam waktu batas.

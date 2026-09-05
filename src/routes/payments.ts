@@ -441,6 +441,24 @@ export function registerPaymentRoutes(app, {
       } catch (uploadErr) {
         console.error("Exception uploading receipt image:", uploadErr);
       }
+      // Simpan bukti ke database DULU sebelum AI dipanggil.
+      // Supaya bukti selalu tersimpan meski AI lambat/timeout/gagal total —
+      // ini penyebab kenapa di beberapa kasus riwayat menampilkan "tidak ada gambar bukti".
+      try {
+        await supabase
+          .from("transactions")
+          .update({
+            receipt_image: receiptUrl,
+            payment_details: {
+              ...(txCheck.payment_details || {}),
+              receipt_uploaded: true,
+              verification_started_at: new Date().toISOString(),
+            },
+          })
+          .eq("id", transaction_id);
+      } catch (saveErr) {
+        console.error("[ManualVerify] Gagal menyimpan bukti sebelum AI:", saveErr);
+      }
       // Ambil data transaksi termasuk tanggal dibuat
       const { data: txRecord } = await supabase
         .from("transactions")
@@ -467,52 +485,27 @@ export function registerPaymentRoutes(app, {
         ? txDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Makassar' })
         : null;
 
-      const prompt = `
-        Kamu adalah sistem verifikasi bukti pembayaran untuk toko kantin digital.
-        Analisis gambar berikut dan tentukan apakah ini adalah bukti transfer/pembayaran yang valid.
-
-        Nominal transaksi yang harus dibayar: Rp ${Number(chargeableAmount).toLocaleString('id-ID')}
-        Tanggal transaksi dibuat: ${txDateFormatted || 'tidak diketahui'}${txDateShort ? ` (${txDateShort})` : ''}
-
-        INSTRUKSI PENTING:
-        - Gambar bisa berupa screenshot panjang dari aplikasi mobile banking, QRIS, GoPay, OVO, DANA, ShopeePay, atau aplikasi transfer lainnya.
-        - JANGAN tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.
-        - Fokus mencari bukti pembayaran di MANA PUN lokasinya dalam gambar.
-        - Cari teks nominal seperti: "${chargeableAmount}", "Rp ${Number(chargeableAmount).toLocaleString('id-ID')}", atau angka yang mendekati ±5%.
-        - Cari indikator keberhasilan: "Berhasil", "Sukses", "Success", "Selesai", tanda centang hijau, atau teks serupa.
-        - Cari nama pengirim, nama penerima, atau nama bank/dompet digital sebagai konteks pendukung.
-
-        PENGECEKAN TANGGAL (WAJIB):
-        - Cari tanggal transaksi di nota/bukti pembayaran.
-        - Tanggal di nota harus sesuai dengan tanggal transaksi: ${txDateFormatted || 'tidak diketahui'}.
-        - Toleransi tanggal: HANYA boleh beda 1 hari (bisa H atau H-1 dari ${txDateFormatted || 'tanggal transaksi'}).
-        - Jika tanggal di nota JAUH berbeda (lebih dari 1 hari), TOLAK dengan alasan tanggal tidak sesuai.
-        - Jika tanggal di nota TIDAK TERLIHAT, abaikan pengecekan tanggal dan fokus ke nominal & status saja.
-
-        TOLAK hanya jika:
-        - Gambar bukan bukti pembayaran sama sekali (misal: foto selfie, screenshot chat, dll)
-        - Nominal yang terlihat JELAS berbeda jauh dari Rp ${Number(chargeableAmount).toLocaleString('id-ID')} (toleransi ±5%)
-        - Status transaksi JELAS menunjukkan gagal/pending/dibatalkan
-        - Tanggal di nota JELAS berbeda lebih dari 1 hari dari tanggal transaksi
-
-        FORMAT ALASAN PENOLAKAN (WAJIB JELAS & ACTIONABLE):
-        Jika TIDAK VALID, alasan HARUS spesifik dan memberitahu user apa yang salah. Contoh format:
-        - "Nominal tidak sesuai. Yang tertera: Rp 50.000, seharusnya: Rp 75.000. Silakan upload bukti dengan nominal yang benar."
-        - "Bukti pembayaran tidak terbaca jelas. Silakan upload ulang dengan gambar yang lebih jelas."
-        - "Status transaksi pada bukti menunjukkan GAGAL. Silakan lakukan pembayaran ulang dan upload bukti yang berhasil."
-        - "Tanggal pada bukti (01/01/2025) tidak sesuai dengan tanggal transaksi (15/08/2026). Silakan upload bukti pembayaran yang benar."
-        - "Gambar yang diupload bukan bukti pembayaran. Silakan upload screenshot bukti transfer/pembayaran yang berhasil."
-
-        JANGAN berikan alasan umum seperti "bukti tidak valid" tanpa penjelasan spesifik.
-
-        Balas HANYA dengan JSON tanpa markdown:
-        {
-          "isValid": boolean,
-          "amountFound": number or null,
-          "reason": "Pesan singkat dalam Bahasa Indonesia. Jika valid sebutkan nominal dan tanggal yang terdeteksi. Jika tidak valid WAJIB jelaskan secara spesifik apa yang salah dan apa yang harus dilakukan user."
-        }
-      `;
-      const visionModel = process.env.GRIPHUB_VISION_MODEL?.trim() || process.env.GRIPHUB_MODEL?.trim();
+      // Prompt dibuat seringkas mungkin — prompt panjang menambah waktu proses AI
+      // dan membuat user menunggu lama di HP. Hanya kirim instruksi inti.
+      const prompt = [
+        `Verifikasi bukti pembayaran kantin.`,
+        `Harus dibayar: Rp ${Number(chargeableAmount).toLocaleString('id-ID')}`,
+        txDateFormatted ? `Tanggal transaksi: ${txDateFormatted}` : null,
+        ``,
+        `Aturan:`,
+        `- VALID jika terlihat nominal ~Rp ${Number(chargeableAmount).toLocaleString('id-ID')} (toleransi ±5%) DAN status berhasil ("Berhasil"/"Sukses"/centang hijau).`,
+        `- Jangan tolak hanya karena gambar tidak ter-crop atau ada elemen lain di sekitar nota.`,
+        txDateFormatted
+          ? `- TOLAK jika tanggal di nota beda lebih dari 1 hari dari tanggal transaksi.`
+          : null,
+        `- TOLAK hanya jika: bukan bukti bayar, nominal JELAS beda jauh, atau status JELAS gagal/dibatalkan.`,
+        ``,
+        `Balas HANYA JSON tanpa markdown:`,
+        `{"isValid": true/false, "amountFound": angka atau null, "reason": "alasan singkat Bahasa Indonesia"}`,
+      ].filter(Boolean).join('\n');
+      const visionModel = process.env.GROQ_VISION_MODEL?.trim()
+        || process.env.GRIPHUB_VISION_MODEL?.trim()
+        || process.env.GRIPHUB_MODEL?.trim();
       aiVerificationStarted = true;
       if (!griphub?.isConfigured || !visionModel) {
         throw new Error("Konfigurasi Griphub belum tersedia; gunakan review manual");
