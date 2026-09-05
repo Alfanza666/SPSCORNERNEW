@@ -72,6 +72,7 @@ const AdminStandbySchedule = lazyWithRetry(() => import('./pages/dashboard/admin
 const AdminAnnouncements = lazyWithRetry(() => import('./pages/dashboard/admin/AdminAnnouncements'));
 const AdminSurveyReports = lazyWithRetry(() => import('./pages/dashboard/admin/AdminSurveyReports'));
 const AdminFeedbacks = lazyWithRetry(() => import('./pages/dashboard/admin/AdminFeedbacks'));
+const AdminAiTest = lazyWithRetry(() => import('./pages/dashboard/admin/AdminAiTest'));
 
 const SellerDashboard = lazyWithRetry(() => import('./pages/dashboard/seller/SellerDashboard'));
 const SellerProducts = lazyWithRetry(() => import('./pages/dashboard/seller/SellerProducts'));
@@ -340,8 +341,9 @@ export default function App() {
               <Route path="admin/survey-reports" element={<AdminSurveyReports />} />
               <Route path="admin/survey-reports/" element={<AdminSurveyReports />} />
               <Route path="admin/feedbacks" element={<AdminFeedbacks />} />
-
               <Route path="admin/feedbacks/" element={<AdminFeedbacks />} />
+              <Route path="admin/ai-test" element={<AdminAiTest />} />
+              <Route path="admin/ai-test/" element={<AdminAiTest />} />
               <Route path="admin/pengaduan" element={<AdminPengaduan />} />
               <Route path="admin/pengaduan/" element={<AdminPengaduan />} />
               <Route path="admin/kritik-saran" element={<AdminKritikSaran />} />

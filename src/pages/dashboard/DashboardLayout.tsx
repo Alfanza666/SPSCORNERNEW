@@ -41,7 +41,8 @@ import {
   BarChart3,
   QrCode,
   Plug,
-  Camera
+  Camera,
+  FlaskConical
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -344,7 +345,8 @@ export default function DashboardLayout() {
           { to: "/dashboard/admin/coupon-reports", icon: ClipboardList, label: "Laporan Kupon" },
           { to: "/dashboard/admin/survey-reports", icon: BarChart3, label: "Hasil Survei" },
           { to: "/dashboard/admin/stock-report", icon: BarChart3, label: "Laporan Stok" },
-          { to: "/dashboard/admin/stock-trace", icon: Search, label: "Lacak Riwayat Stok" }
+          { to: "/dashboard/admin/stock-trace", icon: Search, label: "Lacak Riwayat Stok" },
+          { to: "/dashboard/admin/ai-test", icon: FlaskConical, label: "Test Verifikasi AI" }
         ]
       },
       {
