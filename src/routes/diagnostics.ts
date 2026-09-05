@@ -139,9 +139,9 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
         `{"isValid": true/false, "amountFound": angka atau null, "reason": "alasan singkat Bahasa Indonesia"}`,
       ].join('\n');
 
-      const visionModel = process.env.GROQ_VISION_MODEL?.trim()
-        || process.env.GRIPHUB_VISION_MODEL?.trim()
-        || process.env.GRIPHUB_MODEL?.trim();
+      const visionModel = process.env.GRIPHUB_VISION_MODEL?.trim()
+        || process.env.GRIPHUB_MODEL?.trim()
+        || process.env.GROQ_VISION_MODEL?.trim();
 
       const startedAt = Date.now();
       const aiResponse = await griphub.chat.completions.create({
@@ -155,7 +155,6 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
             ],
           },
         ],
-        response_format: { type: "json_object" },
       });
       const durationMs = Date.now() - startedAt;
 
@@ -163,7 +162,9 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
       let parsed = null;
       let parseError = null;
       try {
-        parsed = resultText ? JSON.parse(resultText) : null;
+        parsed = resultText
+          ? JSON.parse(String(resultText).replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim())
+          : null;
       } catch (e: any) {
         parseError = e?.message || 'Gagal parse JSON dari AI';
       }

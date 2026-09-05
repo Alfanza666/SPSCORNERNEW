@@ -69,6 +69,8 @@ export function createGriphubClient() {
   const groqBaseURL = 'https://api.groq.com/openai/v1';
   const groqVisionModel = process.env.GROQ_VISION_MODEL?.trim() || 'qwen/qwen3.6-27b';
   const groqTextModel = process.env.GROQ_MODEL?.trim() || 'qwen/qwen3.6-27b';
+  const griphubVisionModel = String(process.env.GRIPHUB_VISION_MODEL || '').trim();
+  const griphubTextModel = String(process.env.GRIPHUB_MODEL || '').trim();
 
   return {
     // Prioritas utama adalah Groq; Griphub hanya dipakai sebagai cadangan.
@@ -79,10 +81,15 @@ export function createGriphubClient() {
           const isVision = payload?.messages?.some(
             (m) => Array.isArray(m.content) && m.content.some((c) => c?.type === 'image_url'),
           );
-          const groqPayload = {
-            ...payload,
-            model: isVision ? groqVisionModel : groqTextModel,
+          // Model qwen Groq TIDAK mendukung strict JSON mode (response_format json_object)
+          // — Groq langsung menolak dengan "Failed to validate JSON". Kirim tanpa
+          // response_format dan andalkan prompt + parsing toleran di sisi caller.
+          const cleanPayload = (model, keepResponseFormat) => {
+            const p = { ...payload, model };
+            if (!keepResponseFormat) delete p.response_format;
+            return p;
           };
+          const groqPayload = cleanPayload(isVision ? groqVisionModel : groqTextModel, false);
 
           if (groqApiKey) {
             try {
@@ -91,7 +98,13 @@ export function createGriphubClient() {
               console.error('[AI] Groq gagal:', groqError?.message);
               if (apiKey && baseURL) {
                 try {
-                  return await callProvider(baseURL, apiKey, payload);
+                  // Fallback ke Griphub WAJIB memakai model milik Griphub sendiri —
+                  // jangan kirim model Groq (Griphub menolak "provider-prefixed internal-only").
+                  const griphubModel = isVision
+                    ? (griphubVisionModel || griphubTextModel)
+                    : (griphubTextModel || griphubVisionModel);
+                  if (!griphubModel) throw groqError;
+                  return await callProvider(baseURL, apiKey, cleanPayload(griphubModel, true));
                 } catch (griphubError) {
                   console.error('[AI] Griphub fallback juga gagal:', griphubError?.message);
                   const combined = new Error(

@@ -99,13 +99,14 @@ export function registerMiscRoutes(app, { supabase, sendNotification, griphub, s
         ],
         max_tokens: 256,
         temperature: 0.1,
-        response_format: { type: "json_object" },
       });
 
       const responseText = result.choices?.[0]?.message?.content || '';
       let parsed;
       try {
-        parsed = JSON.parse(responseText.trim());
+        parsed = JSON.parse(
+          String(responseText).replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim(),
+        );
       } catch {
         // Fallback: AI returned non-JSON, treat as failed validation
         console.warn('[Validate] AI returned non-JSON:', responseText.substring(0, 200));
@@ -367,7 +368,6 @@ Formulir saat ini: ${currentForm && currentForm.fields && currentForm.fields.len
           messages: requestMessages,
           max_tokens: 1536,
           temperature: 0.25,
-          response_format: { type: "json_object" }
         });
         return result.choices?.[0]?.message?.content || '{}';
       };

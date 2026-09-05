@@ -789,13 +789,14 @@ async function validateProgramPaymentProofWithKioskRules(griphub: any, supabase:
       ],
       max_tokens: 256,
       temperature: 0.1,
-      response_format: { type: "json_object" },
     });
 
     const responseText = result.choices?.[0]?.message?.content || "";
     let parsed: any;
     try {
-      parsed = JSON.parse(responseText.trim());
+      parsed = JSON.parse(
+        String(responseText).replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim(),
+      );
     } catch {
       return {
         attempted_at: attemptedAt,

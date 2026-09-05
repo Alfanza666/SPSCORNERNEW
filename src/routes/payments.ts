@@ -503,13 +503,15 @@ export function registerPaymentRoutes(app, {
         `Balas HANYA JSON tanpa markdown:`,
         `{"isValid": true/false, "amountFound": angka atau null, "reason": "alasan singkat Bahasa Indonesia"}`,
       ].filter(Boolean).join('\n');
-      const visionModel = process.env.GROQ_VISION_MODEL?.trim()
-        || process.env.GRIPHUB_VISION_MODEL?.trim()
-        || process.env.GRIPHUB_MODEL?.trim();
+      const visionModel = process.env.GRIPHUB_VISION_MODEL?.trim()
+        || process.env.GRIPHUB_MODEL?.trim()
+        || process.env.GROQ_VISION_MODEL?.trim();
       aiVerificationStarted = true;
       if (!griphub?.isConfigured || !visionModel) {
         throw new Error("Konfigurasi Griphub belum tersedia; gunakan review manual");
       }
+      // response_format json_object TIDAK dipakai — model qwen di Groq menolaknya.
+      // Prompt sudah meminta JSON; parsing di bawah toleran terhadap markdown fence.
       const griphubResponse = await griphub.chat.completions.create({
         model: visionModel,
         messages: [
@@ -526,7 +528,6 @@ export function registerPaymentRoutes(app, {
             ],
           },
         ],
-        response_format: { type: "json_object" },
       });
        const resultText = griphubResponse.choices?.[0]?.message?.content;
       if (!resultText) {
@@ -534,7 +535,9 @@ export function registerPaymentRoutes(app, {
       }
       let verificationResult;
        try {
-         verificationResult = JSON.parse(resultText);
+         verificationResult = JSON.parse(
+           String(resultText).replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim(),
+         );
        } catch {
          console.warn('[ManualVerify] AI returned non-JSON:', resultText?.substring(0, 200));
          throw new Error('Respons AI tidak dapat dibaca sebagai hasil verifikasi.');
