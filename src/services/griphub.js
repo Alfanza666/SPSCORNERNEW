@@ -30,32 +30,110 @@ function parseGriphubResponse(responseText, contentType) {
 }
 
 // Helper pembersih respons AI:
-// Menghapus tag <think>...</think> (termasuk tag <think> yang terpotong tanpa penutup),
-// code fence ```json / ```, dan mengekstrak objek JSON jika dibungkus teks pengantar.
+// Model Griphub (gpt-5.6-luna) adalah reasoning model — responsnya sering menyertakan
+// blok reasoning (<think>/<reasoning>/<seed>) sebelum JSON jawaban, dan bisa menyisipkan
+// token NaN (bukan JSON valid) sebagai nilai angka. Fungsi ini membersihkan semua pembungkus
+// itu, mengekstrak objek JSON paling seimbang, dan menormalkan NaN -> null agar aman di-parse.
 function stripAiWrapper(text) {
   let cleaned = String(text || '')
-    .replace(/<think[^>]*>[\s\S]*?<\/think>/gi, '')
-    .replace(/<think[^>]*>[\s\S]*$/gi, '')
-    .replace(/```json\s*/gi, '')
-    .replace(/```\s*/g, '')
+    // Buang code fence markdown dulu (bisa muncul di dalam blok reasoning).
+    .replace(/```(?:json)?\s*/gi, ' ')
+    .replace(/```/g, ' ')
     .trim();
 
-  if (!cleaned.startsWith('{') && cleaned.includes('{')) {
-    const startIdx = cleaned.indexOf('{');
-    const endIdx = cleaned.lastIndexOf('}');
-    if (endIdx > startIdx) {
-      cleaned = cleaned.substring(startIdx, endIdx + 1).trim();
-    }
+  // Buang blok reasoning utuh (berbagai variasi nama tag). Loop untuk menangani tag bersarang.
+  // Nama tag diikuti batas (spasi/>) agar field JSON seperti "reason":... TIDAK cocok sebagai tag <reason>.
+  const tagNames = '(think|thinking|reasoning|reason|seed|cot|thought)';
+  const closedTag = new RegExp(`<${tagNames}(?=[\\s>])[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, 'gi');
+  let prev;
+  do {
+    prev = cleaned;
+    cleaned = cleaned.replace(closedTag, ' ');
+  } while (cleaned !== prev);
+
+  // Buang blok reasoning yang TERPOTONG (tag pembuka tanpa penutup). Penting: hanya
+  // hapus dari tag terakhir yang tak tertutup jika setelahnya tidak ada JSON lengkap,
+  // supaya jawaban JSON yang kebetulan mengandung kata "reason" tidak ikut terhapus.
+  const openTag = new RegExp(`<${tagNames}(?=[\\s>])[^>]*>`, 'gi');
+  let match;
+  let lastOpenIdx = -1;
+  while ((match = openTag.exec(cleaned)) !== null) {
+    const hasClose = new RegExp(`</${match[1]}\\s*>`, 'i').test(cleaned.slice(openTag.lastIndex));
+    if (!hasClose) { lastOpenIdx = match.index; break; }
   }
 
-  return cleaned;
+  // Ekstrak objek JSON paling seimbang (brace-matching), bukan sekadar first-{ sampai last-},
+  // supaya tidak terpotong oleh kurung kurawal yang muncul di teks pengantar.
+  let extracted = extractBalancedJson(cleaned);
+
+  // Jika ada tag pembuka terpotong DAN JSON yang terekstrak ternyata berada DI DALAM blok
+  // reasoning (posisinya setelah tag terbuka), itu berarti reasoning bocor — buang prefix-nya.
+  if (!extracted && lastOpenIdx !== -1) {
+    cleaned = cleaned.slice(0, lastOpenIdx).trim();
+    extracted = extractBalancedJson(cleaned);
+  }
+  // Jika JSON ditemukan setelah tag terpotong, ambil JSON-nya saja (buang reasoning prefix).
+  if (extracted && lastOpenIdx !== -1) {
+    const jsonPos = cleaned.indexOf(extracted);
+    if (jsonPos > lastOpenIdx) {
+      // JSON valid muncul setelah reasoning terpotong — gunakan JSON-nya.
+      cleaned = extracted;
+    } else {
+      cleaned = extracted;
+    }
+  } else if (extracted) {
+    cleaned = extracted;
+  }
+
+  // Normalisasi NaN/Infinity (bukan JSON valid) menjadi null.
+  cleaned = cleaned
+    .replace(/:\s*NaN\b/g, ': null')
+    .replace(/:\s*Infinity\b/g, ': null')
+    .replace(/:\s*-Infinity\b/g, ': null');
+
+  return cleaned.trim();
+}
+
+// Mencari substring objek/array JSON pertama yang kurungnya seimbang.
+// Menghormati string (abaikan kurung di dalam tanda kutip) & escape sequence.
+function extractBalancedJson(text) {
+  const s = String(text || '');
+  const start = s.search(/[{[]/);
+  if (start === -1) return '';
+  const open = s[start];
+  const close = open === '{' ? '}' : ']';
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      if (escaped) { escaped = false; continue; }
+      if (ch === '\\') { escaped = true; continue; }
+      if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === open) depth++;
+    else if (ch === close) {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  // Kurung tidak seimbang (respons terpotong) — kembalikan string kosong agar caller
+  // memutuskan fallback (jangan parse setengah objek yang menyesatkan).
+  return '';
 }
 
 async function callProvider(baseURL, apiKey, payload, timeoutMs = 30000) {
+  // Reasoning model (gpt-5.6-luna) memakai token untuk blok reasoning SEBELUM jawaban.
+  // Batas 600 terlalu kecil — jawaban JSON sering terpotong (finish_reason: length) dan
+  // menyebabkan "Unexpected end of JSON input". Naikkan ceiling agar ada ruang untuk
+  // reasoning + jawaban; pemanggil tetap bisa minta nilai lebih kecil.
   const requestedMaxTokens = Number(payload?.max_tokens);
   const maxTokens = Number.isFinite(requestedMaxTokens)
-    ? Math.min(Math.max(requestedMaxTokens, 64), 2048)
-    : 600;
+    ? Math.min(Math.max(requestedMaxTokens, 64), 4096)
+    : 1500;
   const response = await fetch(`${baseURL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -191,5 +269,27 @@ export function createGriphubClient() {
   };
 }
 
-export { parseGriphubResponse, stripAiWrapper };
+// Parser toleran untuk respons verifikasi AI. Mengembalikan objek hasil parse atau null.
+// Mencoba: (1) JSON dari content, (2) fallback: ekstrak JSON dari field reasoning_content
+// (beberapa model meletakkan jawaban di sana saat content kosong).
+function parseAiJsonResponse(aiResponse) {
+  const content = aiResponse?.choices?.[0]?.message?.content;
+  const reasoning = aiResponse?.choices?.[0]?.message?.reasoning_content;
+  const finishReason = aiResponse?.choices?.[0]?.finish_reason;
+
+  const attemptSources = [content, reasoning].filter((t) => typeof t === 'string' && t.trim());
+  for (const source of attemptSources) {
+    const cleaned = stripAiWrapper(source);
+    if (!cleaned) continue;
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed && typeof parsed === 'object') return { parsed, finishReason };
+    } catch {
+      // lanjut ke sumber berikutnya
+    }
+  }
+  return { parsed: null, finishReason };
+}
+
+export { parseGriphubResponse, stripAiWrapper, parseAiJsonResponse };
 

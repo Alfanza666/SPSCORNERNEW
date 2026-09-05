@@ -316,11 +316,31 @@ async function autoCleanup() {
         continue;
       }
 
-      // Lewati transaksi yang punya receipt_image DAN belum pernah gagal verifikasi
-      // (tunggu admin verifikasi manual, jangan auto-cancel)
+      // CRITICAL GUARD: Jangan PERNAH auto-cancel transaksi yang sudah mengunggah bukti.
+      // Bukti (receipt_image / receipt_uploaded) harus tetap tampil di riwayat buyer & seller.
+      // Sebelumnya transaksi dengan verification_failed=true tetap di-cancel, sehingga bukti
+      // "hilang" dari riwayat. Transaksi ber-bukti selalu menunggu verifikasi Admin.
       const receiptUploaded = tx.receipt_image || tx.payment_details?.receipt_uploaded;
-      const verificationFailed = tx.payment_details?.verification_failed;
-      if (receiptUploaded && !verificationFailed) continue;
+      if (receiptUploaded) {
+        // Tandai agar masuk antrean review admin (bukan dibiarkan pending tanpa tanda).
+        if (!tx.payment_details?.needs_manual_review) {
+          try {
+            await supabaseInstance
+              .from("transactions")
+              .update({
+                payment_details: {
+                  ...(tx.payment_details || {}),
+                  receipt_uploaded: true,
+                  needs_manual_review: true,
+                  auto_cancel_skipped_reason: "Bukti pembayaran sudah diunggah — menunggu verifikasi Admin",
+                },
+              })
+              .eq("id", tx.id);
+          } catch (markErr) { console.warn(`[AutoCleanup] Gagal menandai review untuk ${tx.id}:`, markErr); }
+        }
+        console.log(`[AutoCleanup] SKIP tx ${tx.id.slice(0, 8)} — bukti sudah diunggah, menunggu verifikasi Admin`);
+        continue;
+      }
 
       // Restore stock DULU, baru update status.
       // Urutan ini penting: kalau restore gagal, status tetap "pending" → retry 3 menit berikutnya

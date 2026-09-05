@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
 import { IpaymuSignature } from "../services/ipaymu/signature.js";
-import { stripAiWrapper } from "../services/griphub.js";
+import { stripAiWrapper, parseAiJsonResponse } from "../services/griphub.js";
 // FIX H: Valid points_history types (DB constraint enforced):
 //   'earned', 'spent', 'expired', 'refund', 'compensation'
 
@@ -515,7 +515,7 @@ export function registerPaymentRoutes(app, {
       // Prompt sudah meminta JSON; parsing di bawah toleran terhadap markdown fence.
       const griphubResponse = await griphub.chat.completions.create({
         model: visionModel,
-        max_tokens: 600,
+        max_tokens: 1200,
         messages: [
           {
             role: "user",
@@ -532,14 +532,13 @@ export function registerPaymentRoutes(app, {
         ],
       });
        const resultText = griphubResponse.choices?.[0]?.message?.content;
-      if (!resultText) {
-        throw new Error("Gagal mendapatkan respons dari AI");
-      }
-      let verificationResult;
-       try {
-         verificationResult = JSON.parse(stripAiWrapper(resultText));
-       } catch {
-         console.warn('[ManualVerify] AI returned non-JSON:', resultText?.substring(0, 200));
+       // Parse toleran: membersihkan blok reasoning (<think>) & NaN, plus fallback
+       // membaca jawaban dari reasoning_content bila content kosong (model reasoning).
+       const { parsed: parsedVerify, finishReason } = parseAiJsonResponse(griphubResponse);
+       let verificationResult = parsedVerify;
+       if (!verificationResult) {
+         console.warn('[ManualVerify] AI non-JSON. finish=%s content=%s',
+           finishReason, (resultText || '').substring(0, 200));
          throw new Error('Respons AI tidak dapat dibaca sebagai hasil verifikasi.');
        }
        if (!verificationResult || typeof verificationResult.isValid !== 'boolean') {

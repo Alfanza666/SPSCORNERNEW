@@ -4,7 +4,7 @@ import {
   issueReceiptValidationAttestation,
   recordReceiptValidationIssuance,
 } from "../utils/receiptValidationToken.js";
-import { stripAiWrapper } from "../services/griphub.js";
+import { stripAiWrapper, parseAiJsonResponse } from "../services/griphub.js";
 import {
   loadCanonicalTransactionItems,
   normalizeTransactionCreationInput,
@@ -98,15 +98,14 @@ export function registerMiscRoutes(app, { supabase, sendNotification, griphub, s
             ],
           },
         ],
-        max_tokens: 600,
+        max_tokens: 1200,
         temperature: 0.1,
       });
 
       const responseText = result.choices?.[0]?.message?.content || '';
-      let parsed;
-      try {
-        parsed = JSON.parse(stripAiWrapper(responseText));
-      } catch {
+      const { parsed: parsedFromAi } = parseAiJsonResponse(result);
+      let parsed = parsedFromAi;
+      if (!parsed) {
         // Fallback: AI returned non-JSON, treat as failed validation
         console.warn('[Validate] AI returned non-JSON:', responseText.substring(0, 200));
         parsed = { valid: false, reason: 'Sistem AI tidak dapat membaca gambar dengan jelas. Pastikan gambar bukti pembayaran terlihat jelas dan coba lagi.' };

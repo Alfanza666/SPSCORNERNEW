@@ -1,3 +1,11 @@
+v6.0.21 - Perbaikan Verifikasi AI Gagal & Bukti Hilang di Riwayat (PATCH)
+----------------------------------------------------
+- [CRITICAL/FIX] Verifikasi AI (manual/verify + test-verify) selalu gagal parse karena model Griphub gpt-5.6-luna adalah reasoning model: respons SSE menyertakan blok reasoning (tag <think>/<reasoning>/<seed>) dan token NaN sebelum JSON. stripAiWrapper() kini membersihkan SEMUA variasi tag reasoning (termasuk yang terpotong tanpa penutup), mengekstrak objek JSON via brace-matching seimbang, menormalkan NaN/Infinity -> null, dan helper baru parseAiJsonResponse() otomatis fallback membaca jawaban dari reasoning_content saat content kosong.
+- [CRITICAL/FIX] Batas max_tokens 600 terlalu kecil untuk reasoning model (blok reasoning menelan hampir seluruh budget sehingga JSON terpotong -> "Unexpected end of JSON input"). Default dinaikkan ke 1500 (ceiling 4096) di callProvider, dan 1200 di semua jalur verifikasi struk (payments, program workflow, misc scanner, diagnostics).
+- [CRITICAL/FIX] Bukti pembayaran HILANG dari riwayat saat transaksi berstatus GAGAL: auto-cleanup 15 menit ikut membatalkan transaksi yang SUDAH mengunggah bukti. Kini transaksi ber-bukti (receipt_image/receipt_uploaded) TIDAK di-auto-cancel, melainkan ditandai needs_manual_review agar diverifikasi Admin — bukti tetap tampil di riwayat buyer/seller.
+- [FIX] Parser toleran diterapkan serentak ke SEMUA jalur verifikasi AI: payments.ts (manual/verify), diagnostics.ts (test-verify), misc.ts (scanner), programRegistrationWorkflow.ts (validasi bukti program).
+- [QA] Parser diuji 10 skenario edge-case (tag terpotong, fence, NaN, field "reason", reasoning_content, pengantar) 100% lolos. Uji E2E nyata ke Griphub dengan struk asli berhasil parse JSON valid (10.6s). npm run lint lulus 100%.
+
 v6.0.20 - Griphub Primary AI Provider & AI Parsing Hardening (PATCH)
 ----------------------------------------------------
 - [CRITICAL/PERF] Menjadikan Griphub Router sebagai provider AI utama (kecepatan konsisten 2-4 detik, model vision native gpt-5.6-luna tanpa kendala limit token/rate limit ketat tier gratis Groq), dengan Groq sebagai cadangan otomatis.

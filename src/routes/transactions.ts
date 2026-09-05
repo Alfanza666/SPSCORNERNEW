@@ -367,14 +367,23 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
     const expiredThreshold = new Date(Date.now() - 15 * 60 * 1e3).toISOString();
     const { data: expired, error: fetchError } = await supabase
       .from("transactions")
-      .select("id, metadata")
+      .select("id, metadata, payment_details, receipt_image")
       .in("status", ["pending"])
       .lt("created_at", expiredThreshold);
     if (fetchError) throw fetchError;
     if (!expired || expired.length === 0) {
       return res.json({ success: true, count: 0 });
     }
-    for (const tx of expired) {
+    // FIX: Jangan auto-cancel transaksi yang SUDAH mengunggah bukti pembayaran.
+    // Bukti itu harus diverifikasi (manual oleh admin), bukan dihapus oleh timer —
+    // sebelumnya transaksi "failed" otomatis membuat bukti hilang dari riwayat.
+    const withReceipt = expired.filter(
+      (tx) => tx.receipt_image || tx.payment_details?.receipt_uploaded === true
+    );
+    const withoutReceipt = expired.filter(
+      (tx) => !(tx.receipt_image || tx.payment_details?.receipt_uploaded === true)
+    );
+    for (const tx of withoutReceipt) {
       // Restore stock first. If this fails, do not mark the transaction failed;
       // leaving it pending allows a later cleanup retry without stock loss.
       await restoreTransactionStock(tx.id);
@@ -387,7 +396,21 @@ app.post("/api/admin/transactions/cleanup", async (req, res) => {
         .eq("id", tx.id);
       if (updateError) throw updateError;
     }
-    res.json({ success: true, count: expired.length });
+    // Tandai transaksi ber-bukti agar tidak menumpuk di pending: naikkan ke antrean review admin.
+    for (const tx of withReceipt) {
+      await supabase
+        .from("transactions")
+        .update({
+          payment_details: {
+            ...(tx.payment_details || {}),
+            receipt_uploaded: true,
+            needs_manual_review: true,
+            auto_cancel_skipped_reason: "Bukti pembayaran sudah diunggah — menunggu verifikasi Admin",
+          },
+        })
+        .eq("id", tx.id);
+    }
+    res.json({ success: true, count: withoutReceipt.length, skipped_with_receipt: withReceipt.length });
   } catch (error) {
     console.error("Cleanup Error:", error);
     res.status(500).json({ error: error.message });

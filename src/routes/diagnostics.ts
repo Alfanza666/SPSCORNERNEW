@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { __name } from "./route-utils.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
-import { stripAiWrapper } from "../services/griphub.js";
+import { stripAiWrapper, parseAiJsonResponse } from "../services/griphub.js";
 
 export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
   app.get("/api/health", (req, res) => {
@@ -147,7 +147,7 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
       const startedAt = Date.now();
       const aiResponse = await griphub.chat.completions.create({
         model: visionModel,
-        max_tokens: 600,
+        max_tokens: 1200,
         messages: [
           {
             role: "user",
@@ -161,13 +161,12 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
       const durationMs = Date.now() - startedAt;
 
       const resultText = aiResponse.choices?.[0]?.message?.content;
-      let parsed = null;
-      let parseError = null;
-      try {
-        parsed = resultText ? JSON.parse(stripAiWrapper(resultText)) : null;
-      } catch (e: any) {
-        parseError = e?.message || 'Gagal parse JSON dari AI';
-      }
+      const reasoningText = aiResponse.choices?.[0]?.message?.reasoning_content;
+      const finishReason = aiResponse.choices?.[0]?.finish_reason;
+      const { parsed } = parseAiJsonResponse(aiResponse);
+      const parseError = parsed
+        ? null
+        : `Gagal parse JSON dari AI (finish_reason: ${finishReason || 'unknown'}). ${(!resultText || !String(resultText).trim()) && reasoningText ? 'Jawaban ada di reasoning_content, namun tidak dapat diparse.' : 'Konten kosong/bukan JSON.'}`;
 
       const actualModel = aiResponse?.model_used || aiResponse?.model || visionModel;
       const actualProvider = aiResponse?.provider_used || 'griphub';
@@ -178,6 +177,7 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
         model_used: actualModel,
         provider_used: actualProvider,
         raw_response: resultText,
+        finish_reason: finishReason,
         parsed_result: parsed,
         parse_error: parseError,
       });
