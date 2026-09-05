@@ -210,7 +210,9 @@ export default function History() {
           }
         } catch (error: any) {
           const errorMsg = error.message || 'Terjadi kesalahan saat verifikasi.';
-          if (errorMsg.includes('Bukti transfer tidak valid')) {
+          if (errorMsg.includes('sedang dalam proses verifikasi')) {
+            appToast.warning('Sedang Diverifikasi', 'Bukti Anda sedang dalam proses verifikasi. Mohon tunggu beberapa saat, jangan kirim ulang dulu.', { duration: 8000 });
+          } else if (errorMsg.includes('Bukti transfer tidak valid')) {
             const reason = errorMsg.replace('Bukti transfer tidak valid: ', '');
             appToast.error('Bukti Ditolak', reason, { duration: 8000 });
           } else {

@@ -808,8 +808,11 @@ export default function Checkout() {
     } catch (error: any) {
       console.error('Verify receipt error:', error);
       const errorMsg = error.message || 'Terjadi kesalahan saat verifikasi bukti pembayaran.';
-      // Parse error dari backend untuk judul yang lebih spesifik
-      if (errorMsg.includes('Bukti transfer tidak valid')) {
+      // Kalau transaksi memang sedang dalam proses verifikasi (lock masih aktif),
+      // ini BUKAN kegagalan — jangan tampilkan pesan "gagal" yang menyesatkan user.
+      if (errorMsg.includes('sedang dalam proses verifikasi')) {
+        appToast.warning('Sedang Diverifikasi', 'Bukti Anda sedang dalam proses verifikasi. Mohon tunggu beberapa saat, jangan kirim ulang dulu.', { duration: 8000 });
+      } else if (errorMsg.includes('Bukti transfer tidak valid')) {
         const reason = errorMsg.replace('Bukti transfer tidak valid: ', '');
         appToast.error('Bukti Ditolak', reason, { duration: 8000 });
       } else {

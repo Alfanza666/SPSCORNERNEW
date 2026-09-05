@@ -330,13 +330,14 @@ Severity / Edge Cases / Observability / Rollback / Dependencies
 - **🚨 Idempotency Lock: Manual verify dan admin approve WAJIB pakai atomic status lock (`UPDATE WHERE status='pending'` / `'manual_verification'`) sebelum proses. Rollback ke status asal di catch block.** Lihat `docs/CAPA-v5.16.7.md` section 8.6.
 - **🚨 Point Earn Correct Amount: Points earned WAJIB dihitung dari `getChargeableAmount(transaction)`, bukan `total_amount`.** Lihat `docs/CAPA-v5.16.7.md` section 8.7.
 - **🚨 points_history Valid Types: HANYA `'earned'`, `'spent'`, `'expired'`, `'refund'`, `'compensation'` yang diizinkan DB CHECK constraint. DILARANG insert type lain.** Lihat `docs/CAPA-v5.16.7.md` section 8.8.
+- **🚨 AI Provider Order: Verifikasi bukti pembayaran WAJIB memakai Groq sebagai provider utama (stabil) dengan Griphub sebagai cadangan otomatis jika Groq timeout/gagal. DILARANG mengembalikan Griphub sebagai provider utama tanpa pengujian ulang penuh.** Lihat v6.0.14 di `changelog.txt`.
 - **🚨 Receipt Upload Compression Rule: Semua jalur upload bukti pembayaran (manual QRIS, transfer koperasi, ganti bukti) WAJIB kompres gambar (`browser-image-compression`, maxSizeMB:2, maxWidthOrHeight:1920) sebelum dikirim ke AI/base64. Foto kamera HP tanpa kompresi (5-10MB) menyebabkan verifikasi AI lambat/timeout.** Lihat v6.0.13 di `changelog.txt`.
 - **🚨 Stock Reconciliation Pagination: `reconcileStock()` di `src/services/stock.js` WAJIB membaca `stock_adjustments` per halaman (bukan hanya route reporting). Tanpa ini, produk dengan riwayat >1.000 baris menghasilkan deteksi selisih stok yang salah.** Lihat v6.0.13 di `changelog.txt`.
 - **🚨 Admin Action Atomic Claim: Endpoint admin yang mengubah status lalu memproses efek samping (potong stok, refund saldo) WAJIB klaim status secara atomic (`UPDATE ... WHERE status = <status_lama>`) sebelum memproses efek samping, agar double-klik/dua tab admin tidak memproses dua kali.** Lihat `withdrawals.ts`/`productReturns.ts` v6.0.13.
 - `server.ts` uses `// @ts-nocheck` — TypeScript tidak catch error backend.
 - `.npmrc` has `legacy-peer-deps=true` — peer dependency conflicts diabaikan.
 - `tsconfig.json` uses `allowImportingTsExtensions: true` — `.ts` extensions wajib.
-- Current version: `v6.0.13`.
+- Current version: `v6.0.14`.
 - **🚨 Manual QRIS AI Rule:** `verification_failed` berarti AI menolak bukti dan user wajib diberi kesempatan upload ulang; hanya `payment_details.ai_error === true` yang boleh masuk antrean/admin approve. Bukti wajib disimpan di `transactions.receipt_image` pada setiap percobaan. Lihat `docs/CAPA-v6.0.12.md`.
 - `scripts/` mungkin berisi utility scripts — cek sebelum asumsikan dead code.
 - CI/CD via VPS cron (git pull tiap 5 menit).

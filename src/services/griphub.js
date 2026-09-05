@@ -29,51 +29,89 @@ function parseGriphubResponse(responseText, contentType) {
   }
 }
 
+async function callProvider(baseURL, apiKey, payload, timeoutMs = 30000) {
+  const requestedMaxTokens = Number(payload?.max_tokens);
+  const maxTokens = Number.isFinite(requestedMaxTokens)
+    ? Math.min(Math.max(requestedMaxTokens, 64), 1536)
+    : 512;
+  const response = await fetch(`${baseURL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ ...payload, max_tokens: maxTokens }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+
+  const responseText = await response.text();
+  const responseBody = parseGriphubResponse(
+    responseText,
+    response.headers.get('content-type') || '',
+  );
+
+  if (!response.ok) {
+    const message = responseBody?.error?.message || responseBody?.error || `Provider request failed: ${response.status}`;
+    const error = new Error(String(message));
+    error.status = response.status;
+    throw error;
+  }
+
+  return responseBody;
+}
+
 export function createGriphubClient() {
   const apiKey = String(process.env.GRIPHUB_API_KEY || '').trim();
   const configuredBaseURL = String(process.env.GRIPHUB_BASE_URL || '').trim().replace(/\/+$/, '');
   const baseURL = configuredBaseURL.replace(/\/chat\/completions$/i, '');
 
+  const groqApiKey = String(process.env.GROQ_API_KEY || '').trim();
+  const groqBaseURL = 'https://api.groq.com/openai/v1';
+  const groqVisionModel = process.env.GROQ_VISION_MODEL?.trim() || 'qwen/qwen3.6-27b';
+  const groqTextModel = process.env.GROQ_MODEL?.trim() || 'qwen/qwen3.6-27b';
+
   return {
-    isConfigured: Boolean(apiKey && baseURL),
+    // Prioritas utama adalah Groq; Griphub hanya dipakai sebagai cadangan.
+    isConfigured: Boolean(groqApiKey) || Boolean(apiKey && baseURL),
     chat: {
       completions: {
         create: async (payload) => {
+          const isVision = payload?.messages?.some(
+            (m) => Array.isArray(m.content) && m.content.some((c) => c?.type === 'image_url'),
+          );
+          const groqPayload = {
+            ...payload,
+            model: isVision ? groqVisionModel : groqTextModel,
+          };
+
+          if (groqApiKey) {
+            try {
+              return await callProvider(groqBaseURL, groqApiKey, groqPayload);
+            } catch (groqError) {
+              console.error('[AI] Groq gagal:', groqError?.message);
+              if (apiKey && baseURL) {
+                try {
+                  return await callProvider(baseURL, apiKey, payload);
+                } catch (griphubError) {
+                  console.error('[AI] Griphub fallback juga gagal:', griphubError?.message);
+                  const combined = new Error(
+                    `Semua layanan AI gagal. Groq: ${groqError?.message}. Griphub: ${griphubError?.message}`,
+                  );
+                  combined.code = 'AI_ALL_PROVIDERS_FAILED';
+                  throw combined;
+                }
+              }
+              throw groqError;
+            }
+          }
+
+          // Tidak ada Groq — pakai Griphub seperti sebelumnya (perilaku lama).
           if (!apiKey || !baseURL) {
             const error = new Error('GRIPHUB_API_KEY atau GRIPHUB_BASE_URL belum dikonfigurasi.');
             error.code = 'GRIPHUB_NOT_CONFIGURED';
             throw error;
           }
-
-          const requestedMaxTokens = Number(payload?.max_tokens);
-          const maxTokens = Number.isFinite(requestedMaxTokens)
-            ? Math.min(Math.max(requestedMaxTokens, 64), 1536)
-            : 512;
-          const response = await fetch(`${baseURL}/chat/completions`, {
-            method: 'POST',
-            headers: {
-              authorization: `Bearer ${apiKey}`,
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({ ...payload, max_tokens: maxTokens }),
-            signal: AbortSignal.timeout(30000),
-          });
-
-          const responseText = await response.text();
-          const responseBody = parseGriphubResponse(
-            responseText,
-            response.headers.get('content-type') || '',
-          );
-
-          if (!response.ok) {
-            const message = responseBody?.error?.message || responseBody?.error || `Griphub request failed: ${response.status}`;
-            const error = new Error(String(message));
-            error.status = response.status;
-            error.code = 'GRIPHUB_UPSTREAM_ERROR';
-            throw error;
-          }
-
-          return responseBody;
+          return callProvider(baseURL, apiKey, payload);
         },
       },
     },
@@ -81,3 +119,4 @@ export function createGriphubClient() {
 }
 
 export { parseGriphubResponse };
+

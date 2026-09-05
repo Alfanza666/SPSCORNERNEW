@@ -1,3 +1,10 @@
+v6.0.14 - Groq as Primary AI with Griphub Fallback (PATCH)
+----------------------------------------------------
+- [FIX] Verifikasi bukti pembayaran kini memakai Groq sebagai provider AI utama (stabil sejak periode Juli) dan otomatis beralih ke Griphub sebagai cadangan jika Groq timeout/gagal. Ini menyelesaikan kasus berulang "Gagal Memverifikasi Bukti" untuk QRIS manual dan transfer koperasi yang disebabkan Griphub sering tidak merespons dalam waktu batas.
+- [FIX] Pesan error di halaman Checkout dan Riwayat kini membedakan kondisi "sedang dalam proses verifikasi" (bukan kegagalan, user diminta menunggu) dengan kegagalan verifikasi sungguhan, sehingga user tidak lagi menutup aplikasi karena mengira pembayarannya gagal.
+- [FIX] Menambahkan konfigurasi `GROQ_API_KEY`, `GROQ_MODEL`, dan `GROQ_VISION_MODEL` ke environment production.
+- [QA] `npm run lint`, 126 test, dan `npm run build` lulus. Tidak ada perubahan skema database, stok, saldo, atau alur pembayaran.
+
 v6.0.13 - Payment Reliability & Stock Reconciliation Hotfix (PATCH)
 ----------------------------------------------------
 - [FIX] Upload bukti pembayaran manual QRIS dan transfer koperasi (Checkout & Riwayat) kini dikompresi sebelum dikirim ke AI, sama seperti halaman validasi otomatis. Foto kamera HP yang besar (5-10MB) sebelumnya menyebabkan verifikasi AI lambat/timeout sehingga sering muncul "Gagal Memverifikasi Bukti".
