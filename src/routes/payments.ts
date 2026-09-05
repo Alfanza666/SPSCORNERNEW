@@ -515,7 +515,7 @@ export function registerPaymentRoutes(app, {
       // Prompt sudah meminta JSON; parsing di bawah toleran terhadap markdown fence.
       const griphubResponse = await griphub.chat.completions.create({
         model: visionModel,
-        max_tokens: 200,
+        max_tokens: 600,
         messages: [
           {
             role: "user",

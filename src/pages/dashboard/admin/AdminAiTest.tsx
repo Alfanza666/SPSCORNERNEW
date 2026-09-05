@@ -124,7 +124,12 @@ export default function AdminAiTest() {
 
           <div className="flex items-center gap-2">
             <span className="text-sm text-zinc-500">Model dipakai:</span>
-            <code className="text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">{result.model_used}</code>
+            <code className="text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded font-mono">{result.model_used}</code>
+            {result.provider_used && (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-semibold uppercase tracking-wider">
+                {result.provider_used}
+              </span>
+            )}
           </div>
 
           {result.parsed_result ? (

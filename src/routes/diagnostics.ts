@@ -147,6 +147,7 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
       const startedAt = Date.now();
       const aiResponse = await griphub.chat.completions.create({
         model: visionModel,
+        max_tokens: 600,
         messages: [
           {
             role: "user",
@@ -168,10 +169,14 @@ export function registerDiagnosticsRoutes(app, { supabase, griphub }) {
         parseError = e?.message || 'Gagal parse JSON dari AI';
       }
 
+      const actualModel = aiResponse?.model_used || aiResponse?.model || visionModel;
+      const actualProvider = aiResponse?.provider_used || 'griphub';
+
       res.json({
         success: true,
         duration_ms: durationMs,
-        model_used: visionModel,
+        model_used: actualModel,
+        provider_used: actualProvider,
         raw_response: resultText,
         parsed_result: parsed,
         parse_error: parseError,

@@ -765,6 +765,7 @@ async function validateProgramPaymentProofWithKioskRules(griphub: any, supabase:
       - JANGAN tolak berdasarkan tanggal transaksi — customer mungkin upload bukti dari hari sebelumnya, itu TETAP VALID.
       - Jika nominal TERLIHAT dan status BERHASIL terdeteksi, anggap valid meskipun gambar tidak sempurna.
 
+
       TOLAK hanya jika:
       - Gambar bukan bukti pembayaran sama sekali (foto biasa, meme, dll)
       - Nominal yang terlihat JELAS berbeda jauh dari Rp ${amountFormatted}
@@ -788,7 +789,7 @@ async function validateProgramPaymentProofWithKioskRules(griphub: any, supabase:
           ],
         },
       ],
-      max_tokens: 200,
+      max_tokens: 600,
       temperature: 0.1,
     });
 

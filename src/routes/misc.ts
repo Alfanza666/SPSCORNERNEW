@@ -98,7 +98,7 @@ export function registerMiscRoutes(app, { supabase, sendNotification, griphub, s
             ],
           },
         ],
-        max_tokens: 200,
+        max_tokens: 600,
         temperature: 0.1,
       });
 
