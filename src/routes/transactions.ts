@@ -705,18 +705,19 @@ app.post("/api/transactions/cancel", async (req, res) => {
   try {
     const { transaction_id } = req.body;
     const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan." });
+
+    // Guest (tanpa login) boleh membatalkan transaksi yang memang dibuat tanpa akun
+    // (buyer_id kosong). Transaksi milik akun yang login tetap wajib memakai token.
+    let authenticatedBuyerId: string | null = null;
+    if (authHeader) {
+      const token = authHeader.split(" ")[1];
+      if (token) {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (!authError && user) {
+          authenticatedBuyerId = user.id;
+        }
+      }
     }
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan." });
-    }
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan." });
-    }
-    const authenticatedBuyerId = user.id;
 
     const { data: tx, error: fetchError } = await supabase
       .from("transactions")
@@ -731,13 +732,17 @@ app.post("/api/transactions/cancel", async (req, res) => {
         .status(400)
         .json({ error: "Hanya pesanan pending yang dapat dibatalkan." });
     }
-    if (tx.buyer_id && !authenticatedBuyerId) {
-      return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan anggota." });
+    // Transaksi milik akun yang login: wajib login sebagai pemilik yang sama.
+    if (tx.buyer_id) {
+      if (!authenticatedBuyerId) {
+        return res.status(401).json({ error: "Login diperlukan untuk membatalkan pesanan ini." });
+      }
+      if (tx.buyer_id !== authenticatedBuyerId) {
+        return res.status(403).json({ error: "Anda tidak berhak membatalkan pesanan ini." });
+      }
     }
-    // Jika terautentikasi, pastikan ini transaksi miliknya
-    if (authenticatedBuyerId && tx.buyer_id && tx.buyer_id !== authenticatedBuyerId) {
-      return res.status(403).json({ error: "Anda tidak berhak membatalkan pesanan ini." });
-    }
+    // Transaksi guest (buyer_id kosong): boleh dibatalkan siapapun yang memiliki ID-nya
+    // (ID hanya tersimpan di HP pembeli via localStorage).
     // Restore stock before cancelling
     await restoreTransactionStock(transaction_id);
     // Refund loyalty points jika transaction pakai points

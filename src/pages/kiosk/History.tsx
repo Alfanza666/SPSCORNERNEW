@@ -454,9 +454,14 @@ Sistem SPS Corner`);
     if (!window.confirm('Yakin ingin membatalkan pesanan ini?')) return;
     try {
       setLoading(true);
+      // Sertakan token sesi jika user sedang login — transaksi milik akun yang login
+      // wajib diverifikasi kepemilikannya di backend.
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
       const res = await fetch('/api/transactions/cancel', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ transaction_id: txId })
       });
       const data = await res.json();

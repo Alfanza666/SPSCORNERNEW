@@ -1,3 +1,9 @@
+v6.0.16 - Fix Cancel for Logged-In Transactions (PATCH)
+----------------------------------------------------
+- [FIX] Tombol "Batalkan Pesanan" di halaman Riwayat kini mengirim token sesi pengguna, sehingga transaksi milik akun yang sedang login dapat dibatalkan (sebelumnya selalu gagal dengan pesan "Login diperlukan" karena token tidak pernah dikirim).
+- [FIX] Endpoint cancel backend kini memisahkan aturan untuk transaksi milik akun login (wajib token sesuai pemilik) vs transaksi tamu, agar tidak lagi memblokir pembatalan yang sah.
+- [QA] `npm run lint`, 126 test, dan `npm run build` lulus. Tidak ada perubahan skema database, stok, saldo, atau alur pembayaran.
+
 v6.0.15 - Always Save Receipt Before AI Verification (PATCH)
 ----------------------------------------------------
 - [FIX] Bukti pembayaran kini disimpan ke database SEBELUM AI dipanggil, sehingga selalu tercatat meskipun AI lambat, timeout, atau gagal total. Sebelumnya bukti hanya disimpan setelah AI selesai — jika AI gagal, bukti tidak pernah tersimpan dan riwayat transaksi menampilkan "tidak ada gambar bukti".
