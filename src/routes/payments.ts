@@ -376,12 +376,14 @@ export function registerPaymentRoutes(app, {
         }
       }
 
-      // Status failed dengan auto-cancelled — reset ke pending dulu
-      const isAutoCancelled = txCheck.status === "failed"
-        && (txCheck.metadata?.cancel_reason || "").includes("Auto-cancelled");
+      // Izinkan upload ulang bukti untuk transaksi manual yang pending ATAU failed.
+      // Transaksi failed (termasuk kasus lama yang gagal karena bug sistem) harus bisa
+      // dipulihkan buyer dengan upload ulang bukti — AI akan cocokkan tanggal nota dengan
+      // tanggal transaksi (created_at), sehingga nota lama yang sah tetap VALID.
+      const isFailedManual = txCheck.status === "failed";
 
-      if (txCheck.status === "pending" || isAutoCancelled) {
-        if (isAutoCancelled) {
+      if (txCheck.status === "pending" || isFailedManual) {
+        if (isFailedManual) {
           // Reset ke pending + bersihkan flag verifikasi lama agar tidak conflict
           const resetDetails = { ...(txCheck.payment_details || {}) };
           delete resetDetails.verification_failed;
@@ -401,6 +403,38 @@ export function registerPaymentRoutes(app, {
         return res.status(409).json({ success: false, error: `Transaksi dalam status "${txCheck.status}", tidak bisa diverifikasi.` });
       }
 
+      // ── SAFETY NET (PAY-017 diperkuat): Simpan bukti ke DB SEBELUM claim lock ──
+      // ROOT CAUSE v6.0.21: jika claim lock 'processing' gagal (mis. CHECK constraint DB
+      // tidak mengenal 'processing' — error 23514), handler berhenti SEBELUM bukti tersimpan
+      // sehingga receipt_image NULL. Dengan menyimpan bukti lebih dulu (sebelum lock), bukti
+      // selalu ada di riwayat meski lock/verifikasi gagal karena sebab apapun.
+      // Ini idempotent (disimpan ulang setelah lock berhasil) dan tidak mengubah alur normal.
+      try {
+        const preBase64 = receipt_image.replace(/^data:image\/\w+;base64,/, "");
+        const preBuffer = Buffer.from(preBase64, "base64");
+        const preMime = receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || "image/jpeg";
+        const preExt = preMime.split("/")[1] || "jpg";
+        const preName = `receipts/${transaction_id}_${Date.now()}.${preExt}`;
+        let earlyUrl = receipt_image;
+        try {
+          const { error: upErr } = await supabase.storage.from("products").upload(preName, preBuffer, { contentType: preMime });
+          if (!upErr) {
+            const { data: { publicUrl } } = supabase.storage.from("products").getPublicUrl(preName);
+            earlyUrl = publicUrl;
+          }
+        } catch (e) { console.error("[ManualVerify] early upload gagal:", e); }
+        receiptUrl = earlyUrl;
+        await supabase
+          .from("transactions")
+          .update({
+            receipt_image: earlyUrl,
+            payment_details: { ...(txCheck.payment_details || {}), receipt_uploaded: true },
+          })
+          .eq("id", transaction_id);
+      } catch (earlyErr) {
+        console.error("[ManualVerify] Gagal menyimpan bukti awal (safety net):", earlyErr);
+      }
+
       // ── Atomic idempotency lock: klaim transaksi ke "processing" ──
       // Mencegah race condition: 2 request verify bersamaan lolos dan double-commit stock/balance.
       // Jika update tidak match (sudah bukan pending), berarti request lain sudah mengklaim duluan.
@@ -418,33 +452,42 @@ export function registerPaymentRoutes(app, {
         .select("id")
         .single();
       if (claimError || !claimed) {
+        // Bukti SUDAH tersimpan oleh safety net di atas — buyer tidak kehilangan buktinya.
         return res.status(409).json({ success: false, error: "Transaksi sedang dalam proses verifikasi. Silakan tunggu sebentar." });
       }
+      // base64Data & mimeType dipakai untuk memanggil AI di bawah — deklarasikan di
+      // scope ini (sebelumnya hanya di dalam blok upload sehingga ReferenceError: mimeType
+      // is not defined ketika safety net sudah mengisi receiptUrl dan blok upload di-skip).
       const base64Data = receipt_image.replace(/^data:image\/\w+;base64,/, "");
-      const buffer = Buffer.from(base64Data, "base64");
       const mimeType =
         receipt_image.match(/data:(image\/\w+);base64,/)?.[1] || "image/jpeg";
-      const fileExt = mimeType.split("/")[1] || "jpg";
-      const fileName = `receipts/${transaction_id}_${Date.now()}.${fileExt}`;
-      receiptUrl = receipt_image;
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from("products")
-          .upload(fileName, buffer, { contentType: mimeType });
-        if (!uploadError) {
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from("products").getPublicUrl(fileName);
-          receiptUrl = publicUrl;
-        } else {
-          console.error("Failed to upload receipt image:", uploadError);
+
+      // receiptUrl sudah diisi oleh safety net sebelum lock. Hanya upload ulang
+      // jika safety net gagal total (receiptUrl masih kosong) — menghindari file ganda.
+      if (!receiptUrl) {
+        const buffer = Buffer.from(base64Data, "base64");
+        const fileExt = mimeType.split("/")[1] || "jpg";
+        const fileName = `receipts/${transaction_id}_${Date.now()}.${fileExt}`;
+        receiptUrl = receipt_image;
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from("products")
+            .upload(fileName, buffer, { contentType: mimeType });
+          if (!uploadError) {
+            const {
+              data: { publicUrl },
+            } = supabase.storage.from("products").getPublicUrl(fileName);
+            receiptUrl = publicUrl;
+          } else {
+            console.error("Failed to upload receipt image:", uploadError);
+          }
+        } catch (uploadErr) {
+          console.error("Exception uploading receipt image:", uploadErr);
         }
-      } catch (uploadErr) {
-        console.error("Exception uploading receipt image:", uploadErr);
       }
-      // Simpan bukti ke database DULU sebelum AI dipanggil.
-      // Supaya bukti selalu tersimpan meski AI lambat/timeout/gagal total —
-      // ini penyebab kenapa di beberapa kasus riwayat menampilkan "tidak ada gambar bukti".
+      // Pastikan bukti tetap tersimpan dengan URL final + tandai verification dimulai.
+      // (Bukti sudah disimpan oleh safety net sebelum lock; ini hanya menyegarkan
+      // receipt_uploaded + verification_started_at agar konsisten dengan alur normal.)
       try {
         await supabase
           .from("transactions")

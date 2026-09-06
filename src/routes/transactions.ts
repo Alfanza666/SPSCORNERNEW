@@ -76,10 +76,17 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
     if (txError || !transaction)
       return res.status(404).json({ error: "Transaction not found" });
 
-    if (transaction.status !== "manual_verification" && transaction.status !== "pending") {
+    // Izinkan approve dari pending/failed. Transaksi failed termasuk kasus lama yang
+    // gagal karena bug sistem (bukan kesalahan buyer) — admin wajib bisa memulihkannya.
+    const approvable = ["manual_verification", "pending", "failed"];
+    if (!approvable.includes(transaction.status)) {
       return res.status(409).json({ error: `Transaksi dalam status "${transaction.status}", tidak bisa di-approve.` });
     }
-    if (!isManualPaymentAdminActionable(transaction)) {
+    // Untuk transaksi failed lama tanpa flag AI, tetap izinkan admin approve manual
+    // (banyak kasus lama bukti tidak tersimpan karena bug, buyer sudah komplain).
+    const isFailedManual = transaction.status === "failed"
+      && ['manual_qris', 'transfer_koperasi'].includes(transaction.payment_method);
+    if (!isFailedManual && !isManualPaymentAdminActionable(transaction)) {
       return res.status(409).json({
         error: "AI belum gagal. Jika bukti ditolak AI, pembeli harus mengganti atau mengunggah ulang bukti.",
         code: "AI_REJECTED_RECEIPT",
@@ -90,7 +97,7 @@ app.post("/api/admin/transactions/approve", async (req, res) => {
       .from("transactions")
       .update({ status: "success" })
       .eq("id", transaction_id)
-      .in("status", ["manual_verification", "pending"]);
+      .in("status", ["manual_verification", "pending", "failed"]);
     if (updateError) throw updateError;
 
     // Re-deduct stock if auto-cleanup had restored it, or commit if it was never deducted
