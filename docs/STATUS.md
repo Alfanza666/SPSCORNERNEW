@@ -8,7 +8,7 @@
 | CI/CD | GitHub Actions terkendala billing | Alternatif: `.\scripts\deploy-vps.ps1` (lint → build → SCP → restart → verify). Auto-deploy tetap jalan via VPS cron `*/5 * * * *` (`scripts/auto-deploy.sh`). |
 | Dependency check | `@sentry/node` sering hilang di VPS | Cek dependency baru setiap kali update `server.ts`. |
 | Digiflazz background cache | Di-skip di Vercel | Guard: `if (!process.env.VERCEL)`. |
-| Versi proyek saat ini | `v6.0.21` | Sinkronkan dengan `package.json` + `changelog.txt` + UI (5 lokasi — lihat tabel di `AGENTS.md` § VER). |
+| Versi proyek saat ini | `v6.0.23` | Sinkronkan dengan `package.json` + `changelog.txt` + UI (5 lokasi — lihat tabel di `AGENTS.md` § VER). |
 
 ## Catatan Environment (jarang berubah, tapi bukan "rule")
 - `server.ts` pakai `// @ts-nocheck` — TypeScript tidak menangkap error backend.

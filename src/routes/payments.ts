@@ -1207,7 +1207,7 @@ export function registerPaymentRoutes(app, {
       }
 
       // ─── Update status SETELAH stock berhasil di-commit ───
-      const { error: updateError } = await supabase
+      let statusUpdate = supabase
         .from("transactions")
         .update({
           status: txStatus,
@@ -1220,7 +1220,20 @@ export function registerPaymentRoutes(app, {
           },
         })
         .eq("id", refId);
+      // A verified late success may legitimately recover a transaction that an
+      // older cleanup job marked failed. Other callback states only claim pending.
+      statusUpdate = txStatus === "paid"
+        ? statusUpdate.in("status", ["pending", "failed"])
+        : statusUpdate.eq("status", "pending");
+      const { data: settledTransaction, error: updateError } = await statusUpdate
+        .select("id")
+        .maybeSingle();
       if (updateError) throw updateError;
+      if (!settledTransaction) {
+        // A concurrent recovery/callback already settled this row. Acknowledge the
+        // callback without repeating seller balances, points, or digital delivery.
+        return res.json({ success: true, message: "Transaction already processed" });
+      }
 
       if (
         txStatus === "paid" &&

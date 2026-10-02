@@ -1,3 +1,10 @@
+v6.0.23 - iPaymu Outage Recovery and Auto-Reconciliation (PATCH)
+----------------------------------------------------
+- [ROOT CAUSE] Callback iPaymu hanya diproses VPS; saat VPS mati 24 September sampai 1 Oktober, callback gateway tidak bisa masuk dan transaksi berreferensi iPaymu tertahan di `pending`.
+- [KOREKTIF] Verifier iPaymu dijalankan terhadap backlog aktual: 40 transaksi dikonfirmasi `paid` dan diproses, 1 expired/failed, 2 masih pending di gateway, tanpa lookup error.
+- [PREVENTIF] Backend kini merekonsiliasi transaksi `pending` QRIS/VA yang memiliki `ipaymu_trx_id` saat startup dan setiap 5 menit melalui API iPaymu.
+- [SAFETY] Status tidak pernah ditebak dari umur transaksi; stock commit/re-deduct selesai sebelum `paid`, atomic claim mencegah race callback, dan refund point hanya sesudah atomic claim `failed`.
+
 v6.0.22 - Perbaikan Akar Masalah: Constraint DB Tolak 'processing' + Pemulihan Transaksi Gagal (PATCH)
 ----------------------------------------------------
 - [CRITICAL/FIX - ROOT CAUSE] Database CHECK constraint `transactions_status_check` hanya mengizinkan ('pending','success','failed','paid') TANPA 'processing'. Kode memakai status 'processing' sebagai lock idempotency SEBELUM menyimpan bukti, sehingga setiap UPDATE status->'processing' DITOLAK DB (error 23514), claim lock gagal (409 palsu "Sedang Diverifikasi"), handler berhenti SEBELUM bukti tersimpan -> receipt_image NULL -> buyer tidak bisa verifikasi, seller rugi. Ini penyebab SEBENARNYA masalah sejak ~23 Agu. Migrasi: database/migrations/014_fix_transactions_status_check_add_processing.sql (tambahkan 'processing' ke constraint).

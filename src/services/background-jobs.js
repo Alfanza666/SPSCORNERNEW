@@ -9,6 +9,13 @@ let deductStock = null;
 let buildDailyReportEmailFn = null;
 let refundPointsFn = null;
 let updateBuyerPointsFn = null;
+let ipaymuClientInstance = null;
+let updateSellerBalancesFn = null;
+let processDigitalItemsFn = null;
+let ipaymuReconcileInterval = null;
+
+const IPAYMU_PAID_STATUSES = new Set(['paid', 'success', 'sukses', 'berhasil', 'completed', 'settlement']);
+const IPAYMU_FAILED_STATUSES = new Set(['failed', 'fail', 'gagal', 'expired', 'cancel', 'cancelled', 'canceled', 'deny', 'denied']);
 
 export function initBackgroundJobs(supabase, sendNotification, restoreTransactionStock, sendSarirotiEmailInternal, reconcileStockFn, commitTransactionStockFn, deductTransactionStockFn, buildDailyReportEmail, refundTransactionPointsFn, updateBuyerPointsFnParam) {
   supabaseInstance = supabase;
@@ -51,8 +58,197 @@ export function initBackgroundJobs(supabase, sendNotification, restoreTransactio
   setInterval(scanStalePendingTransactions, 10 * 60 * 1e3);
 }
 
+/**
+ * Re-check gateway transactions after a missed callback, including after a VPS restart.
+ * iPaymu remains the source of truth; local pending rows are never marked paid from age alone.
+ */
+export function initIpaymuReconciler(ipaymuClient, updateSellerBalances, processDigitalItems) {
+  ipaymuClientInstance = ipaymuClient || null;
+  updateSellerBalancesFn = updateSellerBalances || null;
+  processDigitalItemsFn = processDigitalItems || null;
+
+  if (typeof process !== 'undefined' && process.env && process.env.VERCEL) return;
+  if (!ipaymuClientInstance) return;
+
+  reconcilePendingIpaymuTransactions();
+  if (ipaymuReconcileInterval) clearInterval(ipaymuReconcileInterval);
+  ipaymuReconcileInterval = setInterval(reconcilePendingIpaymuTransactions, 5 * 60 * 1e3);
+}
+
+function collectGatewayStatuses(payload, statuses = [], key = '') {
+  if (!payload || typeof payload !== 'object') {
+    if (key.toLowerCase().includes('status') && typeof payload === 'string') {
+      statuses.push(payload.toLowerCase().trim());
+    }
+    return statuses;
+  }
+  for (const [childKey, childValue] of Object.entries(payload)) {
+    collectGatewayStatuses(childValue, statuses, childKey);
+  }
+  return statuses;
+}
+
+function getGatewayStatusLabel(payload) {
+  const data = payload?.Data || payload || {};
+  return String(
+    data.PaidStatus || data.payment_status || data.status_desc || data.StatusDesc || data.status || data.Status || 'unknown',
+  );
+}
+
+let ipaymuReconcileRunning = false;
+
+export async function reconcilePendingIpaymuTransactions() {
+  if (ipaymuReconcileRunning || !supabaseInstance || !ipaymuClientInstance) return;
+  ipaymuReconcileRunning = true;
+  try {
+    const { data: pendingTransactions, error } = await supabaseInstance
+      .from('transactions')
+      .select('id, buyer_id, total_amount, payment_details, metadata, transaction_items(*)')
+      .eq('status', 'pending')
+      .in('payment_method', ['qris', 'va'])
+      .not('payment_details->>ipaymu_trx_id', 'is', null)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    if (error) throw error;
+    if (!pendingTransactions?.length) return;
+
+    let paidCount = 0;
+    let failedCount = 0;
+    let pendingCount = 0;
+    let errorCount = 0;
+
+    for (const transaction of pendingTransactions) {
+      const paymentDetails = transaction.payment_details || {};
+      const ipaymuTrxId = paymentDetails.ipaymu_trx_id;
+      try {
+        const gatewayResponse = await ipaymuClientInstance.getTransactionStatus(ipaymuTrxId);
+        const statuses = collectGatewayStatuses(gatewayResponse);
+        const gatewayStatus = getGatewayStatusLabel(gatewayResponse);
+        const isPaid = statuses.some(status => IPAYMU_PAID_STATUSES.has(status));
+        const isFailed = statuses.some(status => IPAYMU_FAILED_STATUSES.has(status));
+
+        if (isPaid) {
+          if (transaction.metadata?.stock_deducted && transaction.metadata?.stock_restored) {
+            await deductStock?.(transaction.id);
+          } else {
+            const stockResult = await commitStock?.(transaction.id);
+            if (!stockResult?.success && !stockResult?.alreadyCommitted) {
+              errorCount++;
+              console.error(`[IpaymuReconcile] Stock commit failed for ${transaction.id}: ${stockResult?.error || 'unknown error'}`);
+              continue;
+            }
+          }
+
+          // Claim only the still-pending row so a delayed callback cannot double-settle it.
+          const { data: claimed, error: claimError } = await supabaseInstance
+            .from('transactions')
+            .update({
+              status: 'paid',
+              payment_details: {
+                ...paymentDetails,
+                ipaymu_status: gatewayStatus,
+                paid_at: new Date().toISOString(),
+                auto_reconciled: true,
+                auto_reconciled_at: new Date().toISOString(),
+              },
+            })
+            .eq('id', transaction.id)
+            .eq('status', 'pending')
+            .select('id')
+            .maybeSingle();
+          if (claimError) throw claimError;
+          if (!claimed) continue;
+
+          paidCount++;
+          try {
+            await updateSellerBalancesFn?.(transaction.transaction_items || [], transaction.id);
+          } catch (settlementError) {
+            console.error(`[IpaymuReconcile] Seller balance failed for ${transaction.id}:`, settlementError);
+            await supabaseInstance.from('transactions').update({
+              payment_details: { ...paymentDetails, seller_balance_failed: true, seller_balance_error: String(settlementError?.message || settlementError) },
+            }).eq('id', transaction.id);
+          }
+          try {
+            await updateBuyerPointsFn?.(transaction.id, transaction.buyer_id, getAutoReconcileChargeableAmount(transaction));
+          } catch (pointsError) {
+            console.error(`[IpaymuReconcile] Buyer points failed for ${transaction.id}:`, pointsError);
+            await supabaseInstance.from('transactions').update({
+              payment_details: { ...paymentDetails, buyer_points_failed: true },
+            }).eq('id', transaction.id);
+          }
+          try {
+            await processDigitalItemsFn?.(transaction.id, transaction.transaction_items || []);
+          } catch (digitalError) {
+            console.error(`[IpaymuReconcile] Digital fulfillment failed for ${transaction.id}:`, digitalError);
+          }
+          if (transaction.buyer_id && sendNotif) {
+            await sendNotif(transaction.buyer_id, {
+              type: 'transaction',
+              title: 'Pembayaran Berhasil',
+              message: `Transaksi #${transaction.id.slice(0, 8)} telah dikonfirmasi oleh iPaymu.`,
+              path: `/kiosk/history?id=${transaction.id}`,
+            });
+          }
+        } else if (isFailed) {
+          // Pending gateway payments do not have committed stock. Claim first to avoid
+          // refunding a transaction that a concurrent successful callback has settled.
+          const { data: failed, error: failError } = await supabaseInstance
+            .from('transactions')
+            .update({
+              status: 'failed',
+              metadata: { ...(transaction.metadata || {}), cancel_reason: 'iPaymu gateway expired/failed' },
+              payment_details: {
+                ...paymentDetails,
+                ipaymu_status: gatewayStatus,
+                auto_reconciled: true,
+                auto_reconciled_at: new Date().toISOString(),
+              },
+            })
+            .eq('id', transaction.id)
+            .eq('status', 'pending')
+            .select('id')
+            .maybeSingle();
+          if (failError) throw failError;
+          if (!failed) continue;
+
+          failedCount++;
+          try { await refundPointsFn?.(transaction.id); } catch (refundError) {
+            console.error(`[IpaymuReconcile] Point refund failed for ${transaction.id}:`, refundError);
+          }
+          if (transaction.buyer_id && sendNotif) {
+            await sendNotif(transaction.buyer_id, {
+              type: 'transaction',
+              title: 'Pembayaran Gagal',
+              message: `Transaksi #${transaction.id.slice(0, 8)} sudah kedaluwarsa atau gagal di iPaymu.`,
+              path: `/kiosk/history?id=${transaction.id}`,
+            });
+          }
+        } else {
+          pendingCount++;
+        }
+      } catch (reconcileError) {
+        errorCount++;
+        console.error(`[IpaymuReconcile] Gateway lookup failed for ${transaction.id}:`, reconcileError);
+      }
+
+      // Keep iPaymu status lookups below gateway rate limits during outage recovery.
+      await new Promise(resolve => setTimeout(resolve, 400));
+    }
+    console.log(`[IpaymuReconcile] checked=${pendingTransactions.length} paid=${paidCount} failed=${failedCount} pending=${pendingCount} errors=${errorCount}`);
+  } catch (error) {
+    console.error('[IpaymuReconcile] Error:', error);
+  } finally {
+    ipaymuReconcileRunning = false;
+  }
+}
+
 // FIX G: Get correct chargeable amount for point calculation
 function getAutoReconcileChargeableAmount(tx) {
+  const meta = tx.metadata || {};
+  const remaining = Number(meta.remaining_amount);
+  if (meta.point_payment && remaining > 0 && remaining < Number(tx.total_amount)) {
+    return Math.round(remaining);
+  }
   const pd = tx.payment_details || {};
   if (pd.loyalty_points_used && pd.loyalty_points_used > 0) {
     return Number(pd.paid_amount) || tx.total_amount;

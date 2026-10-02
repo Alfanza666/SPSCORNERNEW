@@ -14,6 +14,7 @@ function createSupabase(transaction: any, updates: any[]) {
         return builder;
       },
       eq: () => builder,
+      in: () => builder,
       maybeSingle: async () => ({ data: transaction, error: null }),
       then: (resolve: (value: any) => any) => resolve({
         data: null,
@@ -99,6 +100,21 @@ describe('iPaymu callback route', () => {
     const response = await request(app)
       .post('/api/payment/ipaymu/callback')
       .send({ reference_id: 'tx-1', status: 'paid' })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(updates.some(({ payload }) => payload.status === 'paid')).toBe(true);
+  });
+
+  it('recovers a failed transaction when iPaymu later confirms payment', async () => {
+    const updates: any[] = [];
+    const app = registerCallbackRoute({ ...pendingTransaction, status: 'failed' }, {
+      Data: { PaidStatus: 'paid' },
+    }, updates);
+
+    const response = await request(app)
+      .post('/api/payment/ipaymu/callback')
+      .send({ reference_id: 'tx-1' })
       .expect(200);
 
     expect(response.body.success).toBe(true);

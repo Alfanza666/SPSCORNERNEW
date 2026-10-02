@@ -42,7 +42,7 @@ import { initNotificationService, sendNotification, sendPushToUser, sendPushToAd
 import { initStockService, restoreTransactionStock, deductTransactionStock, commitTransactionStock, atomicAdjustStock, reconcileStock, checkLowStockAndNotify } from "./src/services/stock.js";
 import { initEmailService, sendSarirotiEmailInternal, triggerSarirotiEmail, sendBuyerReceiptEmail, buildBuyerConfirmationEmail, buildPasswordResetEmail, buildTempPasswordEmail, buildTestEmail, buildDailyReportEmail } from "./src/services/email.js";
 import { initPaymentService, updateSellerBalances, updateBuyerPoints, refundTransactionPoints } from "./src/services/payment.js";
-import { initBackgroundJobs } from "./src/services/background-jobs.js";
+import { initBackgroundJobs, initIpaymuReconciler } from "./src/services/background-jobs.js";
 import { processDigitalItems, updateDigiflazzCache, getDigiflazzBalance, getDigiflazzAxiosConfig, saveCacheToFile, priceCache, CACHE_TTL, isDefaultDigiflazz, DIGIFLAZZ_USERNAME, DIGIFLAZZ_API_KEY, digiflazzAxios } from "./src/services/digiflazz.js";
 import { initWANotification, sendWANotification } from "./src/services/wa-notification.js";
 dotenv.config();
@@ -272,6 +272,7 @@ console.log("\u{1F4B3} Ipaymu Config:", {
   runtime: IPAYMU_RUNTIME,
   transport: ipaymuClient.getTransportMode(),
 });
+initIpaymuReconciler(ipaymuClient, updateSellerBalances, processDigitalItems);
 // Health check
 app.get("/api/test-ping", (req, res) => {
   res.json({
