@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatRupiah } from '../../lib/utils';
-import { Trash2, Plus, Minus, ArrowRight, ArrowLeft, ShoppingCart, ShoppingBag, Loader2, User, Info, CreditCard, ShieldCheck, Phone, Clock } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ArrowLeft, ShoppingCart, ShoppingBag, Loader2, User, Info, CreditCard, ShieldCheck, Phone, Clock, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
@@ -105,7 +105,7 @@ export default function Cart() {
       localStorage.setItem('sps_guest_cart_backup', JSON.stringify(items));
       
       toast('Silakan masuk ke akun Anda terlebih dahulu untuk melanjutkan pembayaran.', {
-        icon: '🔒',
+        icon: <Lock className="w-4 h-4" />,
         duration: 3000,
       });
       navigate(`/login?redirect=${encodeURIComponent('/kiosk/cart')}`);

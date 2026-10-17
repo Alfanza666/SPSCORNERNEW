@@ -253,11 +253,19 @@ export default function KioskLayout() {
                   >
                     <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-1.5 transition-transform group-hover:scale-110" />
                     <span className="hidden sm:inline text-xs font-bold">Keranjang</span>
-                    {totalItems > 0 && (
-                      <div className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shadow-lg border-2 border-white dark:border-zinc-900">
-                        {totalItems}
-                      </div>
-                    )}
+                    <AnimatePresence>
+                      {totalItems > 0 && (
+                        <motion.div
+                          key={totalItems}
+                          initial={{ scale: 0.4 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+                          className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 bg-red-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shadow-lg border-2 border-white dark:border-zinc-900"
+                        >
+                          {totalItems}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </button>
                 </div>
               )}
@@ -369,6 +377,30 @@ export default function KioskLayout() {
           </div>
         </nav>
       )}
+
+      {/* Sticky cart summary bar (mobile & desktop) saat di katalog dan keranjang terisi */}
+      <AnimatePresence>
+        {isCatalog && totalItems > 0 && (
+          <motion.button
+            type="button"
+            initial={{ y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 80, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            onClick={() => navigate('/kiosk/cart')}
+            className="fixed bottom-16 sm:bottom-6 left-1/2 z-40 flex h-12 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-zinc-900 px-5 text-white shadow-2xl shadow-zinc-900/30 dark:bg-white dark:text-zinc-900"
+          >
+            <span className="flex items-center gap-2 text-xs font-bold">
+              <ShoppingBag className="h-4 w-4" />
+              {totalItems} item
+            </span>
+            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider">
+              Lihat Keranjang
+              <ShoppingCart className="h-4 w-4" />
+            </span>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {!isSuccess && (
         <footer className="bg-transparent py-4 mt-auto">

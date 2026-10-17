@@ -156,7 +156,7 @@ export default function StockTrace({ isAdmin }: { isAdmin?: boolean }) {
           className="input-clay h-11 text-sm">
           <option value="">— Pilih Produk —</option>
           {filteredProducts.map(p => (
-            <option key={p.id} value={p.id}>{p.name} (🟢{p.stock})</option>
+            <option key={p.id} value={p.id}>{p.name} (stok: {p.stock})</option>
           ))}
         </select>
       </div>
@@ -299,9 +299,9 @@ export default function StockTrace({ isAdmin }: { isAdmin?: boolean }) {
                                       ? 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20'
                                       : 'text-zinc-500 bg-zinc-100 dark:bg-zinc-700'
                                 }`}>
-                                  {tx.status === 'paid' || tx.status === 'success' ? '✅ Berhasil'
-                                    : tx.status === 'failed' ? '❌ Gagal'
-                                    : tx.status === 'cancelled' ? '✖ Batal'
+                                  {tx.status === 'paid' || tx.status === 'success' ? 'Berhasil'
+                                    : tx.status === 'failed' ? 'Gagal'
+                                    : tx.status === 'cancelled' ? 'Batal'
                                     : tx.status}
                                 </span>
                                 <span className="text-zinc-400">{tx.buyer_name}</span>

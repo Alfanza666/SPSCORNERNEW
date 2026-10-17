@@ -4,7 +4,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { motion } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, DollarSign, ShoppingCart, Users, Package, Calendar, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingCart, Users, Package, Calendar, BarChart3, RotateCw } from 'lucide-react';
 
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'];
 
@@ -68,9 +68,11 @@ export default function AdminAnalytics() {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-800 dark:text-white">📊 Analytics</h1>
-        <button onClick={fetchData} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-          <ArrowUpRight className="w-4 h-4" /> Refresh
+        <h1 className="text-2xl font-bold text-zinc-800 dark:text-white flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-blue-500" /> Analytics
+        </h1>
+        <button onClick={fetchData} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 font-semibold transition-colors">
+          <RotateCw className="w-4 h-4" /> Refresh
         </button>
       </div>
 

@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore, Product } from '../../store/useCartStore';
 import { formatRupiah } from '../../lib/utils';
-import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight, Loader2, X, Store, FileText, Clock, CalendarDays, MapPin } from 'lucide-react';
+import { Search, Plus, Minus, ShoppingBag, Filter, Tag, Info, ShoppingCart, ArrowRight, Loader2, X, Store, FileText, Clock, CalendarDays, MapPin, SearchX } from 'lucide-react';
+import EmptyState from '../../components/ui/EmptyState';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { Suspense } from 'react';
 import toast from 'react-hot-toast';
@@ -414,8 +415,15 @@ export default function Catalog() {
             <p className="text-zinc-400 dark:text-zinc-500 text-[8px] sm:text-[10px] font-bold uppercase tracking-widest">Memuat Menu...</p>
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-8 sm:py-12 bg-white/50 dark:bg-zinc-900/50 rounded-xl sm:rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
-            <p className="text-zinc-400 dark:text-zinc-500 text-[10px] sm:text-xs font-bold">Menu tidak ditemukan</p>
+          <div className="bg-white/50 dark:bg-zinc-900/50 rounded-xl sm:rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+            <EmptyState
+              icon={SearchX}
+              title="Menu tidak ditemukan"
+              description={debouncedQuery ? `Tidak ada menu yang cocok dengan "${debouncedQuery}". Coba kata kunci lain atau reset filter.` : 'Belum ada menu di kategori ini.'}
+              actionLabel={debouncedQuery || activeCategory !== 'Semua' ? 'Reset Pencarian' : undefined}
+              onAction={() => { setSearchQuery(''); setActiveCategory('Semua'); }}
+              tone="amber"
+            />
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
@@ -544,7 +552,7 @@ export default function Catalog() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => addItem(product)}
+                          onClick={() => { addItem(product); appToast.success('Masuk Keranjang', `${product.name} ditambahkan.`); }}
                           disabled={product.stock === 0}
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50 disabled:hover:bg-blue-600 guide-product-add"
                         >
@@ -815,7 +823,7 @@ export default function Catalog() {
                     </div>
                   ) : (
                     <button
-                      onClick={() => { addItem(selectedProduct); }}
+                      onClick={() => { addItem(selectedProduct); appToast.success('Masuk Keranjang', `${selectedProduct.name} ditambahkan.`); }}
                       disabled={selectedProduct.stock === 0}
                       className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25 active:scale-[0.98] transition-all disabled:opacity-50"
                     >

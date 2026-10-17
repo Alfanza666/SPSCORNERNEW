@@ -2,8 +2,18 @@
 let supabaseInstance = null;
 let nodemailerInstance = null;
 let transporter = null;
+let fallbackTransporter = null;
 const GMAIL_USER = process.env.GMAIL_USER || '';
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || '';
+// Failover SMTP gratis (opsional). Rekomendasi: Brevo (300 email/hari gratis).
+// Isi di .env: SMTP_FALLBACK_HOST=smtp-relay.brevo.com, SMTP_FALLBACK_PORT=587,
+// SMTP_FALLBACK_USER=<email login brevo>, SMTP_FALLBACK_PASS=<SMTP key brevo>,
+// SMTP_FALLBACK_FROM=<alamat pengirim terverifikasi di Brevo>
+const SMTP_FALLBACK_HOST = process.env.SMTP_FALLBACK_HOST || '';
+const SMTP_FALLBACK_PORT = Number(process.env.SMTP_FALLBACK_PORT || 587);
+const SMTP_FALLBACK_USER = process.env.SMTP_FALLBACK_USER || '';
+const SMTP_FALLBACK_PASS = process.env.SMTP_FALLBACK_PASS || '';
+const SMTP_FALLBACK_FROM = process.env.SMTP_FALLBACK_FROM || SMTP_FALLBACK_USER;
 const APP_URL = process.env.APP_URL || 'https://spscorner.store';
 
 export function initEmailService(supabase, nodemailer) {
@@ -14,6 +24,22 @@ export function initEmailService(supabase, nodemailer) {
       service: 'gmail', auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
     });
   }
+  if (SMTP_FALLBACK_HOST && SMTP_FALLBACK_USER && SMTP_FALLBACK_PASS) {
+    fallbackTransporter = nodemailerInstance.createTransport({
+      host: SMTP_FALLBACK_HOST,
+      port: SMTP_FALLBACK_PORT,
+      secure: SMTP_FALLBACK_PORT === 465,
+      auth: { user: SMTP_FALLBACK_USER, pass: SMTP_FALLBACK_PASS },
+      connectionTimeout: 8e3, greetingTimeout: 8e3, socketTimeout: 8e3,
+    });
+  }
+}
+
+// Gmail menolak dengan kode 550 5.4.5 saat kuota harian habis. Deteksi agar
+// kita bisa jatuh ke SMTP cadangan daripada menggagalkan email sepenuhnya.
+function isGmailQuotaError(error) {
+  const msg = String(error?.message || '') + String(error?.response || '');
+  return error?.responseCode === 550 || /5\.4\.5|Daily user sending limit/i.test(msg);
 }
 
 export async function sendSarirotiEmailInternal(to, subject, html) {
@@ -34,6 +60,17 @@ export async function sendSarirotiEmailInternal(to, subject, html) {
     const info = await transporter.sendMail({ from: `"SPS Corner" <${gmailUser}>`, to, subject, html });
     return { success: true, data: info };
   } catch (error) {
+    // Jika Gmail kena limit harian dan SMTP cadangan tersedia → kirim lewat cadangan.
+    if (isGmailQuotaError(error) && fallbackTransporter) {
+      try {
+        console.warn("[email] Gmail quota habis (550) — beralih ke SMTP cadangan.");
+        const info = await fallbackTransporter.sendMail({ from: `"SPS Corner" <${SMTP_FALLBACK_FROM}>`, to, subject, html });
+        return { success: true, data: info, via: 'fallback' };
+      } catch (fallbackError) {
+        console.error("[email] SMTP cadangan juga gagal:", fallbackError);
+        return { success: false, error: fallbackError.message || "Fallback email error" };
+      }
+    }
     console.error("Email error:", error);
     return { success: false, error: error.message || "Unknown email error" };
   }

@@ -21,12 +21,15 @@ import {
   Receipt,
   Wrench,
   RotateCw,
-  CircleDollarSign
+  CircleDollarSign,
+  ArrowUpRight,
+  ArrowDownLeft
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { motion } from 'motion/react';
 import { appToast } from '../../../components/ui/AppToast';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type OverviewMetrics = {
   grossSettled: number;
@@ -50,12 +53,23 @@ type OverviewMetrics = {
 };
 
 type DashboardOverview = {
+  period: PeriodKey;
+  previousPeriodGross: number;
   metrics: OverviewMetrics;
   sellerBreakdown: any[];
   salesChart: any[];
   recentSettled: any[];
   pendingTransactions: any[];
 };
+
+type PeriodKey = 'today' | 'week' | 'month' | 'all';
+
+const PERIOD_OPTIONS: { key: PeriodKey; label: string; short: string }[] = [
+  { key: 'today', label: 'Hari Ini', short: 'hari ini (WITA)' },
+  { key: 'week', label: 'Minggu Ini', short: '7 hari terakhir' },
+  { key: 'month', label: 'Bulan Ini', short: 'bulan berjalan (WITA)' },
+  { key: 'all', label: 'Semua', short: 'semua waktu' },
+];
 
 const EMPTY_METRICS: OverviewMetrics = {
   grossSettled: 0,
@@ -106,12 +120,15 @@ export default function AdminDashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [overview, setOverview] = useState<DashboardOverview>({
+    period: 'all',
+    previousPeriodGross: 0,
     metrics: EMPTY_METRICS,
     sellerBreakdown: [],
     salesChart: [],
     recentSettled: [],
     pendingTransactions: [],
   });
+  const [period, setPeriod] = useState<PeriodKey>('today');
   const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
   const [resetRequests, setResetRequests] = useState<any[]>([]);
   const [qrisUrl, setQrisUrl] = useState('');
@@ -124,9 +141,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (user?.role === 'admin' || user?.role === 'superadmin') {
-      fetchDashboardData();
+      fetchDashboardData(period);
     }
-  }, [user]);
+  }, [user, period]);
 
   const handleQrisUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
@@ -172,7 +189,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (selectedPeriod: PeriodKey = period) => {
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -180,7 +197,7 @@ export default function AdminDashboard() {
 
       const authHeader = { Authorization: `Bearer ${session.access_token}` };
       const [overviewRes, resetsResult, qrisResult] = await Promise.all([
-        fetch('/api/admin/dashboard/overview', { headers: authHeader, cache: 'no-store' }),
+        fetch('/api/admin/dashboard/overview?period=' + selectedPeriod, { headers: authHeader, cache: 'no-store' }),
         fetch('/api/admin/password-resets', { headers: authHeader })
           .then(async response => response.ok ? response.json() : [])
           .catch(error => {
@@ -206,6 +223,8 @@ export default function AdminDashboard() {
 
       const rawMetrics = dashboardData.metrics;
       const normalizedOverview: DashboardOverview = {
+        period: PERIOD_OPTIONS.some(option => option.key === dashboardData.period) ? dashboardData.period : selectedPeriod,
+        previousPeriodGross: toNumber(dashboardData.previousPeriodGross),
         metrics: {
           grossSettled: toNumber(rawMetrics.grossSettled),
           recordedFee: toNumber(rawMetrics.recordedFee),
@@ -420,12 +439,13 @@ export default function AdminDashboard() {
   }
 
   const { metrics } = overview;
+  const activePeriod = PERIOD_OPTIONS.find(option => option.key === period) || PERIOD_OPTIONS[3];
+  const periodDescription = activePeriod.short;
   const salesData = overview.salesChart.map(entry => ({
     ...entry,
     label: formatChartDate(entry),
     total: getChartTotal(entry),
   }));
-  const maxSales = Math.max(...salesData.map(entry => entry.total), 1);
   const breakdownTotal = overview.sellerBreakdown.reduce(
     (sum, seller) => sum + getSellerTotal(seller),
     0,
@@ -440,6 +460,41 @@ export default function AdminDashboard() {
   const hasFinancialMismatch =
     Math.abs(breakdownDifference) >= 1 || Math.abs(netDifference) >= 1 || metrics.ledgerComplete === false;
 
+  // Indikator perubahan vs periode sebelumnya (kemarin/minggu lalu/bulan lalu).
+  const prevPeriodLabels: Record<PeriodKey, string> = {
+    today: 'vs kemarin',
+    week: 'vs minggu lalu',
+    month: 'vs bulan lalu',
+    all: '',
+  };
+  const prevGross = overview.previousPeriodGross;
+  const gmvDeltaPct = prevGross > 0
+    ? ((metrics.grossSettled - prevGross) / prevGross) * 100
+    : null;
+
+  const DeltaBadge = () => {
+    if (period === 'all') return null;
+    if (gmvDeltaPct === null) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-lg bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          — {prevPeriodLabels[period]}: belum ada data
+        </span>
+      );
+    }
+    const up = gmvDeltaPct >= 0;
+    return (
+      <span className={[
+        'inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-black',
+        up
+          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+          : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
+      ].join(' ')}>
+        {up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownLeft className="h-3 w-3" />}
+        {up ? '+' : ''}{gmvDeltaPct.toFixed(1)}% {prevPeriodLabels[period]}
+      </span>
+    );
+  };
+
   const MetricCard = ({
     title,
     value,
@@ -449,12 +504,16 @@ export default function AdminDashboard() {
     iconClass,
     onClick,
     footer,
+    index = 0,
   }: any) => {
-    const Component = onClick ? 'button' : 'div';
+    const Component = onClick ? motion.button : motion.div;
     return (
       <Component
         type={onClick ? 'button' : undefined}
         onClick={onClick}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: index * 0.07 }}
         className={[
           'group flex min-h-36 w-full flex-col rounded-2xl border border-zinc-100 bg-white p-5 text-left shadow-sm transition-all dark:border-zinc-800 dark:bg-zinc-900 sm:p-6',
           onClick ? 'cursor-pointer hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md dark:hover:border-blue-800' : '',
@@ -501,7 +560,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <button
             type="button"
-            onClick={fetchDashboardData}
+            onClick={() => fetchDashboardData()}
             className="flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 text-xs font-bold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
             <RotateCw className="h-4 w-4" />
@@ -527,44 +586,78 @@ export default function AdminDashboard() {
               <p className="mt-1 text-xs">{dashboardError}</p>
             </div>
           </div>
-          <button type="button" onClick={fetchDashboardData} className="h-9 rounded-xl bg-red-600 px-4 text-xs font-bold text-white hover:bg-red-700">
+          <button type="button" onClick={() => fetchDashboardData()} className="h-9 rounded-xl bg-red-600 px-4 text-xs font-bold text-white hover:bg-red-700">
             Coba lagi
           </button>
         </div>
       )}
 
+      {/* Filter periode — omzet, fee, dan bersih mengikuti periode yang dipilih */}
+      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Filter periode ringkasan">
+        {PERIOD_OPTIONS.map(option => {
+          const isActive = period === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setPeriod(option.key)}
+              className={[
+                'h-9 rounded-xl px-4 text-xs font-bold transition-all',
+                isActive
+                  ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-900'
+                  : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800',
+              ].join(' ')}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+        <span className="ml-1 text-[11px] font-medium text-zinc-400">
+          Ringkasan dihitung untuk {periodDescription}.
+        </span>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
+          index={0}
           title="Omzet Lunas (GMV)"
           value={formatRupiah(metrics.grossSettled)}
-          description={metrics.settledCount.toLocaleString('id-ID') + ' transaksi paid/success, semua waktu'}
+          description={metrics.settledCount.toLocaleString('id-ID') + ' transaksi paid/success, ' + periodDescription}
           formula="Jumlah total transaksi berstatus paid atau success. Pending dan gagal tidak dihitung."
           icon={DollarSign}
           iconClass="bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
           onClick={() => setShowBreakdown(true)}
           footer={
-            <span className="mt-auto flex items-center gap-1 pt-3 text-[11px] font-bold text-blue-600 dark:text-blue-400">
-              Lihat sumber omzet <ChevronRight className="h-3.5 w-3.5" />
+            <span className="mt-auto flex flex-wrap items-center gap-2 pt-3">
+              <DeltaBadge />
+              <span className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                Lihat sumber omzet <ChevronRight className="h-3.5 w-3.5" />
+              </span>
             </span>
           }
         />
         <MetricCard
+          index={1}
           title="Fee Tercatat"
           value={formatRupiah(metrics.recordedFee)}
-          description="Selisih nilai bruto dan subtotal ledger transaksi lunas"
+          description={'Selisih nilai bruto dan subtotal ledger transaksi lunas, ' + periodDescription}
           formula="Item gross settled dikurangi subtotal ledger settled. Transaksi tanpa item tidak dihitung sebagai fee."
           icon={CircleDollarSign}
           iconClass="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
         />
         <MetricCard
+          index={2}
           title="Bersih Setelah Fee"
           value={formatRupiah(metrics.netSettled)}
-          description="Jumlah subtotal ledger untuk transaksi lunas"
+          description={'Jumlah subtotal ledger untuk transaksi lunas, ' + periodDescription}
           formula="Jumlah subtotal transaction_items pada transaksi paid atau success; setara GMV dikurangi fee tercatat. Bukan saldo kas atau saldo bank."
           icon={Wallet}
           iconClass="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
         />
         <MetricCard
+          index={3}
           title="Perlu Tindakan"
           value={needsAction.toLocaleString('id-ID')}
           description={metrics.pendingCount + ' transaksi | ' + resetRequests.length + ' reset | ' + metrics.pendingWithdrawals + ' penarikan'}
@@ -573,7 +666,7 @@ export default function AdminDashboard() {
           iconClass="bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400"
           footer={
             <p className="mt-auto pt-3 text-[11px] font-semibold text-red-600 dark:text-red-400">
-              {metrics.failedCount} transaksi gagal | {formatRupiah(metrics.failedAmount)}
+              {metrics.failedCount} transaksi gagal ({periodDescription}) | {formatRupiah(metrics.failedAmount)}
             </p>
           }
         />
@@ -612,38 +705,63 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="mt-6 flex h-60 w-full items-end gap-2 sm:h-72 sm:gap-3">
-            {salesData.length === 0 ? (
+          <div className="mt-6 h-60 w-full sm:h-72">
+            {salesData.length === 0 || salesData.every(entry => entry.total === 0) ? (
               <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-zinc-300 dark:text-zinc-600">
                 <TrendingUp className="h-10 w-10 stroke-[1]" />
                 <p className="text-sm font-semibold">Belum ada transaksi lunas dalam 7 hari</p>
               </div>
             ) : (
-              salesData.map((entry, index) => {
-                const heightPercentage = (entry.total / maxSales) * 100;
-                return (
-                  <div
-                    key={entry.date || entry.day || index}
-                    className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-3"
-                  >
-                    <div className="relative flex h-full w-full items-end justify-center">
-                      <motion.div
-                        initial={{ height: 0 }}
-                        animate={{ height: Math.max(heightPercentage, entry.total > 0 ? 4 : 0) + '%' }}
-                        transition={{ duration: 0.6, delay: index * 0.04 }}
-                        className="relative w-full max-w-12 rounded-t-lg bg-blue-500 transition-colors group-hover:bg-blue-600"
-                      >
-                        <div className="pointer-events-none absolute -top-11 left-1/2 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-zinc-950 px-2.5 py-1.5 text-[10px] font-bold text-white shadow-xl group-hover:block dark:bg-white dark:text-zinc-950">
-                          {formatRupiah(entry.total)}
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={salesData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gmvGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-zinc-100 dark:text-zinc-800" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fontWeight: 700 }}
+                    className="text-zinc-400"
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10 }}
+                    className="text-zinc-400"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value: number) => value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}jt` : `${(value / 1_000).toFixed(0)}rb`}
+                    width={44}
+                  />
+                  <Tooltip
+                    cursor={{ stroke: '#3b82f6', strokeOpacity: 0.3 }}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{label}</p>
+                          <p className="mt-0.5 text-sm font-black text-blue-600 dark:text-blue-400">
+                            {formatRupiah(Number(payload[0].value) || 0)}
+                          </p>
                         </div>
-                      </motion.div>
-                    </div>
-                    <span className="w-full truncate text-center text-[9px] font-bold uppercase text-zinc-400 sm:text-[10px]">
-                      {entry.label}
-                    </span>
-                  </div>
-                );
-              })
+                      );
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#3b82f6"
+                    strokeWidth={2.5}
+                    fill="url(#gmvGradient)"
+                    dot={{ r: 3.5, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 5.5, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                    animationDuration={700}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             )}
           </div>
         </section>
@@ -776,7 +894,7 @@ export default function AdminDashboard() {
                   Sumber Omzet Lunas
                 </h2>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  Agregasi seluruh transaksi paid/success, termasuk PPOB.
+                  Agregasi transaksi paid/success {periodDescription}, termasuk PPOB.
                 </p>
               </div>
               <button

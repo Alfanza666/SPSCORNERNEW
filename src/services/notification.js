@@ -52,12 +52,30 @@ export async function createNotification(userId, type, title, message, path = "/
 
 export async function sendNotification(userId, payload) {
   try {
+    // Dedup di level DB: jika notifikasi yang sama (user+type+title+path) sudah dibuat
+    // dalam 60 detik terakhir, jangan insert & push ulang. Mencegah spam saat sebuah
+    // event terpicu dari dua jalur (mis. callback gateway + manual verify).
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const { data: dup } = await supabaseInstance
+      .from("notifications")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("type", payload.type || "")
+      .eq("title", payload.title)
+      .eq("path", payload.path || "/")
+      .gte("created_at", since)
+      .limit(1);
+    if (dup && dup.length > 0) return;
+
     await supabaseInstance.from("notifications").insert({
       user_id: userId, type: payload.type, title: payload.title, message: payload.message, path: payload.path || "/", is_read: false,
     });
     const { data: subs } = await supabaseInstance.from("push_subscriptions").select("subscription").eq("user_id", userId);
     if (subs && subs.length > 0) {
-      const pushPayload = JSON.stringify({ title: payload.title, body: payload.message, url: payload.path || "/", tag: `sps-${payload.type || 'notif'}` });
+      // Tag unik per event: path biasanya memuat ID transaksi/tagihan → notifikasi
+      // untuk kejadian yang sama menggantikan notifikasi lama, bukan menumpuk.
+      const tag = `sps-${payload.type || 'notif'}-${(payload.path || '/').replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const pushPayload = JSON.stringify({ title: payload.title, body: payload.message, url: payload.path || "/", tag });
       await Promise.all(subs.map((sub, idx) =>
         webpushInstance.sendNotification(sub.subscription, pushPayload, { urgency: 'high' }).catch((err) => {
           if (err.statusCode === 404 || err.statusCode === 410) {

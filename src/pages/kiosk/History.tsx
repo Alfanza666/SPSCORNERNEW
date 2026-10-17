@@ -8,6 +8,8 @@ import { ShoppingBag, Calendar, ChevronRight, Package, Clock, CheckCircle2, XCir
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { appToast } from '../../components/ui/AppToast';
+import PullToRefresh from '../../components/ui/PullToRefresh';
+import OrderStatusTimeline from '../../components/ui/OrderStatusTimeline';
 
 interface TransactionItem {
   id: string;
@@ -498,6 +500,7 @@ Sistem SPS Corner`);
   });
 
   return (
+    <PullToRefresh onRefresh={fetchHistorySilently}>
     <div className="max-w-5xl mx-auto space-y-4 sm:space-y-8 px-4 sm:px-6 pb-10 sm:pb-12">
       <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-600 mb-2 uppercase tracking-widest">
         <span className="cursor-pointer hover:text-zinc-900 dark:hover:text-white transition-colors" onClick={() => navigate('/kiosk')}>Menu</span>
@@ -616,6 +619,11 @@ Sistem SPS Corner`);
                       <p className="text-[8px] sm:text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-0.5">Total Pembayaran</p>
                       <p className="text-lg sm:text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tighter">{formatRupiah(tx.total_amount)}</p>
                     </div>
+                  </div>
+
+                  {/* Timeline status visual (P7) */}
+                  <div className="mb-3 sm:mb-4 overflow-x-auto">
+                    <OrderStatusTimeline status={tx.status} />
                   </div>
 
                   <div className="mt-3 bg-zinc-50 dark:bg-zinc-800/30 p-2 sm:p-3 rounded-xl border border-zinc-100 dark:border-zinc-800">
@@ -1017,5 +1025,6 @@ Sistem SPS Corner`);
         )}
       </AnimatePresence>
     </div>
+    </PullToRefresh>
   );
 }

@@ -10,6 +10,7 @@ import axios from 'axios';
 import { useCartStore } from '../../store/useCartStore';
 import toast from 'react-hot-toast';
 import { appToast } from '../../components/ui/AppToast';
+import EmptyState from '../../components/ui/EmptyState';
 
 interface DigitalCategory {
   id: string;
@@ -718,12 +719,17 @@ export default function DigitalProducts() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 bg-white dark:bg-zinc-900 rounded-2xl">
-            <p className="text-slate-500 dark:text-zinc-400">
-              {(selectedCategory.id === 'pulsa' || selectedCategory.id === 'data') && targetNumber.length < 4
-                ? 'Masukkan minimal 4 digit nomor HP untuk melihat produk'
-                : 'Tidak ada produk yang tersedia'}
-            </p>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl">
+            <EmptyState
+              icon={Smartphone}
+              title={(selectedCategory.id === 'pulsa' || selectedCategory.id === 'data') && targetNumber.length < 4
+                ? 'Masukkan nomor HP dulu'
+                : 'Belum ada produk'}
+              description={(selectedCategory.id === 'pulsa' || selectedCategory.id === 'data') && targetNumber.length < 4
+                ? 'Ketik minimal 4 digit nomor HP tujuan untuk menampilkan pilihan nominal.'
+                : 'Tidak ada produk yang tersedia untuk kategori ini saat ini.'}
+              tone="blue"
+            />
           </div>
         )}
       </div>

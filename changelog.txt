@@ -1,3 +1,32 @@
+v6.2.0 - UX Polish: Empty States, Bottom Nav, Timeline Status & Icon Refresh (MINOR)
+----------------------------------------------------
+- [UX] Komponen reusable baru: `EmptyState` (icon besar + aksi menuntun), `PullToRefresh` (gesture tarik-refresh mobile), `OrderStatusTimeline` (step visual Menunggu Bayar → Terverifikasi → Selesai).
+- [UX] Kiosk: sticky cart bar melayang ("N item → Lihat Keranjang") saat keranjang terisi di katalog; badge keranjang di header & bottom nav beranimasi spring saat jumlah berubah; toast "Masuk Keranjang" saat tambah produk.
+- [UX] Empty state menuntun di Katalog (reset pencarian 1 klik), Produk Digital (panduan isi nomor HP), Cart & History sudah baik dan dipertahankan.
+- [UX] Pull-to-refresh di Riwayat Pesanan (buyer) dan Pesanan Masuk (seller) — tanpa tombol refresh manual.
+- [UX] Riwayat pesanan buyer kini menampilkan timeline status visual di tiap kartu transaksi.
+- [ICON] Emoji UI diganti icon Lucide konsisten: 📊/🔄 (Analytics admin & seller → BarChart3/RotateCw), 🔒 (Cart login toast → Lock), ✅❌✖ (StockTrace → teks bersih), ✓ (SellerTransactions → CheckCircle2), 🟢 stok → teks. Emoji di canvas doorprize/voting sengaja dipertahankan (konten perayaan, bukan ikon UI).
+- [A11Y] `prefers-reduced-motion` dihormati global (animasi & transisi dinonaktifkan); label form `sr-only` untuk input poin di Checkout; kontras teks muted zinc-400 → zinc-500 di light mode via CSS global (dark mode tidak berubah).
+
+v6.1.1 - Sidebar Rapi, Anti-Spam Notifikasi & Failover Email (PATCH)
+----------------------------------------------------
+- [UX] Sidebar admin dikelompokkan ulang menjadi 7 grup koheren: Ringkasan, Penjualan & Keuangan, Katalog & Penjual, Stok & Logistik, Program & Acara, Komunikasi & Masukan, Laporan & Sistem. Scan QR kini bersebelahan dengan Kupon Peserta, Verifikasi RSVP dengan Program Serikat, Loyalty tidak lagi terduplikasi di dua grup.
+- [FIX] Anti-spam notifikasi push (3 lapis): (1) dedup di DB — notifikasi identik (user+type+title+path) dalam 60 detik tidak di-insert & di-push ulang; (2) tag push unik per event (memuat path/ID transaksi) sehingga notifikasi sejenis menggantikan, bukan menumpuk; (3) service worker `renotify:false` + dedup 60 detik — notifikasi tidak lagi bergetar/muncul berulang untuk kejadian yang sama.
+- [FITUR] Failover email otomatis: saat Gmail menolak dengan limit harian (550 5.4.5) dan SMTP cadangan dikonfigurasi (`SMTP_FALLBACK_*` di .env, rekomendasi Brevo gratis 300 email/hari), email dialihkan ke SMTP cadangan tanpa gagal.
+- [FIX] scripts/deploy-fast.ps1: health check kini retry 5× jeda 5 detik (PM2 butuh ~10 detik start) — tidak ada lagi error palsu "Server tidak merespons".
+
+v6.1.1 - Dashboard Pendapatan Periode: Harian, Mingguan, Bulanan (MINOR)
+----------------------------------------------------
+- [FITUR] Admin Dashboard: tab filter periode (Hari Ini / Minggu Ini / Bulan Ini / Semua) untuk Omzet Lunas (GMV), Fee Tercatat, Bersih Setelah Fee, dan jumlah transaksi gagal. Default: Hari Ini. Backend `/api/admin/dashboard/overview` menerima query `period`.
+- [FITUR] Seller Dashboard: kartu "Pendapatan" kini mengikuti periode terpilih dan dihitung dari `transaction_items.subtotal` pada transaksi `paid/success` (bukan lagi `profiles.total_sales` yang akumulasi semua waktu). Subtitle tetap menampilkan total semua waktu sebagai pembanding.
+- [INTERAKTIF] Grafik Omzet 7 Hari diganti Area Chart Recharts (gradient, tooltip rupiah, dot aktif, animasi) menggantikan bar div statis.
+- [INTERAKTIF] Kartu GMV menampilkan badge perbandingan ▲/▼ % vs periode sebelumnya (kemarin/minggu lalu/bulan lalu) via field `previousPeriodGross` baru di respons overview.
+- [INTERAKTIF] Seller Dashboard: sparkline area chart "Tren Pendapatan 7 Hari" + animasi masuk stagger pada kartu statistik.
+- [FIX] scripts/deploy-fast.ps1: ErrorActionPreference 'Stop' membuat stderr npm/scp melempar error palsu sebelum exit code dicek → diganti 'Continue' (kegagalan dinilai dari $LASTEXITCODE).
+- [PERILAKU] Semua batas periode mengikuti kalender WITA (UTC+8), konsisten dengan chart omzet dan modul analytics. Grafik "Omzet Lunas 7 Hari" selalu menampilkan 7 hari penuh meski periode "Hari Ini" dipilih.
+- [AMAN] Antrean Pusat Tindakan (transaksi pending, reset password, penarikan) TIDAK ikut terfilter periode — admin tidak akan kehilangan antrean kerja saat memfilter ringkasan.
+- [TEST] 10 unit test untuk `buildOverviewData` (test/adminReporting.test.ts): filter today/week/month/all, boundary WITA tengah malam, chart 7 hari, dan previousPeriodGross.
+
 v6.0.23 - iPaymu Outage Recovery and Auto-Reconciliation (PATCH)
 ----------------------------------------------------
 - [ROOT CAUSE] Callback iPaymu hanya diproses VPS; saat VPS mati 24 September sampai 1 Oktober, callback gateway tidak bisa masuk dan transaksi berreferensi iPaymu tertahan di `pending`.

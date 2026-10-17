@@ -198,3 +198,21 @@
 .markdown-body {
   @apply prose prose-zinc dark:prose-invert max-w-none prose-headings:font-black prose-p:text-zinc-600 dark:prose-p:text-zinc-400;
 }
+/* Hormati preferensi pengguna yang sensitif terhadap animasi (aksesibilitas) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* P8 Kontras: zinc-400 (#a1a1aa, rasio ~2.9:1) terlalu pucat untuk teks kecil di
+   light mode. Naikkan ke zinc-500 (#71717a, ~4.6:1) HANYA di light mode; dark
+   mode tidak diubah. Placeholder tidak ikut karena bukan teks konten. */
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) .text-zinc-400:not(input):not(textarea) {
+    color: var(--color-zinc-500, #71717a);
+  }
+}

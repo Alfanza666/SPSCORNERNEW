@@ -285,7 +285,7 @@ export default function DashboardLayout() {
 
     const adminGroups = [
       {
-        label: "Overview & Utama",
+        label: "Ringkasan",
         icon: LayoutDashboard,
         items: [
           { to: "/dashboard/admin", icon: LayoutDashboard, label: "Overview", tourClass: "tour-admin-sidebar-overview" },
@@ -293,16 +293,18 @@ export default function DashboardLayout() {
         ]
       },
       {
-        label: "Toko & Transaksi",
+        label: "Penjualan & Keuangan",
         icon: Store,
         items: [
           { to: "/dashboard/admin/transactions", icon: Receipt, label: "Riwayat Transaksi", tourClass: "tour-admin-sidebar-transactions" },
           { to: "/dashboard/admin/flashsale", icon: Zap, label: "Flash Sale" },
-          { to: "/dashboard/admin/withdrawals", icon: CreditCard, label: "Penarikan Saldo", tourClass: "tour-admin-sidebar-withdrawals" }
+          { to: "/dashboard/admin/withdrawals", icon: CreditCard, label: "Penarikan Saldo", tourClass: "tour-admin-sidebar-withdrawals" },
+          { to: "/dashboard/admin/payments", icon: CreditCard, label: "Metode Pembayaran" },
+          { to: "/dashboard/admin/loyalty", icon: Tag, label: "Loyalty Point" }
         ]
       },
       {
-        label: "Input Data Induk",
+        label: "Katalog & Penjual",
         icon: Tag,
         items: [
           { to: "/dashboard/admin/sellers", icon: Users, label: "Data Penjual", tourClass: "tour-admin-sidebar-sellers" },
@@ -312,58 +314,50 @@ export default function DashboardLayout() {
         ]
       },
       {
-        label: "Logistik & Stok",
+        label: "Stok & Logistik",
         icon: Package,
         items: [
           { to: "/dashboard/admin/pickup", icon: Package, label: "Penyerahan Roti" },
           { to: "/dashboard/admin/stock-requests", icon: Package, label: "Req. Restock", tourClass: "tour-admin-sidebar-stock-requests" },
           { to: "/dashboard/admin/returns", icon: RotateCcw, label: "Req. Retur", tourClass: "tour-admin-sidebar-returns" },
-          { to: "/dashboard/admin/stock-opname", icon: ClipboardList, label: "Stock Opname" }
+          { to: "/dashboard/admin/stock-opname", icon: ClipboardList, label: "Stock Opname" },
+          { to: "/dashboard/admin/stock-report", icon: BarChart3, label: "Laporan Stok" },
+          { to: "/dashboard/admin/stock-trace", icon: Search, label: "Lacak Riwayat Stok" }
         ]
       },
       {
-        label: "Layanan Anggota",
+        label: "Program & Acara",
         icon: Megaphone,
         items: [
           { to: "/dashboard/admin/union-programs", icon: Megaphone, label: "Program Serikat" },
-          { to: "/dashboard/admin/program-coupons", icon: Ticket, label: "Kupon Peserta" },
-          { to: "/dashboard/admin/scanner", icon: QrCode, label: "Scan QR" },
-          { to: "/dashboard/admin/doorprize", icon: Gift, label: "Undian Doorprize" },
-          { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" },
           { to: "/dashboard/admin/program-registrations", icon: ShieldCheck, label: "Verifikasi RSVP" },
+          { to: "/dashboard/admin/program-coupons", icon: Ticket, label: "Kupon Peserta" },
+          { to: "/dashboard/admin/scanner", icon: QrCode, label: "Scan QR Kupon" },
+          { to: "/dashboard/admin/coupon-reports", icon: ClipboardList, label: "Laporan Kupon" },
+          { to: "/dashboard/admin/doorprize", icon: Gift, label: "Undian Doorprize" },
+          { to: "/dashboard/admin/forms", icon: ClipboardList, label: "Form Builder" }
+        ]
+      },
+      {
+        label: "Komunikasi & Masukan",
+        icon: MessageSquare,
+        items: [
+          { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
           { to: "/dashboard/admin/pengaduan", icon: ShieldCheck, label: "Pengaduan & Pembelaan" },
           { to: "/dashboard/admin/kritik-saran", icon: MessageSquare, label: "Kritik & Saran" },
-          { to: "/dashboard/admin/announcements", icon: Megaphone, label: "Pengumuman" },
+          { to: "/dashboard/admin/survey-reports", icon: BarChart3, label: "Hasil Survei" },
           { to: "/dashboard/admin/moments", icon: Camera, label: "SPS Moments" }
         ]
       },
       {
-        label: "Laporan & Evaluasi",
-        icon: ClipboardList,
-        items: [
-          { to: "/dashboard/admin/reports", icon: Bug, label: "Laporan & Bug", badge: unreadCount > 0 ? unreadCount : undefined },
-          { to: "/dashboard/admin/coupon-reports", icon: ClipboardList, label: "Laporan Kupon" },
-          { to: "/dashboard/admin/survey-reports", icon: BarChart3, label: "Hasil Survei" },
-          { to: "/dashboard/admin/stock-report", icon: BarChart3, label: "Laporan Stok" },
-          { to: "/dashboard/admin/stock-trace", icon: Search, label: "Lacak Riwayat Stok" },
-          { to: "/dashboard/admin/ai-test", icon: FlaskConical, label: "Test Verifikasi AI" }
-        ]
-      },
-      {
-        label: "Konfigurasi Sistem",
+        label: "Laporan & Sistem",
         icon: Settings,
         items: [
+          { to: "/dashboard/admin/reports", icon: Bug, label: "Laporan & Bug", badge: unreadCount > 0 ? unreadCount : undefined },
+          { to: "/dashboard/admin/ai-test", icon: FlaskConical, label: "Test Verifikasi AI" },
           { to: "/dashboard/admin/settings", icon: Settings, label: "Pengaturan Umum" },
           { to: "/dashboard/admin/integrasi", icon: Plug, label: "Integrasi iPaymu" },
-          { to: "/dashboard/admin/payments", icon: CreditCard, label: "Metode Pembayaran & Loyalty" },
-          { to: "/dashboard/admin/loyalty", icon: Tag, label: "Loyalty Point" },
-          { to: "/dashboard/admin/standby-schedule", icon: Clock, label: "Jadwal Standby" }
-        ]
-      },
-      {
-        label: "Lainnya",
-        icon: Info,
-        items: [
+          { to: "/dashboard/admin/standby-schedule", icon: Clock, label: "Jadwal Standby" },
           { to: "/help", icon: Info, label: "Pusat Bantuan" }
         ]
       }
@@ -609,7 +603,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-3 text-center text-[8px] font-black uppercase tracking-[0.3em] text-zinc-300 dark:text-zinc-600">
-                      v6.0.23
+                      v6.2.0
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"

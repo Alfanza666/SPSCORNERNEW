@@ -26,11 +26,58 @@ import { id } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { appToast } from '../../../components/ui/AppToast';
+import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 import { Skeleton } from '../../../components/ui/Skeleton';
 
-const StatCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
+type PeriodKey = 'today' | 'week' | 'month' | 'all';
+
+const WITA_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+const PERIOD_OPTIONS: { key: PeriodKey; label: string; short: string }[] = [
+  { key: 'today', label: 'Hari Ini', short: 'hari ini (WITA)' },
+  { key: 'week', label: 'Minggu Ini', short: '7 hari terakhir' },
+  { key: 'month', label: 'Bulan Ini', short: 'bulan berjalan (WITA)' },
+  { key: 'all', label: 'Semua', short: 'semua waktu' },
+];
+
+// Batas awal periode dalam ISO UTC, mengikuti kalender WITA (UTC+8).
+function periodStartIso(period: PeriodKey): string | null {
+  if (period === 'all') return null;
+  const shifted = new Date(Date.now() + WITA_OFFSET_MS);
+  const year = shifted.getUTCFullYear();
+  const month = shifted.getUTCMonth();
+  const day = shifted.getUTCDate();
+  if (period === 'today') {
+    return new Date(Date.UTC(year, month, day) - WITA_OFFSET_MS).toISOString();
+  }
+  if (period === 'month') {
+    return new Date(Date.UTC(year, month, 1) - WITA_OFFSET_MS).toISOString();
+  }
+  // 'week': 7 hari kalender terakhir termasuk hari ini.
+  return new Date(Date.UTC(year, month, day - 6) - WITA_OFFSET_MS).toISOString();
+}
+
+// Daftar 7 tanggal WITA terakhir (termasuk hari ini), format YYYY-MM-DD.
+function lastSevenWitaDates(): string[] {
+  const shifted = new Date(Date.now() + WITA_OFFSET_MS);
+  const todayUtc = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate());
+  return Array.from({ length: 7 }, (_, i) =>
+    new Date(todayUtc - (6 - i) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  );
+}
+
+function witaDateKeyOf(iso: string): string | null {
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return null;
+  return new Date(ts + WITA_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+const StatCard = ({ title, value, icon: Icon, color, subtitle, index = 0 }: any) => (
   <motion.div 
+    initial={{ opacity: 0, y: 16 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.35, delay: index * 0.07 }}
     whileHover={{ y: -2 }}
     className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-all"
   >
@@ -53,10 +100,15 @@ export default function SellerDashboard() {
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalSales: 0,
+    periodSales: 0,
+    periodOrders: 0,
     balance: 0,
     totalWithdrawn: 0,
     totalFeePaid: 0
   });
+  const [period, setPeriod] = useState<PeriodKey>('today');
+  const [periodLoading, setPeriodLoading] = useState(true);
+  const [sparkline, setSparkline] = useState<{ date: string; total: number }[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [storeOpen, setStoreOpen] = useState(true);
@@ -114,6 +166,63 @@ export default function SellerDashboard() {
       };
     }
   }, [user]);
+
+  // Fetch pendapatan periode secara terpisah supaya ganti periode tidak me-reset seluruh dashboard.
+  useEffect(() => {
+    if (user?.role === 'seller') {
+      fetchPeriodSales(period);
+    }
+  }, [user, period]);
+
+  const fetchPeriodSales = async (selectedPeriod: PeriodKey) => {
+    if (!user?.id) return;
+    try {
+      setPeriodLoading(true);
+      const startIso = periodStartIso(selectedPeriod);
+      const weekStartIso = periodStartIso('week');
+      // Pendapatan seller = subtotal item pada transaksi lunas (paid/success),
+      // dihitung dari transaction_items (bukan profiles.total_sales) agar bisa difilter periode.
+      let query = supabase
+        .from('transaction_items')
+        .select('transaction_id, subtotal, transactions!inner(status, created_at)')
+        .eq('seller_id', user.id)
+        .in('transactions.status', ['paid', 'success']);
+      if (startIso) {
+        query = query.gte('transactions.created_at', startIso);
+      }
+      // Sparkline 7 hari selalu diambil terpisah (query kecil, rentang 7 hari saja).
+      const [periodResult, weekResult] = await Promise.all([
+        query,
+        supabase
+          .from('transaction_items')
+          .select('subtotal, transactions!inner(status, created_at)')
+          .eq('seller_id', user.id)
+          .in('transactions.status', ['paid', 'success'])
+          .gte('transactions.created_at', weekStartIso),
+      ]);
+      if (periodResult.error) throw periodResult.error;
+      if (weekResult.error) throw weekResult.error;
+
+      const rows = periodResult.data || [];
+      const total = rows.reduce((sum: number, row: any) => sum + (Number(row.subtotal) || 0), 0);
+      const orders = new Set(rows.map((row: any) => row.transaction_id).filter(Boolean)).size;
+      setStats(prev => ({ ...prev, periodSales: total, periodOrders: orders }));
+
+      // Agregasi sparkline per tanggal WITA.
+      const dayTotals = new Map<string, number>();
+      for (const row of weekResult.data || []) {
+        const createdAt = (row as any).transactions?.created_at;
+        const key = createdAt ? witaDateKeyOf(createdAt) : null;
+        if (!key) continue;
+        dayTotals.set(key, (dayTotals.get(key) || 0) + (Number((row as any).subtotal) || 0));
+      }
+      setSparkline(lastSevenWitaDates().map(date => ({ date, total: dayTotals.get(date) || 0 })));
+    } catch (error) {
+      console.error('Error fetching period sales:', error);
+    } finally {
+      setPeriodLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -252,9 +361,37 @@ export default function SellerDashboard() {
         </div>
       </div>
 
+      {/* Filter periode pendapatan */}
+      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Filter periode pendapatan">
+        {PERIOD_OPTIONS.map(option => {
+          const isActive = period === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setPeriod(option.key)}
+              className={[
+                'h-9 rounded-xl px-4 text-xs font-bold transition-all',
+                isActive
+                  ? 'bg-zinc-900 text-white shadow-sm dark:bg-white dark:text-zinc-900'
+                  : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800',
+              ].join(' ')}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+        <span className="ml-1 text-[11px] font-medium text-zinc-400">
+          Pendapatan dihitung untuk {(PERIOD_OPTIONS.find(o => o.key === period) || PERIOD_OPTIONS[3]).short}.
+        </span>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 tour-seller-stats">
         <StatCard 
+          index={0}
           title="Saldo Tersedia" 
           value={formatRupiah(stats.balance)} 
           icon={DollarSign} 
@@ -262,24 +399,100 @@ export default function SellerDashboard() {
           subtitle="Sudah termasuk potongan fee (Bersih)"
         />
         <StatCard 
-          title="Total Penjualan" 
-          value={formatRupiah(stats.totalSales)} 
+          index={1}
+          title={`Pendapatan ${PERIOD_OPTIONS.find(o => o.key === period)?.label || ''}`}
+          value={periodLoading ? '...' : formatRupiah(stats.periodSales)}
           icon={TrendingUp} 
-          color="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
+          color="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+          subtitle={`${stats.periodOrders.toLocaleString('id-ID')} pesanan lunas · total semua waktu ${formatRupiah(stats.totalSales)}`}
         />
         <StatCard 
+          index={2}
           title="Total Ditarik" 
           value={formatRupiah(stats.totalWithdrawn)} 
           icon={CreditCard} 
           color="bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400"
         />
         <StatCard 
+          index={3}
           title="Total Produk" 
           value={stats.totalProducts} 
           icon={Package} 
           color="bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400"
         />
       </div>
+
+      {/* Sparkline pendapatan 7 hari (WITA) */}
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.3 }}
+        className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm p-5 sm:p-6"
+      >
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-500" />
+              Tren Pendapatan 7 Hari
+            </h3>
+            <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">Subtotal item pada transaksi lunas, kalender WITA.</p>
+          </div>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+            {formatRupiah(sparkline.reduce((s, d) => s + d.total, 0))} / 7 hari
+          </span>
+        </div>
+        {sparkline.every(d => d.total === 0) ? (
+          <div className="flex h-28 flex-col items-center justify-center gap-2 text-zinc-300 dark:text-zinc-600">
+            <TrendingUp className="h-8 w-8 stroke-[1]" />
+            <p className="text-xs font-semibold">Belum ada pendapatan dalam 7 hari terakhir</p>
+          </div>
+        ) : (
+          <div className="h-28 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={sparkline} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="sellerGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 9, fontWeight: 700 }}
+                  className="text-zinc-400"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v: string) => v.slice(8)}
+                />
+                <Tooltip
+                  cursor={{ stroke: '#10b981', strokeOpacity: 0.3 }}
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    return (
+                      <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{label}</p>
+                        <p className="mt-0.5 text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          {formatRupiah(Number(payload[0].value) || 0)}
+                        </p>
+                      </div>
+                    );
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#10b981"
+                  strokeWidth={2.5}
+                  fill="url(#sellerGradient)"
+                  dot={{ r: 3, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 5, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                  animationDuration={700}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </motion.section>
 
       <div className="grid lg:grid-cols-2 gap-6 sm:gap-10">
         {/* Low Stock Alerts */}

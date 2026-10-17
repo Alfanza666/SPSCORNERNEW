@@ -1055,8 +1055,10 @@ buyer_email: buyerEmail,
                           <p className="text-xs font-bold text-zinc-500 mb-3">Atau gunakan poin sebagian (min 1.000 pts)</p>
                           <div className="flex items-center gap-3">
                             <div className="flex-1 relative">
+                              <label htmlFor="points-input" className="sr-only">Jumlah poin yang dipakai</label>
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-bold">Rp</span>
                               <input
+                                id="points-input"
                                 type="number"
                                 min={1000}
                                 max={Math.min(user.loyalty_points || 0, getTotal())}

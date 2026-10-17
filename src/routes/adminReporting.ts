@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 const SETTLED_STATUSES = ['paid', 'success'] as const;
 const HISTORY_GROUPS = new Set(['settled', 'pending', 'failed']);
+const OVERVIEW_PERIODS = new Set(['today', 'week', 'month', 'all']);
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 250;
 const REPORT_FETCH_CHUNK = 500;
@@ -9,6 +10,7 @@ const WITA_OFFSET_MS = 8 * 60 * 60 * 1000;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type HistoryGroup = 'settled' | 'pending' | 'failed';
+type OverviewPeriod = 'today' | 'week' | 'month' | 'all';
 
 interface HistoryFilters {
   group: HistoryGroup;
@@ -443,6 +445,48 @@ function chartLabel(dateKey: string): string {
   }).format(new Date(`${dateKey}T00:00:00.000Z`));
 }
 
+function parseOverviewPeriod(value: unknown): OverviewPeriod {
+  const raw = firstQueryValue(value).trim().toLowerCase();
+  if (!raw) return 'all';
+  if (!OVERVIEW_PERIODS.has(raw)) {
+    throw new ReportingRequestError('Periode harus salah satu dari: today, week, month, all.');
+  }
+  return raw as OverviewPeriod;
+}
+
+function witaPeriodStart(now: Date, period: OverviewPeriod): Date | null {
+  if (period === 'all') return null;
+  const shifted = new Date(now.getTime() + WITA_OFFSET_MS);
+  const year = shifted.getUTCFullYear();
+  const month = shifted.getUTCMonth();
+  const day = shifted.getUTCDate();
+  if (period === 'today') {
+    return new Date(Date.UTC(year, month, day) - WITA_OFFSET_MS);
+  }
+  if (period === 'month') {
+    return new Date(Date.UTC(year, month, 1) - WITA_OFFSET_MS);
+  }
+  // 'week': mundur 6 hari dari awal hari ini (WITA) → total 7 hari kalender termasuk hari ini.
+  return new Date(Date.UTC(year, month, day - 6) - WITA_OFFSET_MS);
+}
+
+function witaPreviousPeriodStart(now: Date, period: OverviewPeriod): Date | null {
+  const start = witaPeriodStart(now, period);
+  if (!start) return null;
+  const shifted = new Date(start.getTime() + WITA_OFFSET_MS);
+  const year = shifted.getUTCFullYear();
+  const month = shifted.getUTCMonth();
+  const day = shifted.getUTCDate();
+  if (period === 'today') {
+    return new Date(Date.UTC(year, month, day - 1) - WITA_OFFSET_MS);
+  }
+  if (period === 'month') {
+    return new Date(Date.UTC(year, month - 1, 1) - WITA_OFFSET_MS);
+  }
+  // 'week': 7 hari sebelum minggu berjalan.
+  return new Date(Date.UTC(year, month, day - 7) - WITA_OFFSET_MS);
+}
+
 function addBreakdownAmount(
   breakdown: Map<string, { id: string; name: string; total: number; kind: 'seller' | 'digital' | 'unallocated' }>,
   id: string,
@@ -465,17 +509,54 @@ export function buildOverviewData(input: {
   totalSellers: number;
   activeSellers: number;
   pendingWithdrawals: number;
+  period?: OverviewPeriod;
   now?: Date;
 }) {
-  const settledTransactions = [...input.settledTransactions].sort((left, right) => (
+  const period = input.period || 'all';
+  const now = input.now || new Date();
+  const periodStart = witaPeriodStart(now, period);
+  const periodStartMs = periodStart ? periodStart.getTime() : null;
+  // Filter periode diaplikasikan di memory (bukan di query) supaya perilaku konsisten
+  // dengan filter bulan/tahun di analytics.ts dan terhindar dari gotcha filter kolom
+  // relasi !inner di PostgREST. Chart 7 hari selalu pakai data penuh agar tidak kosong
+  // saat user memilih periode "Hari Ini".
+  const periodTransactions = periodStartMs === null
+    ? input.settledTransactions
+    : input.settledTransactions.filter(transaction => {
+        const ts = Date.parse(transaction.created_at);
+        return Number.isFinite(ts) && ts >= periodStartMs;
+      });
+  const settledTransactions = [...periodTransactions].sort((left, right) => (
     (Date.parse(right.created_at) || 0) - (Date.parse(left.created_at) || 0)
     || String(left.id || '').localeCompare(String(right.id || ''))
   ));
+  const settledIds = new Set(settledTransactions.map(transaction => String(transaction.id || '')));
+  const settledItems = periodStartMs === null
+    ? input.settledItems
+    : input.settledItems.filter(item => settledIds.has(String(item.transaction_id || '')));
+  const periodFailedTransactions = periodStartMs === null
+    ? input.failedTransactions
+    : input.failedTransactions.filter(transaction => {
+        const ts = Date.parse(transaction.created_at);
+        return Number.isFinite(ts) && ts >= periodStartMs;
+      });
+
+  // Gross periode sebelumnya (kemarin / minggu lalu / bulan lalu) untuk indikator ▲/▼.
+  const prevStart = witaPreviousPeriodStart(now, period);
+  const prevStartMs = prevStart ? prevStart.getTime() : null;
+  const previousPeriodGross = prevStartMs === null || periodStartMs === null
+    ? 0
+    : money(input.settledTransactions.reduce((total, transaction) => {
+        const ts = Date.parse(transaction.created_at);
+        return Number.isFinite(ts) && ts >= prevStartMs && ts < periodStartMs
+          ? total + money(transaction.total_amount)
+          : total;
+      }, 0));
   const grossSettled = money(settledTransactions.reduce(
     (total, transaction) => total + money(transaction.total_amount),
     0,
   ));
-  const failedAmount = money(input.failedTransactions.reduce(
+  const failedAmount = money(periodFailedTransactions.reduce(
     (total, transaction) => total + money(transaction.total_amount),
     0,
   ));
@@ -494,7 +575,7 @@ export function buildOverviewData(input: {
   let orphanItemGross = 0;
   const itemGrossByTransaction = new Map<string, number>();
 
-  for (const item of input.settledItems) {
+  for (const item of settledItems) {
     const gross = itemGross(item);
     const net = money(item.subtotal);
     itemGrossTotal = money(itemGrossTotal + gross);
@@ -592,10 +673,11 @@ export function buildOverviewData(input: {
     });
   }
 
-  const now = input.now || new Date();
   const chartKeys = lastSevenWitaDateKeys(now);
   const chartSales = Object.fromEntries(chartKeys.map(key => [key, 0]));
-  for (const transaction of settledTransactions) {
+  // Chart selalu 7 hari WITA penuh (dari data settled tanpa filter periode),
+  // supaya tidak kosong saat pengguna memilih periode "Hari Ini".
+  for (const transaction of input.settledTransactions) {
     const key = witaDateKey(transaction.created_at);
     if (key && Object.prototype.hasOwnProperty.call(chartSales, key)) {
       chartSales[key] = money(chartSales[key] + money(transaction.total_amount));
@@ -603,6 +685,9 @@ export function buildOverviewData(input: {
   }
 
   return {
+    period,
+    periodStart: periodStart ? periodStart.toISOString() : null,
+    previousPeriodGross,
     metrics: {
       grossSettled,
       recordedFee,
@@ -614,7 +699,7 @@ export function buildOverviewData(input: {
       ledgerComplete: unallocatedGross === 0 && overallocatedGross === 0,
       settledCount: settledTransactions.length,
       pendingCount: input.pendingCount,
-      failedCount: input.failedTransactions.length,
+      failedCount: periodFailedTransactions.length,
       failedAmount,
       validationFailedCount: input.validationFailedCount,
       fulfillmentFailedCount: fulfillmentFailedTransactions.size,
@@ -630,7 +715,7 @@ export function buildOverviewData(input: {
   };
 }
 
-async function loadOverview(supabase: any) {
+async function loadOverview(supabase: any, period: OverviewPeriod = 'all', now: Date = new Date()) {
   const settledTransactionsPromise = fetchAllByRange<any>(() => supabase
     .from('transactions')
     .select('id,buyer_name,buyer_id,total_amount,status,payment_method,receipt_image,created_at,metadata')
@@ -720,6 +805,8 @@ async function loadOverview(supabase: any) {
     totalSellers: Number(totalSellersResult.count || 0),
     activeSellers: Number(activeSellersResult.count || 0),
     pendingWithdrawals: Number(pendingWithdrawalsResult.count || 0),
+    period,
+    now,
   });
 }
 
@@ -749,9 +836,14 @@ export function registerAdminReportingRoutes(app: any, { supabase }: { supabase:
   app.get('/api/admin/dashboard/overview', async (req: Request, res: Response) => {
     try {
       if (!await requireReportingAdmin(supabase, req, res)) return;
-      const data = await loadOverview(supabase);
+      const period = parseOverviewPeriod((req.query as Record<string, unknown>)?.period);
+      const data = await loadOverview(supabase, period);
       res.json({ success: true, data });
     } catch (error) {
+      if (error instanceof ReportingRequestError) {
+        res.status(error.statusCode).json({ success: false, error: error.message });
+        return;
+      }
       logReportingFailure('dashboard/overview', error);
       res.status(500).json({ success: false, error: 'Gagal memuat overview dashboard.' });
     }

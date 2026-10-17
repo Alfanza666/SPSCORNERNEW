@@ -4,7 +4,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { motion } from 'motion/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { DollarSign, ShoppingCart, Wallet, TrendingUp, Calendar, Package } from 'lucide-react';
+import { DollarSign, ShoppingCart, Wallet, TrendingUp, Calendar, Package, BarChart3, RotateCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function SellerAnalytics() {
@@ -66,9 +66,11 @@ export default function SellerAnalytics() {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-800 dark:text-white">📊 Analytics Saya</h1>
-        <button onClick={fetchData} className="text-sm text-blue-600 hover:text-blue-700">
-          🔄 Refresh
+        <h1 className="text-2xl font-bold text-zinc-800 dark:text-white flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-blue-500" /> Analytics Saya
+        </h1>
+        <button onClick={fetchData} className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors">
+          <RotateCw className="w-4 h-4" /> Refresh
         </button>
       </div>
 

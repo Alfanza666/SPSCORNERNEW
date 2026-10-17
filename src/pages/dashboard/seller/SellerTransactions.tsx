@@ -5,6 +5,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
 import { Package, CheckCircle2, Clock, Search } from 'lucide-react';
 import { appToast } from '../../../components/ui/AppToast';
+import PullToRefresh from '../../../components/ui/PullToRefresh';
 
 export default function SellerTransactions() {
   const { user } = useAuthStore();
@@ -92,6 +93,7 @@ export default function SellerTransactions() {
   });
 
   return (
+    <PullToRefresh onRefresh={fetchTransactions}>
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -176,7 +178,7 @@ export default function SellerTransactions() {
                         item.transactions?.metadata?.sariroti_confirmed ? (
                           item.metadata?.status === 'ready' ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-emerald-200 text-emerald-700 text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
-                              ✓ Siap Diambil
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Siap Diambil
                             </span>
                           ) : (
                             <button
@@ -197,7 +199,7 @@ export default function SellerTransactions() {
                         )
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 text-blue-700 text-xs font-bold bg-blue-50 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20">
-                          ✓ Sedang Diproses
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Sedang Diproses
                         </span>
                       )}
                     </td>
@@ -209,5 +211,6 @@ export default function SellerTransactions() {
         </div>
       </div>
     </div>
+    </PullToRefresh>
   );
 }

@@ -39,7 +39,11 @@ param(
   [string]$HealthUrl = "https://api.spscorner.store/api/test-ping"
 )
 
-$ErrorActionPreference = 'Stop'
+# Native command (npm/vite/scp/ssh/tar) menulis progress & warning ke stderr.
+# Dengan ErrorActionPreference='Stop', tulisan stderr itu melempar NativeCommandError
+# SEBELUM exit code bisa dicek (deploy gagal palsu). Pakai 'Continue' agar kegagalan
+# dinilai murni dari $LASTEXITCODE yang dicek eksplisit di tiap langkah.
+$ErrorActionPreference = 'Continue'
 $VPS = $VpsHost
 $REMOTE_DIR = "/opt/sps-backend"
 $LOCAL_DIR = (Get-Location).Path
@@ -149,13 +153,20 @@ Step "Restart PM2..."
 if ($LASTEXITCODE -ne 0) { Die "PM2 restart gagal" }
 Ok "PM2 direstart"
 
-# -- 8. Health check --
+# -- 8. Health check (retry: PM2 butuh ~10 detik untuk start penuh) --
 Step "Health check..."
-Start-Sleep -Seconds 4
-try {
-  $resp = Invoke-RestMethod -Uri $HealthUrl -TimeoutSec 12
-  Ok "Server sehat: $($resp | ConvertTo-Json -Compress)"
-} catch {
+$healthy = $false
+for ($attempt = 1; $attempt -le 5 -and -not $healthy; $attempt++) {
+  Start-Sleep -Seconds 5
+  try {
+    $resp = Invoke-RestMethod -Uri $HealthUrl -TimeoutSec 15
+    Ok "Server sehat: $($resp | ConvertTo-Json -Compress)"
+    $healthy = $true
+  } catch {
+    Write-Host "    Percobaan $attempt/5 belum merespons..." -ForegroundColor DarkYellow
+  }
+}
+if (-not $healthy) {
   Write-Host "Health check GAGAL - log error:" -ForegroundColor Red
   & ssh @SshOpts $VPS "pm2 logs sps-backend --lines 20 --nostream --err" 2>&1
   Die "Server tidak merespons"

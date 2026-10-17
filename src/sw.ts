@@ -34,6 +34,11 @@ self.addEventListener('message', (event) => {
 });
 
 // Listener untuk menerima tembakan Web Push (dari server - app tertutup)
+// Anti-spam: simpan tag notifikasi yang baru ditampilkan; payload identik
+// (retry jaringan / double-trigger backend) tidak akan memunculkan notifikasi ulang.
+const recentlyShownTags = new Map<string, number>();
+const DEDUP_WINDOW_MS = 60_000;
+
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
@@ -41,14 +46,26 @@ self.addEventListener('push', (event) => {
     (async () => {
       try {
         const payload = event.data.json();
+        // Tag mengandung path (biasanya memuat ID transaksi/event) → unik per kejadian.
+        const tag = payload.tag || `sps-${payload.url || 'notif'}`;
+        const now = Date.now();
+        const lastShown = recentlyShownTags.get(tag);
+        if (lastShown && now - lastShown < DEDUP_WINDOW_MS) return; // duplikat: abaikan
+        recentlyShownTags.set(tag, now);
+        // Bersihkan entri lama agar map tidak tumbuh tanpa batas.
+        for (const [key, ts] of recentlyShownTags) {
+          if (now - ts > DEDUP_WINDOW_MS) recentlyShownTags.delete(key);
+        }
+
         await self.registration.showNotification(payload.title || 'SPS Corner', {
           body: payload.body || 'Anda memiliki pemberitahuan baru',
           icon: '/logos/sps-logo-icon.png',
           badge: '/logos/sps-logo-icon.png',
-          vibrate: [200, 100, 200, 100, 200, 100, 200], // Memicu getar dan suara default OS
-          requireInteraction: true, // Menempel di status bar / lockscreen
-          renotify: true, // WAJIB ada agar notifikasi berikutnya dengan tag sama tetap bergetar & muncul di lockscreen
-          tag: payload.tag || 'sps-notification',
+          vibrate: [200, 100, 200],
+          // renotify:false → notifikasi dengan tag yang sama TIDAK bergetar/muncul ulang;
+          // notifikasi lama cukup diganti isinya, bukan mengganggu lagi.
+          renotify: false,
+          tag,
           data: { url: payload.url || '/' } // Simpan URL untuk dibuka saat di-klik
         } as any);
       } catch (error) {
