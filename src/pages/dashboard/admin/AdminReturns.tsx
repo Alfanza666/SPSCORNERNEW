@@ -110,7 +110,15 @@ export default function AdminReturns() {
                 </tr>
               ) : filteredReturns.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-8 text-center text-zinc-500">Belum ada permintaan retur</td>
+                  <td colSpan={8} className="px-6 py-10 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center">
+                        <RotateCcw className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
+                      </div>
+                      <p className="text-sm font-bold text-zinc-900 dark:text-white">Belum ada permintaan retur</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Permintaan retur dari seller akan muncul di sini.</p>
+                    </div>
+                  </td>
                 </tr>
               ) : (
                 filteredReturns.map((ret) => (

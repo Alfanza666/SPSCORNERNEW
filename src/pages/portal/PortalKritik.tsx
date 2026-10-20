@@ -161,10 +161,10 @@ export default function PortalKritik() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-zinc-900 rounded-2xl md:rounded-3xl p-5 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-lg md:shadow-xl"
+          className="bg-white dark:bg-zinc-900 rounded-2xl rounded-2xl p-5 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-lg md:shadow-sm"
         >
           <div className="flex items-center gap-3 mb-5 md:mb-6">
-            <FileText className="w-5 h-5 text-purple-500" />
+            <FileText className="w-5 h-5 text-emerald-500" />
             <h3 className="font-bold text-zinc-900 dark:text-white text-base md:text-lg">Kirim Kritik/Saran</h3>
           </div>
 
@@ -178,13 +178,13 @@ export default function PortalKritik() {
                     whileTap={{ scale: 0.95 }}
                     type="button"
                     onClick={() => setFormData({ ...formData, type })}
-                    className={`flex flex-col items-center justify-center p-4 md:p-5 rounded-xl md:rounded-2xl text-sm font-bold transition-all ${
+                    className={`flex flex-col items-center justify-center p-4 md:p-5 rounded-xl rounded-2xl text-sm font-bold transition-all ${
                       formData.type === type
-                        ? 'bg-gradient-to-br from-purple-600 to-violet-600 text-white shadow-lg shadow-purple-500/30'
-                        : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-zinc-200 dark:border-zinc-700'
+                        ? 'bg-gradient-to-br from-emerald-600 to-emerald-600 text-white shadow-lg shadow-emerald-500/30'
+                        : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border border-zinc-200 dark:border-zinc-700'
                     }`}
                   >
-                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center mb-2 md:mb-3 ${
+                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl rounded-2xl flex items-center justify-center mb-2 md:mb-3 ${
                       formData.type === type ? 'bg-white/20' : 'bg-zinc-100 dark:bg-zinc-700'
                     }`}>
                       {getTypeIcon(type)}
@@ -201,7 +201,7 @@ export default function PortalKritik() {
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full p-3 md:p-4 rounded-xl md:rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-sm md:text-base focus:border-purple-400 focus:ring-0 outline-none transition-all"
+                className="w-full p-3 md:p-4 rounded-xl rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-sm md:text-base focus:border-emerald-400 focus:ring-0 outline-none transition-all"
                 placeholder="Ringkasan kritik/saran Anda..."
                 required
               />
@@ -212,18 +212,18 @@ export default function PortalKritik() {
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full p-3 md:p-4 rounded-xl md:rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-sm md:text-base focus:border-purple-400 focus:ring-0 outline-none h-32 md:h-40 resize-none transition-all"
+                className="w-full p-3 md:p-4 rounded-xl rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 text-sm md:text-base focus:border-emerald-400 focus:ring-0 outline-none h-32 md:h-40 resize-none transition-all"
                 placeholder="Jelaskan detail kritik/saran Anda secara lengkap..."
                 required
               />
             </div>
 
-            <div className="bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/30 dark:to-violet-900/20 p-3 md:p-4 rounded-xl md:rounded-2xl border border-purple-100 dark:border-purple-900/30">
+            <div className="bg-gradient-to-r from-emerald-50 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-900/20 p-3 md:p-4 rounded-xl rounded-2xl border border-emerald-100 dark:border-emerald-900/30">
               <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-purple-500" />
-                <p className="text-xs md:text-sm font-bold text-purple-700 dark:text-purple-300">Catatan</p>
+                <Sparkles className="w-4 h-4 text-emerald-500" />
+                <p className="text-xs md:text-sm font-bold text-emerald-700 dark:text-emerald-300">Catatan</p>
               </div>
-              <p className="text-xs md:text-sm text-purple-700 dark:text-purple-300 leading-relaxed">
+              <p className="text-xs md:text-sm text-emerald-700 dark:text-emerald-300 leading-relaxed">
                 Kritik dan saran Anda akan diproses di meeting bipartit berikutnya. Identitas Anda akan dirahasiakan.
               </p>
             </div>
@@ -232,7 +232,7 @@ export default function PortalKritik() {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={submitting}
-              className="w-full py-3 md:py-4 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 text-white font-bold rounded-xl md:rounded-2xl flex items-center justify-center gap-2 md:gap-3 shadow-lg shadow-purple-500/30 transition-all disabled:opacity-50 text-sm md:text-base"
+              className="w-full py-3 md:py-4 bg-gradient-to-r from-emerald-600 to-emerald-600 hover:from-emerald-700 hover:to-emerald-700 text-white font-bold rounded-xl rounded-2xl flex items-center justify-center gap-2 md:gap-3 shadow-lg shadow-emerald-500/30 transition-all disabled:opacity-50 text-sm md:text-base"
             >
               {submitting ? (
                 <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
@@ -251,7 +251,7 @@ export default function PortalKritik() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white dark:bg-zinc-900 rounded-2xl md:rounded-3xl p-5 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-lg md:shadow-xl"
+          className="bg-white dark:bg-zinc-900 rounded-2xl rounded-2xl p-5 md:p-8 border border-zinc-100 dark:border-zinc-800 shadow-lg md:shadow-sm"
         >
           <div className="flex items-center justify-between mb-5 md:mb-6">
             <h3 className="font-bold text-zinc-900 dark:text-white text-base md:text-lg flex items-center gap-2 md:gap-3">
@@ -266,11 +266,11 @@ export default function PortalKritik() {
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                className="w-8 h-8 md:w-10 md:h-10 border-3 md:border-4 border-purple-500 border-t-transparent rounded-full"
+                className="w-8 h-8 md:w-10 md:h-10 border-3 md:border-4 border-emerald-500 border-t-transparent rounded-full"
               />
             </div>
           ) : feedbacks.length === 0 ? (
-            <div className="text-center py-8 md:py-12 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl md:rounded-2xl">
+            <div className="text-center py-8 md:py-12 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl rounded-2xl">
               <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-zinc-100 dark:bg-zinc-700 flex items-center justify-center mx-auto mb-3 md:mb-4">
                 <MessageSquare className="w-8 h-8 md:w-10 md:h-10 text-zinc-400" />
               </div>
@@ -285,11 +285,11 @@ export default function PortalKritik() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.03 }}
-                  className="p-4 md:p-5 bg-zinc-50 dark:bg-zinc-800 rounded-xl md:rounded-2xl border border-zinc-100 dark:border-zinc-700"
+                  className="p-4 md:p-5 bg-zinc-50 dark:bg-zinc-800 rounded-xl rounded-2xl border border-zinc-100 dark:border-zinc-700"
                 >
                   <div className="flex items-start justify-between gap-3 md:gap-4 mb-3 md:mb-4">
                     <div className="flex items-center gap-2 md:gap-3">
-                      <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center ${
+                      <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl rounded-2xl flex items-center justify-center ${
                         feedback.type === 'kritik' 
                           ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' 
                           : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
@@ -325,10 +325,10 @@ export default function PortalKritik() {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 p-3 md:p-4 rounded-xl md:rounded-2xl leading-relaxed">{feedback.description}</p>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 p-3 md:p-4 rounded-xl rounded-2xl leading-relaxed">{feedback.description}</p>
                         
                         {feedback.response && (
-                          <div className="mt-3 md:mt-4 p-3 md:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/20 border border-green-100 dark:border-green-900/30 rounded-xl md:rounded-2xl">
+                          <div className="mt-3 md:mt-4 p-3 md:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/20 border border-green-100 dark:border-green-900/30 rounded-xl rounded-2xl">
                             <p className="text-sm font-bold text-green-700 dark:text-green-400 flex items-center gap-2 mb-2">
                               <CheckCircle className="w-4 h-4 md:w-5 md:h-5" /> Tanggapan Manajemen:
                             </p>

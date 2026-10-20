@@ -55,7 +55,7 @@ export default function KioskHome() {
 
   const statusColor: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700', paid: 'bg-blue-100 text-blue-700',
-    processed: 'bg-purple-100 text-purple-700', pending_pickup: 'bg-emerald-100 text-emerald-700',
+    processed: 'bg-emerald-100 text-emerald-700', pending_pickup: 'bg-emerald-100 text-emerald-700',
     ready_for_pickup: 'bg-emerald-100 text-emerald-700', completed: 'bg-green-100 text-green-700',
     cancelled: 'bg-red-100 text-red-700', failed: 'bg-red-100 text-red-700'
   };
@@ -109,7 +109,7 @@ export default function KioskHome() {
           <p className="text-xs text-zinc-500 mt-0.5">Pesan dari jauh-jauh hari</p>
         </motion.button>
         <motion.button whileHover={{ y: -2 }} onClick={() => navigate('/kiosk/profile')} className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800 shadow-sm text-left">
-          <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
             <CreditCard className="w-5 h-5" />
           </div>
           <p className="font-bold text-sm text-zinc-900 dark:text-white">Profil</p>

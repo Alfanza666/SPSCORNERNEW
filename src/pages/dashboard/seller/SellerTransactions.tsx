@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
-import { Package, CheckCircle2, Clock, Search } from 'lucide-react';
+import { Package, CheckCircle2, Clock, Search, ShoppingCart } from 'lucide-react';
 import { appToast } from '../../../components/ui/AppToast';
 import PullToRefresh from '../../../components/ui/PullToRefresh';
 
@@ -138,15 +138,23 @@ export default function SellerTransactions() {
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-zinc-500">
-                    Belum ada pesanan
+                  <td colSpan={7} className="px-6 py-10 text-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center">
+                        <ShoppingCart className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
+                      </div>
+                      <p className="text-sm font-bold text-zinc-900 dark:text-white">Belum ada pesanan</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Pesanan baru dari pembeli akan muncul di sini.</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 filteredItems.map((item) => (
                   <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-zinc-600 dark:text-zinc-300">
-                      {new Date(item.transactions?.created_at).toLocaleString('id-ID')}
+                      {item.transactions?.created_at
+                        ? new Date(item.transactions.created_at).toLocaleString('id-ID')
+                        : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-zinc-900 dark:text-white">
                       {item.transactions?.buyer_name}

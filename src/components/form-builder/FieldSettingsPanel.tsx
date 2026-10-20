@@ -421,7 +421,7 @@ export function FieldSettingsPanel({
             <label><Label>Maksimum</Label><input type="number" min="1" value={field.max_items ?? 5} onChange={event => onUpdate({ max_items: Math.max(1, Number(event.target.value) || 1) })} className={CONTROL} /></label>
             <label className="col-span-2"><Label>Biaya per anggota</Label><input type="number" min="0" value={field.item_unit_price ?? 0} onChange={event => onUpdate({ item_unit_price: moneyValue(event.target.value), currency: 'IDR' })} className={CONTROL} /></label>
           </div>
-          <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50/70 p-3 text-[10px] leading-5 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/20 dark:text-violet-300"><Users className="mr-1.5 inline h-3.5 w-3.5" />Template menyimpan nama dan hubungan tiap anggota secara terpisah.</div>
+          <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-[10px] leading-5 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300"><Users className="mr-1.5 inline h-3.5 w-3.5" />Template menyimpan nama dan hubungan tiap anggota secara terpisah.</div>
         </Section>
       )}
 
@@ -519,7 +519,7 @@ export function FieldSettingsPanel({
 
       <Section title="Logika tampil" description="Pertanyaan hanya muncul ketika jawaban sebelumnya cocok.">
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-600 dark:text-violet-400"><GitBranch className="h-3.5 w-3.5" /> Conditional logic</div>
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-600 dark:text-emerald-400"><GitBranch className="h-3.5 w-3.5" /> Conditional logic</div>
           <select value={field.condition?.fieldId || ''} onChange={event => { const parent = conditionalParents.find(candidate => candidate.id === event.target.value); onUpdate({ condition: parent ? { fieldId: parent.id, operator: 'eq', value: parent.options?.[0]?.value || '' } : undefined }); }} className={CONTROL}>
             <option value="">Selalu tampil</option>
             {conditionalParents.map(parent => <option key={parent.id} value={parent.id}>Jika: {parent.label}</option>)}

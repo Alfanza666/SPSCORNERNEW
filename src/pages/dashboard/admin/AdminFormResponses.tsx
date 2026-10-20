@@ -308,7 +308,7 @@ export default function AdminFormResponses() {
           <button
             onClick={() => setShowCharts(!showCharts)}
             className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all active:scale-95 ${
-              showCharts ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
+              showCharts ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' : 'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
             }`}
           >
             <BarChart3 className="w-5 h-5" />
@@ -342,7 +342,7 @@ export default function AdminFormResponses() {
           >
             <div className="p-6 border-b border-zinc-50 dark:border-zinc-800">
               <h3 className="font-black text-zinc-900 dark:text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-purple-500" />
+                <BarChart3 className="w-5 h-5 text-emerald-500" />
                 Grafik Respon
               </h3>
             </div>
@@ -366,7 +366,7 @@ export default function AdminFormResponses() {
                               initial={{ width: 0 }}
                               animate={{ width: `${(item.count / maxCount) * 100}%` }}
                               transition={{ duration: 0.5, ease: 'easeOut' }}
-                              className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
+                              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-pink-500"
                             />
                           </div>
                         </div>

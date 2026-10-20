@@ -478,7 +478,7 @@ export default function AdminDoorprize() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black flex items-center gap-3">
-            <Gift className="w-8 h-8 text-purple-500" />
+            <Gift className="w-8 h-8 text-emerald-500" />
             Undian Doorprize
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">
@@ -500,7 +500,7 @@ export default function AdminDoorprize() {
           {/* Participant Source */}
           <div className="bg-white dark:bg-zinc-900 rounded-3xl p-5 border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <h3 className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Users className="w-3.5 h-3.5 text-purple-500" /> Sumber Peserta
+              <Users className="w-3.5 h-3.5 text-emerald-500" /> Sumber Peserta
             </h3>
             <div className="flex gap-1 mb-3 bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1">
               {(['program', 'manual', 'excel'] as const).map(tab => (
@@ -508,7 +508,7 @@ export default function AdminDoorprize() {
                   onClick={() => setActiveTab(tab)}
                   className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
                     activeTab === tab
-                      ? 'bg-white dark:bg-zinc-700 text-purple-600 dark:text-purple-400 shadow-sm'
+                      ? 'bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow-sm'
                       : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
                   }`}
                 >
@@ -518,7 +518,7 @@ export default function AdminDoorprize() {
             </div>
             {activeTab === 'program' && (
               <select value={selectedProgramId} onChange={e => setSelectedProgramId(e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 outline-none"
               >
                 <option value="">-- Pilih Program --</option>
                 {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -530,31 +530,31 @@ export default function AdminDoorprize() {
                   <input type="text" placeholder="Nama" value={manualName}
                     onChange={e => setManualName(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addManualParticipant()}
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none" />
+                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 outline-none" />
                   <input type="text" placeholder="NIK" value={manualNik}
                     onChange={e => setManualNik(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addManualParticipant()}
-                    className="w-28 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none" />
+                    className="w-28 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 outline-none" />
                   <button onClick={addManualParticipant}
-                    className="px-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all active:scale-95 shrink-0">
+                    className="px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all active:scale-95 shrink-0">
                     <UserPlus className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             )}
             {activeTab === 'excel' && (
-              <label className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-2xl cursor-pointer hover:border-purple-500 dark:hover:border-purple-400 transition-colors">
+              <label className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-2xl cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-400 transition-colors">
                 <Upload className="w-6 h-6 text-zinc-400" />
                 <span className="text-xs font-bold text-zinc-500">Upload .xlsx</span>
                 <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
               </label>
             )}
-            <div className="mt-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/30 rounded-xl p-3 flex items-center gap-3">
-              <Users className="w-6 h-6 text-purple-500 shrink-0" />
+            <div className="mt-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30 rounded-xl p-3 flex items-center gap-3">
+              <Users className="w-6 h-6 text-emerald-500 shrink-0" />
               <div>
-                <div className="text-xs text-purple-700 dark:text-purple-400 font-bold">Total Peserta</div>
-                <div className="text-lg font-black text-purple-800 dark:text-purple-300">
-                  {eligibleCount} <span className="text-xs font-medium text-purple-600/70">Eligible</span>
+                <div className="text-xs text-emerald-700 dark:text-emerald-400 font-bold">Total Peserta</div>
+                <div className="text-lg font-black text-emerald-800 dark:text-emerald-300">
+                  {eligibleCount} <span className="text-xs font-medium text-emerald-600/70">Eligible</span>
                 </div>
               </div>
             </div>
@@ -564,7 +564,7 @@ export default function AdminDoorprize() {
           <div className="bg-white dark:bg-zinc-900 rounded-3xl p-5 border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-black text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                <Trophy className="w-3.5 h-3.5 text-purple-500" /> Hadiah
+                <Trophy className="w-3.5 h-3.5 text-emerald-500" /> Hadiah
               </h3>
               {prizes.length > 0 && (
                 <button onClick={clearPrizes} className="text-[10px] font-bold text-red-400 hover:text-red-500 flex items-center gap-1">
@@ -579,7 +579,7 @@ export default function AdminDoorprize() {
                   <div key={idx}
                     className={`flex items-center justify-between px-3 py-2 rounded-xl border text-sm ${
                       idx === currentPrizeIndex && !latestWinner && !isSpinning
-                        ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-400'
+                        ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-400'
                         : idx < currentPrizeIndex
                           ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 opacity-60'
                           : 'border-zinc-200 dark:border-zinc-700'
@@ -589,7 +589,7 @@ export default function AdminDoorprize() {
                       <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 ${
                         idx < currentPrizeIndex ? 'bg-green-500 text-white'
                           : idx === currentPrizeIndex && !latestWinner && !isSpinning
-                            ? 'bg-purple-600 text-white'
+                            ? 'bg-emerald-600 text-white'
                             : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-500'
                       }`}>
                         {idx < currentPrizeIndex ? '✓' : idx + 1}
@@ -612,12 +612,12 @@ export default function AdminDoorprize() {
               <input type="text" placeholder="Nama hadiah" value={prizeNameInput}
                 onChange={e => setPrizeNameInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && addPrize()}
-                className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-purple-500/20 outline-none" />
+                className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-emerald-500/20 outline-none" />
               <input type="number" min={1} value={prizeQtyInput}
                 onChange={e => setPrizeQtyInput(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-14 text-center bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-1 py-2 text-xs font-bold focus:ring-2 focus:ring-purple-500/20 outline-none" />
+                className="w-14 text-center bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-1 py-2 text-xs font-bold focus:ring-2 focus:ring-emerald-500/20 outline-none" />
               <button onClick={addPrize}
-                className="px-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all active:scale-95 shrink-0">
+                className="px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all active:scale-95 shrink-0">
                 <Plus className="w-4 h-4" />
               </button>
             </div>
@@ -662,7 +662,7 @@ export default function AdminDoorprize() {
           <button
             onClick={spinWheel}
             disabled={isSpinning || eligibleCount === 0 || prizes.length === 0 || currentPrizeIndex >= prizes.length}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-black rounded-2xl shadow-lg shadow-purple-500/30 transition-all active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2 text-lg relative overflow-hidden"
+            className="w-full py-4 bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-700 hover:to-blue-700 text-white font-black rounded-2xl shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.97] disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2 text-lg relative overflow-hidden"
           >
             {isSpinning ? (
               <><Loader2 className="w-5 h-5 animate-spin" /> Memutar...</>
@@ -683,7 +683,7 @@ export default function AdminDoorprize() {
         <div className="lg:col-span-8 xl:col-span-9 space-y-6">
           <div className="relative bg-white dark:bg-zinc-950 rounded-[2.5rem] p-3 md:p-6 border-4 border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-2xl">
             <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/5 blur-[150px] rounded-full" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/5 blur-[150px] rounded-full" />
             </div>
 
             <div className={`relative w-full max-w-[550px] mx-auto aspect-square transition-all duration-500 ${showWinner ? 'opacity-20 scale-90 blur-sm' : 'opacity-100 scale-100'}`}>
@@ -745,7 +745,7 @@ export default function AdminDoorprize() {
                         Pemenang
                       </div>
 
-                      <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-purple-300 via-pink-300 to-yellow-200 mb-2 drop-shadow-lg leading-tight">
+                      <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 drop-shadow-lg leading-tight">
                         {latestWinner.winner_name}
                       </h2>
 
@@ -755,7 +755,7 @@ export default function AdminDoorprize() {
                         </span>
                       </div>
 
-                      <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-3 rounded-xl inline-flex items-center gap-2.5 shadow-[0_0_30px_rgba(147,51,234,0.5)] mx-auto">
+                      <div className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white px-5 py-3 rounded-xl inline-flex items-center gap-2.5 shadow-[0_0_30px_rgba(147,51,234,0.5)] mx-auto">
                         <Trophy className="w-5 h-5" />
                         <span className="font-bold text-sm">Mendapatkan:</span>
                         <span className="font-black text-lg">{latestWinner.prize_name}</span>
@@ -768,7 +768,7 @@ export default function AdminDoorprize() {
                           <Image className="w-4 h-4" /> Simpan Gambar
                         </button>
                         <button onClick={() => { setShowWinner(false); setLatestWinner(null); setShowConfetti(false); }}
-                          className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold rounded-xl transition-all text-sm shadow-lg"
+                          className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-pink-500 hover:from-emerald-700 hover:to-pink-600 text-white font-bold rounded-xl transition-all text-sm shadow-lg"
                         >
                           <Play className="w-4 h-4" /> Undian Berikutnya
                         </button>
@@ -785,11 +785,11 @@ export default function AdminDoorprize() {
             <h3 className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-3 flex items-center gap-2">
               <Clock className="w-3.5 h-3.5" /> Riwayat Pemenang
               {winners.length > 0 && (
-                <span className="text-purple-600 dark:text-purple-400 font-black text-[10px]">({winners.length})</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-black text-[10px]">({winners.length})</span>
               )}
             </h3>
             {loadingWinners ? (
-              <Loader2 className="w-5 h-5 animate-spin text-purple-500 mx-auto" />
+              <Loader2 className="w-5 h-5 animate-spin text-emerald-500 mx-auto" />
             ) : winners.length === 0 ? (
               <p className="text-zinc-400 dark:text-zinc-500 text-center py-4 text-sm">Belum ada pemenang</p>
             ) : (
@@ -798,7 +798,7 @@ export default function AdminDoorprize() {
                   <div key={w.id || i}
                     className="flex items-center gap-2.5 p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-700/50 rounded-xl"
                   >
-                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 font-black flex items-center justify-center shrink-0 text-xs">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-black flex items-center justify-center shrink-0 text-xs">
                       {i + 1}
                     </div>
                     <div className="min-w-0">

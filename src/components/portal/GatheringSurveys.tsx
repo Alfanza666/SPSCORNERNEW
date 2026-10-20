@@ -58,7 +58,7 @@ export default function GatheringSurveys({ announcementId, surveys, targetNiks, 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center">
           <ClipboardList className="w-5 h-5 text-white" />
         </div>
         <div>
@@ -185,7 +185,7 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
   if (checkingSubmission) {
     return (
       <div className="flex items-center justify-center py-4">
-        <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
+        <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
       </div>
     );
   }
@@ -215,7 +215,7 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
       >
         <div className="p-4 border-b border-zinc-100 dark:border-zinc-700">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-500">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500">
               <FileText className="w-4 h-4" />
             </div>
             <div>
@@ -239,7 +239,7 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
                   type="text"
                   value={answers[q.id] || ''}
                   onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                  className="w-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="Ketik jawaban..."
                 />
               )}
@@ -248,7 +248,7 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
                 <textarea
                   value={answers[q.id] || ''}
                   onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
-                  className="w-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-4 py-2.5 text-sm h-24 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-4 py-2.5 text-sm h-24 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   placeholder="Ketik jawaban..."
                 />
               )}
@@ -260,7 +260,7 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
                       key={oIdx}
                       className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                         answers[q.id] === opt
-                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/10'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10'
                           : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900'
                       }`}
                     >
@@ -285,7 +285,7 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
                       key={oIdx}
                       className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
                         (answers[q.id] || []).includes(opt)
-                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/10'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10'
                           : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900'
                       }`}
                     >
@@ -306,7 +306,7 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+            className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {submitting ? 'Mengirim...' : 'Kirim Survei'}
@@ -339,23 +339,23 @@ function SurveyCard({ survey, announcementId, idx, user, navigate }: {
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: idx * 0.08 }}
       onClick={handleOpenSurvey}
-      className="w-full flex items-center gap-4 p-4 bg-white dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700 hover:border-purple-200 dark:hover:border-purple-800 transition-all group text-left active:scale-[0.98]"
+      className="w-full flex items-center gap-4 p-4 bg-white dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-700 hover:border-emerald-200 dark:hover:border-emerald-800 transition-all group text-left active:scale-[0.98]"
     >
-      <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-500 dark:text-purple-400 shrink-0 group-hover:bg-purple-100 dark:group-hover:bg-purple-900/30 transition-colors">
+      <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 dark:text-emerald-400 shrink-0 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/30 transition-colors">
         {hasInlineQuestions ? <FileText className="w-5 h-5" /> : hasExternalLink ? <ExternalLink className="w-5 h-5" /> : <ClipboardList className="w-5 h-5" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm text-zinc-900 dark:text-white truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+        <p className="font-bold text-sm text-zinc-900 dark:text-white truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
           {survey.title}
         </p>
         {survey.description && (
           <p className="text-[10px] text-zinc-400 truncate mt-0.5">{survey.description}</p>
         )}
         {hasInlineQuestions && (
-          <p className="text-[10px] text-purple-500 font-bold mt-0.5">{survey.questions!.length} pertanyaan</p>
+          <p className="text-[10px] text-emerald-500 font-bold mt-0.5">{survey.questions!.length} pertanyaan</p>
         )}
       </div>
-      <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-purple-500 transition-colors shrink-0" />
+      <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-emerald-500 transition-colors shrink-0" />
     </motion.button>
   );
 }

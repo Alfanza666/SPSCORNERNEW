@@ -128,7 +128,7 @@ function statusBadge(status: string) {
     draft: 'bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700',
     submitted: 'bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900',
     pending_payment: 'bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700',
-    locked: 'bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:ring-violet-900',
+    locked: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900',
     declined: 'bg-zinc-100 text-zinc-600 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700',
   };
   const labels: Record<string, string> = {
@@ -217,7 +217,7 @@ function RegistrationAuditDetails({
             href={payment.proof_url}
             target="_blank"
             rel="noreferrer"
-            className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl border border-indigo-200 bg-white px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-900 dark:bg-zinc-900 dark:text-indigo-300"
+            className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-3 text-xs font-bold text-blue-700 hover:bg-blue-50 dark:border-blue-900 dark:bg-zinc-900 dark:text-blue-300"
           >
             <ExternalLink className="h-3.5 w-3.5" /> Buka bukti pembayaran
           </a>
@@ -320,7 +320,7 @@ function RegistrationAuditDetails({
                   <p className="text-xs font-black text-zinc-800 dark:text-zinc-100">{coupon.name || couponBeneficiaryLabel(coupon)}</p>
                   {statusBadge(coupon.status)}
                 </div>
-                <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-300">
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-300">
                   {couponBeneficiaryLabel(coupon)} · {readableCode(coupon.entitlement_code)}
                 </p>
                 <p className="mt-2 break-all font-mono text-[10px] text-slate-400">{coupon.coupon_code || coupon.qr_code || 'Kode QR tidak tersedia'}</p>
@@ -532,14 +532,14 @@ export default function AdminProgramRegistrationsV2() {
         <header className="overflow-hidden rounded-[2rem] bg-zinc-950 p-6 text-white shadow-2xl sm:p-8 dark:bg-zinc-900">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-200"><ShieldCheck className="h-3.5 w-3.5" /> Payment control center</span>
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200"><ShieldCheck className="h-3.5 w-3.5" /> Payment control center</span>
               <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">Verifikasi RSVP & pembayaran</h1>
               <p className="mt-3 max-w-xl text-sm leading-7 text-zinc-400">Setujui bukti manual sebelum tiket kehadiran dan kupon makan diterbitkan untuk karyawan serta keluarga.</p>
             </div>
             <button type="button" onClick={() => void loadRegistrations()} disabled={loading} className="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-2xl border border-white/15 bg-white/10 px-4 text-xs font-bold text-white transition hover:bg-white/15 disabled:opacity-50 lg:self-auto"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Muat ulang</button>
           </div>
           <div className="mt-7 grid gap-3 sm:grid-cols-3">
-            {[{ label: 'Perlu diperiksa (halaman ini)', value: stats.review, icon: Clock3 }, { label: 'Disetujui (halaman ini)', value: stats.paid, icon: TicketCheck }, { label: 'Keluarga (halaman ini)', value: stats.family, icon: Users }].map(item => <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-4"><item.icon className="h-5 w-5 text-indigo-300" /><p className="mt-3 text-2xl font-black tabular-nums">{item.value}</p><p className="mt-1 text-xs font-semibold text-zinc-500">{item.label}</p></div>)}
+            {[{ label: 'Perlu diperiksa (halaman ini)', value: stats.review, icon: Clock3 }, { label: 'Disetujui (halaman ini)', value: stats.paid, icon: TicketCheck }, { label: 'Keluarga (halaman ini)', value: stats.family, icon: Users }].map(item => <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-4"><item.icon className="h-5 w-5 text-blue-300" /><p className="mt-3 text-2xl font-black tabular-nums">{item.value}</p><p className="mt-1 text-xs font-semibold text-zinc-500">{item.label}</p></div>)}
           </div>
         </header>
 
@@ -551,7 +551,7 @@ export default function AdminProgramRegistrationsV2() {
                 value={selectedProgramId}
                 onChange={event => handleProgramChange(event.target.value)}
                 disabled={programsLoading}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-zinc-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-zinc-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 disabled:cursor-wait disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
               >
                 <option value="">{programsLoading ? 'Memuat program…' : 'Semua program gathering'}</option>
                 {programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}
@@ -565,7 +565,7 @@ export default function AdminProgramRegistrationsV2() {
                     key={tab.value}
                     type="button"
                     onClick={() => handleFilterChange(tab.value)}
-                    className={`whitespace-nowrap rounded-lg px-3 py-2 text-[11px] font-bold transition ${filter === tab.value ? 'bg-white text-indigo-700 shadow-sm dark:bg-zinc-700 dark:text-indigo-300' : 'text-slate-500 dark:text-zinc-400'}`}
+                    className={`whitespace-nowrap rounded-lg px-3 py-2 text-[11px] font-bold transition ${filter === tab.value ? 'bg-white text-blue-700 shadow-sm dark:bg-zinc-700 dark:text-blue-300' : 'text-slate-500 dark:text-zinc-400'}`}
                   >
                     {tab.label}
                   </button>
@@ -578,14 +578,14 @@ export default function AdminProgramRegistrationsV2() {
               <input
                 value={search}
                 onChange={event => setSearch(event.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
                 placeholder="Cari nama, NIK, atau program…"
               />
             </label>
           </div>
 
           {loading ? (
-            <div className="flex min-h-72 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-indigo-600" /></div>
+            <div className="flex min-h-72 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>
           ) : loadError ? (
             <div className="m-5 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
               <p className="font-bold">Workflow V2 belum dapat dimuat</p>
@@ -634,7 +634,7 @@ export default function AdminProgramRegistrationsV2() {
                     </div>
                     <div>
                       {payment?.proof_url ? (
-                        <a href={payment.proof_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-300">
+                        <a href={payment.proof_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
                           <ExternalLink className="h-3.5 w-3.5" /> Lihat bukti
                         </a>
                       ) : (
@@ -734,7 +734,7 @@ export default function AdminProgramRegistrationsV2() {
             >
               <X className="h-4 w-4" />
             </button>
-            <p className="pr-10 text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600">Audit registrasi & entitlement</p>
+            <p className="pr-10 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Audit registrasi & entitlement</p>
             <h2 className="mt-2 pr-10 text-xl font-black text-zinc-900 dark:text-white">
               {decision === 'approve' ? 'Setujui pembayaran?' : decision === 'reject' ? 'Tolak bukti pembayaran?' : 'Detail registrasi'}
             </h2>
@@ -759,7 +759,7 @@ export default function AdminProgramRegistrationsV2() {
                     rows={3}
                     value={decisionNote}
                     onChange={event => setDecisionNote(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
                     placeholder={decision === 'reject' ? 'Contoh: nominal pada bukti tidak sesuai' : 'Catatan verifikasi'}
                   />
                 </label>

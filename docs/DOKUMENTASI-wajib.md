@@ -30,6 +30,7 @@ Setiap CAPA document wajib:
 ## 5. Dokumen yang Sudah Ada (Documentation Index Existing)
 | Dokumen | Lokasi | Isi |
 |---|---|---|
+| Audit v6.2.0 | `docs/AUDIT-v6.2.0.md` | Audit menyeluruh sistem + UI/UX: 61 temuan (7 kritis, 19 mayor, 35 minor), rules baru CODE-006..009 & UI-004..008 |
 | CAPA v5.16.2 | `docs/CAPA-v5.16.2.md` | PostgREST crash fix + auto-reconcile |
 | CAPA v5.16.5 | `docs/CAPA-v5.16.5.md` | Auth intermittent, safe failover VPS/Vercel/Fixie, payment integrity, notification mobile, deployment drift |
 | CAPA v5.16.6 | `docs/CAPA-v5.16.6.md` | Safari/WebKit payment upload hotfix, pencegahan Request body stream |

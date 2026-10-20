@@ -7,12 +7,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatRupiah(amount: number) {
+export function formatRupiah(amount: number | string | null | undefined) {
+  // Tahan terhadap null/undefined/string dari Supabase (kolom numeric kadang
+  // kembali sebagai string, dan nilai null menyebabkan Intl/ toLocaleString
+  // melempar "Cannot read properties of undefined"). Konversi paksa ke number.
+  const n = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
+  const safe = Number.isFinite(n) ? n : 0;
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
-  }).format(amount);
+  }).format(safe);
+}
+
+/** toLocaleString yang aman untuk nilai yang mungkin null/undefined/string. */
+export function formatNumber(value: number | string | null | undefined, locale = 'id-ID') {
+  const n = typeof value === 'string' ? parseFloat(value) : Number(value);
+  return (Number.isFinite(n) ? n : 0).toLocaleString(locale);
 }
 
 /**

@@ -44,7 +44,7 @@ function CountdownTimer({ targetDate }: { targetDate: string }) {
   });
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/90 backdrop-blur-xl text-white rounded-full border border-white/10 shadow-xl">
+    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900/90 backdrop-blur-xl text-white rounded-full border border-white/10 shadow-sm">
       {timerComponents.length ? timerComponents : <span className="text-[10px] font-black animate-pulse text-green-400">READY</span>}
     </div>
   );
@@ -156,7 +156,7 @@ export default function PortalFlashsale() {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-2xl shadow-zinc-200/50 dark:shadow-none group flex flex-col h-full hover:border-blue-500/30 transition-colors"
+                className="bg-white dark:bg-zinc-900 rounded-[3rem] overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm shadow-zinc-200/50 dark:shadow-none group flex flex-col h-full hover:border-blue-500/30 transition-colors"
               >
                 {/* Image Section - Now more visible for "review" */}
                 <div className="relative aspect-video bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
@@ -172,18 +172,18 @@ export default function PortalFlashsale() {
                   <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex justify-between items-end">
                     {!hasStarted ? (
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/90 backdrop-blur text-white text-[9px] font-black rounded-full uppercase tracking-widest w-fit shadow-xl">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/90 backdrop-blur text-white text-[9px] font-black rounded-full uppercase tracking-widest w-fit shadow-sm">
                           <Clock className="w-3 h-3"/> Review Mode
                         </div>
                         <CountdownTimer targetDate={asset.start_time} />
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-xl animate-pulse">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-sm animate-pulse">
                         <Zap className="w-3.5 h-3.5 fill-white"/> LIVE NOW
                       </div>
                     )}
                     
-                    <div className="bg-white/90 backdrop-blur px-3 py-1.5 rounded-2xl flex flex-col items-center shadow-xl">
+                    <div className="bg-white/90 backdrop-blur px-3 py-1.5 rounded-2xl flex flex-col items-center shadow-sm">
                        <p className="text-[7px] font-black text-zinc-400 uppercase tracking-widest">Peminat</p>
                        <p className="text-sm font-black text-zinc-900 leading-none">{totalBookings}</p>
                     </div>
@@ -231,7 +231,7 @@ export default function PortalFlashsale() {
                              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Estimasi Harga</p>
                              <div className="group relative cursor-help">
                                 <Info className="w-3.5 h-3.5 text-blue-300"/>
-                                <div className="absolute bottom-full left-0 mb-3 w-56 p-4 bg-zinc-900 text-white text-[9px] font-bold leading-relaxed rounded-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-2xl z-50">
+                                <div className="absolute bottom-full left-0 mb-3 w-56 p-4 bg-zinc-900 text-white text-[9px] font-bold leading-relaxed rounded-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-sm z-50">
                                    Harga cuma estimasi, harga final tergantung harga beli & kelayakan produk.
                                 </div>
                              </div>
@@ -244,7 +244,7 @@ export default function PortalFlashsale() {
                     {/* LIVE BUTTON LOGIC */}
                     <div className="space-y-3">
                       {myBooking ? (
-                        <div className={`w-full py-6 rounded-3xl font-black flex items-center justify-center gap-3 shadow-2xl transition-all ${
+                        <div className={`w-full py-6 rounded-3xl font-black flex items-center justify-center gap-3 shadow-sm transition-all ${
                           myBooking.status === 'won' 
                             ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' 
                             : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
@@ -256,7 +256,7 @@ export default function PortalFlashsale() {
                         <button 
                           onClick={() => handleBooking(asset.id)}
                           disabled={bookingId === asset.id || !hasStarted}
-                          className={`w-full py-6 rounded-3xl font-black shadow-2xl transition-all flex items-center justify-center gap-3 relative overflow-hidden group ${
+                          className={`w-full py-6 rounded-3xl font-black shadow-sm transition-all flex items-center justify-center gap-3 relative overflow-hidden group ${
                             !hasStarted 
                               ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed' 
                               : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 active:scale-95 hover:shadow-blue-500/20'

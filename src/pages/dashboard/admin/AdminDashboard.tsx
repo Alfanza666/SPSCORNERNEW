@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { formatRupiah } from '../../../lib/utils';
@@ -138,6 +138,9 @@ export default function AdminDashboard() {
   const [uploadingQris, setUploadingQris] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showAdminTools, setShowAdminTools] = useState(false);
+  // Nomor permintaan terakhir — respons lama yang lambat diabaikan agar
+  // tidak menimpa data periode yang baru dipilih (temuan A3 audit v6.2.0).
+  const fetchSeq = useRef(0);
 
   useEffect(() => {
     if (user?.role === 'admin' || user?.role === 'superadmin') {
@@ -190,6 +193,7 @@ export default function AdminDashboard() {
   };
 
   const fetchDashboardData = async (selectedPeriod: PeriodKey = period) => {
+    const seq = ++fetchSeq.current;
     try {
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -251,6 +255,9 @@ export default function AdminDashboard() {
         pendingTransactions: Array.isArray(dashboardData.pendingTransactions) ? dashboardData.pendingTransactions : [],
       };
 
+      // Respons lama yang sudah dikalahkan permintaan baru → abaikan total.
+      if (seq !== fetchSeq.current) return;
+
       setOverview(normalizedOverview);
       setPendingTransactions(normalizedOverview.pendingTransactions);
       setResetRequests(Array.isArray(resetsResult) ? resetsResult : []);
@@ -261,12 +268,13 @@ export default function AdminDashboard() {
       }
       setDashboardError(null);
     } catch (error) {
+      if (seq !== fetchSeq.current) return;
       console.error('Error fetching admin data:', error);
       const message = error instanceof Error ? error.message : 'Gagal memuat ringkasan dashboard.';
       setDashboardError(message);
       appToast.error('Gagal Memuat', message || 'Terjadi kesalahan saat memuat data.');
     } finally {
-      setLoading(false);
+      if (seq === fetchSeq.current) setLoading(false);
     }
   };
 
@@ -527,7 +535,7 @@ export default function AdminDashboard() {
             <CircleAlert className="h-4 w-4 cursor-help text-zinc-400" aria-label={'Rumus ' + title} />
             <span
               role="tooltip"
-              className="pointer-events-none absolute right-0 top-6 z-30 hidden w-64 rounded-xl bg-zinc-950 px-3 py-2 text-[11px] font-medium leading-relaxed text-white shadow-xl group-hover/info:block dark:bg-white dark:text-zinc-900"
+              className="pointer-events-none absolute right-0 top-6 z-30 hidden w-64 rounded-xl bg-zinc-950 px-3 py-2 text-[11px] font-medium leading-relaxed text-white shadow-sm group-hover/info:block dark:bg-white dark:text-zinc-900"
             >
               {formula}
             </span>
@@ -622,7 +630,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           index={0}
-          title="Omzet Lunas (GMV)"
+          title="Pendapatan Terbayar"
           value={formatRupiah(metrics.grossSettled)}
           description={metrics.settledCount.toLocaleString('id-ID') + ' transaksi paid/success, ' + periodDescription}
           formula="Jumlah total transaksi berstatus paid atau success. Pending dan gagal tidak dihitung."
@@ -633,14 +641,14 @@ export default function AdminDashboard() {
             <span className="mt-auto flex flex-wrap items-center gap-2 pt-3">
               <DeltaBadge />
               <span className="flex items-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400">
-                Lihat sumber omzet <ChevronRight className="h-3.5 w-3.5" />
+                Lihat rincian pendapatan <ChevronRight className="h-3.5 w-3.5" />
               </span>
             </span>
           }
         />
         <MetricCard
           index={1}
-          title="Fee Tercatat"
+          title="Biaya Platform"
           value={formatRupiah(metrics.recordedFee)}
           description={'Selisih nilai bruto dan subtotal ledger transaksi lunas, ' + periodDescription}
           formula="Item gross settled dikurangi subtotal ledger settled. Transaksi tanpa item tidak dihitung sebagai fee."
@@ -649,7 +657,7 @@ export default function AdminDashboard() {
         />
         <MetricCard
           index={2}
-          title="Bersih Setelah Fee"
+          title="Pendapatan Bersih"
           value={formatRupiah(metrics.netSettled)}
           description={'Jumlah subtotal ledger untuk transaksi lunas, ' + periodDescription}
           formula="Jumlah subtotal transaction_items pada transaksi paid atau success; setara GMV dikurangi fee tercatat. Bukan saldo kas atau saldo bank."
@@ -676,7 +684,7 @@ export default function AdminDashboard() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <CircleAlert className="mt-0.5 h-5 w-5 shrink-0" />
           <div>
-            <p className="text-sm font-bold">Rekonsiliasi data diperlukan</p>
+            <p className="text-sm font-bold">Data perlu disesuaikan</p>
             <p className="mt-1 text-xs leading-relaxed">
               {Math.abs(breakdownDifference) >= 1
                 ? 'Breakdown berbeda ' + formatRupiah(Math.abs(breakdownDifference)) + ' dari omzet. '
@@ -741,7 +749,7 @@ export default function AdminDashboard() {
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
                       return (
-                        <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+                        <div className="rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
                           <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{label}</p>
                           <p className="mt-0.5 text-sm font-black text-blue-600 dark:text-blue-400">
                             {formatRupiah(Number(payload[0].value) || 0)}
@@ -770,7 +778,7 @@ export default function AdminDashboard() {
           <div className="border-b border-zinc-100 p-4 dark:border-zinc-800 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-black text-zinc-900 dark:text-white">Pusat Tindakan</h2>
+                <h2 className="text-base font-black text-zinc-900 dark:text-white">Perlu Tindakan</h2>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Antrean yang membutuhkan keputusan admin.</p>
               </div>
               {needsAction > 0 && (
@@ -794,7 +802,7 @@ export default function AdminDashboard() {
 
             {toNumber(metrics.fulfillmentFailedCount) > 0 && (
               <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                <p className="text-[10px] font-black uppercase tracking-wider">Fulfillment digital perlu rekonsiliasi</p>
+                <p className="text-[10px] font-black uppercase tracking-wider">Pengiriman produk digital perlu dicek</p>
                 <p className="mt-1 text-[10px] leading-relaxed">
                   {toNumber(metrics.fulfillmentFailedCount)} pembayaran sudah lunas, tetapi pengiriman produk digital gagal
                   {toNumber(metrics.fulfillmentFailedAmount) > 0
@@ -891,7 +899,7 @@ export default function AdminDashboard() {
             <div className="flex items-start justify-between gap-4 border-b border-zinc-100 p-4 dark:border-zinc-800 sm:p-6">
               <div>
                 <h2 id="revenue-breakdown-title" className="text-lg font-black text-zinc-900 dark:text-white">
-                  Sumber Omzet Lunas
+                  Sumber Pendapatan Terbayar
                 </h2>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                   Agregasi transaksi paid/success {periodDescription}, termasuk PPOB.
@@ -943,7 +951,7 @@ export default function AdminDashboard() {
                 <span className="text-base font-black text-zinc-950 dark:text-white">{formatRupiah(breakdownTotal)}</span>
               </div>
               <div className="mt-2 flex items-center justify-between gap-4 text-xs">
-                <span className="text-zinc-500">Omzet lunas</span>
+                <span className="text-zinc-500">Pendapatan terbayar</span>
                 <span className="font-bold text-zinc-700 dark:text-zinc-200">{formatRupiah(metrics.grossSettled)}</span>
               </div>
               {Math.abs(breakdownDifference) >= 1 && (
@@ -982,7 +990,7 @@ export default function AdminDashboard() {
               </div>
               <button
                 type="button"
-                aria-label="Tutup alat admin"
+                aria-label="Tutup peralatan"
                 onClick={() => setShowAdminTools(false)}
                 className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-white"
               >

@@ -9,7 +9,7 @@ const TYPE_META = {
   sale:          { label: 'Terjual',    icon: ShoppingCart,  color: 'bg-emerald-500', text: 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20' },
   restock:       { label: 'Restock',    icon: TrendingUp,    color: 'bg-blue-500',   text: 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20' },
   correction:    { label: 'Koreksi',    icon: RotateCcw,     color: 'bg-amber-500',  text: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20' },
-  manual_update: { label: 'Opname',     icon: ClipboardList, color: 'bg-purple-500', text: 'text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-900/20' },
+  manual_update: { label: 'Opname',     icon: ClipboardList, color: 'bg-emerald-500', text: 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/20' },
 };
 
 export default function StockTrace({ isAdmin }: { isAdmin?: boolean }) {

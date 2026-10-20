@@ -173,14 +173,14 @@ export default function FormFieldRenderer({ field, themeColor, inputStyle, disab
         <div className="space-y-3" style={styleObj}>
           {entries.length > 0 ? entries.map((entry: any, index) => (
             <div key={entry?.id || index} className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/60">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-xs font-bold text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">{index + 1}</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-xs font-bold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">{index + 1}</span>
               <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-200">{entry?.name || `${field.item_label || 'Item'} ${index + 1}`}</p><p className="text-[10px] text-zinc-400">{entry?.relation || 'Detail diisi oleh peserta'}</p></div>
-              {(field.item_unit_price || 0) > 0 && <span className="text-xs font-bold text-violet-600">Rp{(field.item_unit_price || 0).toLocaleString('id-ID')}</span>}
+              {(field.item_unit_price || 0) > 0 && <span className="text-xs font-bold text-emerald-600">Rp{(field.item_unit_price || 0).toLocaleString('id-ID')}</span>}
             </div>
           )) : (
             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-center dark:border-zinc-700 dark:bg-zinc-800/40"><UsersRound className="mx-auto h-6 w-6 text-zinc-300" /><p className="mt-2 text-xs font-medium text-zinc-500">Belum ada {field.item_label?.toLowerCase() || 'item'} ditambahkan</p></div>
           )}
-          <button type="button" disabled={disabled} onClick={() => onChange?.([...entries, { id: `entry_${Date.now()}` }])} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-violet-300 bg-violet-50/60 px-3 py-3 text-xs font-bold text-violet-700 disabled:cursor-default disabled:opacity-70 dark:border-violet-900 dark:bg-violet-950/20 dark:text-violet-300"><Plus className="h-3.5 w-3.5" /> Tambah {field.item_label || 'item'}</button>
+          <button type="button" disabled={disabled} onClick={() => onChange?.([...entries, { id: `entry_${Date.now()}` }])} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/60 px-3 py-3 text-xs font-bold text-emerald-700 disabled:cursor-default disabled:opacity-70 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300"><Plus className="h-3.5 w-3.5" /> Tambah {field.item_label || 'item'}</button>
         </div>
       );
     }

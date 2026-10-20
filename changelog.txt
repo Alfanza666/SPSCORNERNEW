@@ -1,3 +1,19 @@
+v6.2.1 - Perbaikan Akar Masalah dari Audit Menyeluruh (PATCH)
+----------------------------------------------------
+- [FIX KRITIS] Route `/api/pre-orders/notify-ready` dibuat (sebelumnya tidak ada → notifikasi Pre-Order "siap diambil" tidak pernah terkirim, 404 ditelan senyap). Caller kini kirim token auth + cek res.ok + feedback sukses/gagal ke seller.
+- [FIX KRITIS] Polling halaman Success berhenti saat unmount (flag `cancelled`) — sebelumnya polling abadi tiap 3 detik setelah user meninggalkan halaman.
+- [FIX KRITIS] Race condition: respons fetch lama tidak lagi menimpa data baru di AdminDashboard (ganti periode) & PortalProgram (klik program) via request-sequence guard.
+- [FIX KRITIS] Push notification subscribe/unsubscribe, toggle Moments (featured/hide/delete), dan broadcast pengumuman kini cek `res.ok` — tidak ada lagi klaim "berhasil" palsu; user melihat status jujur.
+- [FIX KRITIS] Galeri Moments aman dari crash (fallback `photos: []`) + like foto hanya bertambah setelah server benar-benar OK.
+- [FIX] formatRupiah tahan nilai null/undefined/string dari DB (akar error `toLocaleString` undefined di halaman seller) + guard di 15+ titik.
+- [FITUR] Tombol "Lapor Masalah" kini GLOBAL di semua halaman (App.tsx) dan sekali klik OTOMATIS melampirkan 5 error terakhir yang terekam + 15 breadcrumb + URL + device — user tidak perlu menebak/menjelaskan teknis.
+- [FIX] Tombol lapor tidak lagi menutupi bar pembayaran (posisi & z-index diperbaiki, duplikat per-layout dihapus).
+- [UX] Empty state menuntun (ikon + judul + deskripsi) di SellerTransactions, AdminStockRequests, AdminReturns, SellerProducts; tabel Jadwal Standby bisa di-scroll di layar kecil.
+- [FIX] JSON.parse pengaturan AdminSettings aman terhadap value DB rusak; pesan error checkout-family PortalProgram kini ramah (bukan JSON mentah); guard `selectedProgram` cegah request ke `/programs/undefined/`.
+- [DOKUMENTASI] Audit lengkap 61 temuan di `docs/AUDIT-v6.2.0.md`; rules baru CODE-006..009 & UI-004..008 di `docs/AGENTS.md`.
+
+[DOKUMENTASI] Audit menyeluruh v6.2.0 terdokumentasi di docs/AUDIT-v6.2.0.md — 61 temuan (7 kritis: fitur notify-ready Pre-Order rusak, polling abadi Success.tsx, race condition dashboard/portal, silent failure push notification & broadcast, crash galeri moments; 19 mayor; 35 minor UI/UX: 64% halaman belum adopsi design system, 711 teks ≤10px, 31 tombol <44px, bahasa campur). Rules baru: CODE-006..009 + UI-004..008 di docs/AGENTS.md.
+
 v6.2.0 - UX Polish: Empty States, Bottom Nav, Timeline Status & Icon Refresh (MINOR)
 ----------------------------------------------------
 - [UX] Komponen reusable baru: `EmptyState` (icon besar + aksi menuntun), `PullToRefresh` (gesture tarik-refresh mobile), `OrderStatusTimeline` (step visual Menunggu Bayar → Terverifikasi → Selesai).

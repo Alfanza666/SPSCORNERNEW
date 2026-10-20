@@ -65,10 +65,11 @@ export const useMomentsStore = create<MomentsStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const res = await fetch('/api/moments/event');
-      const data = await res.json();
-      if (data.success) {
-        set({ event: data.event });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
       }
+      set({ event: data.event });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to fetch event';
       set({ error: message });
@@ -81,10 +82,11 @@ export const useMomentsStore = create<MomentsStore>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const res = await fetch('/api/moments/frames');
-      const data = await res.json();
-      if (data.success) {
-        set({ frames: data.frames });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
       }
+      set({ frames: Array.isArray(data.frames) ? data.frames : [] });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to fetch frames';
       set({ error: message });
@@ -106,10 +108,12 @@ export const useMomentsStore = create<MomentsStore>((set, get) => ({
       if (eventId) params.set('event_id', eventId);
 
       const res = await fetch(`/api/moments/photos?${params}`, { headers });
-      const data = await res.json();
-      if (data.success) {
-        set({ photos: data.photos });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
       }
+      // Fallback [] agar render galeri tidak crash jika field photos absen (A7 audit).
+      set({ photos: Array.isArray(data.photos) ? data.photos : [] });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to fetch photos';
       set({ error: message });
@@ -126,12 +130,12 @@ export const useMomentsStore = create<MomentsStore>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(photoData)
       });
-      const data = await res.json();
-      if (data.success) {
-        set((state) => ({ photos: [data.photo, ...state.photos] }));
-        return data.photo;
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
       }
-      return null;
+      set((state) => ({ photos: [data.photo, ...state.photos] }));
+      return data.photo;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to save photo';
       set({ error: message });
@@ -143,13 +147,18 @@ export const useMomentsStore = create<MomentsStore>((set, get) => ({
 
   likePhoto: async (photoId: string) => {
     try {
-      await fetch(`/api/moments/photo/${photoId}/like`, { method: 'POST' });
+      const res = await fetch(`/api/moments/photo/${photoId}/like`, { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
       set((state) => ({
         photos: state.photos.map(p =>
           p.id === photoId ? { ...p, likes: p.likes + 1 } : p
         )
       }));
     } catch (error: unknown) {
+      // Jangan increment likes secara optimistik jika request gagal (A7 audit).
       console.error('Failed to like photo:', error);
     }
   },

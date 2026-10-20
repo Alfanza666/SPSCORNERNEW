@@ -10,7 +10,6 @@ import SPSLogo from '../../components/SPSLogo';
 
 import { useNotifications } from '../../hooks/useNotifications';
 import { motion, AnimatePresence } from 'motion/react';
-import ErrorReporter from '../../components/ErrorReporter';
 
 function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, resetErrorBoundary: () => void }) {
   return (
@@ -22,7 +21,6 @@ function KioskErrorFallback({ error, resetErrorBoundary }: { error: Error, reset
           Coba Lagi
         </Button>
       </div>
-      <ErrorReporter />
     </div>
   );
 }
@@ -229,10 +227,10 @@ export default function KioskLayout() {
                                   <button
                                     key={n.id}
                                     onClick={() => { markOneAsRead(n.id); navigate(n.path); setShowNotifDropdown(false); }}
-                                    className={`w-full text-left p-4 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all border-l-4 ${
-                                      n.type === 'transaction' ? 'bg-blue-50/30 dark:bg-blue-900/10 border-l-blue-500' :
-                                      n.type === 'withdrawal' ? 'bg-amber-50/30 dark:bg-amber-900/10 border-l-amber-500' :
-                                      'bg-zinc-50/50 dark:bg-zinc-800/50 border-l-zinc-300 dark:border-l-zinc-600'
+                                    className={`w-full text-left p-4 border-b border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all ${
+                                      n.type === 'transaction' ? 'bg-blue-50/40 dark:bg-blue-900/10' :
+                                      n.type === 'withdrawal' ? 'bg-amber-50/40 dark:bg-amber-900/10' :
+                                      'bg-zinc-50/50 dark:bg-zinc-800/50'
                                     }`}
                                   >
                                     <p className="text-xs font-black text-zinc-900 dark:text-white leading-snug">{n.title}</p>
@@ -415,8 +413,6 @@ export default function KioskLayout() {
           </div>
         </footer>
       )}
-
-      <ErrorReporter />
     </div>
   );
 }

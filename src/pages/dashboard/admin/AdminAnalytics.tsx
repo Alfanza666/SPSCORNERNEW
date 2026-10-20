@@ -59,7 +59,7 @@ export default function AdminAnalytics() {
   const statsCards = [
     { label: 'Pendapatan Bulan Ini', value: `Rp ${(data.monthRevenue || 0).toLocaleString('id-ID')}`, icon: DollarSign, color: 'text-emerald-500' },
     { label: 'Total Pendapatan', value: `Rp ${(data.totalRevenue || 0).toLocaleString('id-ID')}`, icon: TrendingUp, color: 'text-blue-500' },
-    { label: 'Transaksi Bulan Ini', value: data.monthTx || 0, icon: ShoppingCart, color: 'text-violet-500' },
+    { label: 'Transaksi Bulan Ini', value: data.monthTx || 0, icon: ShoppingCart, color: 'text-emerald-500' },
     { label: 'Total Transaksi', value: data.totalTx || 0, icon: ShoppingCart, color: 'text-amber-500' },
     { label: 'Penjual Aktif', value: data.sellerCount || 0, icon: Users, color: 'text-green-500' },
     { label: 'Produk Aktif', value: data.productCount || 0, icon: Package, color: 'text-rose-500' },
@@ -101,7 +101,7 @@ export default function AdminAnalytics() {
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={(v) => v.slice(5)} />
               <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `Rp${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v: number) => `Rp ${v.toLocaleString('id-ID')}`} />
+              <Tooltip formatter={(v: number | undefined) => `Rp ${(Number(v) || 0).toLocaleString('id-ID')}`} />
               <Bar dataKey="revenue" fill="#3b82f6" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -126,7 +126,7 @@ export default function AdminAnalytics() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-bold text-zinc-800 dark:text-white">{p.quantity} pcs</div>
-                    <div className="text-xs text-zinc-400">Rp {p.revenue.toLocaleString('id-ID')}</div>
+                    <div className="text-xs text-zinc-400">Rp {(Number(p.revenue) || 0).toLocaleString('id-ID')}</div>
                   </div>
                 </div>
               ))}
@@ -139,7 +139,7 @@ export default function AdminAnalytics() {
         {/* Category Pie Chart */}
         <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-white mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-violet-500" /> Kategori Produk
+            <TrendingUp className="w-5 h-5 text-emerald-500" /> Kategori Produk
           </h2>
           {data.categoryData?.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>

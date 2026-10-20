@@ -236,7 +236,7 @@ export default function PortalProfile() {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white dark:bg-zinc-900 rounded-[2.5rem] p-8 border border-zinc-200 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/50 text-center relative overflow-hidden"
+            className="bg-white dark:bg-zinc-900 rounded-[2.5rem] p-8 border border-zinc-200 dark:border-zinc-800 shadow-sm shadow-zinc-200/50 dark:shadow-black/50 text-center relative overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-blue-600 to-blue-400 opacity-10 dark:opacity-20" />
             
@@ -249,7 +249,7 @@ export default function PortalProfile() {
                   accept="image/*" 
                   className="hidden" 
                 />
-                <div className="w-32 h-32 rounded-[2.5rem] bg-blue-600 flex items-center justify-center text-white text-4xl font-black shadow-2xl shadow-blue-500/30 overflow-hidden ring-4 ring-white dark:ring-zinc-800">
+                <div className="w-32 h-32 rounded-[2.5rem] bg-blue-600 flex items-center justify-center text-white text-4xl font-black shadow-sm shadow-blue-500/30 overflow-hidden ring-4 ring-white dark:ring-zinc-800">
                   {user.avatar_url ? (
                     <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
                   ) : (
@@ -316,7 +316,7 @@ export default function PortalProfile() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white dark:bg-zinc-900 rounded-[2.5rem] p-8 sm:p-10 border border-zinc-200 dark:border-zinc-800 shadow-xl"
+            className="bg-white dark:bg-zinc-900 rounded-[2.5rem] p-8 sm:p-10 border border-zinc-200 dark:border-zinc-800 shadow-sm"
           >
             <div className="flex items-center gap-4 mb-8 guide-profile-info">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
@@ -418,7 +418,7 @@ export default function PortalProfile() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white dark:bg-zinc-900 rounded-[2.5rem] p-8 sm:p-10 border border-zinc-200 dark:border-zinc-800 shadow-xl"
+            className="bg-white dark:bg-zinc-900 rounded-[2.5rem] p-8 sm:p-10 border border-zinc-200 dark:border-zinc-800 shadow-sm"
           >
             <div className="flex items-center gap-4 mb-8 guide-profile-security">
               <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">

@@ -568,15 +568,15 @@ export default function AdminFormBuilder() {
       <div className="min-h-screen bg-[#F7F8FC] dark:bg-zinc-950">
         <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 sm:pt-8">
           <section className="relative overflow-hidden rounded-[2.25rem] bg-zinc-950 px-5 py-7 text-white shadow-[0_35px_90px_-45px_rgba(15,23,42,0.9)] sm:px-8 sm:py-10 dark:bg-zinc-900">
-            <div aria-hidden="true" className="absolute -right-24 -top-28 h-80 w-80 rounded-full bg-indigo-500/20 blur-3xl" />
-            <div aria-hidden="true" className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-violet-500/15 blur-3xl" />
+            <div aria-hidden="true" className="absolute -right-24 -top-28 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
+            <div aria-hidden="true" className="absolute -bottom-32 left-1/3 h-72 w-72 rounded-full bg-emerald-500/15 blur-3xl" />
             <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)] lg:items-end">
               <div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-200"><Sparkles className="h-3.5 w-3.5" /> SPS Form Studio 2.0</span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200"><Sparkles className="h-3.5 w-3.5" /> SPS Form Studio 2.0</span>
                 <h1 className="mt-5 max-w-3xl text-3xl font-black leading-tight tracking-[-0.04em] sm:text-5xl">Bangun pengalaman formulir yang terasa premium.</h1>
                 <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base">Susun pertanyaan secara visual, atur cabang jawaban, hitung biaya, dan terbitkan QR program dari satu workflow.</p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                  <button onClick={() => { resetForm(); setShowEditor(true); setInspectorTab('ai'); }} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 text-sm font-bold text-white shadow-xl shadow-indigo-950/40 transition hover:-translate-y-0.5"><Wand2 className="h-4 w-4" /> Buat dengan AI</button>
+                  <button onClick={() => { resetForm(); setShowEditor(true); setInspectorTab('ai'); }} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-500 to-emerald-500 px-5 text-sm font-bold text-white shadow-sm shadow-blue-950/40 transition hover:-translate-y-0.5"><Wand2 className="h-4 w-4" /> Buat dengan AI</button>
                   <button onClick={() => { resetForm(); setShowEditor(true); setInspectorTab('design'); }} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 text-sm font-bold text-white transition hover:bg-white/15"><Plus className="h-4 w-4" /> Mulai dari kosong</button>
                 </div>
               </div>
@@ -589,10 +589,10 @@ export default function AdminFormBuilder() {
                   setInspectorTab('field');
                   setShowEditor(true);
                 }}
-                className="group rounded-[1.75rem] border border-white/10 bg-white/[0.07] p-5 text-left backdrop-blur transition hover:-translate-y-1 hover:border-indigo-400/50 hover:bg-white/10"
+                className="group rounded-[1.75rem] border border-white/10 bg-white/[0.07] p-5 text-left backdrop-blur transition hover:-translate-y-1 hover:border-blue-400/50 hover:bg-white/10"
               >
-                <div className="flex items-start justify-between gap-4"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500 text-white shadow-lg shadow-indigo-950/40"><Calendar className="h-5 w-5" /></span><ArrowRight className="h-5 w-5 text-zinc-500 transition group-hover:translate-x-1 group-hover:text-white" /></div>
-                <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-300">Template unggulan</p>
+                <div className="flex items-start justify-between gap-4"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500 text-white shadow-lg shadow-blue-950/40"><Calendar className="h-5 w-5" /></span><ArrowRight className="h-5 w-5 text-zinc-500 transition group-hover:translate-x-1 group-hover:text-white" /></div>
+                <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-300">Template unggulan</p>
                 <h2 className="mt-2 text-xl font-black">RSVP acara & keluarga</h2>
                 <p className="mt-2 text-xs leading-6 text-zinc-400">Kehadiran, ukuran baju, camping, anggota keluarga, biaya, pembayaran manual, dan QR terpisah.</p>
               </button>
@@ -602,21 +602,21 @@ export default function AdminFormBuilder() {
 
         {/* Forms Grid */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <div className="mb-5 flex items-end justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-400">Workspace</p><h2 className="mt-1 text-xl font-black text-zinc-900 dark:text-white">Formulir Anda</h2></div><span className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">{forms.length} form</span></div>
+          <div className="mb-5 flex items-end justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600 dark:text-blue-400">Workspace</p><h2 className="mt-1 text-xl font-black text-zinc-900 dark:text-white">Formulir Anda</h2></div><span className="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">{forms.length} form</span></div>
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
             </div>
           ) : forms.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
-              <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/30 rounded-2xl flex items-center justify-center mb-4">
-                <ClipboardList className="w-8 h-8 text-indigo-400" />
+              <div className="w-16 h-16 bg-blue-50 dark:bg-blue-950/30 rounded-2xl flex items-center justify-center mb-4">
+                <ClipboardList className="w-8 h-8 text-blue-400" />
               </div>
               <h3 className="text-base font-bold text-zinc-700 dark:text-zinc-300 mb-1">Belum ada formulir</h3>
               <p className="text-sm text-zinc-400 mb-6">Buat formulir pertama Anda dengan AI atau manual</p>
               <button
                 onClick={() => { resetForm(); setShowEditor(true); setInspectorTab('ai'); }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
                 <Wand2 className="w-4 h-4" /> Buat dengan AI
               </button>
@@ -926,7 +926,7 @@ function FormCard({ form, onEdit, onDelete, onCopyLink, onViewResponses }: any) 
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
           <button
             onClick={(e) => { e.stopPropagation(); onViewResponses(); }}
-            className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 flex items-center gap-1"
+            className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1"
           >
             <BarChart3 className="w-3 h-3" /> Lihat Respon
           </button>
@@ -959,7 +959,7 @@ function AICopilotPanel({ aiMessages, aiChatInput, setAiChatInput, aiChatLoading
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-lg flex items-center justify-center">
+          <div className="w-7 h-7 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-lg flex items-center justify-center">
             <Wand2 className="w-3.5 h-3.5 text-white" />
           </div>
           <div>
@@ -977,12 +977,12 @@ function AICopilotPanel({ aiMessages, aiChatInput, setAiChatInput, aiChatLoading
         {/* Welcome + shortcuts */}
         {aiMessages.length <= 1 && (
           <div className="space-y-3">
-            <div className="bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 rounded-2xl p-4 border border-violet-100 dark:border-violet-900/30">
-              <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-1">Coba template ini:</p>
+            <div className="bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-950/30 dark:to-blue-950/30 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-900/30">
+              <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Coba template ini:</p>
               <div className="space-y-1.5 mt-2">
                 {AI_SHORTCUTS.map((s, i) => (
                   <button key={i} onClick={() => onShortcutClick(s.replace(/^[^\w]+/, '').trim())}
-                    className="w-full text-left px-3 py-2 bg-white dark:bg-zinc-900 border border-violet-100 dark:border-violet-900/30 rounded-xl text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 transition-all">
+                    className="w-full text-left px-3 py-2 bg-white dark:bg-zinc-900 border border-emerald-100 dark:border-emerald-900/30 rounded-xl text-[11px] font-medium text-zinc-600 dark:text-zinc-400 hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-600 transition-all">
                     {s}
                   </button>
                 ))}
@@ -995,12 +995,12 @@ function AICopilotPanel({ aiMessages, aiChatInput, setAiChatInput, aiChatLoading
         {aiMessages.map((msg: any, i: number) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'ai' && (
-              <div className="w-6 h-6 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-full flex items-center justify-center shrink-0 mr-2 mt-0.5">
+              <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center shrink-0 mr-2 mt-0.5">
                 <Wand2 className="w-3 h-3 text-white" />
               </div>
             )}
             <div className={`max-w-[85%] whitespace-pre-line rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${msg.role === 'user'
-              ? 'bg-indigo-600 text-white rounded-br-sm'
+              ? 'bg-blue-600 text-white rounded-br-sm'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-bl-sm'}`}>
               {msg.content}
             </div>
@@ -1010,12 +1010,12 @@ function AICopilotPanel({ aiMessages, aiChatInput, setAiChatInput, aiChatLoading
         {/* Loading dots */}
         {aiChatLoading && (
           <div className="flex justify-start">
-            <div className="w-6 h-6 bg-gradient-to-br from-violet-500 to-indigo-600 rounded-full flex items-center justify-center shrink-0 mr-2">
+            <div className="w-6 h-6 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center shrink-0 mr-2">
               <Wand2 className="w-3 h-3 text-white" />
             </div>
             <div className="bg-zinc-100 dark:bg-zinc-800 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1">
               {[0, 150, 300].map(delay => (
-                <span key={delay} className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                <span key={delay} className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: `${delay}ms` }} />
               ))}
             </div>
           </div>
@@ -1025,7 +1025,7 @@ function AICopilotPanel({ aiMessages, aiChatInput, setAiChatInput, aiChatLoading
 
       {/* Input */}
       <div className="p-3 border-t border-zinc-100 dark:border-zinc-800 shrink-0 bg-white dark:bg-zinc-900">
-        <div className="flex items-end gap-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-2 focus-within:border-indigo-400 transition-colors">
+        <div className="flex items-end gap-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-2 focus-within:border-blue-400 transition-colors">
           <textarea
             value={aiChatInput}
             onChange={(e) => setAiChatInput(e.target.value)}
@@ -1038,7 +1038,7 @@ function AICopilotPanel({ aiMessages, aiChatInput, setAiChatInput, aiChatLoading
           <button
             onClick={onSend}
             disabled={aiChatLoading || !aiChatInput.trim()}
-            className="p-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 transition-all shrink-0"
+            className="p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 transition-all shrink-0"
           >
             {aiChatLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
           </button>
@@ -1067,7 +1067,7 @@ function SettingsPanel({ linkedProgramId, setLinkedProgramId, availablePrograms,
         <div>
           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Program Acara</label>
           <select value={linkedProgramId} onChange={(e) => setLinkedProgramId(e.target.value)}
-            className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-indigo-500 text-zinc-700 dark:text-zinc-300">
+            className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-blue-500 text-zinc-700 dark:text-zinc-300">
             <option value="">-- Tidak terhubung --</option>
             {availablePrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
@@ -1075,7 +1075,7 @@ function SettingsPanel({ linkedProgramId, setLinkedProgramId, availablePrograms,
         <div>
           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Target NIK</label>
           <textarea value={targetNiks} onChange={(e) => setTargetNiks(e.target.value)}
-            className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none h-20 resize-none font-mono focus:border-indigo-500"
+            className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none h-20 resize-none font-mono focus:border-blue-500"
             placeholder="Pisahkan dengan koma atau enter" />
         </div>
         <div>
@@ -1086,7 +1086,7 @@ function SettingsPanel({ linkedProgramId, setLinkedProgramId, availablePrograms,
               return (
                 <button key={dept} type="button"
                   onClick={() => setTargetDepartments((prev: string[]) => sel ? prev.filter((d: string) => d !== dept) : [...prev, dept])}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all border ${sel ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}>
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all border ${sel ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300'}`}>
                   {dept}
                 </button>
               );
@@ -1096,7 +1096,7 @@ function SettingsPanel({ linkedProgramId, setLinkedProgramId, availablePrograms,
         <div>
           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Tanggal Masuk Maks</label>
           <input type="date" value={targetCutoffDate} onChange={(e) => setTargetCutoffDate(e.target.value)}
-            className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-indigo-500 text-zinc-700 dark:text-zinc-300" />
+            className="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs outline-none focus:border-blue-500 text-zinc-700 dark:text-zinc-300" />
         </div>
       </div>
     </div>

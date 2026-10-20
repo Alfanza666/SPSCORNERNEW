@@ -176,14 +176,19 @@ export default function AdminMoments() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-      await fetch(`/api/moments/photo/${id}/featured`, {
+      const res = await fetch(`/api/moments/photo/${id}/featured`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({ is_featured: !current })
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      appToast.success('Berhasil', !current ? 'Foto ditandai unggulan' : 'Tanda unggulan dihapus');
       loadData();
-    } catch (err) {
-      appToast.error('Update Failed', 'An error occurred');
+    } catch (err: any) {
+      appToast.error('Gagal Memperbarui', err.message || 'Terjadi kesalahan saat memperbarui foto.');
     }
   };
 
@@ -194,14 +199,19 @@ export default function AdminMoments() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-      await fetch(`/api/moments/photo/${id}/hide`, {
+      const res = await fetch(`/api/moments/photo/${id}/hide`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({ is_hidden: !current })
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      appToast.success('Berhasil', !current ? 'Foto disembunyikan' : 'Foto ditampilkan kembali');
       loadData();
-    } catch (err) {
-      appToast.error('Update Failed', 'An error occurred');
+    } catch (err: any) {
+      appToast.error('Gagal Memperbarui', err.message || 'Terjadi kesalahan saat memperbarui foto.');
     }
   };
 
@@ -215,13 +225,14 @@ export default function AdminMoments() {
       if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
       const res = await fetch(`/api/moments/photo/${id}`, { method: 'DELETE', headers });
-      const data = await res.json();
-      if (data.success) {
-        appToast.success('Photo Deleted', 'Photo has been removed');
-        loadData();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `HTTP ${res.status}`);
       }
-    } catch (err) {
-      appToast.error('Delete Failed', 'An error occurred');
+      appToast.success('Foto Dihapus', 'Foto berhasil dihapus');
+      loadData();
+    } catch (err: any) {
+      appToast.error('Gagal Menghapus', err.message || 'Terjadi kesalahan saat menghapus foto.');
     }
   };
 

@@ -361,6 +361,62 @@ app.post("/api/admin/transactions/notify-ready", async (req, res) => {
   }
 });
 
+// Route untuk notifikasi Pre-Order "siap diambil" — dipanggil SellerPreOrders
+// saat status diubah ke 'ready'. Sebelumnya endpoint ini tidak ada (404 senyap),
+// sehingga pembeli tidak pernah diberi tahu (temuan A1 audit v6.2.0).
+app.post("/api/pre-orders/notify-ready", async (req, res) => {
+  try {
+    const { order_id, buyer_id, buyer_name } = req.body;
+    if (!order_id)
+      return res.status(400).json({ error: "Order ID is required" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+    if (authError || !user)
+      return res.status(401).json({ error: "Unauthorized" });
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (!["seller", "admin", "superadmin"].includes(profile?.role))
+      return res.status(403).json({ error: "Forbidden: seller/admin only" });
+
+    // Ambil data order asli dari DB (jangan percaya body) untuk kirim notifikasi.
+    const { data: order, error: orderError } = await supabase
+      .from("pre_orders")
+      .select("id, buyer_id, buyer_name, seller_id, status")
+      .eq("id", order_id)
+      .single();
+    if (orderError || !order)
+      return res.status(404).json({ error: "Pre-Order tidak ditemukan" });
+    if (profile.role === "seller" && order.seller_id !== user.id)
+      return res.status(403).json({ error: "Pre-Order bukan milik seller ini" });
+
+    const targetBuyerId = order.buyer_id || buyer_id;
+    const displayBuyerName = order.buyer_name || buyer_name || "Pembeli";
+    if (targetBuyerId) {
+      await sendNotification(targetBuyerId, {
+        type: "transaction",
+        title: "Pre-Order Siap Diambil!",
+        message: `Halo ${displayBuyerName}, pre-order Anda sudah siap diambil. Silakan datang ke lokasi pengambilan. Terima kasih!`,
+        path: `/kiosk/history?id=${order_id}`,
+      });
+    }
+    res.json({
+      success: true,
+      message: "Notifikasi pre-order siap diambil berhasil dikirim",
+    });
+  } catch (error) {
+    console.error("Error sending pre-order ready notification:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
 app.post("/api/admin/transactions/cleanup", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;

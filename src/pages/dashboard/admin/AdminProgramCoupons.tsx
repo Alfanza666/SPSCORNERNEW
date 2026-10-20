@@ -296,7 +296,7 @@ export default function AdminProgramCoupons() {
                       <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
                         c.gate_type === 'attendance' ? 'bg-blue-100 text-blue-600' :
                         c.gate_type === 'meal' ? 'bg-orange-100 text-orange-600' :
-                        'bg-purple-100 text-purple-600'
+                        'bg-emerald-100 text-emerald-600'
                       }`}>
                         {c.gate_type}
                       </span>
@@ -469,7 +469,7 @@ export default function AdminProgramCoupons() {
                 <button 
                   onClick={() => handleDownloadTicketImage(previewCoupon)} 
                   disabled={downloadingImage}
-                  className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50 text-sm"
+                  className="flex-1 py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50 text-sm"
                 >
                   {downloadingImage ? (
                     <>

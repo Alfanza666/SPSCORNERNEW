@@ -390,7 +390,7 @@ export default function AdminFlashsale() {
 
               <div className="flex gap-3 pt-2">
                 <button onClick={() => setIsBulkAdding(false)} className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 rounded-2xl font-bold transition-all">Batal</button>
-                <button onClick={handleBulkImport} disabled={loading} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
+                <button onClick={handleBulkImport} disabled={loading} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-sm shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
                   {loading ? <Loader2 className="w-5 h-5 animate-spin"/> : <Download className="w-5 h-5"/>}
                   Proses Impor
                 </button>
@@ -401,7 +401,7 @@ export default function AdminFlashsale() {
       )}
 
       {isAdding && (
-        <form onSubmit={handleAddAsset} className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 mb-8 space-y-8 shadow-xl animate-in fade-in slide-in-from-top-4">
+        <form onSubmit={handleAddAsset} className="bg-white dark:bg-zinc-900 p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 mb-8 space-y-8 shadow-sm animate-in fade-in slide-in-from-top-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="space-y-6">
               <div>
@@ -513,7 +513,7 @@ export default function AdminFlashsale() {
                 </div>
                 <div className="flex gap-4">
                    <button type="button" onClick={() => setEditingAsset(null)} className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 rounded-2xl font-bold uppercase tracking-widest text-xs">Batal</button>
-                   <button type="submit" disabled={loading} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-xl uppercase tracking-widest text-xs">Simpan</button>
+                   <button type="submit" disabled={loading} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-sm uppercase tracking-widest text-xs">Simpan</button>
                 </div>
              </form>
           </div>
@@ -523,7 +523,7 @@ export default function AdminFlashsale() {
       {loading && !isAdding && !editingAsset && !isBulkAdding ? <Loader2 className="w-12 h-12 animate-spin mx-auto text-blue-600 my-20"/> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {assets.map(asset => (
-            <div key={asset.id} className="bg-white dark:bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-xl transition-all group relative">
+            <div key={asset.id} className="bg-white dark:bg-zinc-900 rounded-[2.5rem] overflow-hidden border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all group relative">
                <div className="aspect-video relative overflow-hidden">
                  {asset.image_url ? <img src={asset.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"/> : (
                    <div className="w-full h-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><ImageIcon className="w-10 h-10 text-zinc-300"/></div>
@@ -563,7 +563,7 @@ export default function AdminFlashsale() {
                        </div>
                        <div className="group relative cursor-help">
                           <Info className="w-5 h-5 text-blue-300"/>
-                          <div className="absolute bottom-full right-0 mb-3 w-48 p-3 bg-zinc-900 text-white text-[9px] font-medium leading-relaxed rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-50">
+                          <div className="absolute bottom-full right-0 mb-3 w-48 p-3 bg-zinc-900 text-white text-[9px] font-medium leading-relaxed rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-sm z-50">
                              Harga cuma estimasi, harga final tergantung harga beli dan kelayakan produk.
                           </div>
                        </div>

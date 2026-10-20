@@ -811,7 +811,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
               <div className="p-4 md:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    prog.is_targeted ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+                    prog.is_targeted ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
                   }`}>
                     <FileText className="w-6 h-6" />
                   </div>
@@ -822,10 +822,10 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                       {programGroupLabel(prog) && (
                         <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">Grup: {programGroupLabel(prog)}</span>
                       )}
-                      {prog._groupCount > 1 && <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium rounded-full">{prog._groupCount} jalur</span>}
+                      {prog._groupCount > 1 && <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full">{prog._groupCount} jalur</span>}
                       <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-medium rounded-full capitalize">{prog.program_type}</span>
                       {prog.is_targeted && (
-                        <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-medium rounded-full flex items-center gap-1">
+                        <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium rounded-full flex items-center gap-1">
                           <Users className="w-3 h-3" /> Targeted
                         </span>
                       )}
@@ -857,7 +857,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                   )}
                   <button
                     onClick={() => handleViewRegistrants(prog)}
-                    className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
+                    className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50"
                     title="Lihat Pendaftar"
                   >
                     <Users className="w-4 h-4" />
@@ -1071,7 +1071,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                   {/* Banner Upload */}
                   <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700">
                     <div className="flex items-center gap-3 mb-3">
-                      <Image className="w-5 h-5 text-purple-500" />
+                      <Image className="w-5 h-5 text-emerald-500" />
                       <div>
                         <p className="font-bold text-zinc-900 dark:text-white">Banner Acara</p>
                         <p className="text-xs text-zinc-500">Opsional: Unggah gambar banner untuk tampilan di portal</p>
@@ -1112,7 +1112,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                       </div>
                     )}
                     {uploadingBanner && (
-                      <div className="flex items-center gap-2 mt-2 text-sm text-purple-600">
+                      <div className="flex items-center gap-2 mt-2 text-sm text-emerald-600">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Mengunggah banner...
                       </div>
@@ -1178,7 +1178,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                       {/* Cutoff Tanggal Masuk */}
                       <div className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                         <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-purple-500" />
+                          <Calendar className="w-4 h-4 text-emerald-500" />
                           <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Cutoff Tgl Masuk</label>
                         </div>
                         <p className="text-[10px] text-zinc-400">Hanya karyawan dengan tgl masuk ≤ cutoff yang eligible</p>
@@ -1186,7 +1186,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                           type="date"
                           value={targetCutoffDate}
                           onChange={(e) => setTargetCutoffDate(e.target.value)}
-                          className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-purple-500 outline-none"
+                          className="w-full p-2.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm focus:border-emerald-500 outline-none"
                         />
                       </div>
 
@@ -1382,13 +1382,13 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                   <button
                     type="button"
                     onClick={() => setShowEligibility(!showEligibility)}
-                    className="w-full flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800/50"
+                    className="w-full flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800/50"
                   >
                     <div className="flex items-center gap-3">
-                      <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                       <div className="text-left">
-                        <p className="font-bold text-purple-700 dark:text-purple-300">Program Targeted</p>
-                        <p className="text-xs text-purple-500 dark:text-purple-400">Hanya NIK tertentu yang bisa mengikuti</p>
+                        <p className="font-bold text-emerald-700 dark:text-emerald-300">Program Targeted</p>
+                        <p className="text-xs text-emerald-500 dark:text-emerald-400">Hanya NIK tertentu yang bisa mengikuti</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -1399,9 +1399,9 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                           onChange={e => setFormData({ ...formData, is_targeted: e.target.checked })}
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-zinc-200 peer-focus:ring-2 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:ring-2 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                       </label>
-                      {showEligibility ? <ChevronUp className="w-5 h-5 text-purple-500" /> : <ChevronDown className="w-5 h-5 text-purple-500" />}
+                      {showEligibility ? <ChevronUp className="w-5 h-5 text-emerald-500" /> : <ChevronDown className="w-5 h-5 text-emerald-500" />}
                     </div>
                   </button>
 
@@ -1436,7 +1436,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                           <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl text-purple-600 dark:text-purple-400 font-bold text-sm hover:bg-purple-100 dark:hover:bg-purple-900/50"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl text-emerald-600 dark:text-emerald-400 font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
                           >
                             <Upload className="w-4 h-4" /> Upload Excel/CSV
                           </button>
@@ -1445,7 +1445,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                               rows={2}
                               value={targetNiks}
                               onChange={e => { setTargetNiks(e.target.value); setUploadedEligibleCount(0); }}
-                              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 text-xs font-mono text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                               placeholder="Atau masukkan NIK manual, pisahkan dengan koma..."
                             />
                           </div>
@@ -1460,7 +1460,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                       {/* Target Departments */}
                       <div className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                         <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-purple-500" />
+                          <Users className="w-4 h-4 text-emerald-500" />
                           <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Target Departemen</label>
                         </div>
                         {availableDepartments.length === 0 ? (
@@ -1478,7 +1478,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                                   )}
                                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                     selected
-                                      ? 'bg-purple-600 text-white shadow-md'
+                                      ? 'bg-emerald-600 text-white shadow-md'
                                       : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                                   }`}
                                 >
@@ -1535,7 +1535,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
               >
                 <div className="p-6 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-600 flex items-center justify-center">
                       <Users className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -1551,7 +1551,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                 <div className="overflow-y-auto max-h-[calc(85vh-80px)]">
                   {registrantsLoading ? (
                     <div className="flex justify-center py-16">
-                      <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
                     </div>
                   ) : registrants.length === 0 ? (
                     <div className="text-center py-16">
@@ -1566,7 +1566,7 @@ const [targetCutoffDate, setTargetCutoffDate] = useState('');
                         <div key={resp.id} className="p-4 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 space-y-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
+                              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold">
                                 {resp.profiles?.name?.charAt(0) || '?'}
                               </div>
                               <div>

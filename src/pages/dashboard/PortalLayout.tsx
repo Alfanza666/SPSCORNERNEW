@@ -2,7 +2,6 @@ import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore, isEmployeeNik } from '../../store/useAuthStore';
 import { useNotifications } from '../../hooks/useNotifications';
-import NotificationPopup from '../../components/notifications/NotificationPopup';
 import { supabase } from '../../lib/supabase';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Dialog, Transition, Menu } from '@headlessui/react';
@@ -21,13 +20,13 @@ import {
   Menu as MenuIcon,
   X,
   Store,
-  ClipboardList
+  ClipboardList,
+  ArrowLeft
 } from 'lucide-react';
 import LogoSidebar from '../../components/ui/logo-landscape.webp';
 import { ChangePasswordModal } from '../../components/ui/ChangePasswordModal';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
-import ErrorReporter from '../../components/ErrorReporter';
 
 const NAV_ITEMS = [
   { path: '/portal', label: 'Dashboard', icon: LayoutDashboard, exact: true },
@@ -62,7 +61,7 @@ const NavItem = ({ to, icon: Icon, label, isActive, onClick, color }: NavItemPro
     red: 'text-red-600 dark:text-red-400',
     blue: 'text-blue-600 dark:text-blue-400',
     amber: 'text-amber-600 dark:text-amber-400',
-    purple: 'text-purple-600 dark:text-purple-400',
+    purple: 'text-emerald-600 dark:text-emerald-400',
     default: 'text-zinc-600 dark:text-zinc-400'
   };
 
@@ -360,7 +359,7 @@ export default function PortalLayout() {
                       </div>
                     </div>
                     <div className="mb-4 text-[8px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-[0.3em] text-center">
-                      v6.2.0
+                      v6.2.1
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
@@ -382,6 +381,13 @@ export default function PortalLayout() {
         {/* Top Header */}
         <header className="h-16 sm:h-20 lg:h-24 bg-white/85 dark:bg-zinc-900/85 sm:backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-3 sm:px-6 lg:px-12 sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-colors duration-300">
           <div className="flex min-w-0 items-center gap-2 sm:gap-6">
+            <button
+              onClick={() => navigate(-1)}
+              aria-label="Kembali"
+              className="lg:hidden clay-icon h-10 w-10 shrink-0 bg-white text-zinc-500 hover:text-blue-600 sm:h-12 sm:w-12 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:text-blue-400"
+            >
+              <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+            </button>
             <button
               onClick={() => setIsSidebarOpen(true)}
               className="lg:hidden clay-icon h-10 w-10 shrink-0 bg-white text-zinc-500 hover:text-blue-600 sm:h-12 sm:w-12 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:text-blue-400"
@@ -418,7 +424,7 @@ export default function PortalLayout() {
                 leaveFrom="transform opacity-100 scale-100 y-0"
                 leaveTo="transform opacity-0 scale-95 y-2"
               >
-                <Menu.Items className="fixed left-3 right-3 bottom-20 sm:bottom-auto top-[4.5rem] sm:top-auto z-50 max-h-[calc(100dvh-10rem)] sm:max-h-[calc(100dvh-5.5rem)] overflow-hidden rounded-[1.5rem] border border-zinc-100 bg-white shadow-2xl focus:outline-none sm:absolute sm:left-auto sm:right-0 sm:mt-4 sm:w-96 sm:rounded-[2rem] sm:bottom-auto dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black">
+                <Menu.Items className="absolute right-0 top-full mt-2 z-50 max-h-[calc(100dvh-6rem)] w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-2xl focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black">
                   <div className="p-3 sm:p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
                     <h3 className="font-black text-sm sm:text-base text-zinc-900 dark:text-white">Notifikasi</h3>
                     {unreadCount > 0 && (
@@ -659,9 +665,10 @@ export default function PortalLayout() {
         onClose={() => setIsChangePasswordModalOpen(false)}
       />
 
-      <NotificationPopup notifications={notifications} markOneAsRead={markOneAsRead} />
-
-      <ErrorReporter />
+      {/* Notifikasi hanya ditampilkan di dropdown tombol Bell (badge sudah
+          menandai notifikasi baru). Toast melayang terpisah dihapus karena
+          muncul di luar posisi tombol dan membingungkan pengguna.
+          ErrorReporter kini global di App.tsx — tidak perlu dipasang per-layout. */}
     </div>
   );
 }

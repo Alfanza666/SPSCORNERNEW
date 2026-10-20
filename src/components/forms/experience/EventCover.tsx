@@ -50,7 +50,7 @@ export function EventCover({
       <div className="grid lg:grid-cols-[minmax(0,0.95fr)_minmax(22rem,1.05fr)]">
         <div className="order-2 flex flex-col justify-center p-5 sm:p-10 lg:order-1 lg:p-14">
           <div className="mb-5 flex flex-wrap items-center gap-2 sm:mb-6">
-            <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
               <Sparkles aria-hidden="true" className="size-3.5" />
               {eyebrow}
             </span>
@@ -70,7 +70,7 @@ export function EventCover({
             <dl className="mt-8 grid gap-3 sm:grid-cols-2">
               {meta.map(item => (
                 <div key={item.id} className="flex items-start gap-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-950/50">
-                  <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm dark:bg-zinc-900 dark:text-indigo-300">
+                  <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm dark:bg-zinc-900 dark:text-blue-300">
                     {item.icon ?? <CalendarDays aria-hidden="true" className="size-4" />}
                   </div>
                   <div className="min-w-0">
@@ -98,7 +98,7 @@ export function EventCover({
                 type="button"
                 onClick={onStart}
                 disabled={disabled || loading}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-zinc-950/20 transition hover:-translate-y-0.5 hover:bg-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:bg-white dark:text-zinc-950 dark:hover:bg-indigo-300 dark:focus-visible:ring-offset-zinc-900"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-zinc-950/20 transition hover:-translate-y-0.5 hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto dark:bg-white dark:text-zinc-950 dark:hover:bg-blue-300 dark:focus-visible:ring-offset-zinc-900"
               >
                 {loading ? <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : null}
                 {startLabel}
@@ -108,7 +108,7 @@ export function EventCover({
           ) : null}
         </div>
 
-        <div className="relative order-1 min-h-56 overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 sm:min-h-64 lg:order-2 lg:min-h-[30rem]">
+        <div className="relative order-1 min-h-56 overflow-hidden bg-gradient-to-br from-blue-600 via-emerald-600 to-fuchsia-500 sm:min-h-64 lg:order-2 lg:min-h-[30rem]">
           {imageUrl ? (
             <>
               <img src={imageUrl} alt="" aria-hidden="true" className="absolute inset-0 size-full scale-110 object-cover opacity-45 blur-2xl" />

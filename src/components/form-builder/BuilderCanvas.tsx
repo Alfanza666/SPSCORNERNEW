@@ -190,7 +190,7 @@ export function BuilderCanvas({
                   disabled={readOnly || !onInsertField}
                   className="flex min-h-64 w-full flex-col items-center justify-center rounded-[24px] border-2 border-dashed border-slate-300 bg-white/90 px-6 text-center transition hover:border-blue-400 hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-default dark:border-zinc-700 dark:bg-zinc-900/90 dark:hover:border-blue-700 dark:hover:bg-blue-950/10"
                 >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-600 text-white shadow-lg shadow-blue-500/20">
                     <Sparkles className="h-5 w-5" aria-hidden="true" />
                   </span>
                   <span className="mt-4 text-sm font-bold text-slate-800 dark:text-white">Mulai susun pengalaman Anda</span>
@@ -244,7 +244,7 @@ export function BuilderCanvas({
                                 {field.required && <span className="ml-1 text-red-500" aria-label="wajib diisi">*</span>}
                               </h2>
                               {field.condition && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                                   <GitBranch className="h-3 w-3" aria-hidden="true" /> Bersyarat
                                 </span>
                               )}

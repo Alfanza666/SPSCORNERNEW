@@ -617,7 +617,7 @@ export default function AdminSellers() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-zinc-200 dark:border-zinc-800"
+              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm w-full max-w-md overflow-hidden border border-zinc-200 dark:border-zinc-800"
             >
               <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
                 <h3 className="text-lg font-black text-zinc-900 dark:text-white">Detail & Revisi Saldo</h3>

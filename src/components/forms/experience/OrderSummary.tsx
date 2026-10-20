@@ -58,7 +58,7 @@ export function OrderSummary({
   return (
     <section aria-labelledby="order-summary-title" className={cx('overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-[0_24px_70px_-45px_rgba(24,24,27,0.55)] dark:border-zinc-800 dark:bg-zinc-900', className)}>
       <div className="flex items-start gap-3 border-b border-zinc-100 p-5 sm:p-6 dark:border-zinc-800">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
           <ReceiptText aria-hidden="true" className="size-5" />
         </div>
         <div>

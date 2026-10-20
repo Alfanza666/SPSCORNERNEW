@@ -412,7 +412,7 @@ export default function AdminTransactions() {
             >
               <span>{tab.label}</span>
               <span className="rounded-full bg-zinc-200/70 dark:bg-zinc-800 px-2 py-0.5 text-[9px] tabular-nums">
-                {counts[tab.key].toLocaleString('id-ID')}
+                {(Number(counts[tab.key]) || 0).toLocaleString('id-ID')}
               </span>
             </button>
           ))}

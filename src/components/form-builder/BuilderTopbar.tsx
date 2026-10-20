@@ -193,7 +193,7 @@ export function BuilderTopbar({
             disabled={publishing}
             aria-busy={publishing}
             aria-label={publishing ? 'Sedang menerbitkan formulir' : 'Terbitkan formulir'}
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 text-xs font-bold text-white shadow-[0_8px_24px_-10px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-600 px-3.5 text-xs font-bold text-white shadow-[0_8px_24px_-10px_rgba(37,99,235,0.9)] transition hover:-translate-y-0.5 hover:from-blue-700 hover:to-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Rocket className="h-3.5 w-3.5" aria-hidden="true" />}
             Publish

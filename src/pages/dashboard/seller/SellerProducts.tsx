@@ -1205,7 +1205,15 @@ export default function SellerProducts() {
                     </div>
                   );
                 })}
-                {products.length === 0 && <p className="text-center text-zinc-400 py-8">Belum ada produk</p>}
+                {products.length === 0 && (
+                  <div className="flex flex-col items-center gap-2 py-8">
+                    <div className="w-12 h-12 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-center">
+                      <Package className="w-6 h-6 text-zinc-300 dark:text-zinc-600" />
+                    </div>
+                    <p className="text-sm font-bold text-zinc-900 dark:text-white">Belum ada produk</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Tambahkan produk terlebih dahulu untuk melakukan restock.</p>
+                  </div>
+                )}
               </div>
               <div className="p-6 md:p-8 border-t border-zinc-100 dark:border-zinc-800 flex justify-end gap-3 shrink-0">
                 <button onClick={() => { setShowBulkRestock(false); setBulkRestockItems({}); }} className="btn-clay-secondary px-6">Batal</button>

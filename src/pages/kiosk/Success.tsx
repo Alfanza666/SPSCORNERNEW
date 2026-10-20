@@ -55,6 +55,10 @@ export default function Success() {
 
   useEffect(() => {
     let pollTimeout: number | undefined;
+    // Flag pembatalan: mencegah polling berjalan terus setelah unmount.
+    // Tanpa ini, fetch in-flight yang selesai setelah cleanup akan tetap
+    // menjadwalkan timer baru → polling abadi tiap 3 detik (temuan A2 audit).
+    let cancelled = false;
 
     const fetchTransaction = async () => {
       try {
@@ -63,6 +67,7 @@ export default function Success() {
           throw new Error('Failed to fetch transaction');
         }
         const data = await response.json();
+        if (cancelled) return;
 
         if (data && data.transaction) {
           setTransaction(data.transaction);
@@ -71,12 +76,12 @@ export default function Success() {
             (item: any) => item.metadata?.is_digital && item.metadata?.status === 'processing'
           );
 
-          if (processingItems && processingItems.length > 0) {
+          if (processingItems && processingItems.length > 0 && !cancelled) {
             pollTimeout = setTimeout(fetchTransaction, 3000) as any;
           }
         }
       } catch (error) {
-        console.error('Error fetching transaction:', error);
+        if (!cancelled) console.error('Error fetching transaction:', error);
       }
     };
 
@@ -85,6 +90,7 @@ export default function Success() {
     }
 
     return () => {
+      cancelled = true;
       if (pollTimeout) clearTimeout(pollTimeout);
     };
   }, [transactionId]);
@@ -282,7 +288,7 @@ Sistem SPS Corner`);
         isPending
           ? 'bg-gradient-to-b from-amber-400 to-amber-600'
           : isDigital
-            ? 'bg-gradient-to-b from-violet-500 via-emerald-500 to-emerald-600'
+            ? 'bg-gradient-to-b from-emerald-500 via-emerald-500 to-emerald-600'
             : 'bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-600'
       }`}>
         <motion.div

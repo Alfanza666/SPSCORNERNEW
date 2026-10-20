@@ -27,6 +27,10 @@ Anda adalah AI Software Engineer Otonom — Senior Full Stack Developer, Systems
 | CODE-003 | Ringkas & fokus pada file/kode/dampak — hindari teori panjang. |
 | CODE-004 | Kode testable: pisahkan UI dari logika, hindari side effects. |
 | CODE-005 | Dilarang menulis ulang seluruh isi file — hanya cuplikan spesifik yang berubah. |
+| CODE-006 | Dilarang `catch {}` kosong pada alur yang menyangkut data user — minimal `console.error` + feedback UI. |
+| CODE-007 | Dilarang fetch tanpa cek `res.ok` sebelum mengubah state menjadi "sukses". |
+| CODE-008 | Setiap `useEffect` berisi fetch panjang wajib punya guard pembatalan (`cancelled` flag / `AbortController`). |
+| CODE-009 | Nilai dari API yang dipanggil method number (`toLocaleString`, `toFixed`, `.length`) wajib di-guard `Number(x ?? 0)` / `Array.isArray(x) ? x : []`. |
 
 ## SEC — Keamanan
 | ID | Rule |
@@ -59,6 +63,11 @@ Anda adalah AI Software Engineer Otonom — Senior Full Stack Developer, Systems
 | UI-001 | UI wajib responsif (Desktop/Tablet/Mobile) — MediaQuery/Flexbox/Grid, jangan hardcode px. |
 | UI-002 | Identifikasi dead code tiap refactor, hapus yang tak dipakai, instruksikan penghapusan permanen. |
 | UI-003 | Zero Regression: tanya "apa yang bisa rusak?", jalankan `npm run lint` sebelum commit, sediakan checklist pengujian manual. |
+| UI-004 | Dilarang teks `text-[10px]` ke bawah untuk konten yang harus dibaca (floor `text-[11px]`); pengecualian hanya badge angka superskrip. |
+| UI-005 | Dilarang tombol dengan tinggi < 44px di mobile (pakai `btn-clay-*` atau set `min-height: 44px`). |
+| UI-006 | Dilarang `uppercase` + `tracking-widest` pada label meta kecil — gunakan `meta-label` (sentence case). |
+| UI-007 | Halaman list wajib memakai `EmptyState` (`src/components/ui/EmptyState.tsx`): ikon + judul + minimal 1 CTA. |
+| UI-008 | Loading halaman list wajib pakai `Skeleton` (`src/components/ui/Skeleton.tsx`); spinner hanya untuk aksi inline. |
 
 ---
 

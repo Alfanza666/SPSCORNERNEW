@@ -52,7 +52,7 @@ export default function PhonePromptModal({ onClose }: PhonePromptModalProps) {
           className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm border border-zinc-100 dark:border-zinc-800 overflow-hidden"
         >
           {/* Header */}
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-white relative">
+          <div className="bg-gradient-to-br from-blue-600 to-blue-600 p-6 text-white relative">
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-3">
               <Phone className="w-6 h-6 text-white" />
             </div>

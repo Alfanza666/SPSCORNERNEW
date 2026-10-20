@@ -50,7 +50,7 @@ export function ReferenceImageGallery({ references = [], className }: ReferenceI
             type="button"
             onClick={() => openLightbox(reference)}
             aria-label={`Perbesar ${reference.label}`}
-            className="group w-full cursor-zoom-in overflow-hidden rounded-2xl border border-zinc-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-zinc-700 dark:bg-zinc-950/50 dark:hover:border-indigo-500 dark:focus-visible:ring-offset-zinc-900"
+            className="group w-full cursor-zoom-in overflow-hidden rounded-2xl border border-zinc-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 motion-reduce:transition-none dark:border-zinc-700 dark:bg-zinc-950/50 dark:hover:border-blue-500 dark:focus-visible:ring-offset-zinc-900"
           >
             <figure>
               <div className="relative flex min-h-56 items-center justify-center bg-zinc-50 p-3 sm:min-h-72 dark:bg-zinc-900">
@@ -69,7 +69,7 @@ export function ReferenceImageGallery({ references = [], className }: ReferenceI
                 <span className="text-[11px] font-black uppercase tracking-[0.14em] text-zinc-600 dark:text-zinc-300">
                   {reference.label}
                 </span>
-                <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">
+                <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-300">
                   <ZoomIn className="h-3.5 w-3.5" aria-hidden="true" />
                   Klik untuk zoom
                 </span>
@@ -136,7 +136,7 @@ export function ReferenceImageGallery({ references = [], className }: ReferenceI
                 onClick={toggleZoom}
                 aria-label={zoom === MIN_ZOOM ? 'Perbesar gambar menjadi 200%' : 'Kembalikan gambar ke ukuran layar'}
                 className={cx(
-                  'm-auto flex shrink-0 items-center justify-center p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
+                  'm-auto flex shrink-0 items-center justify-center p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
                   zoom === MIN_ZOOM ? 'cursor-zoom-in' : 'cursor-zoom-out',
                 )}
                 style={{

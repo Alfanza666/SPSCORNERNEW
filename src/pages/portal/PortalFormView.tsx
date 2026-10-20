@@ -991,7 +991,7 @@ export default function PortalFormView() {
   if (!isTargeted && form) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-950">
-        <div className="max-w-md w-full bg-white dark:bg-zinc-900 p-8 rounded-3xl text-center border border-zinc-100 dark:border-zinc-800 shadow-xl">
+        <div className="max-w-md w-full bg-white dark:bg-zinc-900 p-8 rounded-3xl text-center border border-zinc-100 dark:border-zinc-800 shadow-sm">
           <div className="w-20 h-20 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock className="w-10 h-10 text-zinc-400" />
           </div>
@@ -1006,12 +1006,12 @@ export default function PortalFormView() {
   if (form?.experience_version === 2 || Boolean(programId)) {
     const waitingForWorkflowPricing = Boolean(programId && !activePremiumWorkflowPricing && !premiumSetupError);
     if (premiumStatusLoading || premiumProgramResolutionLoading || waitingForWorkflowPricing) {
-      return <div className="min-h-screen bg-zinc-50 flex items-center justify-center dark:bg-zinc-950"><div className="text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-indigo-600" /><p className="mt-3 text-sm font-semibold text-zinc-500">Menyiapkan pengalaman formulir…</p></div></div>;
+      return <div className="min-h-screen bg-zinc-50 flex items-center justify-center dark:bg-zinc-950"><div className="text-center"><Loader2 className="mx-auto h-10 w-10 animate-spin text-blue-600" /><p className="mt-3 text-sm font-semibold text-zinc-500">Menyiapkan pengalaman formulir…</p></div></div>;
     }
     if (premiumSetupError || (programId && !activePremiumWorkflowPricing)) {
       return (
         <div className="min-h-screen bg-zinc-50 px-4 py-10 dark:bg-zinc-950 sm:flex sm:items-center sm:justify-center">
-          <div className="mx-auto w-full max-w-md rounded-3xl border border-amber-200 bg-white p-6 text-center shadow-xl dark:border-amber-900/70 dark:bg-zinc-900 sm:p-8">
+          <div className="mx-auto w-full max-w-md rounded-3xl border border-amber-200 bg-white p-6 text-center shadow-sm dark:border-amber-900/70 dark:bg-zinc-900 sm:p-8">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
               <AlertCircle className="h-8 w-8" />
             </div>
@@ -1069,7 +1069,7 @@ export default function PortalFormView() {
 
   if (submitted) return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-950">
-        <motion.div initial={{scale:0.9, opacity:0}} animate={{scale:1, opacity:1}} className="max-w-md w-full bg-white dark:bg-zinc-900 p-8 rounded-3xl text-center border border-zinc-100 dark:border-zinc-800 shadow-xl">
+        <motion.div initial={{scale:0.9, opacity:0}} animate={{scale:1, opacity:1}} className="max-w-md w-full bg-white dark:bg-zinc-900 p-8 rounded-3xl text-center border border-zinc-100 dark:border-zinc-800 shadow-sm">
             <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6 text-green-600">
                 <CheckCircle2 className="w-12 h-12" />
             </div>
@@ -1300,7 +1300,7 @@ export default function PortalFormView() {
   };
 
   const cardClassName = (form as any)?.card_glassmorphism
-    ? "bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800/40 rounded-3xl p-6 md:p-10 shadow-2xl relative overflow-hidden"
+    ? "bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800/40 rounded-3xl p-6 md:p-10 shadow-sm relative overflow-hidden"
     : "bg-white dark:bg-zinc-900 rounded-3xl p-6 md:p-10 border border-zinc-100 dark:border-zinc-800 shadow-sm relative overflow-hidden";
 
   return (
@@ -1521,7 +1521,7 @@ export default function PortalFormView() {
                    <button 
                      type="submit" 
                      disabled={submitting} 
-                     className="w-full text-white py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 shadow-2xl transition-all hover:opacity-90"
+                     className="w-full text-white py-5 rounded-3xl font-black text-lg flex items-center justify-center gap-3 active:scale-95 shadow-sm transition-all hover:opacity-90"
                      style={{ 
                        backgroundColor: themeColor,
                        boxShadow: `0 10px 30px -5px ${themeColor}55` 

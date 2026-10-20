@@ -331,7 +331,7 @@ export default function Profile() {
                         </p>
                       </div>
                       <span className={`text-xs font-black shrink-0 ml-3 ${isEarned ? 'text-green-600' : isExpired ? 'text-zinc-400' : 'text-red-600'}`}>
-                        {isEarned ? '+' : ''}{h.points.toLocaleString()} pts
+                        {isEarned ? '+' : ''}{(Number(h.points) || 0).toLocaleString('id-ID')} pts
                       </span>
                     </div>
                   );
@@ -492,7 +492,7 @@ export default function Profile() {
             <div className="mt-5 pt-5 sm:mt-6 sm:pt-6 border-t border-zinc-50 dark:border-zinc-800 space-y-2 sm:space-y-3">
               <Link 
                 to="/help"
-                className="w-full flex items-center justify-between p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-lg sm:rounded-xl text-purple-700 dark:text-purple-400 transition-all group shadow-inner border border-purple-100/50 dark:border-purple-800"
+                className="w-full flex items-center justify-between p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg sm:rounded-xl text-emerald-700 dark:text-emerald-400 transition-all group shadow-inner border border-emerald-100/50 dark:border-emerald-800"
               >
                 <div className="flex items-center gap-2 sm:gap-3">
                   <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />

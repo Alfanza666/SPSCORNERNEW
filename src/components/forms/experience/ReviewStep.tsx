@@ -61,7 +61,7 @@ export function ReviewStep({
                     type="button"
                     onClick={() => onEditSection(section.id)}
                     aria-label={`${editLabel} ${section.title}`}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-indigo-600 transition hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:hover:bg-indigo-950/50"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold text-blue-600 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-blue-300 dark:hover:bg-blue-950/50"
                   >
                     <Pencil aria-hidden="true" className="size-3.5" />
                     {editLabel}

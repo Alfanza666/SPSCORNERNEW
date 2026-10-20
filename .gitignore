@@ -8,3 +8,11 @@ coverage/
 !.env.example
 .env
 backups/
+
+# Tool & installer sementara (tidak ikut deploy)
+.taste-skill/
+.agents/
+.opencode/skills/impeccable/
+.opencode/commands/
+skills-lock.json
+dev-server.log

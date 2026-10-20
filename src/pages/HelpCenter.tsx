@@ -197,7 +197,7 @@ export default function HelpCenter() {
                   <button
                     onClick={() => setActiveRole('admin')}
                     className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all ${
-                      activeRole === 'admin' ? 'border-purple-600 bg-purple-50 text-purple-700' : 'border-gray-100 hover:border-gray-200 text-gray-600'
+                      activeRole === 'admin' ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-gray-100 hover:border-gray-200 text-gray-600'
                     }`}
                   >
                     <ShieldCheck className="w-6 h-6 mb-2" />
@@ -257,17 +257,17 @@ export default function HelpCenter() {
                   {activeRole === 'admin' && (
                     <>
                       <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-50">
-                        <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold mb-3">1</div>
+                        <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center font-bold mb-3">1</div>
                         <h4 className="font-semibold text-gray-900 mb-1">Kelola Pengguna</h4>
                         <p className="text-sm text-gray-600">Setujui pendaftaran penjual baru dan pantau aktivitas mereka.</p>
                       </div>
                       <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-50">
-                        <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold mb-3">2</div>
+                        <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center font-bold mb-3">2</div>
                         <h4 className="font-semibold text-gray-900 mb-1">Pantau Transaksi</h4>
                         <p className="text-sm text-gray-600">Awasi semua transaksi fisik dan digital yang terjadi di sistem.</p>
                       </div>
                       <div className="bg-white p-4 rounded-lg shadow-sm border border-blue-50">
-                        <div className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold mb-3">3</div>
+                        <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center font-bold mb-3">3</div>
                         <h4 className="font-semibold text-gray-900 mb-1">Proses Penarikan</h4>
                         <p className="text-sm text-gray-600">Transfer dana ke penjual dan konfirmasi status penarikan.</p>
                       </div>

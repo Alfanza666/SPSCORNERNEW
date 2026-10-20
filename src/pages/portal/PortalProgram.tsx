@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -108,6 +108,8 @@ export default function PortalProgram() {
   
   const [programs, setPrograms] = useState<Program[]>([]);
   const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+// Nomor permintaan pemilihan program — respons lama yang lambat diabaikan (A3 audit).
+const programSelectSeq = useRef(0);
   const [restoredProgramId, setRestoredProgramId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -261,6 +263,9 @@ export default function PortalProgram() {
   };
 
   const handleSelectProgram = async (program: Program) => {
+    // Guard race: klik program lain sebelum fetch selesai → respons lama diabaikan
+    // agar kupon program sebelumnya tidak menimpa program yang baru dipilih (A3 audit).
+    const seq = ++programSelectSeq.current;
     setSelectedProgram(program);
     
     // V2: Try to get registration status from V2 endpoint
@@ -270,6 +275,7 @@ export default function PortalProgram() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const result = await response.json();
+      if (seq !== programSelectSeq.current) return;
       
       const registration = result.data || result.registration;
       if (response.ok && result.success && registration) {
@@ -279,14 +285,17 @@ export default function PortalProgram() {
       } else {
         // Fallback to legacy query
         const { data } = await supabase.from('program_coupons').select('*').eq('program_id', program.id).or(`nik.eq.${user?.nik},user_id.eq.${user?.id}`);
+        if (seq !== programSelectSeq.current) return;
         if (data) setMyCoupons(data.map(normalizeProgramCoupon));
       }
     } catch (e) {
       // Fallback to legacy query
       const { data } = await supabase.from('program_coupons').select('*').eq('program_id', program.id).or(`nik.eq.${user?.nik},user_id.eq.${user?.id}`);
+      if (seq !== programSelectSeq.current) return;
       if (data) setMyCoupons(data.map(normalizeProgramCoupon));
     }
     
+    if (seq !== programSelectSeq.current) return;
     setFormData({});
     setAddonSelections({});
   };
@@ -306,13 +315,18 @@ export default function PortalProgram() {
 
   const handlePayFamily = async () => {
     if (calculateTotal() < 1 || !user) return;
+    // Guard: jangan kirim request ke /programs/undefined/checkout-family (B3 audit).
+    if (!selectedProgram?.id) {
+      appToast.error('Program Belum Dipilih', 'Silakan pilih program terlebih dahulu sebelum membayar.');
+      return;
+    }
     setPaymentLoading(true);
 
     // Calculate total family count from addons
     const familyCount = Object.values(addonSelections).reduce((acc: any, qty: any) => acc + qty, 0);
 
     try {
-        const response = await fetch(`/api/portal/programs/${selectedProgram?.id}/checkout-family`, {
+        const response = await fetch(`/api/portal/programs/${selectedProgram.id}/checkout-family`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -326,8 +340,14 @@ export default function PortalProgram() {
         });
         
         if (!response.ok) {
+            // Tampilkan pesan error yang sudah diparse, bukan body JSON mentah (B3 audit).
             const errorText = await response.text();
-            throw new Error(errorText || `Error: ${response.status}`);
+            let friendly = `Gagal memproses pembayaran (HTTP ${response.status})`;
+            try {
+              const parsed = JSON.parse(errorText);
+              friendly = parsed.error || parsed.message || friendly;
+            } catch { /* body bukan JSON — pakai pesan generik */ }
+            throw new Error(friendly);
         }
         
         const data = await response.json();
@@ -426,15 +446,15 @@ export default function PortalProgram() {
                           : programType.includes('turnamen')
                             ? 'from-orange-500 via-red-500 to-rose-700'
                             : programType.includes('bingkisan')
-                              ? 'from-pink-500 via-fuchsia-500 to-violet-700'
-                              : 'from-sky-500 via-indigo-500 to-violet-700';
+                              ? 'from-pink-500 via-fuchsia-500 to-emerald-700'
+                              : 'from-sky-500 via-blue-500 to-emerald-700';
                         const description = richTextToPlainText(prog.description) || 'Tidak ada deskripsi tambahan.';
                         return (
                         <motion.article
                           key={prog.id}
                           whileHover={{ scale: 1.01 }}
                           onClick={() => void handleSelectGroupedProgram(prog)}
-                          className="group cursor-pointer overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-xl sm:rounded-3xl dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-800"
+                          className="group cursor-pointer overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-sm transition-all hover:border-blue-300 hover:shadow-md sm:rounded-3xl dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-800"
                         >
                           <div className="grid md:min-h-[13rem] md:grid-cols-[minmax(220px,32%)_1fr]">
                             <div className="relative min-h-40 overflow-hidden bg-zinc-100 sm:min-h-44 dark:bg-zinc-800">
@@ -533,7 +553,7 @@ export default function PortalProgram() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
             </div>
           ) : (
-            <div className={`h-40 ${isKurban ? 'bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600' : isGathering ? 'bg-gradient-to-br from-blue-400 via-indigo-500 to-purple-600' : 'bg-gradient-to-br from-zinc-400 via-zinc-500 to-zinc-600'} flex items-center justify-center relative overflow-hidden`}>
+            <div className={`h-40 ${isKurban ? 'bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600' : isGathering ? 'bg-gradient-to-br from-blue-400 via-blue-500 to-emerald-600' : 'bg-gradient-to-br from-zinc-400 via-zinc-500 to-zinc-600'} flex items-center justify-center relative overflow-hidden`}>
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIgZmlsbD0iI2ZmZiI+PC9jaXJjbGU+PC9zdmc+')] opacity-20"></div>
               <Gift className="w-20 h-20 text-white/40 relative z-10" />
             </div>
@@ -582,7 +602,7 @@ export default function PortalProgram() {
             <div className="prose prose-sm max-w-none overflow-hidden break-words text-zinc-500 dark:prose-invert dark:text-zinc-400">
               {programDescriptionHtml ? (
                 <div
-                  className="leading-relaxed [&_blockquote]:border-l-4 [&_blockquote]:border-blue-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
+                  className="leading-relaxed [&_blockquote]:border-l-2 [&_blockquote]:border-blue-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
                   dangerouslySetInnerHTML={{ __html: programDescriptionHtml }}
                 />
               ) : (
@@ -596,10 +616,10 @@ export default function PortalProgram() {
       {/* SECTION 2: DYNAMIC INTERACTION - CLAYMORPHISM CARDS */}
       <div className="space-y-4 sm:space-y-6 sm:px-4">
         {selectedProgram.dynamic_form_id && (
-          <section className="overflow-hidden rounded-[1.5rem] bg-zinc-950 text-white shadow-2xl sm:rounded-[2rem] dark:bg-zinc-900">
+          <section className="overflow-hidden rounded-[1.5rem] bg-zinc-950 text-white shadow-sm sm:rounded-[2rem] dark:bg-zinc-900">
             <div className="grid gap-5 p-4 sm:p-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
               <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-200"><FileText className="h-3.5 w-3.5" /> Konfirmasi digital</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-200"><FileText className="h-3.5 w-3.5" /> Konfirmasi digital</span>
                 <h2 className="mt-4 text-xl font-black tracking-tight sm:text-2xl">Lengkapi RSVP program</h2>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Jawaban mengikuti alur yang relevan, biaya dihitung otomatis, dan QR diterbitkan hanya setelah status valid.</p>
               </div>
@@ -607,7 +627,7 @@ export default function PortalProgram() {
                 type="button"
                 disabled={isProgramExpired}
                 onClick={() => navigate(`/portal/forms/${selectedProgram.dynamic_form_id}?programId=${selectedProgram.id}`)}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 text-sm font-black text-white shadow-xl shadow-indigo-950/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-14 sm:w-auto sm:px-6"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-blue-500 to-emerald-500 px-5 text-sm font-black text-white shadow-sm shadow-blue-950/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-14 sm:w-auto sm:px-6"
               >
                 <FileText className="h-5 w-5" /> {isProgramExpired ? 'Program sudah selesai' : 'Buka formulir RSVP'}
               </button>
@@ -669,7 +689,7 @@ export default function PortalProgram() {
                           <div className="min-w-0 flex-1">
                             <div className="mb-1 flex flex-wrap items-center gap-2">
                               {isEmployee && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold rounded uppercase">Karyawan</span>}
-                              {!isEmployee && <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
+                              {!isEmployee && <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
                             </div>
                             <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">{beneficiary}</p>
                             <p className="mt-0.5 truncate font-mono text-[10px] text-zinc-400">{coupon.coupon_code}</p>
@@ -713,7 +733,7 @@ export default function PortalProgram() {
                           <div className="min-w-0 flex-1">
                             <div className="mb-1 flex flex-wrap items-center gap-2">
                               {isEmployee && <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold rounded uppercase">Karyawan</span>}
-                              {!isEmployee && <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
+                              {!isEmployee && <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[9px] font-bold rounded uppercase">Keluarga</span>}
                             </div>
                             <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">{beneficiary}</p>
                             <p className="mt-0.5 truncate font-mono text-[10px] text-zinc-400">{coupon.coupon_code}</p>
@@ -801,7 +821,7 @@ export default function PortalProgram() {
             {/* Form Config */}
             {selectedProgram.form_config?.fields?.length > 0 && (
                 <div className="rounded-[1.5rem] bg-white p-4 shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)] sm:rounded-3xl sm:p-6 dark:bg-zinc-900">
-                    <button onClick={handleSubmitForm} disabled={submitting} className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all">Simpan Data</button>
+                    <button onClick={handleSubmitForm} disabled={submitting} className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-md transition-all">Simpan Data</button>
                 </div>
             )}
 
@@ -810,18 +830,18 @@ export default function PortalProgram() {
                 <div className="rounded-[1.5rem] bg-white p-4 shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)] sm:rounded-3xl sm:p-6 dark:bg-zinc-900">
                     
                     {/* TOGGLE SWITCH */}
-                    <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-indigo-800 dark:bg-indigo-900/20">
+                    <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-blue-800 dark:bg-blue-900/20">
                         <div className="flex items-center gap-3">
-                            <Users className="w-6 h-6 text-indigo-600" />
+                            <Users className="w-6 h-6 text-blue-600" />
                             <div className="text-left">
-                                <p className="font-bold text-indigo-900 dark:text-indigo-100 text-sm">Bawa Anggota Keluarga?</p>
-                                <p className="text-xs text-indigo-600 dark:text-indigo-400">Tambah fasilitas/orang tambahan</p>
+                                <p className="font-bold text-blue-900 dark:text-blue-100 text-sm">Bawa Anggota Keluarga?</p>
+                                <p className="text-xs text-blue-600 dark:text-blue-400">Tambah fasilitas/orang tambahan</p>
                             </div>
                         </div>
                         <button 
                             type="button"
                             onClick={() => setWantsExtra(!wantsExtra)}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${wantsExtra ? 'bg-indigo-600' : 'bg-zinc-300 dark:bg-zinc-600'}`}
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${wantsExtra ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-600'}`}
                         >
                             <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-sm transition-transform ${wantsExtra ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>
@@ -844,7 +864,7 @@ export default function PortalProgram() {
                                             />
                                             <div className="min-w-0">
                                                 <span className="block text-sm font-semibold text-zinc-700 dark:text-zinc-200">{addon.name}</span>
-                                                <span className="text-xs text-indigo-600 dark:text-indigo-400">Rp {addon.price.toLocaleString()}</span>
+                                                <span className="text-xs text-blue-600 dark:text-blue-400">Rp {(Number(addon.price) || 0).toLocaleString('id-ID')}</span>
                                             </div>
                                         </label>
                                         
@@ -873,16 +893,16 @@ export default function PortalProgram() {
                             
                             {calculateTotal() > 0 && (
                                 <>
-                                    <div className="flex justify-between items-center pt-4 border-t border-indigo-200 dark:border-indigo-800 mb-6">
+                                    <div className="flex justify-between items-center pt-4 border-t border-blue-200 dark:border-blue-800 mb-6">
                                         <span className="font-bold text-zinc-700 dark:text-zinc-200">Total Bayar:</span>
-                                        <span className="font-black text-2xl text-indigo-600">Rp {calculateTotal().toLocaleString()}</span>
+                                        <span className="font-black text-2xl text-blue-600">Rp {(Number(calculateTotal()) || 0).toLocaleString('id-ID')}</span>
                                     </div>
 
                                     <button 
                                         type="button"
                                         onClick={handlePayFamily} 
                                         disabled={paymentLoading}
-                                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-600 py-4 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:from-indigo-600 hover:to-purple-700 hover:shadow-xl"
+                                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-500 to-emerald-600 py-4 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:from-blue-600 hover:to-emerald-700 hover:shadow-md"
                                     >
                                         {paymentLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CreditCard className="w-4 h-4" /> Bayar via QRIS (iPaymu)</>}
                                     </button>
@@ -901,7 +921,7 @@ export default function PortalProgram() {
                     </div>
                     <p className="text-zinc-600 dark:text-zinc-300 mb-2 text-base font-bold">Anda belum melakukan konfirmasi kehadiran.</p>
                     <p className="text-sm text-zinc-400 mb-8">Klik tombol di bawah untuk mendapatkan QR Code kehadiran.</p>
-                    <button onClick={handleConfirmAttendance} disabled={submitting || isProgramExpired} className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-4 text-base font-black text-white shadow-lg shadow-green-500/30 transition-all hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 sm:py-5 sm:text-lg">
+                    <button onClick={handleConfirmAttendance} disabled={submitting || isProgramExpired} className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-4 text-base font-black text-white shadow-lg shadow-green-500/30 transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 sm:py-5 sm:text-lg">
                         {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <><CheckCircle className="w-6 h-6" /> KONFIRMASI HADIR</>}
                     </button>
                     {isProgramExpired && <p className="text-xs text-red-500 mt-2">Program sudah berakhir, tidak bisa konfirmasi</p>}
@@ -928,7 +948,7 @@ export default function PortalProgram() {
                         <div className="mt-6 pt-6 border-t border-zinc-800">
                             <h4 className="text-zinc-400 text-xs font-bold uppercase mb-4">Tiket Keluarga</h4>
                             <div className="flex gap-3 overflow-x-auto pb-2 px-2">
-                                <button type="button" onClick={() => openTicketModal(familyCoupon, 'TIKET MASUK')} className="bg-white p-3 rounded-xl shrink-0 shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500">
+                                <button type="button" onClick={() => openTicketModal(familyCoupon, 'TIKET MASUK')} className="bg-white p-3 rounded-xl shrink-0 shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
                                     <QRCode value={getCouponQrValue(familyCoupon)} size={80} />
                                     <p className="text-[10px] mt-2 text-center font-bold">Keluarga ({familyCoupon.metadata?.family_count})</p>
                                 </button>
@@ -943,9 +963,9 @@ export default function PortalProgram() {
                              {couponMeal && <button type="button" onClick={() => openTicketModal(couponMeal, 'KUPON MAKAN')} className="mx-auto mt-3 block rounded-lg bg-white p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"><QRCode value={getCouponQrValue(couponMeal)} size={50} /></button>}
                              {familyMealCoupon && <p className="text-xs mt-2 text-orange-300 font-medium">+ {familyMealCoupon.metadata?.qty} Keluarga</p>}
                         </div>
-                        <div className="bg-purple-900/30 p-4 rounded-2xl text-center border border-purple-800/50">
-                             <Gift className="w-6 h-6 mx-auto text-purple-500 mb-2" />
-                             <p className="text-xs text-purple-200 font-bold">Undian</p>
+                        <div className="bg-emerald-900/30 p-4 rounded-2xl text-center border border-emerald-800/50">
+                             <Gift className="w-6 h-6 mx-auto text-emerald-500 mb-2" />
+                             <p className="text-xs text-emerald-200 font-bold">Undian</p>
                              {couponDoorprize && <p className="text-2xl font-black text-white mt-3">{couponDoorprize.coupon_code.split('-').pop()}</p>}
                         </div>
                     </div>
@@ -972,8 +992,8 @@ export default function PortalProgram() {
           className="fixed inset-0 z-[80] flex items-end justify-center bg-zinc-950/85 p-0 backdrop-blur-md sm:items-center sm:p-6"
           onClick={() => setTicketModal(null)}
         >
-          <div className="max-h-[96dvh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] bg-zinc-950/40 p-3 shadow-2xl sm:max-h-[92vh] sm:rounded-none sm:bg-transparent sm:p-0" onClick={event => event.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-900/90 px-4 py-3 text-white shadow-2xl">
+          <div className="max-h-[96dvh] w-full max-w-2xl overflow-y-auto rounded-t-[2rem] bg-zinc-950/40 p-3 shadow-sm sm:max-h-[92vh] sm:rounded-none sm:bg-transparent sm:p-0" onClick={event => event.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-900/90 px-4 py-3 text-white shadow-sm">
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">Scan QR tiket</p>
                 <p className="mt-0.5 truncate text-sm font-bold">{ticketModal.beneficiary} - {ticketModal.ticketTitle}</p>
@@ -1002,11 +1022,11 @@ export default function PortalProgram() {
       {/* QRIS MODAL */}
       {showQrisModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 sm:items-center sm:p-4">
-            <div className="relative w-full max-w-sm overflow-hidden rounded-t-[2rem] bg-white p-5 text-center shadow-2xl sm:rounded-3xl sm:p-8 dark:bg-zinc-900">
+            <div className="relative w-full max-w-sm overflow-hidden rounded-t-[2rem] bg-white p-5 text-center shadow-sm sm:rounded-3xl sm:p-8 dark:bg-zinc-900">
                 <button onClick={() => setShowQrisModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600"><X className="w-6 h-6" /></button>
                 
                 <h2 className="text-xl font-black mb-2 text-zinc-900 dark:text-white">Pembayaran Keluarga</h2>
-                <p className="text-sm text-zinc-500 mb-6">Total: <span className="font-bold text-indigo-600">Rp {calculateTotal().toLocaleString()}</span></p>
+                <p className="text-sm text-zinc-500 mb-6">Total: <span className="font-bold text-blue-600">Rp {(Number(calculateTotal()) || 0).toLocaleString('id-ID')}</span></p>
                 
                 {/* REAL QR CODE RENDER */}
                 <div className="bg-white p-4 rounded-xl border border-zinc-200 mb-6 inline-block">

@@ -774,7 +774,7 @@ export default function AdminAnnouncements() {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            await fetch('/api/notifications/broadcast', {
+            const broadcastRes = await fetch('/api/notifications/broadcast', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -786,9 +786,16 @@ export default function AdminAnnouncements() {
                 url: '/portal/pengumuman'
               })
             });
+            // Laporkan jujur: pengumuman tersimpan, tapi push bisa gagal (A6 audit).
+            if (!broadcastRes.ok) {
+              const body = await broadcastRes.json().catch(() => ({}));
+              throw new Error(body.error || `HTTP ${broadcastRes.status}`);
+            }
+            appToast.success('Notifikasi Terkirim', 'Push notification pengumuman berhasil dikirim ke anggota.');
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error("Broadcast failed:", e);
+          appToast.error('Push Notification Gagal', 'Pengumuman tersimpan, tetapi push notification gagal dikirim. Anggota tetap bisa melihat di portal.');
         }
       }
 
@@ -962,7 +969,7 @@ export default function AdminAnnouncements() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="bg-white dark:bg-zinc-900 rounded-xl p-4 mb-4 border border-zinc-200 dark:border-zinc-700 shadow-xl"
+              className="bg-white dark:bg-zinc-900 rounded-xl p-4 mb-4 border border-zinc-200 dark:border-zinc-700 shadow-sm"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold">{editingId ? 'Edit' : 'Buat'} Pengumuman</h3>
@@ -1193,13 +1200,13 @@ export default function AdminAnnouncements() {
                     <div className="space-y-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <ClipboardList className="w-4 h-4 text-purple-500" />
+                          <ClipboardList className="w-4 h-4 text-emerald-500" />
                           <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Survei Terkait</label>
                         </div>
                         <button
                           type="button"
                           onClick={addSurvey}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg text-xs font-bold hover:bg-purple-200 dark:hover:bg-purple-900/40 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-200 dark:hover:bg-emerald-900/40 transition-colors"
                         >
                           <Plus className="w-3.5 h-3.5" /> Tambah Survei
                         </button>
@@ -1216,7 +1223,7 @@ export default function AdminAnnouncements() {
                               type="text"
                               value={survey.title}
                               onChange={(e) => updateSurvey(survey.id, 'title', e.target.value)}
-                              className="flex-1 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              className="flex-1 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                               placeholder="Judul survei"
                             />
                             <button type="button" onClick={() => removeSurvey(survey.id)} className="p-1.5 text-zinc-400 hover:text-red-500">
@@ -1227,7 +1234,7 @@ export default function AdminAnnouncements() {
                             type="text"
                             value={survey.description || ''}
                             onChange={(e) => updateSurvey(survey.id, 'description', e.target.value)}
-                            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                             placeholder="Deskripsi singkat (opsional)"
                           />
 
@@ -1235,7 +1242,7 @@ export default function AdminAnnouncements() {
                           <select
                             value={survey.form_id || ''}
                             onChange={(e) => updateSurvey(survey.id, 'form_id', e.target.value)}
-                            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                           >
                             <option value="">Pilih formulir internal (opsional)...</option>
                             {dynamicForms.map(f => (
@@ -1250,7 +1257,7 @@ export default function AdminAnnouncements() {
                               <button
                                 type="button"
                                 onClick={() => addQuestion(survey.id)}
-                                className="flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg text-[10px] font-bold hover:bg-purple-200"
+                                className="flex items-center gap-1 px-2 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-[10px] font-bold hover:bg-emerald-200"
                               >
                                 <Plus className="w-3 h-3" /> Tambah
                               </button>
@@ -1267,13 +1274,13 @@ export default function AdminAnnouncements() {
                                     type="text"
                                     value={q.label}
                                     onChange={(e) => updateQuestion(survey.id, q.id, 'label', e.target.value)}
-                                    className="flex-1 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    className="flex-1 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                     placeholder={`Pertanyaan #${qIdx + 1}`}
                                   />
                                   <select
                                     value={q.type}
                                     onChange={(e) => updateQuestion(survey.id, q.id, 'type', e.target.value)}
-                                    className="w-20 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-1 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    className="w-20 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-1 py-1 text-[10px] focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                   >
                                     <option value="text">Teks</option>
                                     <option value="textarea">Paragraf</option>
@@ -1303,7 +1310,7 @@ export default function AdminAnnouncements() {
                                           type="text"
                                           value={opt}
                                           onChange={(e) => updateOption(survey.id, q.id, oIdx, e.target.value)}
-                                          className="flex-1 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-2 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                          className="flex-1 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 rounded px-2 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-emerald-500"
                                           placeholder="Opsi jawaban"
                                         />
                                         <button type="button" onClick={() => removeOption(survey.id, q.id, oIdx)} className="text-zinc-400 hover:text-red-500">
@@ -1314,7 +1321,7 @@ export default function AdminAnnouncements() {
                                     <button
                                       type="button"
                                       onClick={() => addOption(survey.id, q.id)}
-                                      className="flex items-center gap-0.5 text-[10px] text-purple-600 font-bold hover:text-purple-700"
+                                      className="flex items-center gap-0.5 text-[10px] text-emerald-600 font-bold hover:text-emerald-700"
                                     >
                                       <Plus className="w-2.5 h-2.5" /> Tambah opsi
                                     </button>
@@ -1358,7 +1365,7 @@ export default function AdminAnnouncements() {
                     {/* Target Departments */}
                     <div className="space-y-2 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                       <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-purple-500" />
+                        <Users className="w-4 h-4 text-emerald-500" />
                         <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Target Departemen</label>
                       </div>
                       {availableDepartments.length === 0 ? (
@@ -1378,7 +1385,7 @@ export default function AdminAnnouncements() {
                                 }}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                   selected
-                                    ? 'bg-purple-600 text-white shadow-md'
+                                    ? 'bg-emerald-600 text-white shadow-md'
                                     : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
                                 }`}
                               >
@@ -1389,7 +1396,7 @@ export default function AdminAnnouncements() {
                         </div>
                       )}
                       {targetDepartments.length > 0 && (
-                        <p className="text-[10px] text-purple-600 font-bold">
+                        <p className="text-[10px] text-emerald-600 font-bold">
                           {targetDepartments.length} departemen dipilih
                         </p>
                       )}
@@ -1553,7 +1560,7 @@ export default function AdminAnnouncements() {
                 key={announcement.id}
                 className={`bg-white dark:bg-zinc-900 rounded-2xl border transition-all overflow-hidden shadow-sm hover:shadow-md ${
                   announcement.is_pinned
-                    ? 'border-l-4 border-l-amber-500 border-zinc-200 dark:border-zinc-700'
+                    ? 'border-amber-300 dark:border-amber-700 ring-1 ring-amber-200 dark:ring-amber-800/60'
                     : 'border-zinc-200 dark:border-zinc-700'
                 }`}
               >
@@ -1572,7 +1579,7 @@ export default function AdminAnnouncements() {
                           </span>
                         )}
                         {announcement.announcement_type === 'gathering' && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] font-black rounded-full uppercase tracking-tighter">
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black rounded-full uppercase tracking-tighter">
                             <Users className="w-2.5 h-2.5" /> GATHERING
                           </span>
                         )}

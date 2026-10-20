@@ -60,7 +60,7 @@ export function FamilyRepeater({
     <section aria-labelledby="family-repeater-title" className={cx('rounded-[2rem] border border-zinc-200 bg-white p-5 shadow-sm sm:p-7 dark:border-zinc-800 dark:bg-zinc-900', className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300">
             <UsersRound aria-hidden="true" className="size-5" />
           </div>
           <div>
@@ -87,7 +87,7 @@ export function FamilyRepeater({
               <legend className="sr-only">Anggota keluarga {index + 1}</legend>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-black text-violet-600 shadow-sm dark:bg-zinc-900 dark:text-violet-300">{index + 1}</span>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-black text-emerald-600 shadow-sm dark:bg-zinc-900 dark:text-emerald-300">{index + 1}</span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-zinc-900 dark:text-white">{member.name?.trim() || `Anggota keluarga ${index + 1}`}</p>
                     <p className="mt-0.5 text-xs text-zinc-400">{member.relation || (pricePerPerson > 0 ? formatMoney(pricePerPerson, currency, locale) : 'Tiket tambahan')}</p>
@@ -114,7 +114,7 @@ export function FamilyRepeater({
                       disabled={disabled || !onChange}
                       onChange={event => onChange?.(member.id, { name: event.currentTarget.value })}
                       autoComplete="name"
-                      className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                      className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                       placeholder="Nama lengkap"
                     />
                   </label>
@@ -124,7 +124,7 @@ export function FamilyRepeater({
                       value={member.relation ?? ''}
                       disabled={disabled || !onChange}
                       onChange={event => onChange?.(member.id, { relation: event.currentTarget.value })}
-                      className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                      className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     >
                       <option value="">Pilih hubungan</option>
                       {relationOptions.map(relation => <option key={relation} value={relation}>{relation}</option>)}
@@ -141,7 +141,7 @@ export function FamilyRepeater({
         type="button"
         onClick={onAdd}
         disabled={!canAdd}
-        className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-300 bg-violet-50/60 px-4 py-2.5 text-sm font-bold text-violet-700 transition hover:border-violet-500 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 dark:border-violet-800 dark:bg-violet-950/20 dark:text-violet-300 dark:hover:bg-violet-950/40 dark:focus-visible:ring-offset-zinc-900"
+        className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/60 px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:border-emerald-500 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 dark:border-emerald-800 dark:bg-emerald-950/20 dark:text-emerald-300 dark:hover:bg-emerald-950/40 dark:focus-visible:ring-offset-zinc-900"
       >
         <Plus aria-hidden="true" className="size-4" />
         {members.length >= safeMaximum ? `Maksimal ${safeMaximum} anggota` : addLabel}
@@ -155,7 +155,7 @@ export function FamilyRepeater({
         {pricePerPerson > 0 ? (
           <div className="text-right">
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Biaya tambahan</p>
-            <output className="mt-1 block text-lg font-black tabular-nums text-violet-600 dark:text-violet-300" aria-label={`Biaya tambahan ${formatMoney(total, currency, locale)}`}>{formatMoney(total, currency, locale)}</output>
+            <output className="mt-1 block text-lg font-black tabular-nums text-emerald-600 dark:text-emerald-300" aria-label={`Biaya tambahan ${formatMoney(total, currency, locale)}`}>{formatMoney(total, currency, locale)}</output>
           </div>
         ) : null}
       </div>

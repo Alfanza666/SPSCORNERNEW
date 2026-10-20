@@ -25,8 +25,8 @@ const categories: (DigitalCategory & { heroImage: string })[] = [
   { id: 'pulsa', name: 'Pulsa', icon: Smartphone, description: 'Isi ulang pulsa semua operator', color: 'bg-blue-500', apiCategory: 'Pulsa', heroImage: 'https://images.unsplash.com/photo-1562016600-ece13e8ba570?auto=format&fit=crop&q=80&w=600' },
   { id: 'data', name: 'Paket Data', icon: Wifi, description: 'Kuota internet hemat', color: 'bg-emerald-500', apiCategory: 'Data', heroImage: 'https://images.unsplash.com/photo-1551703599-6b3e8379aa81?auto=format&fit=crop&q=80&w=600' },
   { id: 'pln', name: 'Token & Tagihan PLN', icon: Zap, description: 'Listrik prabayar & pascabayar', color: 'bg-amber-500', apiCategory: 'PLN', heroImage: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&q=80&w=600' },
-  { id: 'game', name: 'Voucher Game', icon: Gamepad2, description: 'Top up game favorit', color: 'bg-purple-500', apiCategory: 'Games', heroImage: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600' },
-  { id: 'e-money', name: 'E-Money', icon: Wallet, description: 'Top up saldo dompet digital', color: 'bg-indigo-500', apiCategory: 'E-Money', heroImage: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&q=80&w=600' },
+  { id: 'game', name: 'Voucher Game', icon: Gamepad2, description: 'Top up game favorit', color: 'bg-emerald-500', apiCategory: 'Games', heroImage: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&q=80&w=600' },
+  { id: 'e-money', name: 'E-Money', icon: Wallet, description: 'Top up saldo dompet digital', color: 'bg-blue-500', apiCategory: 'E-Money', heroImage: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&q=80&w=600' },
   { id: 'pdam', name: 'PDAM', icon: Droplets, description: 'Bayar tagihan air', color: 'bg-cyan-500', apiCategory: 'PDAM', heroImage: 'https://images.unsplash.com/photo-1527181152855-fc03fc7949c8?auto=format&fit=crop&q=80&w=600' },
   { id: 'bpjs', name: 'BPJS', icon: Activity, description: 'Bayar iuran kesehatan', color: 'bg-red-500', apiCategory: 'BPJS', heroImage: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=80&w=600' },
   { id: 'internet', name: 'Internet & TV', icon: Tv, description: 'Indihome, CBN, dll', color: 'bg-orange-500', apiCategory: 'Internet', heroImage: 'https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?auto=format&fit=crop&q=80&w=600' },
@@ -627,15 +627,15 @@ export default function DigitalProducts() {
             )}
             <div className="flex justify-between border-b border-slate-200 dark:border-zinc-700 pb-3">
               <span className="text-slate-500 dark:text-zinc-400">Tagihan</span>
-              <span className="font-bold text-slate-900 dark:text-white text-right">Rp {inquiryResult.price?.toLocaleString('id-ID')}</span>
+              <span className="font-bold text-slate-900 dark:text-white text-right">Rp {(Number(inquiryResult.price) || 0).toLocaleString('id-ID')}</span>
             </div>
             <div className="flex justify-between border-b border-slate-200 dark:border-zinc-700 pb-3">
               <span className="text-slate-500 dark:text-zinc-400">Biaya Admin</span>
-              <span className="font-bold text-slate-900 dark:text-white text-right">Rp {adminFee.toLocaleString('id-ID')}</span>
+              <span className="font-bold text-slate-900 dark:text-white text-right">Rp {(Number(adminFee) || 0).toLocaleString('id-ID')}</span>
             </div>
             <div className="flex justify-between pt-2">
               <span className="text-slate-700 dark:text-zinc-300 font-bold">Total Bayar</span>
-              <span className="font-bold text-blue-600 dark:text-blue-400 text-xl">Rp {totalAmount.toLocaleString('id-ID')}</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400 text-xl">Rp {(Number(totalAmount) || 0).toLocaleString('id-ID')}</span>
             </div>
           </div>
 
@@ -706,7 +706,7 @@ export default function DigitalProducts() {
                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 flex items-end justify-between">
                   <div>
                     <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium mb-0.5">Harga</p>
-                    <p className="font-black text-blue-600 dark:text-blue-400 text-lg">Rp {product.price.toLocaleString('id-ID')}</p>
+                    <p className="font-black text-blue-600 dark:text-blue-400 text-lg">Rp {(Number(product.price) || 0).toLocaleString('id-ID')}</p>
                   </div>
                   <button
                     onClick={() => handleBuyPrepaid(product)}

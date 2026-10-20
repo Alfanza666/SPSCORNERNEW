@@ -6,6 +6,7 @@ import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/useAuthStore';
 import Tutorial from './components/Tutorial';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import ErrorReporter from './components/ErrorReporter';
 
 // ── Helper: Lazy load with automatic retry ──
 function lazyWithRetry(importFn: () => Promise<any>) {
@@ -225,6 +226,10 @@ export default function App() {
       <BrowserRouter>
         <Tutorial />
         <PWAInstallPrompt />
+        {/* ErrorReporter global: tersedia di SEMUA halaman. Sekali klik "Lapor
+            Masalah", konteks otomatis (error terakhir, breadcrumb, URL, device)
+            ikut terekam — user tidak perlu menebak apa yang salah. */}
+        <ErrorReporter />
         <Toaster
           position="top-center"
           gutter={12}

@@ -264,8 +264,8 @@ export default function AdminSurveyReports() {
                       className="w-full p-5 flex items-center justify-between text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-purple-600" />
+                        <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div>
                           <h3 className="font-bold text-zinc-900 dark:text-white">{survey.title}</h3>
@@ -273,7 +273,7 @@ export default function AdminSurveyReports() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-bold text-purple-600">{responseCount}</span>
+                        <span className="text-sm font-bold text-emerald-600">{responseCount}</span>
                         {isExpanded ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
                       </div>
                     </button>
@@ -322,7 +322,7 @@ export default function AdminSurveyReports() {
                                               initial={{ width: 0 }}
                                               animate={{ width: `${detail.percentage}%` }}
                                               transition={{ duration: 0.8, ease: 'easeOut' }}
-                                              className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-600"
+                                              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600"
                                             />
                                           </div>
                                         </div>

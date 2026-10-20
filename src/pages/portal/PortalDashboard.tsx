@@ -115,8 +115,8 @@ export default function PortalDashboard() {
       title: 'Kritik & Saran',
       description: 'Untuk meeting bipartit',
       icon: MessageSquare,
-      gradient: 'from-purple-500 to-purple-600',
-      bgGradient: 'bg-gradient-to-br from-purple-500 to-purple-600'
+      gradient: 'from-emerald-500 to-emerald-600',
+      bgGradient: 'bg-gradient-to-br from-emerald-500 to-emerald-600'
     }
   ];
 
@@ -129,22 +129,21 @@ export default function PortalDashboard() {
         </h1>
       </div>
 
-      {/* Welcome Banner */}
+      {/* Welcome Banner — bahasa visual sama dengan dashboard (surface + brand) */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-800 to-black rounded-2xl md:rounded-[2rem] border border-white/5 shadow-2xl"
+        className="relative overflow-hidden rounded-2xl border border-blue-100 dark:border-blue-900/50 bg-gradient-to-br from-blue-600 to-blue-700 shadow-sm"
       >
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-5" />
         <div className="relative p-5 md:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-8">
           <div className="w-16 h-16 md:w-28 md:h-28 flex items-center justify-center shrink-0">
             {federasiLogoError ? (
-              <ShieldCheck className="w-full h-full text-amber-400 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
+              <ShieldCheck className="w-full h-full text-white/90" />
             ) : (
               <img 
                 src={FederasiLogo} 
                 alt="Federasi Logo"
-                className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                className="w-full h-full object-contain drop-shadow-md"
                 onError={() => setFederasiLogoError(true)}
               />
             )}
@@ -153,9 +152,9 @@ export default function PortalDashboard() {
           <div className="flex-1 text-center sm:text-left">
             <div className="space-y-1 md:space-y-2">
               <h2 className="text-xl md:text-3xl font-black text-white tracking-tight">
-                Selamat Datang, <span className="text-amber-400">{user.name.split(' ')[0]}</span>
+                Selamat Datang, <span className="text-amber-300">{user.name.split(' ')[0]}</span>
               </h2>
-              <p className="text-zinc-400 text-[10px] md:text-base font-medium leading-relaxed max-w-2xl">
+              <p className="text-blue-100 text-[13px] md:text-base font-medium leading-relaxed max-w-2xl">
                 Ini adalah portal untuk anggota <span className="text-white font-bold">F-SPS plant banjarmasin</span>. 
                 Akses informasi serikat dan program kesejahteraan dalam satu aplikasi.
               </p>
@@ -172,12 +171,12 @@ export default function PortalDashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: idx * 0.1 }}
-            className="bg-white dark:bg-zinc-900 rounded-2xl md:rounded-[2rem] p-3 md:p-6 border border-zinc-100 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-black/20 flex flex-col items-center text-center group"
+            className="bg-white dark:bg-zinc-900 rounded-2xl p-3 md:p-6 border border-zinc-100 dark:border-zinc-800 shadow-sm flex flex-col items-center text-center group"
           >
-            <div className={`w-10 h-10 md:w-16 md:h-16 rounded-2xl md:rounded-3xl flex items-center justify-center mb-2 md:mb-4 transition-transform group-hover:scale-110 duration-500 ${
+            <div className={`w-10 h-10 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-2 md:mb-4 transition-transform group-hover:scale-110 duration-500 ${
               stat.color === 'blue' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' :
               stat.color === 'amber' ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' :
-              'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400'
+              'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
             }`}>
               <stat.icon className="w-5 h-5 md:w-8 md:h-8" />
             </div>
@@ -215,11 +214,11 @@ export default function PortalDashboard() {
               whileHover={{ scale: 1.02, y: -2 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigate(`/portal/${item.id}`)}
-              className="bg-white dark:bg-zinc-900 rounded-xl md:rounded-2xl p-4 md:p-5 text-left border border-zinc-100 dark:border-zinc-800 shadow-md md:shadow-lg hover:shadow-xl transition-all group relative overflow-hidden"
+              className="bg-white dark:bg-zinc-900 rounded-2xl p-4 md:p-5 text-left border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-5 transition-opacity`} />
               <div className="relative">
-                <div className={`w-12 h-12 md:w-14 md:h-14 rounded-xl md:rounded-2xl ${item.bgGradient} flex items-center justify-center mb-3 md:mb-4 shadow-md group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500`}>
+                <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl ${item.bgGradient} flex items-center justify-center mb-3 md:mb-4 shadow-sm group-hover:scale-110 transition-all duration-500`}>
                   <item.icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
                 </div>
                 <h3 className="font-bold text-zinc-900 dark:text-white text-sm md:text-base mb-1 leading-tight">{item.title}</h3>
@@ -241,7 +240,7 @@ export default function PortalDashboard() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="bg-white dark:bg-zinc-900 rounded-xl md:rounded-2xl p-4 md:p-5 border border-zinc-100 dark:border-zinc-800 shadow-md md:shadow-lg"
+          className="bg-white dark:bg-zinc-900 rounded-2xl p-4 md:p-5 border border-zinc-100 dark:border-zinc-800 shadow-sm"
         >
           <h3 className="font-bold text-zinc-900 dark:text-white mb-3 md:mb-4 flex items-center gap-2 text-sm md:text-base">
             <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />

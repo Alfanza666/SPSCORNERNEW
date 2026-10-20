@@ -54,7 +54,7 @@ export function OutcomeScreen({
   return (
     <section aria-labelledby="outcome-title" aria-live="polite" className={cx('mx-auto w-full max-w-2xl text-center', className)}>
       <div className="relative overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white px-4 py-7 shadow-[0_32px_90px_-45px_rgba(24,24,27,0.6)] sm:rounded-[2.25rem] sm:px-10 sm:py-12 dark:border-zinc-800 dark:bg-zinc-900">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-indigo-500/5 blur-2xl" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 size-64 rounded-full bg-blue-500/5 blur-2xl" />
         <div className={cx('relative mx-auto flex size-16 items-center justify-center rounded-[1.35rem] shadow-sm sm:size-20 sm:rounded-[1.75rem]', config.surface, config.accent)}>
           {icon ?? <StatusIcon aria-hidden="true" className="size-8 sm:size-10" />}
         </div>
@@ -80,13 +80,13 @@ export function OutcomeScreen({
         {(primaryAction || secondaryAction) ? (
           <div className="relative mt-7 flex flex-col-reverse justify-center gap-3 sm:mt-9 sm:flex-row">
             {secondaryAction ? (
-              <button type="button" onClick={secondaryAction.onClick} disabled={secondaryAction.disabled} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-6 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:focus-visible:ring-offset-zinc-900">
+              <button type="button" onClick={secondaryAction.onClick} disabled={secondaryAction.disabled} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-6 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:focus-visible:ring-offset-zinc-900">
                 <Home aria-hidden="true" className="size-4" />
                 {secondaryAction.label}
               </button>
             ) : null}
             {primaryAction ? (
-              <button type="button" onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-indigo-300 dark:focus-visible:ring-offset-zinc-900">
+              <button type="button" onClick={primaryAction.onClick} disabled={primaryAction.disabled} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-blue-300 dark:focus-visible:ring-offset-zinc-900">
                 {primaryAction.label}
                 <ArrowRight aria-hidden="true" className="size-4" />
               </button>

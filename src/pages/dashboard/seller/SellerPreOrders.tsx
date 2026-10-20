@@ -234,11 +234,26 @@ export default function SellerPreOrders() {
         updateData.ready_at = new Date().toISOString();
         const order = preOrders.find((o: any) => o.id === orderId);
         if (order) {
+            // Kirim notifikasi setelah update; wajib bawa token auth & cek res.ok
+            // supaya kegagalan tidak terjadi senyap (temuan A1 audit v6.2.0).
+            const { data: sessionData } = await supabase.auth.getSession();
             fetch('/api/pre-orders/notify-ready', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(sessionData?.session?.access_token ? { 'Authorization': `Bearer ${sessionData.session.access_token}` } : {})
+                },
                 body: JSON.stringify({ order_id: orderId, buyer_id: order.buyer_id, buyer_name: order.buyer_name })
-            }).catch(console.error);
+            }).then(async (r) => {
+                if (!r.ok) {
+                  const body = await r.json().catch(() => ({}));
+                  throw new Error(body.error || `HTTP ${r.status}`);
+                }
+                appToast.success('Notifikasi Terkirim', 'Pembeli sudah diberi tahu bahwa pre-order siap diambil.');
+            }).catch((err) => {
+                console.error('Gagal mengirim notifikasi pre-order:', err);
+                appToast.error('Notifikasi Gagal', 'Status diperbarui, tetapi notifikasi ke pembeli gagal dikirim. Silakan hubungi pembeli manual.');
+            });
         }
       }
       if (newStatus === 'picked_up') updateData.picked_up_at = new Date().toISOString();
@@ -464,7 +479,7 @@ export default function SellerPreOrders() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-              className="bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+              className="bg-white dark:bg-zinc-900 rounded-t-3xl rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <div>

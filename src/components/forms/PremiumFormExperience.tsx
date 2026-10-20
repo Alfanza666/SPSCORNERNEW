@@ -290,7 +290,7 @@ export default function PremiumFormExperience({
       accentColor={accentColor}
       progress={form.theme?.show_progress === false ? undefined : headerProgress}
       onBack={onBack}
-      headerActions={mode === 'preview' ? <span className="rounded-full bg-indigo-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">Mode preview</span> : undefined}
+      headerActions={mode === 'preview' ? <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">Mode preview</span> : undefined}
       footer={<span className="flex items-center justify-center gap-2 text-xs"><ShieldCheck className="h-4 w-4" /> Jawaban dan bukti pembayaran diproses secara aman.</span>}
     >
       {stage === 'cover' && (
@@ -305,7 +305,7 @@ export default function PremiumFormExperience({
           onStart={() => setStage(questions.length ? 'questions' : 'review')}
           aside={form.welcome_screen?.adaptive_note_enabled ? (
             <div className="rounded-3xl border border-white/15 bg-zinc-950/85 p-6 text-white backdrop-blur">
-              <Sparkles className="h-6 w-6 text-indigo-300" />
+              <Sparkles className="h-6 w-6 text-blue-300" />
               <p className="mt-4 text-sm font-bold">{form.welcome_screen.adaptive_note_title || 'Formulir mengikuti jawaban Anda.'}</p>
               <p className="mt-2 text-xs leading-6 text-zinc-400">{form.welcome_screen.adaptive_note_description || 'Pertanyaan yang tidak relevan otomatis dilewati. Biaya hanya dihitung dari pilihan aktif.'}</p>
             </div>
@@ -316,7 +316,7 @@ export default function PremiumFormExperience({
       {stage === 'questions' && currentField && (
         <div className="mx-auto max-w-3xl">
           <div className="rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-[0_30px_90px_-50px_rgba(24,24,27,0.7)] sm:rounded-[2rem] sm:p-9 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-300"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950/50">{questionIndex + 1}</span> Informasi peserta</div>
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/50">{questionIndex + 1}</span> Informasi peserta</div>
             <h2 className="mt-5 text-xl font-black leading-tight tracking-tight text-zinc-950 sm:text-3xl dark:text-white">{currentField.label}{currentField.required && <span className="ml-1 text-rose-500">*</span>}</h2>
             {currentField.description && <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">{currentField.description}</p>}
             <div className="mt-7">
@@ -339,10 +339,10 @@ export default function PremiumFormExperience({
             {error && <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{error}</p>}
             <div className="mt-8 flex flex-col-reverse gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
               <button type="button" onClick={handlePrevious} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-bold text-zinc-600 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"><ArrowLeft className="h-4 w-4" /> Kembali</button>
-              <button type="button" onClick={handleNext} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-indigo-600 dark:bg-white dark:text-zinc-950 dark:hover:bg-indigo-300">{questionIndex >= questions.length - 1 || terminalOutcomeId ? 'Periksa jawaban' : 'Lanjut'} <ArrowRight className="h-4 w-4" /></button>
+              <button type="button" onClick={handleNext} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-blue-600 dark:bg-white dark:text-zinc-950 dark:hover:bg-blue-300">{questionIndex >= questions.length - 1 || terminalOutcomeId ? 'Periksa jawaban' : 'Lanjut'} <ArrowRight className="h-4 w-4" /></button>
             </div>
           </div>
-          {evaluation.total_amount > 0 && <div className="mt-4 text-center text-xs font-bold text-indigo-600 dark:text-indigo-300">Biaya tambahan sementara: {formatCurrency(evaluation.total_amount)}</div>}
+          {evaluation.total_amount > 0 && <div className="mt-4 text-center text-xs font-bold text-blue-600 dark:text-blue-300">Biaya tambahan sementara: {formatCurrency(evaluation.total_amount)}</div>}
         </div>
       )}
 
@@ -426,7 +426,7 @@ interface PremiumFieldProps {
 }
 
 function PremiumField({ field, value, addonOrders, uploading, onChange, onAddonChange, onFileSelect }: PremiumFieldProps) {
-  const inputClass = 'min-h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-white dark:focus:bg-zinc-950';
+  const inputClass = 'min-h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-base text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-950/60 dark:text-white dark:focus:bg-zinc-950';
 
   if (['radio', 'checkbox', 'image_choice'].includes(field.type)) {
     const isCheckbox = field.type === 'checkbox';
@@ -459,11 +459,11 @@ function PremiumField({ field, value, addonOrders, uploading, onChange, onAddonC
     return <div key={item.id} className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:flex-row sm:items-center dark:border-zinc-700 dark:bg-zinc-950/50"><div className="min-w-0 flex-1"><p className="font-bold text-zinc-900 dark:text-white">{item.name}</p><p className="mt-1 text-xs text-zinc-500">{details}</p></div><div className="flex items-center gap-2 self-end sm:self-auto"><button type="button" disabled={quantity === 0} onClick={() => onAddonChange(quantity <= 1 ? addonOrders.filter(order => order.item_id !== item.id) : addonOrders.map(order => order.item_id === item.id ? { ...order, quantity: order.quantity - 1 } : order))} className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900"><Minus className="h-4 w-4" /></button><span className="w-8 text-center font-bold tabular-nums">{quantity}</span><button type="button" disabled={quantity >= maximum} onClick={() => onAddonChange(quantity === 0 ? [...addonOrders, { item_id: item.id, quantity: 1 }] : addonOrders.map(order => order.item_id === item.id ? { ...order, quantity: order.quantity + 1 } : order))} className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-950 text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-950"><Plus className="h-4 w-4" /></button></div></div>;
   })}</div>;
 
-  if (field.type === 'file_upload' || field.type === 'image') return <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition hover:border-indigo-400 hover:bg-indigo-50/40 dark:border-zinc-700 dark:bg-zinc-950/40"><input type="file" className="sr-only" accept={field.type === 'image' ? 'image/*' : field.allowed_types?.join(',')} onChange={event => event.target.files?.[0] && onFileSelect(event.target.files[0])} /><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-indigo-600 shadow-sm dark:bg-zinc-900 dark:text-indigo-300">{uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileUp className="h-5 w-5" />}</span><p className="mt-3 text-sm font-bold text-zinc-700 dark:text-zinc-200">{uploading ? 'Mengunggah…' : hasAnswer(value) ? 'File berhasil diunggah' : 'Pilih file untuk diunggah'}</p></label>;
+  if (field.type === 'file_upload' || field.type === 'image') return <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/40 dark:border-zinc-700 dark:bg-zinc-950/40"><input type="file" className="sr-only" accept={field.type === 'image' ? 'image/*' : field.allowed_types?.join(',')} onChange={event => event.target.files?.[0] && onFileSelect(event.target.files[0])} /><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm dark:bg-zinc-900 dark:text-blue-300">{uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileUp className="h-5 w-5" />}</span><p className="mt-3 text-sm font-bold text-zinc-700 dark:text-zinc-200">{uploading ? 'Mengunggah…' : hasAnswer(value) ? 'File berhasil diunggah' : 'Pilih file untuk diunggah'}</p></label>;
 
   if (field.type === 'rating' || field.type === 'scale') {
     const maximum = field.type === 'rating' ? field.max || 5 : field.max_scale || 10;
-    return <div className="flex flex-wrap gap-2">{Array.from({ length: maximum }, (_, index) => index + 1).map(number => <button key={number} type="button" onClick={() => onChange(number)} className={`flex h-12 min-w-12 items-center justify-center rounded-xl border text-sm font-bold transition ${Number(value) === number ? 'border-indigo-500 bg-indigo-600 text-white shadow-lg' : 'border-zinc-200 bg-white text-zinc-600 hover:border-indigo-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300'}`}>{field.type === 'rating' ? '★' : number}</button>)}</div>;
+    return <div className="flex flex-wrap gap-2">{Array.from({ length: maximum }, (_, index) => index + 1).map(number => <button key={number} type="button" onClick={() => onChange(number)} className={`flex h-12 min-w-12 items-center justify-center rounded-xl border text-sm font-bold transition ${Number(value) === number ? 'border-blue-500 bg-blue-600 text-white shadow-lg' : 'border-zinc-200 bg-white text-zinc-600 hover:border-blue-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300'}`}>{field.type === 'rating' ? '★' : number}</button>)}</div>;
   }
 
   return <p className="rounded-2xl bg-zinc-50 p-4 text-sm text-zinc-500 dark:bg-zinc-950/50">Field ini belum memiliki renderer premium.</p>;

@@ -60,7 +60,7 @@ export default function SellerAnalytics() {
     { label: 'Pendapatan Bulan Ini', value: `Rp ${(data.monthRevenue || 0).toLocaleString('id-ID')}`, icon: DollarSign, color: 'text-emerald-500' },
     { label: 'Total Pesanan', value: data.totalOrders || 0, icon: ShoppingCart, color: 'text-blue-500' },
     { label: 'Saldo Saat Ini', value: `Rp ${(data.balance || 0).toLocaleString('id-ID')}`, icon: Wallet, color: 'text-amber-500' },
-    { label: 'Total Penjualan', value: `Rp ${(data.totalSales || 0).toLocaleString('id-ID')}`, icon: TrendingUp, color: 'text-violet-500' },
+    { label: 'Total Penjualan', value: `Rp ${(data.totalSales || 0).toLocaleString('id-ID')}`, icon: TrendingUp, color: 'text-emerald-500' },
   ];
 
   return (
@@ -97,7 +97,7 @@ export default function SellerAnalytics() {
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={(v) => v.slice(5)} />
               <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `Rp${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v: number) => `Rp ${v.toLocaleString('id-ID')}`} />
+              <Tooltip formatter={(v: number | undefined) => `Rp ${(Number(v) || 0).toLocaleString('id-ID')}`} />
               <Bar dataKey="revenue" fill="#10b981" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

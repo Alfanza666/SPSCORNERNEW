@@ -8,8 +8,8 @@ export default function FormSkeleton() {
 
       <div className="p-8 md:p-10 space-y-8">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <Sparkles className="w-4 h-4 text-purple-400 animate-pulse" />
-          <span className="text-xs font-bold text-purple-500 tracking-widest uppercase">
+          <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse" />
+          <span className="text-xs font-bold text-emerald-500 tracking-widest uppercase">
             AI sedang menyusun formulir...
           </span>
         </div>

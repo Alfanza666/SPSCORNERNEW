@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
+import { appToast } from '../components/ui/AppToast';
 
 let cachedVapidKey: string | null = null;
 
@@ -255,7 +256,7 @@ export function useNotifications() {
 
       // Save subscription to server
       const { data: { session } } = await supabase.auth.getSession();
-      await fetch('/api/push/subscribe', {
+      const res = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -263,11 +264,18 @@ export function useNotifications() {
         },
         body: JSON.stringify({ user_id: user.id, subscription })
       });
+      // Jangan klaim sukses sebelum server benar-benar menerima (A4 audit):
+      // jika tidak, user mengira push aktif padahal tidak akan pernah terima.
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
 
       setPushSubscribed(true);
       console.log('[Push] Subscribed successfully!');
     } catch (error) {
       console.error('[Push] Subscription failed:', error);
+      appToast.error('Notifikasi Gagal Aktif', 'Langganan notifikasi gagal disimpan. Silakan coba lagi.');
     }
   };
 
@@ -285,7 +293,7 @@ export function useNotifications() {
 
       // Always clean up server-side even if browser subscription is null
       const { data: { session } } = await supabase.auth.getSession();
-      await fetch('/api/push/unsubscribe', {
+      const res = await fetch('/api/push/unsubscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -293,6 +301,10 @@ export function useNotifications() {
         },
         body: JSON.stringify({ user_id: user.id, endpoint: subscription?.endpoint || '' })
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
       setPushSubscribed(false);
       console.log('[Push] Unsubscribed successfully');
     } catch (error) {

@@ -369,7 +369,7 @@ export default function InteractiveGuide({ userId, role, onRequestRestart }: Pro
               </div>
             </div>
 
-            <div className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-zinc-800/80 dark:to-blue-900/20 border-t border-blue-100 dark:border-blue-900/50">
+            <div className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-50 to-blue-50 dark:from-zinc-800/80 dark:to-blue-900/20 border-t border-blue-100 dark:border-blue-900/50">
               <button
                 onClick={handleRestart}
                 className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 hover:text-blue-800 dark:hover:text-blue-400 transition-colors"
@@ -415,7 +415,7 @@ export function RestartGuideButton() {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setShowMenu(v => !v)}
-        className="flex items-center gap-2 px-4 py-2 text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/20 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/40 dark:hover:to-indigo-900/30 rounded-xl transition-all border border-blue-200 dark:border-blue-800 shadow-sm"
+        className="flex items-center gap-2 px-4 py-2 text-[11px] font-bold text-blue-600 dark:text-blue-400 bg-gradient-to-r from-blue-50 to-blue-50 dark:from-blue-900/30 dark:to-blue-900/20 hover:from-blue-100 hover:to-blue-100 dark:hover:from-blue-900/40 dark:hover:to-blue-900/30 rounded-xl transition-all border border-blue-200 dark:border-blue-800 shadow-sm"
       >
         <HelpCircle className="w-4 h-4" />
         Panduan
@@ -430,7 +430,7 @@ export function RestartGuideButton() {
             transition={{ duration: 0.2 }}
             className="absolute top-full right-0 mt-2 w-52 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 z-50 overflow-hidden"
           >
-            <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <div className="p-3 bg-gradient-to-r from-blue-50 to-blue-50 dark:from-blue-900/20 dark:to-blue-900/20">
               <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wider">Panduan per Halaman</p>
             </div>
             <div className="border-t border-zinc-100 dark:border-zinc-800">
@@ -443,7 +443,7 @@ export function RestartGuideButton() {
                       animate={{ x: 0, opacity: 1 }}
                       transition={{ delay: idx * 0.05 }}
                       onClick={() => { handleRestart(page); setShowMenu(false); }}
-                      className="w-full text-left px-4 py-3 text-[12px] font-medium text-zinc-600 dark:text-zinc-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-colors flex items-center gap-2"
+                      className="w-full text-left px-4 py-3 text-[12px] font-medium text-zinc-600 dark:text-zinc-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-50 dark:hover:from-blue-900/20 dark:hover:to-blue-900/20 transition-colors flex items-center gap-2"
                     >
                       <span className="w-6 h-6 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
                         {idx + 1}
@@ -466,7 +466,7 @@ export function RestartGuideButton() {
                       animate={{ x: 0, opacity: 1 }}
                       transition={{ delay: idx * 0.05 }}
                       onClick={() => { handleRestart(page); setShowMenu(false); }}
-                      className="w-full text-left px-4 py-3 text-[12px] font-medium text-zinc-600 dark:text-zinc-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-colors flex items-center gap-2"
+                      className="w-full text-left px-4 py-3 text-[12px] font-medium text-zinc-600 dark:text-zinc-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-50 dark:hover:from-blue-900/20 dark:hover:to-blue-900/20 transition-colors flex items-center gap-2"
                     >
                       <span className="w-6 h-6 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
                         {idx + 1}

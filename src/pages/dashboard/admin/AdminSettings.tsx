@@ -114,14 +114,20 @@ export default function AdminSettings() {
       if (error) throw error;
 
       if (data) {
+        // Parse aman: value JSON rusak di DB tidak boleh mematikan seluruh
+        // muatan pengaturan (B4 audit) — cukup pakai nilai default kosong.
+        const safeParse = (raw: string | null | undefined, fallback: any) => {
+          if (!raw) return fallback;
+          try { return JSON.parse(raw); } catch { return fallback; }
+        };
         const faqData = data.find(d => d.key === 'faq_content');
-        if (faqData) setFaq(JSON.parse(faqData.value));
+        if (faqData) setFaq(safeParse(faqData.value, []));
 
         const refundData = data.find(d => d.key === 'refund_policy_content');
         if (refundData) setRefundPolicy(refundData.value);
 
         const contactData = data.find(d => d.key === 'contact_info_content');
-        if (contactData) setContactInfo(JSON.parse(contactData.value));
+        if (contactData) setContactInfo(safeParse(contactData.value, {}));
         
         const loyaltyData = data.find(d => d.key === 'loyalty_enabled');
         if (loyaltyData) setLoyaltyEnabled(loyaltyData.value === 'true');
@@ -403,7 +409,7 @@ export default function AdminSettings() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-900/30">
+          <div className="bg-gradient-to-r from-blue-50 to-blue-50 dark:from-blue-900/20 dark:to-blue-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-900/30">
             <p className="text-sm text-blue-700 dark:text-blue-300 flex items-center gap-2">
               <Info className="w-4 h-4 shrink-0" />
               Pengaturan Loyalty Point tersedia di menu{" "}

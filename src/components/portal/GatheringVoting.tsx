@@ -260,7 +260,7 @@ export default function GatheringVoting({
                           transition={{ delay: 0.3 + idx * 0.1, duration: 0.8, ease: 'easeOut' }}
                           className={`h-full rounded-full ${
                             isSelected
-                              ? 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                              ? 'bg-gradient-to-r from-blue-500 to-blue-500'
                               : 'bg-zinc-300 dark:bg-zinc-600'
                           }`}
                         />

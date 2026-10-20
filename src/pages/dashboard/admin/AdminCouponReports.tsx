@@ -507,7 +507,7 @@ export default function AdminCouponReports() {
         <div className="mt-4">
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all"
           >
             <Plus className="w-5 h-5" /> Tambah Data Scan
           </button>
@@ -531,7 +531,7 @@ export default function AdminCouponReports() {
                 <select
                   value={newRecord.programId}
                   onChange={(e) => setNewRecord(prev => ({ ...prev, programId: e.target.value }))}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">-- Pilih Program --</option>
                   {programs.map(p => (
@@ -548,7 +548,7 @@ export default function AdminCouponReports() {
                     value={newRecord.nik}
                     onChange={(e) => setNewRecord(prev => ({ ...prev, nik: e.target.value }))}
                     placeholder="1234567890"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -558,7 +558,7 @@ export default function AdminCouponReports() {
                     value={newRecord.name}
                     onChange={(e) => setNewRecord(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Nama lengkap"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -570,7 +570,7 @@ export default function AdminCouponReports() {
                   value={newRecord.claimedAt}
                   onChange={(e) => setNewRecord(prev => ({ ...prev, claimedAt: e.target.value }))}
                   step="1"
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -579,7 +579,7 @@ export default function AdminCouponReports() {
                 <select
                   value={newRecord.couponType}
                   onChange={(e) => setNewRecord(prev => ({ ...prev, couponType: e.target.value }))}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-indigo-500"
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl py-3 px-4 font-medium focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="attendance">Attendance</option>
                   <option value="doorprize">Doorprize</option>
@@ -597,7 +597,7 @@ export default function AdminCouponReports() {
                 <button
                   onClick={handleManualClaim}
                   disabled={addingData}
-                  className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-all disabled:opacity-50"
                 >
                   {addingData ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
                   {addingData ? 'Menyimpan...' : 'Simpan'}

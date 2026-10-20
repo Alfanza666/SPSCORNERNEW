@@ -23,6 +23,10 @@ export default function ErrorReporter() {
   
   // Breadcrumbs to track user path before error
   const breadcrumbs = useRef<{ type: string; value: string; time: string }[]>([]);
+  // Ringkasan error terakhir yang terekam otomatis — ikut dilampirkan saat
+  // user melapor manual, sehingga user TIDAK perlu menjelaskan/menebak
+  // apa yang salah: sistem sudah mencatatnya.
+  const recentErrors = useRef<{ type: string; message: string; time: string }[]>([]);
 
   const addBreadcrumb = useCallback((type: string, value: string) => {
     breadcrumbs.current = [
@@ -40,6 +44,12 @@ export default function ErrorReporter() {
       msg.includes('non-error promise rejection') ||
       msg.includes('extension')
     ) return;
+
+    // Simpan ringkasan error untuk laporan manual (otomatis, tanpa user mengetik).
+    recentErrors.current = [
+      { type: errorData.type, message: String(errorData.message || '').slice(0, 300), time: new Date().toISOString() },
+      ...recentErrors.current
+    ].slice(0, 5);
 
     // Forward to Sentry if configured
     if (errorData.stack) {
@@ -137,12 +147,20 @@ export default function ErrorReporter() {
         user_id: user?.id || null,
         user_name: user?.name || 'Guest / Tamu',
         type: 'bug',
-        message: message.trim(),
+        // Pesan manual + ringkasan error otomatis yang terekam sebelumnya,
+        // supaya tim support langsung tahu akar masalah tanpa perlu menebak.
+        message: message.trim() + (recentErrors.current.length
+          ? '\n\n--- ERROR TEREKAM OTOMATIS ---\n' + recentErrors.current
+              .map((e, i) => `${i + 1}. [${e.type}] ${e.message} (${e.time})`).join('\n')
+          : ''),
         status: 'pending',
         metadata: {
           url: window.location.href,
           userAgent: navigator.userAgent,
           breadcrumbs: breadcrumbs.current,
+          recentErrors: recentErrors.current,
+          screen: `${window.screen.width}x${window.screen.height}`,
+          language: navigator.language,
           timestamp: new Date().toISOString()
         }
       });
@@ -163,16 +181,19 @@ export default function ErrorReporter() {
 
   return (
     <>
-      {/* Floating Toggle Button */}
+      {/* Floating Toggle Button — posisi di atas bar sticky (cart/bottom-nav):
+          mobile: bottom-[8.5rem] (di atas bottom-nav + cart bar); desktop: bottom-6.
+          z-index di bawah modal tapi di atas bar (z-[60]/z-50). */}
       <motion.button
         initial={{ scale: 0, rotate: -45 }}
         animate={{ scale: 1, rotate: 0 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setShowForm(true)}
-        className="fixed bottom-24 right-4 z-[9999] w-12 h-12 bg-red-600 text-white rounded-2xl shadow-2xl flex items-center justify-center transition-all sm:bottom-8 sm:right-8 group"
+        className="fixed bottom-[8.5rem] right-4 z-[70] h-11 w-11 bg-red-600 text-white rounded-2xl shadow-lg flex items-center justify-center transition-all sm:bottom-6 sm:right-6 group"
+        aria-label="Lapor masalah"
       >
-        <Bug className="w-6 h-6 group-hover:animate-bounce" />
+        <Bug className="w-6 h-6 transition-transform duration-300 ease-out group-hover:-translate-y-0.5" />
         <span className="absolute right-full mr-3 px-3 py-1.5 bg-zinc-900 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden sm:block shadow-xl">
           Lapor Masalah
         </span>
@@ -228,6 +249,20 @@ export default function ErrorReporter() {
                           <Monitor className="w-3 h-3" /> {window.screen.width}x{window.screen.height}
                         </div>
                       </div>
+                      {/* Ringkasan error yang terekam otomatis — user tidak perlu menebak */}
+                      {recentErrors.current.length > 0 && (
+                        <div className="rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 p-3 space-y-1.5">
+                          <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-wider">
+                            {recentErrors.current.length} error terakhir terekam otomatis
+                          </p>
+                          {recentErrors.current.slice(0, 3).map((e, i) => (
+                            <p key={i} className="text-[10px] font-mono text-red-700 dark:text-red-300 leading-relaxed break-all">
+                              [{e.type}] {e.message.slice(0, 120)}
+                            </p>
+                          ))}
+                          <p className="text-[9px] font-bold text-red-500/70">Rincian lengkap akan dikirim bersama laporan Anda.</p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">

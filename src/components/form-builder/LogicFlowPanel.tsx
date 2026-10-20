@@ -70,11 +70,11 @@ export function LogicFlowPanel({
     >
       <div className="border-b border-slate-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-[0_10px_28px_-12px_rgba(79,70,229,0.9)]">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-blue-600 text-white shadow-[0_10px_28px_-12px_rgba(79,70,229,0.9)]">
             <Route className="h-[18px] w-[18px]" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-400">
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-400">
               Journey map
             </p>
             <h2 className="mt-1 text-sm font-bold text-slate-950 dark:text-white">Alur jawaban</h2>
@@ -128,7 +128,7 @@ export function LogicFlowPanel({
                     <span
                       aria-hidden="true"
                       className={`absolute left-[8px] top-6 h-3 w-3 rounded-full border-[3px] border-slate-50 dark:border-zinc-950 ${
-                        field.condition ? 'bg-violet-500' : 'bg-slate-400 dark:bg-zinc-500'
+                        field.condition ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-zinc-500'
                       }`}
                     />
 
@@ -141,9 +141,9 @@ export function LogicFlowPanel({
                       onClick={() => selectField(field.id)}
                       aria-pressed={isActive}
                       aria-describedby={`${generatedId}-field-${index}-meta`}
-                      className={`group mb-3 w-full rounded-2xl border bg-white p-3 text-left shadow-[0_10px_28px_-24px_rgba(15,23,42,0.55)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 dark:bg-zinc-900 dark:focus-visible:ring-offset-zinc-950 ${
+                      className={`group mb-3 w-full rounded-2xl border bg-white p-3 text-left shadow-[0_10px_28px_-24px_rgba(15,23,42,0.55)] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 dark:bg-zinc-900 dark:focus-visible:ring-offset-zinc-950 ${
                         isActive
-                          ? 'border-violet-400 ring-4 ring-violet-500/10 dark:border-violet-600'
+                          ? 'border-emerald-400 ring-4 ring-emerald-500/10 dark:border-emerald-600'
                           : 'border-slate-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-zinc-800 dark:hover:border-zinc-700'
                       }`}
                     >
@@ -151,7 +151,7 @@ export function LogicFlowPanel({
                         <span
                           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[10px] font-extrabold ${
                             field.condition
-                              ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                               : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-300'
                           }`}
                         >
@@ -172,7 +172,7 @@ export function LogicFlowPanel({
                               </span>
                             )}
                             {field.condition && (
-                              <span className="rounded-full bg-violet-50 px-1.5 py-0.5 text-violet-600 dark:bg-violet-950/30 dark:text-violet-300">
+                              <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300">
                                 Bersyarat
                               </span>
                             )}
@@ -180,7 +180,7 @@ export function LogicFlowPanel({
                         </span>
                         <ArrowDown
                           className={`mt-1 h-3.5 w-3.5 shrink-0 -rotate-90 transition group-hover:translate-x-0.5 ${
-                            isActive ? 'text-violet-600' : 'text-slate-300 dark:text-zinc-600'
+                            isActive ? 'text-emerald-600' : 'text-slate-300 dark:text-zinc-600'
                           }`}
                           aria-hidden="true"
                         />
@@ -250,13 +250,13 @@ function ConditionEditor({
   };
 
   return (
-    <div className="overflow-hidden rounded-[22px] border border-violet-200 bg-white shadow-[0_18px_48px_-36px_rgba(79,70,229,0.75)] dark:border-violet-900/60 dark:bg-zinc-900">
-      <div className="flex items-start gap-3 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 py-3 dark:border-violet-900/40 dark:from-violet-950/30 dark:to-indigo-950/20">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white">
+    <div className="overflow-hidden rounded-[22px] border border-emerald-200 bg-white shadow-[0_18px_48px_-36px_rgba(79,70,229,0.75)] dark:border-emerald-900/60 dark:bg-zinc-900">
+      <div className="flex items-start gap-3 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-blue-50 px-4 py-3 dark:border-emerald-900/40 dark:from-emerald-950/30 dark:to-blue-950/20">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
           <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-violet-600 dark:text-violet-300">
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">
             Visibility rule
           </p>
           <h3 className="mt-0.5 truncate text-xs font-bold text-slate-900 dark:text-white">
@@ -328,9 +328,9 @@ function ConditionEditor({
                     return (
                       <label
                         key={option.value}
-                        className={`flex min-h-10 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-xs transition focus-within:ring-2 focus-within:ring-violet-500 ${
+                        className={`flex min-h-10 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-xs transition focus-within:ring-2 focus-within:ring-emerald-500 ${
                           checked
-                            ? 'border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-200'
+                            ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
                             : 'border-slate-200 text-slate-600 hover:border-slate-300 dark:border-zinc-700 dark:text-zinc-300'
                         }`}
                       >
@@ -344,7 +344,7 @@ function ConditionEditor({
                             updateCondition({ ...field.condition!, value: nextValues });
                           }}
                           disabled={disabled}
-                          className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                         />
                         <span className="min-w-0 flex-1 truncate font-semibold">{option.label}</span>
                       </label>
@@ -367,7 +367,7 @@ function ConditionEditor({
             </LogicControl>
 
             <div className="flex items-start gap-2 rounded-2xl bg-slate-50 p-3 text-[10px] leading-4 text-slate-500 dark:bg-zinc-800/70 dark:text-zinc-400">
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" aria-hidden="true" />
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden="true" />
               Pertanyaan tampil jika jawaban <strong className="font-bold text-slate-700 dark:text-zinc-200">{selectedParent.label}</strong>{' '}
               {OPERATOR_LABEL[field.condition.operator]} nilai yang dipilih.
             </div>
@@ -412,7 +412,7 @@ function ConditionSummary({
   const optionLabels = values.map((value) => getOptionLabel(parent?.options, value)).join(', ');
 
   return (
-    <div className="mb-2 flex min-w-0 items-center gap-2 rounded-xl border border-violet-100 bg-violet-50/75 px-2.5 py-2 text-[9px] leading-4 text-violet-700 dark:border-violet-900/50 dark:bg-violet-950/25 dark:text-violet-300">
+    <div className="mb-2 flex min-w-0 items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/75 px-2.5 py-2 text-[9px] leading-4 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-300">
       <GitBranch className="h-3 w-3 shrink-0" aria-hidden="true" />
       <span className="min-w-0 truncate">
         {parent ? parent.label : 'Referensi tidak ditemukan'} · {OPERATOR_LABEL[field.condition.operator]} · {optionLabels || 'nilai kosong'}
@@ -462,7 +462,7 @@ function FlowMetric({
 }) {
   const toneClass = {
     slate: 'text-slate-800 dark:text-zinc-100',
-    violet: 'text-violet-700 dark:text-violet-300',
+    violet: 'text-emerald-700 dark:text-emerald-300',
     emerald: 'text-emerald-700 dark:text-emerald-300',
   }[tone];
 
@@ -512,6 +512,6 @@ function getOutcomeTitle(form: FormConfig, outcomeId: string | undefined): strin
 }
 
 const CONTROL_CLASS =
-  'h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:bg-zinc-900';
+  'h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-800 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:bg-zinc-900';
 
 export default LogicFlowPanel;

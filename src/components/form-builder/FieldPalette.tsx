@@ -115,7 +115,7 @@ export function FieldPalette({
     >
       <div className="border-b border-slate-100 px-4 pb-3 pt-4 dark:border-zinc-800">
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-600 text-white shadow-sm">
             <Sparkles className="h-4 w-4" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">

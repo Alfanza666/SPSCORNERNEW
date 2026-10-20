@@ -187,7 +187,7 @@ export default function PortalPengumuman() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-center py-12 md:py-20 bg-white dark:bg-zinc-900 rounded-2xl md:rounded-3xl shadow-lg"
+          className="text-center py-12 md:py-20 bg-white dark:bg-zinc-900 rounded-2xl rounded-2xl shadow-lg"
         >
           <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto mb-4 md:mb-6">
             <Megaphone className="w-10 h-10 md:w-12 md:h-12 text-zinc-400" />
@@ -210,11 +210,11 @@ export default function PortalPengumuman() {
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => handleSelectAnnouncement(announcement)}
-              className={`flex flex-col bg-white dark:bg-zinc-900 rounded-2xl md:rounded-3xl text-left border shadow-md md:shadow-lg transition-all cursor-pointer group overflow-hidden ${
+              className={`flex flex-col bg-white dark:bg-zinc-900 rounded-2xl text-left border shadow-sm hover:shadow-md transition-all cursor-pointer group overflow-hidden ${
                 announcement.is_pinned
-                  ? 'border-l-4 border-l-amber-500 border-t-amber-200 border-r-amber-200 dark:border-amber-800'
+                  ? 'border-amber-300 dark:border-amber-700 ring-1 ring-amber-200 dark:ring-amber-800/60'
                   : announcement.announcement_type === 'gathering'
-                    ? 'border-l-4 border-l-purple-500 border-t-purple-200 border-r-purple-200 dark:border-purple-800'
+                    ? 'border-emerald-300 dark:border-emerald-700 ring-1 ring-emerald-200 dark:ring-emerald-800/60'
                     : 'border-zinc-100 dark:border-zinc-800 hover:border-blue-200 dark:hover:border-blue-800'
               }`}
             >
@@ -233,7 +233,7 @@ export default function PortalPengumuman() {
                         </span>
                       )}
                       {announcement.announcement_type === 'gathering' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-[10px] font-black rounded-full">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-black rounded-full">
                           <Users className="w-2.5 h-2.5" /> GATHERING
                         </span>
                       )}
@@ -278,7 +278,7 @@ export default function PortalPengumuman() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white dark:bg-zinc-900 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+              className="bg-white dark:bg-zinc-900 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-sm flex flex-col"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -286,10 +286,10 @@ export default function PortalPengumuman() {
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                     isGathering
-                      ? 'bg-gradient-to-br from-purple-500 to-indigo-600'
+                      ? 'bg-gradient-to-br from-emerald-500 to-blue-600'
                       : selectedAnnouncement.is_pinned
                         ? 'bg-gradient-to-br from-amber-500 to-orange-600'
-                        : 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                        : 'bg-gradient-to-br from-blue-500 to-blue-600'
                   }`}>
                     {isGathering ? <Users className="w-5 h-5 text-white" /> : <Megaphone className="w-5 h-5 text-white" />}
                   </div>
@@ -300,7 +300,7 @@ export default function PortalPengumuman() {
                       </span>
                     )}
                     {isGathering && (
-                      <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs font-bold rounded-full">
+                      <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full">
                         GATHERING
                       </span>
                     )}
@@ -392,7 +392,7 @@ export default function PortalPengumuman() {
 
                   {/* Author */}
                   <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
                       <span className="text-white font-bold text-xl">{selectedAnnouncement.profiles?.name?.charAt(0) || 'A'}</span>
                     </div>
                     <div>

@@ -290,25 +290,25 @@ export default function AdminScanner() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-900 dark:text-white relative overflow-hidden flex flex-col">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 to-purple-900/20 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 to-emerald-900/20 pointer-events-none" />
       
       <div className="relative z-10 flex flex-col h-screen p-4 max-w-lg mx-auto w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 bg-zinc-50/80 dark:bg-zinc-900/80 p-4 rounded-3xl backdrop-blur-xl border border-zinc-200 dark:border-zinc-800/50 shadow-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
               <QrCode className="w-6 h-6 text-zinc-900 dark:text-white" />
             </div>
             <div>
               <h1 className="font-black text-lg">Pindai Kupon</h1>
-              <p className="text-xs text-zinc-400">Scanner Pro</p>
+              <p className="text-xs text-zinc-400">Pemindai Kupon</p>
             </div>
           </div>
           <div className="text-right">
-             <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
+             <div className="text-2xl font-black text-blue-600 dark:text-blue-400">
                 {sessionSuccessCount}
              </div>
-             <div className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Total Hari Ini</div>
+             <div className="text-xs font-semibold text-zinc-500">Total Hari Ini</div>
           </div>
         </div>
 
@@ -333,13 +333,13 @@ export default function AdminScanner() {
             {!scanning ? (
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-center p-6">
-                  <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-200 dark:border-zinc-700 shadow-xl">
+                  <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-zinc-200 dark:border-zinc-700 shadow-sm">
                     <CameraOff className="w-8 h-8 text-zinc-400" />
                   </div>
                   <p className="text-zinc-400 font-medium mb-6">Kamera tidak aktif</p>
                   <button
                     onClick={startScanner}
-                    className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-zinc-900 dark:text-white font-bold rounded-2xl shadow-lg shadow-blue-600/30 transition-all active:scale-95 flex items-center justify-center mx-auto gap-2"
+                    className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-700 hover:to-blue-700 text-zinc-900 dark:text-white font-bold rounded-2xl shadow-lg shadow-blue-600/30 transition-all active:scale-95 flex items-center justify-center mx-auto gap-2"
                   >
                     <Camera className="w-5 h-5" />
                     Nyalakan Kamera
@@ -355,11 +355,11 @@ export default function AdminScanner() {
                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                          className="w-full h-[2px] bg-blue-500 shadow-[0_0_15px_3px_rgba(59,130,246,0.5)] absolute top-0"
                       />
-                      {/* Corner markers */}
-                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-3xl"></div>
-                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-3xl"></div>
-                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-3xl"></div>
-                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-3xl"></div>
+                       {/* Corner markers */}
+                       <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-blue-500 rounded-tl-2xl"></div>
+                       <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-blue-500 rounded-tr-2xl"></div>
+                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-blue-500 rounded-bl-2xl"></div>
+                       <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-blue-500 rounded-br-2xl"></div>
                   </div>
               </div>
             )}

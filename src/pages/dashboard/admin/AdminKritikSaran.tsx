@@ -167,7 +167,7 @@ export default function AdminKritikSaran() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white flex items-center gap-3">
-            <MessageSquare className="w-8 h-8 text-purple-500" />
+            <MessageSquare className="w-8 h-8 text-emerald-500" />
             Kritik & Saran
           </h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 font-medium">Tinjau masukan dan gagasan dari anggota serikat</p>
@@ -181,7 +181,7 @@ export default function AdminKritikSaran() {
               placeholder="Cari masukan atau NIK..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl py-2 pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 outline-none"
+              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl py-2 pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 outline-none"
             />
           </div>
           <select
@@ -200,7 +200,7 @@ export default function AdminKritikSaran() {
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
         </div>
       ) : filteredFeedbacks.length === 0 ? (
         <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-12 flex flex-col items-center justify-center text-center">
@@ -226,7 +226,7 @@ export default function AdminKritikSaran() {
               >
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                    f.type === 'kritik' ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
+                    f.type === 'kritik' ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
                   }`}>
                     {f.type === 'kritik' ? <MessageSquare className="w-6 h-6" /> : <Lightbulb className="w-6 h-6" />}
                   </div>
@@ -315,7 +315,7 @@ export default function AdminKritikSaran() {
           >
             <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
               <h2 className="text-lg font-black text-zinc-900 dark:text-white flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-purple-500" />
+                <MessageSquare className="w-5 h-5 text-emerald-500" />
                 Tanggapi Pesan
               </h2>
               <button 
@@ -339,7 +339,7 @@ export default function AdminKritikSaran() {
                         newStatus === status 
                           ? (status === 'selesai' ? 'bg-green-50 border-green-500 text-green-700 dark:bg-green-900/30' : 
                              status === 'ditolak' ? 'bg-red-50 border-red-500 text-red-700 dark:bg-red-900/30' : 
-                             'bg-purple-50 border-purple-500 text-purple-700 dark:bg-purple-900/30')
+                             'bg-emerald-50 border-emerald-500 text-emerald-700 dark:bg-emerald-900/30')
                           : 'bg-transparent border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-zinc-300'
                       }`}
                     >
@@ -357,7 +357,7 @@ export default function AdminKritikSaran() {
                   value={responseMsg}
                   onChange={(e) => setResponseMsg(e.target.value)}
                   placeholder="Ketik tanggapan atau ucapan terima kasih..."
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 ></textarea>
               </div>
               
@@ -372,7 +372,7 @@ export default function AdminKritikSaran() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
                   Simpan & Kirim Notif

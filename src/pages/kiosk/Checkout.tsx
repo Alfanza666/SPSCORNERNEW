@@ -640,7 +640,7 @@ export default function Checkout() {
       
       const result = await payRes.json();
       setPointsApplied(true);
-      appToast.success('Poin Berhasil Dipakai!', `Rp ${pointsToUse.toLocaleString()} poin terpotong. Sisa tagihan: Rp ${result.remaining_amount.toLocaleString()}.`);
+      appToast.success('Poin Berhasil Dipakai!', `Rp ${(Number(pointsToUse) || 0).toLocaleString('id-ID')} poin terpotong. Sisa tagihan: Rp ${(Number(result?.remaining_amount) || 0).toLocaleString('id-ID')}.`);
     } catch (error: any) {
       appToast.error('Gagal Menggunakan Poin', error.message || 'Terjadi kesalahan saat memproses poin.');
     } finally {
@@ -1088,10 +1088,10 @@ buyer_email: buyerEmail,
                             <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
                             <div>
                               <p className="text-sm font-bold text-green-700 dark:text-green-400">
-                                Poin Rp {pointsToUse.toLocaleString()} dipakai
+                                Poin Rp {(Number(pointsToUse) || 0).toLocaleString('id-ID')} dipakai
                               </p>
                               <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">
-                                Sisa tagihan: <strong>Rp {remainingTotal.toLocaleString()}</strong> — bayar via metode di bawah
+                                Sisa tagihan: <strong>Rp {(Number(remainingTotal) || 0).toLocaleString('id-ID')}</strong> — bayar via metode di bawah
                               </p>
                             </div>
                           </div>

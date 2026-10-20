@@ -458,7 +458,7 @@ export default function AdminReports() {
                   <p className="text-[10px] text-zinc-400 font-bold uppercase">Kaos</p>
                 </div>
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800">
-                  <Gift className="w-5 h-5 text-purple-500 mb-2" />
+                  <Gift className="w-5 h-5 text-emerald-500 mb-2" />
                   <p className="text-2xl font-black text-zinc-900 dark:text-white">{programReport.total_family_members || 0}</p>
                   <p className="text-[10px] text-zinc-400 font-bold uppercase">Keluarga</p>
                 </div>

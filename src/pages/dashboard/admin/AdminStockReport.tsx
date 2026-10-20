@@ -140,7 +140,7 @@ export default function AdminStockReport() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg">
+          <div className="p-2.5 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
@@ -161,13 +161,13 @@ export default function AdminStockReport() {
           { label: 'Restock', value: totals.restock, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
           { label: 'Terjual', value: totals.sold, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20' },
           { label: 'Retur', value: totals.returned, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20' },
-          { label: 'Restore', value: totals.restored, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+          { label: 'Restore', value: totals.restored, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
           { label: 'Koreksi Manual', value: totals.manualUpdate, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
           { label: 'Stok Akhir', value: totals.stockAkhir, color: 'text-zinc-800', bg: 'bg-zinc-100 dark:bg-zinc-700' },
         ].map(card => (
           <div key={card.label} className={`${card.bg} rounded-xl p-4 border border-zinc-200/50 dark:border-zinc-700/50`}>
             <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">{card.label}</div>
-            <div className={`text-xl font-bold ${card.color} tabular-nums`}>{card.value.toLocaleString('id-ID')}</div>
+            <div className={`text-xl font-bold ${card.color} tabular-nums`}>{(Number(card.value) || 0).toLocaleString('id-ID')}</div>
           </div>
         ))}
       </motion.div>
@@ -219,7 +219,7 @@ export default function AdminStockReport() {
                   <th className="text-right px-4 py-3 font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Restock</th>
                   <th className="text-right px-4 py-3 font-semibold text-orange-600 dark:text-orange-400 whitespace-nowrap">Terjual</th>
                   <th className="text-right px-4 py-3 font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">Retur</th>
-                  <th className="text-right px-4 py-3 font-semibold text-purple-600 dark:text-purple-400 whitespace-nowrap">Restore</th>
+                  <th className="text-right px-4 py-3 font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">Restore</th>
                   <th className="text-right px-4 py-3 font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">Koreksi Manual</th>
                   <th className="text-right px-4 py-3 font-semibold text-zinc-600 dark:text-zinc-300 whitespace-nowrap">Stok Akhir</th>
                 </tr>
@@ -236,7 +236,7 @@ export default function AdminStockReport() {
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">{p.totalRestock > 0 ? `+${p.totalRestock}` : '—'}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-orange-600 dark:text-orange-400 font-medium">{p.totalSold > 0 ? `-${p.totalSold}` : '—'}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-rose-600 dark:text-rose-400 font-medium">{p.totalReturned > 0 ? `-${p.totalReturned}` : '—'}</td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums text-purple-600 dark:text-purple-400 font-medium">{p.totalRestored > 0 ? `+${p.totalRestored}` : '—'}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400 font-medium">{p.totalRestored > 0 ? `+${p.totalRestored}` : '—'}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums text-amber-600 dark:text-amber-400 font-medium">{p.totalManualUpdate !== 0 ? `${p.totalManualUpdate > 0 ? '+' : ''}${p.totalManualUpdate}` : '—'}</td>
                     <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-zinc-800 dark:text-zinc-100">{p.currentStock}</td>
                   </tr>
@@ -250,7 +250,7 @@ export default function AdminStockReport() {
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-emerald-600">{totals.restock}</td>
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-orange-600">{totals.sold}</td>
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-blue-600">{totals.returned}</td>
-                  <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-purple-600">{totals.restored}</td>
+                  <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-emerald-600">{totals.restored}</td>
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums text-amber-600">{totals.manualUpdate !== 0 ? (totals.manualUpdate > 0 ? `+${totals.manualUpdate}` : `${totals.manualUpdate}`) : '—'}</td>
                   <td className="px-4 py-3 text-right font-bold font-mono tabular-nums">{totals.stockAkhir}</td>
                 </tr>

@@ -36,7 +36,7 @@ export interface ManualPaymentStepProps {
 const statusConfig: Record<ManualPaymentStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
   idle: { label: 'Menunggu bukti pembayaran', icon: ReceiptText, className: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300' },
   pending: { label: 'Bukti siap diverifikasi', icon: ShieldCheck, className: 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300' },
-  verifying: { label: 'Memverifikasi pembayaran', icon: Loader2, className: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300' },
+  verifying: { label: 'Memverifikasi pembayaran', icon: Loader2, className: 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300' },
   verified: { label: 'Pembayaran terverifikasi', icon: CheckCircle2, className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' },
   rejected: { label: 'Bukti belum dapat diverifikasi', icon: XCircle, className: 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300' },
 };
@@ -120,7 +120,7 @@ export function ManualPaymentStep({
 
       <div className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-start gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">
             <UploadCloud aria-hidden="true" className="size-5" />
           </div>
           <div>
@@ -157,7 +157,7 @@ export function ManualPaymentStep({
               </div>
             </div>
           ) : (
-            <label htmlFor={fileInputId} className={cx('flex min-h-44 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition hover:border-indigo-400 hover:bg-indigo-50/40 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-950/40 dark:hover:border-indigo-600 dark:hover:bg-indigo-950/20', (disabled || !onProofSelect) && 'cursor-not-allowed opacity-60')}>
+            <label htmlFor={fileInputId} className={cx('flex min-h-44 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50/40 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 dark:border-zinc-700 dark:bg-zinc-950/40 dark:hover:border-blue-600 dark:hover:bg-blue-950/20', (disabled || !onProofSelect) && 'cursor-not-allowed opacity-60')}>
               <input
                 id={fileInputId}
                 type="file"
@@ -170,7 +170,7 @@ export function ManualPaymentStep({
                   event.currentTarget.value = '';
                 }}
               />
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-indigo-600 shadow-sm dark:bg-zinc-900 dark:text-indigo-300"><UploadCloud aria-hidden="true" className="size-5" /></span>
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm dark:bg-zinc-900 dark:text-blue-300"><UploadCloud aria-hidden="true" className="size-5" /></span>
               <span className="mt-4 text-sm font-bold text-zinc-800 dark:text-zinc-100">Pilih foto atau screenshot</span>
               <span className="mt-1 text-xs text-zinc-400">JPG, PNG, atau WebP</span>
             </label>
@@ -187,7 +187,7 @@ export function ManualPaymentStep({
             type="button"
             onClick={onVerify}
             disabled={disabled || !hasProof || status === 'verifying'}
-            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:-translate-y-0.5 hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:focus-visible:ring-offset-zinc-900"
+            className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:focus-visible:ring-offset-zinc-900"
           >
             {status === 'verifying' ? <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <ShieldCheck aria-hidden="true" className="size-4" />}
             {status === 'verifying' ? 'Sedang memverifikasi…' : verifyLabel}

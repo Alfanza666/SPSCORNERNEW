@@ -160,7 +160,7 @@ export default function AdminFeedbacks() {
               onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${
                 filter === f
-                  ? 'bg-purple-500 text-white'
+                  ? 'bg-emerald-500 text-white'
                   : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
               }`}
             >

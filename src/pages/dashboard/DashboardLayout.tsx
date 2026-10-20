@@ -42,7 +42,8 @@ import {
   QrCode,
   Plug,
   Camera,
-  FlaskConical
+  FlaskConical,
+  ArrowLeft
 } from 'lucide-react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { motion, AnimatePresence } from 'motion/react';
@@ -56,7 +57,7 @@ function DashboardErrorFallback({ error, resetErrorBoundary }: { error: Error, r
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-red-50 p-8 rounded-[2.5rem] max-w-md w-full border border-red-100 shadow-xl shadow-red-200/20"
+        className="bg-red-50 p-8 rounded-[2.5rem] max-w-md w-full border border-red-100 shadow-sm shadow-red-200/20"
       >
         <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
           <X className="w-8 h-8" />
@@ -288,7 +289,7 @@ export default function DashboardLayout() {
         label: "Ringkasan",
         icon: LayoutDashboard,
         items: [
-          { to: "/dashboard/admin", icon: LayoutDashboard, label: "Overview", tourClass: "tour-admin-sidebar-overview" },
+          { to: "/dashboard/admin", icon: LayoutDashboard, label: "Ringkasan", tourClass: "tour-admin-sidebar-overview" },
           { to: "/dashboard/admin/analytics", icon: BarChart3, label: "Analytics" }
         ]
       },
@@ -318,8 +319,8 @@ export default function DashboardLayout() {
         icon: Package,
         items: [
           { to: "/dashboard/admin/pickup", icon: Package, label: "Penyerahan Roti" },
-          { to: "/dashboard/admin/stock-requests", icon: Package, label: "Req. Restock", tourClass: "tour-admin-sidebar-stock-requests" },
-          { to: "/dashboard/admin/returns", icon: RotateCcw, label: "Req. Retur", tourClass: "tour-admin-sidebar-returns" },
+          { to: "/dashboard/admin/stock-requests", icon: Package, label: "Permintaan Restock", tourClass: "tour-admin-sidebar-stock-requests" },
+          { to: "/dashboard/admin/returns", icon: RotateCcw, label: "Permintaan Retur", tourClass: "tour-admin-sidebar-returns" },
           { to: "/dashboard/admin/stock-opname", icon: ClipboardList, label: "Stock Opname" },
           { to: "/dashboard/admin/stock-report", icon: BarChart3, label: "Laporan Stok" },
           { to: "/dashboard/admin/stock-trace", icon: Search, label: "Lacak Riwayat Stok" }
@@ -364,7 +365,7 @@ export default function DashboardLayout() {
     ];
 
     const sellerItems = [
-      { to: "/dashboard/seller", icon: LayoutDashboard, label: "Overview", tourClass: "tour-seller-sidebar-overview" },
+      { to: "/dashboard/seller", icon: LayoutDashboard, label: "Ringkasan", tourClass: "tour-seller-sidebar-overview" },
       { to: "/dashboard/seller/analytics", icon: BarChart3, label: "Analytics" },
       { to: "/dashboard/seller/products", icon: Package, label: "Produk Saya", tourClass: "tour-seller-sidebar-products" },
       { to: "/dashboard/seller/transactions", icon: ShoppingCart, label: "Pesanan Masuk", tourClass: "tour-seller-sidebar-transactions" },
@@ -603,7 +604,7 @@ export default function DashboardLayout() {
                       </div>
                     </div>
                     <div className="mb-3 text-center text-[8px] font-black uppercase tracking-[0.3em] text-zinc-300 dark:text-zinc-600">
-                      v6.2.0
+                      v6.2.1
                     </div>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm text-red-500 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 transition-all focus:outline-none"
@@ -625,6 +626,13 @@ export default function DashboardLayout() {
         {/* Top Header */}
         <header className="h-16 sm:h-20 lg:h-24 bg-white/85 dark:bg-zinc-900/85 sm:backdrop-blur-xl border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-3 sm:px-6 md:px-12 sticky top-0 z-20 shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] transition-colors duration-300">
           <div className="flex min-w-0 items-center gap-2 sm:gap-6">
+            <button
+              onClick={() => navigate(-1)}
+              aria-label="Kembali"
+              className="lg:hidden clay-icon h-10 w-10 shrink-0 bg-white text-zinc-500 hover:text-blue-600 sm:h-12 sm:w-12 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:text-blue-400"
+            >
+              <ArrowLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+            </button>
             <button
               onClick={() => setIsSidebarOpen(true)}
               className="lg:hidden clay-icon h-10 w-10 shrink-0 bg-white text-zinc-500 hover:text-blue-600 sm:h-12 sm:w-12 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:text-blue-400"

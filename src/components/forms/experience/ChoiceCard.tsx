@@ -50,9 +50,9 @@ export function ChoiceCard({
     <label
       htmlFor={inputId}
       className={cx(
-        'group relative flex min-h-28 cursor-pointer overflow-hidden rounded-3xl border bg-white p-4 text-left shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 motion-reduce:transition-none sm:p-5 dark:bg-zinc-900 dark:focus-within:ring-offset-zinc-950',
+        'group relative flex min-h-28 cursor-pointer overflow-hidden rounded-3xl border bg-white p-4 text-left shadow-sm transition duration-200 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 motion-reduce:transition-none sm:p-5 dark:bg-zinc-900 dark:focus-within:ring-offset-zinc-950',
         selected
-          ? 'border-indigo-500 shadow-[0_18px_45px_-28px_rgba(79,70,229,0.8)] ring-1 ring-indigo-500'
+          ? 'border-blue-500 shadow-[0_18px_45px_-28px_rgba(79,70,229,0.8)] ring-1 ring-blue-500'
           : 'border-zinc-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-lg dark:border-zinc-800 dark:hover:border-zinc-700',
         disabled && 'cursor-not-allowed opacity-55 hover:translate-y-0 hover:shadow-sm',
         imageUrl ? 'flex-col p-0' : 'items-start gap-4',
@@ -79,7 +79,7 @@ export function ChoiceCard({
             aria-hidden="true"
             className={cx(
               'absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border-2 shadow-lg backdrop-blur transition',
-              selected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-white/90 bg-white/80 text-transparent',
+              selected ? 'border-blue-600 bg-blue-600 text-white' : 'border-white/90 bg-white/80 text-transparent',
             )}
           >
             <Check className="size-4" />
@@ -90,7 +90,7 @@ export function ChoiceCard({
           aria-hidden="true"
           className={cx(
             'flex size-11 shrink-0 items-center justify-center rounded-2xl transition',
-            selected ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300',
+            selected ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300',
           )}
         >
           {selected ? <Check className="size-5" /> : icon ?? <span className="size-2 rounded-full bg-current" />}
